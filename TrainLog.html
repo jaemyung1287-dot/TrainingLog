@@ -3908,12 +3908,12 @@ function renderPlanAccordion(){
           const cType=ex.planContractionType||'';
           const cVal=ex.planContractionValue||'';
           const ctypes=['','Concentric','Eccentric','Isometric','Eccentric-Concentric','Isometric-Concentric'];
-          const ctypeOpts=ctypes.map(c=>`<option value="${c}" ${cType===c?'selected':''}>${c||'— Contraction Type'}</option>`).join('');
+          const ctypeOpts=ctypes.map(c=>`<option value="${c}" ${cType===c?'selected':''}>${c||'Contraction Type'}</option>`).join('');
           let cValField='';
           if(cType==='Concentric'){
             const tempos=['','Ballistic','Fast','Controlled','Slow'];
-            const tempoOpts=tempos.map(t=>`<option value="${t}" ${cVal===t?'selected':''}>${t||'— Tempo'}</option>`).join('');
-            cValField=`<select class="mini-in" style="font-size:11px;padding:6px 4px" onchange="_updatePlanEx(${globalIdx},'planContractionValue',this.value)"><option value="">— Tempo</option>${tempoOpts}</select>`;
+            const tempoOpts=tempos.map(t=>`<option value="${t}" ${cVal===t?'selected':''}>${t||'Tempo'}</option>`).join('');
+            cValField=`<select class="mini-in" style="font-size:11px;padding:6px 4px" onchange="_updatePlanEx(${globalIdx},'planContractionValue',this.value)"><option value="">Tempo</option>${tempoOpts}</select>`;
           } else if(cType){
             cValField=`<input class="mini-in" type="number" placeholder="sec" value="${cVal}" oninput="_updatePlanEx(${globalIdx},'planContractionValue',this.value)" style="font-size:13px;padding:8px 4px">`;
           }
