@@ -3911,7 +3911,7 @@ function renderPlanAccordion(){
           const ctypeOpts=ctypes.map(c=>`<option value="${c}" ${cType===c?'selected':''}>${c||'— Contraction Type'}</option>`).join('');
           let cValField='';
           if(cType==='Concentric'){
-            const tempos=['','Fast Con','Moderate Con','Slow Contraction'];
+            const tempos=['','Ballistic','Fast','Controlled','Slow'];
             const tempoOpts=tempos.map(t=>`<option value="${t}" ${cVal===t?'selected':''}>${t||'— Tempo'}</option>`).join('');
             cValField=`<select class="mini-in" style="font-size:11px;padding:6px 4px" onchange="_updatePlanEx(${globalIdx},'planContractionValue',this.value)"><option value="">— Tempo</option>${tempoOpts}</select>`;
           } else if(cType){
