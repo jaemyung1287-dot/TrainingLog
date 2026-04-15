@@ -1709,6 +1709,8 @@ function selectType(t){
         // Store plan values for edited-detection
         planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
         planDistance:e.planDistance||'',
+        // Contraction fields (coach-set, athlete read-only)
+        planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
         // Plyo-specific plan fields
         planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
         // Pre-fill athlete fields from plan
@@ -1989,6 +1991,17 @@ function renderExList(){
       if(fromPlan&&ex.planSets) _liftPlanParts.push(`${ex.planSets} sets`);
       if(fromPlan&&ex.planReps) _liftPlanParts.push(`${ex.planReps} reps`);
       const liftPlanSummary=_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}</div>`:'';
+      // Contraction info (read-only for athlete)
+      let contractionBadge='';
+      if(fromPlan&&ex.planContractionType){
+        const cLabel=ex.planContractionType==='Concentric'
+          ?(ex.planContractionValue?`${ex.planContractionType} · ${ex.planContractionValue}`:ex.planContractionType)
+          :`${ex.planContractionType}${ex.planContractionValue?' · '+ex.planContractionValue+'s':''}`;
+        contractionBadge=`<div style="margin-top:6px;display:flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);border-radius:8px">
+          <span style="font-size:10px;font-weight:700;color:rgba(167,139,250,.7);letter-spacing:.05em">CONTRACTION</span>
+          <span style="font-size:12px;font-weight:700;color:#a78bfa">${cLabel}</span>
+        </div>`;
+      }
 
       // Auto-detect intensity mode from exercise name
       const isBW=ex.isBodyweight||BW_EXERCISES.has(ex.name);
@@ -2042,7 +2055,7 @@ function renderExList(){
             <div class="mini-lbl">Reps${repsEdited?' ✎':''}</div>
           </div>
         </div>
-        ${liftPlanSummary}`;
+        ${liftPlanSummary}${contractionBadge}`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -3891,23 +3904,52 @@ function renderPlanAccordion(){
         if(typeParams==='lifting'){
           const bwOn=ex.isBW||false;
           const bwBtnStyle=`font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;border:1px solid ${bwOn?'rgba(62,207,142,.6)':'rgba(255,255,255,.15)'};background:${bwOn?'rgba(62,207,142,.2)':'transparent'};color:${bwOn?'#3ecf8e':'var(--muted)'};cursor:pointer`;
+          // Contraction type & time/tempo
+          const cType=ex.planContractionType||'';
+          const cVal=ex.planContractionValue||'';
+          const ctypes=['','Concentric','Eccentric','Isometric','Eccentric-Concentric','Isometric-Concentric'];
+          const ctypeOpts=ctypes.map(c=>`<option value="${c}" ${cType===c?'selected':''}>${c||'— Contraction Type'}</option>`).join('');
+          let cValField='';
+          if(cType==='Concentric'){
+            const tempos=['','Fast Con','Moderate Con','Slow Contraction'];
+            const tempoOpts=tempos.map(t=>`<option value="${t}" ${cVal===t?'selected':''}>${t||'— Tempo'}</option>`).join('');
+            cValField=`<select class="mini-in" style="font-size:11px;padding:6px 4px" onchange="_updatePlanEx(${globalIdx},'planContractionValue',this.value)"><option value="">— Tempo</option>${tempoOpts}</select>`;
+          } else if(cType){
+            cValField=`<input class="mini-in" type="number" placeholder="sec" value="${cVal}" oninput="_updatePlanEx(${globalIdx},'planContractionValue',this.value)" style="font-size:13px;padding:8px 4px">`;
+          }
+          const cLabel=cType==='Concentric'?'Tempo':(cType?'Time (s)':'');
           fieldsHtml=`
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <span style="font-size:11px;color:var(--muted)">Body Weight 모드:</span>
             <button style="${bwBtnStyle}" onclick="_togglePlanExBW(${globalIdx})">${bwOn?'✓ BW':'BW'}</button>
             ${bwOn?`<span style="font-size:10px;color:var(--muted)">(선수 체중 자동 입력)</span>`:''}
           </div>
-          <div class="ex-nums" style="grid-template-columns:repeat(3,1fr);gap:6px">
+          <div class="ex-nums" style="grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planIntensity||''}" oninput="_updatePlanEx(${globalIdx},'planIntensity',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Int %</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Reps</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:${cType&&cType!==''?'1fr 1fr':'1fr'};gap:6px">
+            <div class="mini-wrap">
+              <select class="mini-in" style="font-size:11px;padding:6px 4px" onchange="_updatePlanEx(${globalIdx},'planContractionType',this.value);renderPlanAccordion()">${ctypeOpts}</select>
+              <div class="mini-lbl">Contraction</div>
+            </div>
+            ${cType?`<div class="mini-wrap">${cValField}<div class="mini-lbl">${cLabel}</div></div>`:''}
           </div>`;
         } else if(typeParams==='sprint'){
-          fieldsHtml=`<div class="ex-nums" style="grid-template-columns:repeat(4,1fr);gap:6px">
+          // Energy system selector (coach only)
+          const eSys=ex.planEnergySystem||'';
+          const esystems=['','ATP-PC (Phosphagen)','Glycolytic (Lactic)','Oxidative (Aerobic)'];
+          const esysOpts=esystems.map(s=>`<option value="${s}" ${eSys===s?'selected':''}>${s||'— Energy System'}</option>`).join('');
+          fieldsHtml=`<div class="ex-nums" style="grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planIntensity||''}" oninput="_updatePlanEx(${globalIdx},'planIntensity',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Int %</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Reps</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planDistance||''}" oninput="_updatePlanEx(${globalIdx},'planDistance',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Dist (m)</div></div>
+          </div>
+          <div class="mini-wrap" style="width:100%">
+            <select class="mini-in" style="font-size:11px;padding:6px 4px;width:100%" onchange="_updatePlanEx(${globalIdx},'planEnergySystem',this.value)">${esysOpts}</select>
+            <div class="mini-lbl">⚡ Energy System</div>
           </div>`;
         } else if(typeParams==='plyo'){
           const repType=ex.planRepType||'reps';
@@ -4190,8 +4232,8 @@ function _addPlanExToData(type,sub,name){
   const params=TRAINING_STRUCTURE[type]?.params||'lifting';
   const isBW=BW_EXERCISES.has(name);
   const exObj={name,trainingType:type,subCategory:sub,isBW};
-  if(params==='lifting'){ exObj.planIntensity=''; exObj.planSets=''; exObj.planReps=''; }
-  else if(params==='sprint'){ exObj.planIntensity=''; exObj.planSets=''; exObj.planReps=''; exObj.planDistance=''; }
+  if(params==='lifting'){ exObj.planIntensity=''; exObj.planSets=''; exObj.planReps=''; exObj.planContractionType=''; exObj.planContractionValue=''; }
+  else if(params==='sprint'){ exObj.planIntensity=''; exObj.planSets=''; exObj.planReps=''; exObj.planDistance=''; exObj.planEnergySystem=''; }
   else if(params==='plyo'){ exObj.planSets=''; exObj.planReps=''; exObj.planRepType='reps'; exObj.planLegMode='DL'; }
   grpPlan[sess].exercises.push(exObj);
   plan[ST._planGroup]=grpPlan;
