@@ -581,7 +581,7 @@ tr:last-child td{border-bottom:none}
     <span class="logo" id="w-screen-logo">🏋️ Weights</span>
   </div>
   <div class="ttl" id="w-screen-title">Weight Training</div>
-  <div id="w-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ 수정 중 — 저장하면 기존 기록이 업데이트돼요</div>
+  <div id="w-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ Editing · Bearbeitung — saving will update this log</div>
   <div id="w-progress-bar" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
       <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Progress · Fortschritt</span>
@@ -627,7 +627,7 @@ tr:last-child td{border-bottom:none}
     <span class="logo">⚡ Sprint</span>
   </div>
   <div class="ttl">Sprint Training</div>
-  <div id="sp-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ 수정 중 — 저장하면 기존 기록이 업데이트돼요</div>
+  <div id="sp-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ Editing · Bearbeitung — saving will update this log</div>
   <div id="sp-progress-bar" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
       <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Progress · Fortschritt</span>
@@ -762,7 +762,7 @@ tr:last-child td{border-bottom:none}
     <button class="btn btn-s" onclick="goHome()" style="max-width:300px">Home</button>
   </div>
   <div style="margin-top:8px">
-    <div class="sec-ttl" style="margin-bottom:10px">최근 기록</div>
+    <div class="sec-ttl" style="margin-bottom:10px">Recent Logs · Letzte Einträge</div>
     <div id="success-recent-logs"></div>
   </div>
 </div>
@@ -801,7 +801,7 @@ tr:last-child td{border-bottom:none}
   <div id="team-anon-stats"></div>
   <div class="sec-ttl" style="margin-top:20px">🏅 My Records · Meine Bestzeiten</div>
   <div id="my-records-list"></div>
-  <div class="sec-ttl" style="margin-top:20px">📋 최근 기록</div>
+  <div class="sec-ttl" style="margin-top:20px">📋 Recent Logs · Letzte Einträge</div>
   <div id="my-recent-logs"></div>
 </div>
 
@@ -2007,7 +2007,7 @@ function _renderAthRecentLogs(targetId){
   const wrap=document.getElementById(targetId); if(!wrap||!ST.athlete) return;
   const d=getData();
   const logs=d.logs.filter(l=>l.athleteName===ST.athlete.name&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint')).slice(-8).reverse();
-  if(!logs.length){ wrap.innerHTML='<div class="empty" style="padding:10px 0">아직 기록이 없어요</div>'; return; }
+  if(!logs.length){ wrap.innerHTML='<div class="empty" style="padding:10px 0">No logs yet · Noch keine Einträge</div>'; return; }
   const typeLbl={weight:'🏋️ Weight',plyo:'🦘 Plyo',sprint:'⚡ Sprint'};
   const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s'};
   wrap.innerHTML=logs.map(l=>{
@@ -2025,10 +2025,10 @@ function _renderAthRecentLogs(targetId){
         <span style="font-size:12px;color:var(--muted)">${l.date}</span>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="badge ${typeBadge[l.type]}">${l.type}</span>
-          <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ 수정</button>
+          <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
         </div>
       </div>
-      <div class="detail-row"><span class="detail-key">기록</span><span class="detail-val">${stat}</span></div>
+      <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
       ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
     </div>`;
   }).join('');
@@ -2398,9 +2398,15 @@ function toggleBW(i){ ST.exercises[i].isBodyweight=!ST.exercises[i].isBodyweight
 function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:''}); renderExList(); }
 function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exercises.push({name:'',intensity:'',weight:'',sets:'',reps:'',effort:''}); renderExList(); }
 
-function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add'
+function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 'confirmed'
   const allExs=ST.exercises.filter(e=>e.name&&e.name.trim());
   if(!allExs.length){ showToast('Add at least one exercise'); return; }
+
+  // Pre-save confirmation (first call only, not in edit mode)
+  if(!dupMode && !ST.editingLogId){
+    _showSaveConfirmModal(()=>saveWeight('confirmed'));
+    return;
+  }
 
   // Split exercises by their training params type
   const _params=(e)=>TRAINING_STRUCTURE[e.trainingType]?.params||'lifting';
@@ -2408,8 +2414,8 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add'
   const plyoExs=allExs.filter(e=>_params(e)==='plyo');
   const sprintExs=allExs.filter(e=>_params(e)==='sprint');
 
-  // ── Duplicate detection (skip in edit mode) ──
-  if(!ST.editingLogId && !dupMode){
+  // ── Duplicate detection (runs after confirmation, before actual save) ──
+  if(!ST.editingLogId && dupMode==='confirmed'){
     const d0=getData(); const today=todayStr(); const athName=ST.athlete.name;
     const dups=[];
     if(liftingExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='weight')) dups.push({lbl:'Weight',type:'weight'});
@@ -2529,7 +2535,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add'
 
   saveData(d);
   const _wasEdit=!!document.getElementById('w-edit-banner')?.style.display?.includes('block');
-  document.getElementById('success-msg').textContent=_wasEdit?`수정 완료! ✅ ${summaryParts.join(' · ')}`:`Session saved! ${summaryParts.join(' · ')}`;
+  document.getElementById('success-msg').textContent=_wasEdit?`Updated! · Aktualisiert! ✅ ${summaryParts.join(' · ')}`:`Session saved! · Einheit gespeichert! ${summaryParts.join(' · ')}`;
   _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
 }
@@ -2687,8 +2693,14 @@ function saveSprint(dupMode){
   if(!sets.length){ showToast('Enter at least one distance'); return; }
   const totalDist=sets.reduce((sum,s)=>sum+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
 
-  // ── Duplicate detection (skip in edit mode) ──
-  if(!ST.editingLogId && !dupMode){
+  // Pre-save confirmation (first call only, not in edit mode)
+  if(!dupMode && !ST.editingLogId){
+    _showSaveConfirmModal(()=>saveSprint('confirmed'));
+    return;
+  }
+
+  // ── Duplicate detection (runs after confirmation) ──
+  if(!ST.editingLogId && dupMode==='confirmed'){
     const d0=getData(); const today=todayStr(); const athName=ST.athlete.name;
     if(d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint')){
       _showDupModal('Sprint',
@@ -3693,17 +3705,38 @@ function clearAllData(){
   // Switch to Today tab and re-render everything from scratch
   switchTab('today', document.getElementById('tb-today'));
 }
+// ── Pre-save confirmation modal ──
+function _showSaveConfirmModal(onConfirm){
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
+  el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:24px 20px 36px;width:100%;max-width:480px;border-top:1px solid var(--border)">
+    <div style="font-size:22px;text-align:center;margin-bottom:10px">🔍</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;text-align:center">Did you enter everything correctly?</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:6px;text-align:center">Please double-check your numbers before saving.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:22px;text-align:center">Bitte überprüfe deine Eingaben noch einmal.</div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <button id="_sc-confirm" style="padding:14px;border-radius:12px;background:#3ecf8e;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save log · Eintrag speichern</button>
+      <button id="_sc-review" style="padding:14px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Review again · Nochmal prüfen</button>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  const rm=()=>document.body.removeChild(el);
+  el.querySelector('#_sc-confirm').onclick=()=>{rm();onConfirm();};
+  el.querySelector('#_sc-review').onclick=()=>rm();
+  el.onclick=(ev)=>{if(ev.target===el)rm();};
+}
+
 // ── Duplicate detection modal ──
 function _showDupModal(typeLbl, onReplace, onKeep){
   const el=document.createElement('div');
   el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
   el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:24px 20px 36px;width:100%;max-width:480px;border-top:1px solid var(--border)">
-    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">이미 오늘 기록이 있어요</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">오늘 <b style="color:var(--text)">${typeLbl}</b> 로그가 이미 있어요. 어떻게 할까요?</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Log already exists · Eintrag existiert bereits</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">A <b style="color:var(--text)">${typeLbl}</b> log already exists for today. What would you like to do? · Was möchtest du tun?</div>
     <div style="display:flex;flex-direction:column;gap:9px">
-      <button id="_dup-rep" style="padding:14px;border-radius:12px;background:#4f8ef7;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">교체하기 (기존 기록 삭제)</button>
-      <button id="_dup-add" style="padding:14px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">그냥 추가</button>
-      <button id="_dup-cxl" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">취소</button>
+      <button id="_dup-rep" style="padding:14px;border-radius:12px;background:#4f8ef7;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Replace · Ersetzen (deletes existing)</button>
+      <button id="_dup-add" style="padding:14px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Add anyway · Trotzdem hinzufügen</button>
+      <button id="_dup-cxl" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Cancel · Abbrechen</button>
     </div>
   </div>`;
   document.body.appendChild(el);
@@ -3755,8 +3788,8 @@ function _editLog(logId){
     document.getElementById('w-cooldown-box').style.display='none';
     document.getElementById('w-add-ex-btn').style.display='none';
     document.getElementById('w-edit-banner').style.display='block';
-    document.getElementById('w-screen-title').textContent='기록 수정';
-    document.getElementById('w-screen-logo').textContent='✏️ 수정';
+    document.getElementById('w-screen-title').textContent='Edit Log · Eintrag bearbeiten';
+    document.getElementById('w-screen-logo').textContent='✏️ Edit';
     renderExList();
     showScreen('s-weight');
   } else if(log.type==='sprint'){
