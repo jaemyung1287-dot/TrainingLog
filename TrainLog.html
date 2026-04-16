@@ -1649,7 +1649,8 @@ function goLogTraining(){
       if(!exs.length) return '';
       const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
       const isSprintOnly=exs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
-      const typeHint=isSprintOnly?'⚡ Sprint':'🏋️ Weight';
+      const hasSprint=exs.some(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
+      const typeHint=isSprintOnly?'⚡ Sprint':hasSprint?'🏋️⚡ Mixed':'🏋️ Weight';
       const previewLines=exs.slice(0,5).map(e=>{
         let detail='';
         {const dp=[];
@@ -2203,41 +2204,99 @@ function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory
 function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exercises.push({name:'',intensity:'',weight:'',sets:'',reps:'',effort:''}); renderExList(); }
 
 function saveWeight(){
-  const exs=ST.exercises.filter(e=>e.name&&e.name.trim());
-  if(!exs.length){ showToast('Add at least one exercise'); return; }
-  const totalVol=exs.reduce((s,e)=>{
-    const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
-    const bwBase=isBW?(parseFloat(e.weight)||0):0;
-    const w=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
-    return s+w*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
-  },0);
-  const log={
-    id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',
-    phase:document.getElementById('w-phase').value,
-    week:document.getElementById('w-week').value,
-    exercises:exs.map(e=>{
+  const allExs=ST.exercises.filter(e=>e.name&&e.name.trim());
+  if(!allExs.length){ showToast('Add at least one exercise'); return; }
+
+  // Split exercises by their training params type
+  const _params=(e)=>TRAINING_STRUCTURE[e.trainingType]?.params||'lifting';
+  const liftingExs=allExs.filter(e=>_params(e)==='lifting');
+  const plyoExs=allExs.filter(e=>_params(e)==='plyo');
+  const sprintExs=allExs.filter(e=>_params(e)==='sprint');
+
+  const d=getData();
+  const phase=document.getElementById('w-phase').value;
+  const week=document.getElementById('w-week').value;
+  const rpe=parseInt(document.getElementById('sl-wrpe').value);
+  const notes=document.getElementById('weight-notes').value;
+  const summaryParts=[];
+
+  // ── Weight / Lifting log ──
+  if(liftingExs.length){
+    const totalVol=liftingExs.reduce((s,e)=>{
       const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
       const bwBase=isBW?(parseFloat(e.weight)||0):0;
-      const savedW=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
-      return {
-        name:e.name,
-        trainingType:e.trainingType||null, subCategory:e.subCategory||null,
-        planIntensity:e.planIntensity!==undefined?parseFloat(e.planIntensity)||null:null,
-        intensity:e.intensity!==''&&e.intensity!==null&&e.intensity!==undefined?parseFloat(e.intensity):null,
-        weight:savedW, bwBase:isBW?bwBase:null,
-        isBodyweight:isBW, extraKg:isBW?parseFloat(e.extraKg)||0:null,
+      const w=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
+      return s+w*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
+    },0);
+    d.logs.push({
+      id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',
+      phase,week,
+      exercises:liftingExs.map(e=>{
+        const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
+        const bwBase=isBW?(parseFloat(e.weight)||0):0;
+        const savedW=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
+        return {
+          name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
+          planIntensity:e.planIntensity!==undefined?parseFloat(e.planIntensity)||null:null,
+          intensity:e.intensity!==''&&e.intensity!==null&&e.intensity!==undefined?parseFloat(e.intensity):null,
+          weight:savedW, bwBase:isBW?bwBase:null,
+          isBodyweight:isBW, extraKg:isBW?parseFloat(e.extraKg)||0:null,
+          sets:parseInt(e.sets)||0, reps:parseInt(e.reps)||0,
+          effort:e.effort||null, fromPlan:e.fromPlan||false,
+          meanV:e.meanV?parseFloat(e.meanV):null, peakV:e.peakV?parseFloat(e.peakV):null,
+          planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null, planRestType:e.planRestType||[]
+        };
+      }),
+      totalVolume:Math.round(totalVol), rpe, notes
+    });
+    summaryParts.push(`${Math.round(totalVol).toLocaleString()} kg 🏋️`);
+  }
+
+  // ── Plyo log ──
+  if(plyoExs.length){
+    const totalReps=plyoExs.reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
+    d.logs.push({
+      id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'plyo',
+      phase,week,
+      exercises:plyoExs.map(e=>({
+        name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
+        planSets:e.planSets||null, planReps:e.planReps||null,
+        planLegMode:e.planLegMode||null, planRepType:e.planRepType||'reps',
         sets:parseInt(e.sets)||0, reps:parseInt(e.reps)||0,
         effort:e.effort||null, fromPlan:e.fromPlan||false,
-        meanV:e.meanV?parseFloat(e.meanV):null, peakV:e.peakV?parseFloat(e.peakV):null,
-        planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null, planRestType:e.planRestType||[]
-      };
-    }),
-    totalVolume:Math.round(totalVol),
-    rpe:parseInt(document.getElementById('sl-wrpe').value),
-    notes:document.getElementById('weight-notes').value
-  };
-  const d=getData(); d.logs.push(log); saveData(d);
-  document.getElementById('success-msg').textContent=`Weight Training saved! Volume: ${Math.round(totalVol).toLocaleString()} kg 🏋️`;
+        planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null
+      })),
+      totalReps, rpe, notes
+    });
+    summaryParts.push(`${totalReps} reps 🦘`);
+  }
+
+  // ── Sprint log (from mixed session) ──
+  if(sprintExs.length){
+    const totalDist=Math.round(sprintExs.reduce((s,e)=>
+      s+(parseFloat(e.distance)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0));
+    d.logs.push({
+      id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
+      phase,week,
+      sprintType:sprintExs[0]?.subCategory||'Sprint Training',
+      sets:sprintExs.map(e=>({
+        name:e.name, subCategory:e.subCategory||null,
+        planIntensity:e.planIntensity?parseFloat(e.planIntensity):null,
+        intensity:parseFloat(e.intensity)||0,
+        distance:parseFloat(e.distance)||0,
+        sets:parseInt(e.sets)||1, reps:parseInt(e.reps)||1,
+        effort:e.effort||null, fromPlan:e.fromPlan||false,
+        planSets:e.planSets||null, planReps:e.planReps||null,
+        planDistance:e.planDistance?parseFloat(e.planDistance):null,
+        planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null
+      })),
+      totalDistance:totalDist, rpe, notes
+    });
+    summaryParts.push(`${totalDist.toLocaleString()} m ⚡`);
+  }
+
+  saveData(d);
+  document.getElementById('success-msg').textContent=`Session saved! ${summaryParts.join(' · ')}`;
   showScreen('s-success');
 }
 
@@ -2551,7 +2610,7 @@ function renderAthStats(){
 
   // Summary cards removed (rendered in charts below)
 
-  const sDist=dates.map(dt=>myLogs.filter(l=>l.type==='sprint'&&l.date===dt).reduce((s,l)=>s+l.totalDistance,0));
+  const sDist=dates.map(dt=>myLogs.filter(l=>l.type==='sprint'&&l.date===dt).reduce((s,l)=>s+(l.totalDistance||0),0));
   const fat=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].fatigue:null; });
   const mood=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].mood:null; });
   const slp=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].sleepQuality:null; });
@@ -2684,7 +2743,7 @@ function renderToday(){
   const d=getData(); const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
   const cl=tl.filter(l=>l.type==='condition');
-  const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint');
+  const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo');
   const dw=new Date();
   document.getElementById('coach-date-ttl').textContent=`${DAYS[dw.getDay()]}, ${dw.toLocaleString('en',{month:'long'})} ${dw.getDate()}`;
   const tvol=tr.filter(l=>l.type==='weight').reduce((s,l)=>s+l.totalVolume,0);
@@ -2712,12 +2771,25 @@ function renderToday(){
     const items=withEffort.map(e=>`<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">${_effortDot(e.effort)}<span>${e.name}</span></span>`).join('');
     return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)">${items}</div>`;
   };
-  tlw.innerHTML=tr.length?tr.map(l=>`<div class="detail-card">
-    <div class="detail-row"><span class="detail-key">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':'b-s'}">${l.type}</span>${_delBtn(l.id,'today')}</div></div>
-    <div class="detail-row"><span class="detail-key">${l.type==='weight'?'Volume':'Distance'}</span><span class="detail-val">${l.type==='weight'?l.totalVolume.toLocaleString()+' kg':l.totalDistance.toLocaleString()+' m'}</span></div>
-    <div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe??'—'}/10</span></div>
-    ${_effortRow(l)}
-  </div>`).join(''):'<div class="empty" style="padding:12px 0">No training logged today</div>';
+  const _logCard=(l)=>{
+    const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':'b-w';
+    const badgeText=l.type==='sprint'?'sprint':l.type==='plyo'?'plyo':'weight';
+    let statsHtml='';
+    if(l.type==='sprint'){
+      statsHtml=`<div class="detail-row"><span class="detail-key">Distance</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`;
+    } else if(l.type==='plyo'){
+      statsHtml=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${(l.totalReps||0).toLocaleString()}</span></div>`;
+    } else {
+      statsHtml=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${(l.totalVolume||0).toLocaleString()} kg</span></div>`;
+    }
+    return `<div class="detail-card">
+      <div class="detail-row"><span class="detail-key">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${badgeClass}">${badgeText}</span>${_delBtn(l.id,'today')}</div></div>
+      ${statsHtml}
+      <div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe??'—'}/10</span></div>
+      ${_effortRow(l)}
+    </div>`;
+  };
+  tlw.innerHTML=tr.length?tr.map(_logCard).join(''):'<div class="empty" style="padding:12px 0">No training logged today</div>';
   const clw=document.getElementById('today-cond-list');
   clw.innerHTML=cl.length?cl.map(l=>`<div class="detail-card">
     <div class="detail-row"><span class="detail-key" style="font-weight:700">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge b-c">Condition</span>${_delBtn(l.id,'today')}</div></div>
@@ -2872,7 +2944,7 @@ function openAthDetail(name){ ST._detailAthName=name;
     <div class="stat"><div class="stat-lbl">Avg Fatigue</div><div class="stat-val c-red">${af}</div></div>
     <div class="stat"><div class="stat-lbl">Avg Mood</div><div class="stat-val c-purple">${am}</div></div>`;
   mkChart('chart-detail-weight',[{label:'Volume (kg)',data:dates.map(dt=>logs.filter(l=>l.type==='weight'&&l.date===dt).reduce((s,l)=>s+l.totalVolume,0)),type:'bar',backgroundColor:'rgba(79,142,247,.7)'}],labels);
-  mkChart('chart-detail-sprint',[{label:'Distance (m)',data:dates.map(dt=>logs.filter(l=>l.type==='sprint'&&l.date===dt).reduce((s,l)=>s+l.totalDistance,0)),type:'bar',backgroundColor:'rgba(62,207,142,.7)'}],labels);
+  mkChart('chart-detail-sprint',[{label:'Distance (m)',data:dates.map(dt=>logs.filter(l=>l.type==='sprint'&&l.date===dt).reduce((s,l)=>s+(l.totalDistance||0),0)),type:'bar',backgroundColor:'rgba(62,207,142,.7)'}],labels);
   mkChart('chart-detail-condition',[
     {label:'Fatigue',data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].fatigue:null; }),borderColor:'#e94560',backgroundColor:'transparent',tension:.4,pointRadius:3},
     {label:'Mood',data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].mood:null; }),borderColor:'#3ecf8e',backgroundColor:'transparent',tension:.4,pointRadius:3},
@@ -2884,9 +2956,10 @@ function openAthDetail(name){ ST._detailAthName=name;
   const recent=d.logs.filter(l=>l.athleteName===name).slice(-20).reverse();
   const _dBtn=(id)=>`<button onclick="deleteLog('${id}','detail')" style="padding:3px 8px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
   document.getElementById('detail-logs').innerHTML=recent.length?recent.map(l=>`<div class="detail-card">
-    <div class="detail-row"><span class="detail-key">${l.date}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':l.type==='tabata'?'b-c':'b-c'}">${l.type}</span>${_dBtn(l.id)}</div></div>
-    ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${l.exercises.map(e=>`${e.name}${e.isBodyweight?`<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:5px;background:rgba(62,207,142,.2);color:#3ecf8e;margin-left:3px">BW${e.bwBase?` ${e.bwBase}kg`:''}</span>`:''}`).join(', ')}</span></div>`:''}
-    ${l.type==='sprint'?`<div class="detail-row"><span class="detail-key">Type</span><span class="detail-val">${l.sprintType}</span></div><div class="detail-row"><span class="detail-key">Total Dist</span><span class="detail-val">${l.totalDistance.toLocaleString()} m</span></div>`:''}
+    <div class="detail-row"><span class="detail-key">${l.date}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':'b-c'}">${l.type}</span>${_dBtn(l.id)}</div></div>
+    ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>`${e.name}${e.isBodyweight?`<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:5px;background:rgba(62,207,142,.2);color:#3ecf8e;margin-left:3px">BW${e.bwBase?` ${e.bwBase}kg`:''}</span>`:''}`).join(', ')}</span></div>`:''}
+    ${l.type==='sprint'?`<div class="detail-row"><span class="detail-key">Type</span><span class="detail-val">${l.sprintType||''}</span></div><div class="detail-row"><span class="detail-key">Total Dist</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`:''}
+    ${l.type==='plyo'?`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${(l.totalReps||0).toLocaleString()}</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>e.name).join(', ')}</span></div>`:''}
     ${l.type==='tabata'?`<div class="detail-row"><span class="detail-key">Completed</span><span class="detail-val">${l.completedRounds??'—'}/8 rounds</span></div>`:''}
     ${l.type==='condition'?`<div class="detail-row"><span class="detail-key">Sleep</span><span class="detail-val">${l.sleepHours}h · Q:${l.sleepQuality}</span></div><div class="detail-row"><span class="detail-key">Fatigue/Mood</span><span class="detail-val">${l.fatigue}/${l.mood}</span></div>`:''}
     ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
@@ -3276,6 +3349,7 @@ function exportExcel(){
   };
   const sloadHdr=['Date','Athlete','Group','Phase','Week','Sprint Category','Sprint Name','Distance (m)','Sets','Reps','Total Distance (m)','Intensity (%)','Rest Time','Rest Unit','Rest Type'];
   const sloadRows=[sloadHdr];
+  // ── Proper sprint logs ──
   d.logs.filter(l=>l.type==='sprint'&&!_isBulk(l)).forEach(l=>{
     (l.sets||[]).forEach(s=>{
       const cat=s.subCategory||l.sprintType||'Sprint Training';
@@ -3287,6 +3361,21 @@ function exportExcel(){
         s.distance||'', s.sets||'', s.reps||'',
         totalDist||'', s.intensity||'',
         s.planRestTime||'', s.planRestUnit||'', (s.planRestType||[]).join('+')
+      ]);
+    });
+  });
+  // ── Legacy: sprint exercises embedded in weight logs (old format) ──
+  d.logs.filter(l=>l.type==='weight'&&!_isBulk(l)).forEach(l=>{
+    (l.exercises||[]).filter(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint').forEach(e=>{
+      const cat=e.subCategory||'Sprint Training';
+      const totalDist=(parseFloat(e.distance)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
+      sloadRows.push([
+        l.date, l.athleteName, l.group||'', l.phase||'', l.week||'',
+        SPRINT_CAT_LABEL[cat]||cat,
+        e.name||'–',
+        e.distance||'', e.sets||'', e.reps||'',
+        totalDist||'', e.intensity||'',
+        e.planRestTime||'', e.planRestUnit||'', (e.planRestType||[]).join('+')
       ]);
     });
   });
