@@ -212,6 +212,8 @@ tr:last-child td{border-bottom:none}
 .plan-rt-chip.sel-reps{border-color:rgba(247,169,79,.5);background:rgba(247,169,79,.12);color:#f7a94f}
 .plan-ex-del{background:none;border:none;color:rgba(255,255,255,.25);font-size:16px;cursor:pointer;padding:2px 6px;border-radius:6px;transition:color .15s;font-family:inherit}
 .plan-ex-del:hover{color:var(--accent)}
+.plan-ex-dup{background:none;border:none;color:rgba(79,142,247,.4);font-size:16px;cursor:pointer;padding:2px 6px;border-radius:6px;transition:color .15s;font-family:inherit}
+.plan-ex-dup:hover{color:rgba(79,142,247,.9)}
 .plan-add-btn{display:flex;align-items:center;gap:8px;width:100%;background:none;border:1px dashed rgba(255,255,255,.12);border-radius:8px;padding:9px 14px;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer;margin-top:4px;transition:all .15s;font-family:inherit;text-align:left}
 .plan-add-btn:hover{border-color:rgba(255,255,255,.28);color:rgba(255,255,255,.7);background:rgba(255,255,255,.03)}
 .plan-input-row{display:flex;gap:6px;margin-top:6px}
@@ -4078,13 +4080,24 @@ function renderPlanAccordion(){
         item.className='plan-ex-item';
         // Build parameter fields based on category params type
         // Shared two-field rest helper (used by all exercise types)
-        const _restTwo=(idx)=>{
+        const _restInline=(idx)=>{
           const sr=ex.planRestTime||''; const su=ex.planRestUnit||'s';
           const rr=ex.planRestTimeReps||''; const ru=ex.planRestUnitReps||'s';
-          const _rw=(val,unit,tKey,uKey)=>`<div class="plan-rest-wrap" style="flex:1"><input class="plan-rest-num" style="width:30px" type="number" placeholder="—" value="${val}" oninput="_updatePlanEx(${idx},'${tKey}',this.value)"><button class="plan-rest-utb${unit==='m'?' on':''}" onclick="_updatePlanEx(${idx},'${uKey}','m');renderPlanAccordion()">m</button><button class="plan-rest-utb${unit==='s'?' on':''}" onclick="_updatePlanEx(${idx},'${uKey}','s');renderPlanAccordion()">s</button></div>`;
-          return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
-            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;color:var(--muted);font-weight:700;flex-shrink:0">Sets rest</span>${_rw(sr,su,'planRestTime','planRestUnit')}</div>
-            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;color:var(--muted);font-weight:700;flex-shrink:0">Reps rest</span>${_rw(rr,ru,'planRestTimeReps','planRestUnitReps')}</div>
+          const _rw=(val,unit,tKey,uKey,lbl)=>
+            `<div class="mini-wrap" style="flex-shrink:0">
+              <div style="display:flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;height:34px">
+                <input type="number" placeholder="—" value="${val}" oninput="_updatePlanEx(${idx},'${tKey}',this.value)"
+                  style="width:26px;background:none;border:none;outline:none;color:var(--text);font-size:12px;font-weight:700;text-align:center;padding:0 2px;font-family:inherit">
+                <div style="display:flex;flex-direction:column;height:100%;border-left:1px solid var(--border)">
+                  <button onclick="_updatePlanEx(${idx},'${uKey}','m');renderPlanAccordion()" style="flex:1;background:${unit==='m'?'rgba(79,142,247,.2)':'none'};border:none;border-bottom:1px solid var(--border);color:${unit==='m'?'#4f8ef7':'var(--muted)'};font-size:9px;font-weight:700;cursor:pointer;padding:0 5px;font-family:inherit;line-height:1">m</button>
+                  <button onclick="_updatePlanEx(${idx},'${uKey}','s');renderPlanAccordion()" style="flex:1;background:${unit==='s'?'rgba(79,142,247,.2)':'none'};border:none;color:${unit==='s'?'#4f8ef7':'var(--muted)'};font-size:9px;font-weight:700;cursor:pointer;padding:0 5px;font-family:inherit;line-height:1">s</button>
+                </div>
+              </div>
+              <div class="mini-lbl">${lbl}</div>
+            </div>`;
+          return `<div style="display:flex;gap:4px;margin-left:8px;align-items:flex-start;flex-shrink:0">
+            ${_rw(sr,su,'planRestTime','planRestUnit','S rest')}
+            ${_rw(rr,ru,'planRestTimeReps','planRestUnitReps','R rest')}
           </div>`;
         };
         let fieldsHtml='';
@@ -4122,8 +4135,7 @@ function renderPlanAccordion(){
               <div class="mini-lbl">Contraction</div>
             </div>
             ${cType?`<div class="mini-wrap">${cValField}<div class="mini-lbl">${cLabel}</div></div>`:''}
-          </div>
-          ${_restTwo(globalIdx)}`;
+          </div>`;
         } else if(typeParams==='sprint'){
           // Energy system selector (coach only)
           const eSys=ex.planEnergySystem||'';
@@ -4136,7 +4148,6 @@ function renderPlanAccordion(){
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Reps</div></div>
           </div>
-          ${_restTwo(globalIdx)}
           <div class="mini-wrap" style="width:100%;margin-top:6px">
             <select class="mini-in" style="font-size:11px;padding:6px 4px;width:100%" onchange="_updatePlanEx(${globalIdx},'planEnergySystem',this.value)">${esysOpts}</select>
             <div class="mini-lbl">⚡ Energy System</div>
@@ -4158,18 +4169,21 @@ function renderPlanAccordion(){
           <div class="ex-nums" style="grid-template-columns:1fr 1fr;gap:6px">
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">${repType==='contacts'?'Contacts':'Reps'}</div></div>
-          </div>
-          ${_restTwo(globalIdx)}`;
+          </div>`;
         }
         const restTime=ex.planRestTime||'';
         const restUnit=ex.planRestUnit||'s';
         const restTypes=ex.planRestType||[];
         item.innerHTML=`
-          <div class="plan-ex-name-row">
-            <div style="display:flex;align-items:center;flex:1">
-              <span class="plan-ex-name-text">${ex.name}</span>
+          <div class="plan-ex-name-row" style="align-items:flex-start;margin-bottom:8px">
+            <div style="display:flex;align-items:flex-start;flex:1;min-width:0">
+              <span class="plan-ex-name-text" style="padding-top:10px;flex-shrink:0">${ex.name}</span>
+              ${_restInline(globalIdx)}
             </div>
-            <button class="plan-ex-del" onclick="removePlanExercise(${globalIdx})">×</button>
+            <div style="display:flex;align-items:flex-start;padding-top:4px;flex-shrink:0">
+              <button class="plan-ex-dup" onclick="_duplicatePlanEx(${globalIdx})" title="Duplicate exercise">⊕</button>
+              <button class="plan-ex-del" onclick="removePlanExercise(${globalIdx})">×</button>
+            </div>
           </div>
           ${fieldsHtml}`;
         subWrap.appendChild(item);
@@ -4550,6 +4564,25 @@ function removePlanExercise(idx){
   exs.splice(idx,1);
   saveData(d);
   renderPlanAccordion();
+}
+
+function _duplicatePlanEx(idx){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
+  const exs=_getPlanSessionExsFromData(plan); if(!exs) return;
+  const original=exs[idx]; if(!original) return;
+  // Deep-copy the exercise object, resetting intensity/load fields but keeping name, type, rest, structure
+  const copy=JSON.parse(JSON.stringify(original));
+  // Reset load/intensity values so coach sets them fresh, keep rest times and structure
+  const params=TRAINING_STRUCTURE[copy.trainingType]?.params||'lifting';
+  if(params==='lifting'){ copy.planIntensity=''; copy.planSets=''; copy.planReps=''; copy.planContractionValue=''; }
+  else if(params==='sprint'){ copy.planIntensity=''; copy.planSets=''; copy.planReps=''; copy.planDistance=''; }
+  else if(params==='plyo'){ copy.planSets=''; copy.planReps=''; }
+  // Insert immediately after the original
+  exs.splice(idx+1,0,copy);
+  saveData(d);
+  renderPlanAccordion();
+  showToast(`${original.name} duplicated`);
 }
 
 function _updatePlanEx(idx,field,val){
