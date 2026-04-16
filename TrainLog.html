@@ -1654,7 +1654,13 @@ function goLogTraining(){
         if(e.planDistance) detail+=` ${e.planDistance}m`;
         if(e.planIntensity) detail+=` @ ${e.planIntensity}%`;
         let restStr='';
-        if(e.planRestTime){
+        const _cardIsSprint=TRAINING_STRUCTURE[e.trainingType]?.params==='sprint';
+        if(_cardIsSprint&&(e.planRestTime||e.planRestTimeReps)){
+          const parts=[];
+          if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} / sets`);
+          if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} / reps`);
+          restStr=`<span style="color:rgba(79,142,247,.7)"> / Rest: ${parts.join(' · ')}</span>`;
+        } else if(!_cardIsSprint&&e.planRestTime){
           const rUnit=e.planRestUnit||'s';
           const rTypes=(e.planRestType||[]);
           const rTypeLbl=rTypes.length?' · '+rTypes.join(' & '):'';
@@ -2009,11 +2015,11 @@ function renderExList(){
       if(fromPlan&&ex.planSets) _liftPlanParts.push(`${ex.planSets} sets`);
       if(fromPlan&&ex.planReps) _liftPlanParts.push(`${ex.planReps} reps`);
       let liftRestStr='';
-      if(fromPlan&&ex.planRestTime){
-        const rUnit=ex.planRestUnit||'s';
-        const rTypes=(ex.planRestType||[]);
-        const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
-        liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' · '+rTypeLbl:''}</span>`;
+      if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
+        const parts=[];
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} / sets`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} / reps`);
+        liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       const liftPlanSummary=_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`:'';
       // Contraction info (read-only for athlete)
@@ -2090,11 +2096,11 @@ function renderExList(){
       if(fromPlan&&ex.planSets) _plyoPlanParts.push(`${ex.planSets} sets`);
       if(fromPlan&&ex.planReps) _plyoPlanParts.push(`${ex.planReps} ${repType==='contacts'?'contacts':'reps'}`);
       let plyoRestStr='';
-      if(fromPlan&&ex.planRestTime){
-        const rUnit=ex.planRestUnit||'s';
-        const rTypes=(ex.planRestType||[]);
-        const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
-        plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' · '+rTypeLbl:''}</span>`;
+      if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
+        const parts=[];
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} / sets`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} / reps`);
+        plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       const plyoPlanSummary=_plyoPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_plyoPlanParts.join(' · ')}${plyoRestStr}</div>`:'';
       paramsHtml=`
@@ -2119,11 +2125,11 @@ function renderExList(){
       if(fromPlan&&ex.planSets) _sprintPlanParts.push(`${ex.planSets} sets`);
       if(fromPlan&&ex.planReps) _sprintPlanParts.push(`${ex.planReps} reps`);
       let sprintRestStr='';
-      if(fromPlan&&ex.planRestTime){
-        const rUnit=ex.planRestUnit||'s';
-        const rTypes=(ex.planRestType||[]);
-        const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
-        sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' · '+rTypeLbl:''}</span>`;
+      if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
+        const parts=[];
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} / sets`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} / reps`);
+        sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
       paramsHtml=`
@@ -2431,11 +2437,11 @@ function renderProgram(){
     const bwTag=(e.isBW||BW_EXERCISES.has(e.name))?`<span style="font-size:9px;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:4px;padding:1px 5px;margin-right:4px;font-weight:700">BW</span>`:'';
     // Rest info
     let restStr='';
-    if(e.planRestTime){
-      const rUnit=e.planRestUnit||'s';
-      const rTypes=(e.planRestType||[]);
-      const rTypeLbl=rTypes.length?' · '+rTypes.join(' & '):'';
-      restStr=`<span style="color:rgba(79,142,247,.7);font-size:11px"> / Rest: ${e.planRestTime}${rUnit}${rTypeLbl}</span>`;
+    if(e.planRestTime||e.planRestTimeReps){
+      const parts=[];
+      if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} / sets`);
+      if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} / reps`);
+      restStr=`<span style="color:rgba(79,142,247,.7);font-size:11px"> / Rest: ${parts.join(' · ')}</span>`;
     }
     // Contraction info
     let contractStr='';
@@ -3953,7 +3959,13 @@ function renderPlanAccordion(){
       if(e.planSets) parts.push(`${e.planSets} sets`);
       if(e.planReps) parts.push(`${e.planReps} reps`);
       let restStr='';
-      if(e.planRestTime){
+      const _ovIsSprint=TRAINING_STRUCTURE[e.trainingType]?.params==='sprint';
+      if(_ovIsSprint&&(e.planRestTime||e.planRestTimeReps)){
+        const parts=[];
+        if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} / sets`);
+        if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} / reps`);
+        restStr=`<span style="color:rgba(79,142,247,.75)"> / Rest: ${parts.join(' · ')}</span>`;
+      } else if(!_ovIsSprint&&e.planRestTime){
         const rUnit=e.planRestUnit||'s';
         const rTypes=(e.planRestType||[]);
         const rTypeLbl=rTypes.length?' · '+rTypes.join(' & '):'';
@@ -4065,6 +4077,16 @@ function renderPlanAccordion(){
         const item=document.createElement('div');
         item.className='plan-ex-item';
         // Build parameter fields based on category params type
+        // Shared two-field rest helper (used by all exercise types)
+        const _restTwo=(idx)=>{
+          const sr=ex.planRestTime||''; const su=ex.planRestUnit||'s';
+          const rr=ex.planRestTimeReps||''; const ru=ex.planRestUnitReps||'s';
+          const _rw=(val,unit,tKey,uKey)=>`<div class="plan-rest-wrap" style="flex:1"><input class="plan-rest-num" style="width:30px" type="number" placeholder="—" value="${val}" oninput="_updatePlanEx(${idx},'${tKey}',this.value)"><button class="plan-rest-utb${unit==='m'?' on':''}" onclick="_updatePlanEx(${idx},'${uKey}','m');renderPlanAccordion()">m</button><button class="plan-rest-utb${unit==='s'?' on':''}" onclick="_updatePlanEx(${idx},'${uKey}','s');renderPlanAccordion()">s</button></div>`;
+          return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;color:var(--muted);font-weight:700;flex-shrink:0">Sets rest</span>${_rw(sr,su,'planRestTime','planRestUnit')}</div>
+            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;color:var(--muted);font-weight:700;flex-shrink:0">Reps rest</span>${_rw(rr,ru,'planRestTimeReps','planRestUnitReps')}</div>
+          </div>`;
+        };
         let fieldsHtml='';
         if(typeParams==='lifting'){
           const bwOn=ex.isBW||false;
@@ -4076,8 +4098,8 @@ function renderPlanAccordion(){
           const ctypeOpts=ctypes.map(c=>`<option value="${c}" ${cType===c?'selected':''}>${c||'Contraction Type'}</option>`).join('');
           let cValField='';
           if(cType==='Concentric'){
-            const tempos=['','Ballistic','Fast','Controlled','Slow'];
-            const tempoOpts=tempos.map(t=>`<option value="${t}" ${cVal===t?'selected':''}>${t||'Tempo'}</option>`).join('');
+            const tempos=['Ballistic','Fast','Controlled','Slow'];
+            const tempoOpts=tempos.map(t=>`<option value="${t}" ${cVal===t?'selected':''}>${t}</option>`).join('');
             cValField=`<select class="mini-in" style="font-size:11px;padding:6px 4px" onchange="_updatePlanEx(${globalIdx},'planContractionValue',this.value)"><option value="">Tempo</option>${tempoOpts}</select>`;
           } else if(cType){
             cValField=`<input class="mini-in" type="number" placeholder="sec" value="${cVal}" oninput="_updatePlanEx(${globalIdx},'planContractionValue',this.value)" style="font-size:13px;padding:8px 4px">`;
@@ -4100,19 +4122,22 @@ function renderPlanAccordion(){
               <div class="mini-lbl">Contraction</div>
             </div>
             ${cType?`<div class="mini-wrap">${cValField}<div class="mini-lbl">${cLabel}</div></div>`:''}
-          </div>`;
+          </div>
+          ${_restTwo(globalIdx)}`;
         } else if(typeParams==='sprint'){
           // Energy system selector (coach only)
           const eSys=ex.planEnergySystem||'';
           const esystems=['','ATP-PC (Phosphagen)','Glycolytic (Lactic)','Oxidative (Aerobic)'];
-          const esysOpts=esystems.map(s=>`<option value="${s}" ${eSys===s?'selected':''}>${s||'— Energy System'}</option>`).join('');
-          fieldsHtml=`<div class="ex-nums" style="grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">
+          const esysOpts=esystems.map(s=>`<option value="${s}" ${eSys===s?'selected':''}>${s||'Energy System'}</option>`).join('');
+          fieldsHtml=`
+          <div class="ex-nums" style="grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">
+            <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planDistance||''}" oninput="_updatePlanEx(${globalIdx},'planDistance',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Dist (m)</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planIntensity||''}" oninput="_updatePlanEx(${globalIdx},'planIntensity',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Int %</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Reps</div></div>
-            <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planDistance||''}" oninput="_updatePlanEx(${globalIdx},'planDistance',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Dist (m)</div></div>
           </div>
-          <div class="mini-wrap" style="width:100%">
+          ${_restTwo(globalIdx)}
+          <div class="mini-wrap" style="width:100%;margin-top:6px">
             <select class="mini-in" style="font-size:11px;padding:6px 4px;width:100%" onchange="_updatePlanEx(${globalIdx},'planEnergySystem',this.value)">${esysOpts}</select>
             <div class="mini-lbl">⚡ Energy System</div>
           </div>`;
@@ -4133,30 +4158,19 @@ function renderPlanAccordion(){
           <div class="ex-nums" style="grid-template-columns:1fr 1fr;gap:6px">
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">${repType==='contacts'?'Contacts':'Reps'}</div></div>
-          </div>`;
+          </div>
+          ${_restTwo(globalIdx)}`;
         }
         const restTime=ex.planRestTime||'';
         const restUnit=ex.planRestUnit||'s';
         const restTypes=ex.planRestType||[];
-        const restChipsHtml=(restTime||restTypes.length)?`
-          <div class="plan-rest-chips">
-            <span class="plan-rt-lbl">휴식 기준</span>
-            <span class="plan-rt-chip${restTypes.includes('sets')?' sel-sets':''}" onclick="_togglePlanRestType(${globalIdx},'sets')">Sets${restTypes.includes('sets')?' ✕':''}</span>
-            <span class="plan-rt-chip${restTypes.includes('reps')?' sel-reps':''}" onclick="_togglePlanRestType(${globalIdx},'reps')">Reps${restTypes.includes('reps')?' ✕':''}</span>
-          </div>`:'<div class="plan-rest-chips"><span class="plan-rt-lbl">휴식 기준</span><span class="plan-rt-chip" onclick="_togglePlanRestType('+globalIdx+',\'sets\')">Sets</span><span class="plan-rt-chip" onclick="_togglePlanRestType('+globalIdx+',\'reps\')">Reps</span></div>';
         item.innerHTML=`
           <div class="plan-ex-name-row">
             <div style="display:flex;align-items:center;flex:1">
               <span class="plan-ex-name-text">${ex.name}</span>
-              <div class="plan-rest-wrap">
-                <input class="plan-rest-num" type="number" placeholder="—" value="${restTime}" oninput="_updatePlanEx(${globalIdx},'planRestTime',this.value)">
-                <button class="plan-rest-utb${restUnit==='m'?' on':''}" onclick="_updatePlanRestUnit(${globalIdx},'m')">m</button>
-                <button class="plan-rest-utb${restUnit==='s'?' on':''}" onclick="_updatePlanRestUnit(${globalIdx},'s')">s</button>
-              </div>
             </div>
             <button class="plan-ex-del" onclick="removePlanExercise(${globalIdx})">×</button>
           </div>
-          ${restChipsHtml}
           ${fieldsHtml}`;
         subWrap.appendChild(item);
       });
@@ -4431,6 +4445,28 @@ function _getCustomExLib(){
   if(!d.customExercises) d.customExercises={};
   return d.customExercises;
 }
+function _deleteCustomEx(sub,name,e){
+  e.stopPropagation();
+  const d=getData();
+  if(!d.customExercises||!d.customExercises[sub]) return;
+  d.customExercises[sub]=d.customExercises[sub].filter(n=>n!==name);
+  saveData(d);
+  showToast(`${name} removed from library`);
+  // Refresh search results in place — find the active input for this sub
+  const allInputs=document.querySelectorAll('[id^="pinp-"]');
+  allInputs.forEach(inp=>{
+    // The input id contains the safeSubKey which is derived from type::sub
+    const safeId=inp.id.replace('pinp-','');
+    const resultsDiv=document.getElementById('psearch-'+safeId);
+    if(resultsDiv&&resultsDiv.style.display!=='none'){
+      // Figure out type from the safeId by matching against known training types
+      const type=Object.keys(TRAINING_STRUCTURE).find(t=>{
+        return TRAINING_STRUCTURE[t].subs&&TRAINING_STRUCTURE[t].subs.some(s=>`${t}::${s}`.replace(/[^a-zA-Z0-9]/g,'_')===safeId);
+      })||'Resistance Training';
+      _filterPlanSearch(type,sub,inp.value);
+    }
+  });
+}
 function _saveCustomEx(sub,name){
   const d=getData();
   if(!d.customExercises) d.customExercises={};
@@ -4464,11 +4500,15 @@ function _filterPlanSearch(type,sub,query){
   const customSet=new Set((_getCustomExLib()[sub]||[]));
   resultsDiv.innerHTML=matches.map(ex=>{
     const isCustom=customSet.has(ex);
-    return `<div onclick="_addPlanExFromLib('${type}','${sub}','${ex.replace(/'/g,"\\'")}');event.stopPropagation()"
+    const safeEx=ex.replace(/'/g,"\\'");
+    const delBtn=isCustom
+      ?`<button onclick="_deleteCustomEx('${sub}','${safeEx}',event)" style="flex-shrink:0;padding:2px 7px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:#e94560;font-size:10px;cursor:pointer;margin-left:6px">🗑</button>`
+      :'';
+    return `<div onclick="_addPlanExFromLib('${type}','${sub}','${safeEx}');event.stopPropagation()"
       style="padding:11px 14px;font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;align-items:center"
       onmouseover="this.style.background='rgba(79,142,247,.12)'"
       onmouseout="this.style.background=''"
-    ><span>${ex}</span>${isCustom?`<span style="font-size:10px;color:var(--muted);background:rgba(255,255,255,.07);padding:2px 6px;border-radius:4px">custom</span>`:''}</div>`;
+    ><span>${ex}</span><div style="display:flex;align-items:center;gap:6px">${isCustom?`<span style="font-size:10px;color:var(--muted);background:rgba(255,255,255,.07);padding:2px 6px;border-radius:4px">custom</span>`:''}${delBtn}</div></div>`;
   }).join('');
 }
 function _addPlanExFromLib(type,sub,name){
