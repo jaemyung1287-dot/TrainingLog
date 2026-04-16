@@ -3714,6 +3714,18 @@ function _ovTouchEnd(e,fromIdx){
   _ovTouchSrcIdx=null;
 }
 
+function _deleteSinglePlanEx(idx){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
+  const grpData=plan[ST._planGroup]||plan['all']; if(!grpData) return;
+  const sess=ST._planSession||'am';
+  const exs=grpData[sess]?.exercises||grpData.exercises;
+  if(!exs) return;
+  exs.splice(idx,1);
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
+}
 function _ovReorder(fromIdx,toIdx){
   const d=getData();
   const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
@@ -3979,11 +3991,14 @@ function renderPlanAccordion(){
           </div>
         </div>`;
       } else {
-        html+=`<div style="padding:10px 14px;border-top:${idx===0?'none':'1px solid rgba(255,255,255,.05)'};display:flex;flex-direction:column;gap:3px">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:13px;font-weight:600;color:var(--text)">${typeIcon} ${e.name}</span>
+        html+=`<div style="padding:10px 14px;border-top:${idx===0?'none':'1px solid rgba(255,255,255,.05)'};display:flex;align-items:center;gap:10px">
+          <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:13px;font-weight:600;color:var(--text)">${typeIcon} ${e.name}</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap">${_ovExDetail(e)}</div>
           </div>
-          <div style="display:flex;flex-wrap:wrap">${_ovExDetail(e)}</div>
+          <button onclick="_deleteSinglePlanEx(${idx})" style="flex-shrink:0;padding:4px 8px;border-radius:7px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:13px;cursor:pointer;line-height:1">🗑</button>
         </div>`;
       }
     });
