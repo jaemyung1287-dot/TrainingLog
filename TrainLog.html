@@ -2435,13 +2435,13 @@ function renderProgram(){
       const rUnit=e.planRestUnit||'s';
       const rTypes=(e.planRestType||[]);
       const rTypeLbl=rTypes.length?' · '+rTypes.join(' & '):'';
-      restStr=`<span style="color:rgba(79,142,247,.7);font-size:11px;margin-left:6px">Rest: ${e.planRestTime}${rUnit}${rTypeLbl}</span>`;
+      restStr=`<span style="color:rgba(79,142,247,.7);font-size:11px"> / Rest: ${e.planRestTime}${rUnit}${rTypeLbl}</span>`;
     }
     // Contraction info
     let contractStr='';
     if(e.planContractionType){
       const cVal=e.planContractionValue?` · ${e.planContractionValue}`:'';
-      contractStr=`<span style="font-size:11px;color:rgba(167,139,250,.75);margin-left:6px">${e.planContractionType}${cVal}</span>`;
+      contractStr=`<span style="font-size:11px;color:rgba(167,139,250,.75)"> / ${e.planContractionType}${cVal}</span>`;
     }
     return `<div style="font-size:13px;padding:3px 0;color:var(--text);display:flex;align-items:baseline;gap:2px;flex-wrap:wrap">${bwTag}<span>${e.name}</span><span style="color:var(--muted);font-size:12px">${p}</span>${restStr}${contractStr}</div>`;
   }
