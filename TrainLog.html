@@ -2001,7 +2001,7 @@ function renderExList(){
         const rUnit=ex.planRestUnit||'s';
         const rTypes=(ex.planRestType||[]);
         const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
-        liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' / '+rTypeLbl:''}</span>`;
+        liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' · '+rTypeLbl:''}</span>`;
       }
       const liftPlanSummary=_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`:'';
       // Contraction info (read-only for athlete)
@@ -2082,7 +2082,7 @@ function renderExList(){
         const rUnit=ex.planRestUnit||'s';
         const rTypes=(ex.planRestType||[]);
         const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
-        plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' / '+rTypeLbl:''}</span>`;
+        plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' · '+rTypeLbl:''}</span>`;
       }
       const plyoPlanSummary=_plyoPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_plyoPlanParts.join(' · ')}${plyoRestStr}</div>`:'';
       paramsHtml=`
@@ -2111,7 +2111,7 @@ function renderExList(){
         const rUnit=ex.planRestUnit||'s';
         const rTypes=(ex.planRestType||[]);
         const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
-        sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' / '+rTypeLbl:''}</span>`;
+        sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' · '+rTypeLbl:''}</span>`;
       }
       const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
       paramsHtml=`
