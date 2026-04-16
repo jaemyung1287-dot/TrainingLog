@@ -584,7 +584,7 @@ tr:last-child td{border-bottom:none}
   <div id="w-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ 수정 중 — 저장하면 기존 기록이 업데이트돼요</div>
   <div id="w-progress-bar" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">진행 상황</span>
+      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Progress · Fortschritt</span>
       <span id="w-prog-text" style="font-size:12px;font-weight:800;color:var(--text)">0 / 0</span>
     </div>
     <div style="height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden">
@@ -630,7 +630,7 @@ tr:last-child td{border-bottom:none}
   <div id="sp-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ 수정 중 — 저장하면 기존 기록이 업데이트돼요</div>
   <div id="sp-progress-bar" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">진행 상황</span>
+      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Progress · Fortschritt</span>
       <span id="sp-prog-text" style="font-size:12px;font-weight:800;color:var(--text)">0 / 0</span>
     </div>
     <div style="height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden">
@@ -761,6 +761,10 @@ tr:last-child td{border-bottom:none}
     <button class="btn btn-b" onclick="goAthleteMenu()" style="max-width:300px">Back to Menu</button>
     <button class="btn btn-s" onclick="goHome()" style="max-width:300px">Home</button>
   </div>
+  <div style="margin-top:8px">
+    <div class="sec-ttl" style="margin-bottom:10px">최근 기록</div>
+    <div id="success-recent-logs"></div>
+  </div>
 </div>
 
 <!-- ATHLETE STATS -->
@@ -797,6 +801,8 @@ tr:last-child td{border-bottom:none}
   <div id="team-anon-stats"></div>
   <div class="sec-ttl" style="margin-top:20px">🏅 My Records · Meine Bestzeiten</div>
   <div id="my-records-list"></div>
+  <div class="sec-ttl" style="margin-top:20px">📋 최근 기록</div>
+  <div id="my-recent-logs"></div>
 </div>
 
 <!-- COACH LOGIN -->
@@ -1545,7 +1551,7 @@ function fmtDate(s){ const p=s.split('-'); return `${p[1]}/${p[2]}`; }
 // ════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════
-const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_chks:{}};
+const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_chks:{},_sessExpanded:new Set()};
 let loadPeriod='week';
 
 // ════════════════════════════════════════════════
@@ -1644,6 +1650,18 @@ function goTypeSelect(){
   document.getElementById('type-greeting').textContent=`${ST.athlete.name}, what did you do?`;
   showScreen('s-type-select');
 }
+// ── Session accordion toggle ──
+function _toggleSessExpand(sess){
+  if(ST._sessExpanded.has(sess)) ST._sessExpanded.delete(sess);
+  else ST._sessExpanded.add(sess);
+  const body=document.getElementById(`_sess_body_${sess}`);
+  const chevron=document.getElementById(`_sess_chev_${sess}`);
+  if(!body) return;
+  const open=ST._sessExpanded.has(sess);
+  body.style.display=open?'block':'none';
+  if(chevron) chevron.textContent=open?'▲':'▼';
+}
+
 // ── Session plan check-off helpers ──
 function _chkKey(sess){ return `${todayStr()}_${ST.athlete?.name||''}_${sess}`; }
 function _toggleChk(ev,chkKey,sess,idx){
@@ -1766,8 +1784,13 @@ function goLogTraining(){
       const chkKey=_chkKey(sess);
       const ck=ST._chks[chkKey]||new Set();
       const doneCount=ck.size;
-      const shownCount=Math.min(exs.length,5);
-      const previewLines=exs.slice(0,shownCount).map((e,idx)=>{
+      const isOpen=ST._sessExpanded.has(sess);
+
+      // Collapsed preview: first 3 exercise names
+      const previewNames=exs.slice(0,3).map(e=>e.name).join(', ')+(exs.length>3?` +${exs.length-3}`:'');
+
+      // All exercise rows (shown when expanded)
+      const allLines=exs.map((e,idx)=>{
         const isDone=ck.has(idx);
         let detail='';
         {const dp=[];
@@ -1794,20 +1817,29 @@ function goLogTraining(){
           contractStr=`<span style="color:rgba(167,139,250,.75)"> / ${e.planContractionType}${cVal}</span>`;
         }
         return `<div id="_chk_${sess}_${idx}" onclick="_toggleChk(event,'${chkKey}','${sess}',${idx})"
-          style="font-size:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:${isDone?'rgba(255,255,255,.2)':'var(--muted)'}">
+          style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:${isDone?'rgba(255,255,255,.2)':'var(--muted)'}">
           <span class="_chk-circle" style="width:18px;height:18px;border-radius:50%;flex-shrink:0;border:1.5px solid ${isDone?'#3ecf8e':'rgba(255,255,255,.2)'};background:${isDone?'#3ecf8e':'transparent'};display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700">${isDone?'✓':''}</span>
           <span class="_chk-label" style="${isDone?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
         </div>`;
       }).join('');
-      const more=exs.length>5?`<div style="font-size:11px;color:var(--muted);margin-top:4px">+ ${exs.length-5} more exercises</div>`:'';
-      const progressBadge=doneCount>0?`<span style="color:#3ecf8e;font-size:11px;font-weight:700;margin-left:4px">${doneCount}/${exs.length} ✓</span>`:`<span id="_chk_badge_${sess}"></span>`;
-      return `<div class="menu-card" style="margin-bottom:14px;text-align:left;padding:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="font-size:15px;font-weight:700;color:var(--text)">${label}</span>
-          <span style="font-size:11px;font-weight:700;background:rgba(79,142,247,.15);color:#4f8ef7;border-radius:6px;padding:3px 9px">${typeHint} · ${exs.length} ex<span id="_chk_badge_${sess}" style="color:#3ecf8e">${doneCount>0?` · ${doneCount}/${exs.length} ✓`:''}</span></span>
+
+      return `<div class="menu-card" style="margin-bottom:14px;text-align:left;padding:0;overflow:hidden">
+        <!-- Header (always visible, tap to expand) -->
+        <div onclick="_toggleSessExpand('${sess}')" style="padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <span style="font-size:15px;font-weight:700;color:var(--text)">${label}</span>
+            <span style="font-size:11px;color:var(--muted)">${previewNames}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
+            <span style="font-size:11px;font-weight:700;background:rgba(79,142,247,.15);color:#4f8ef7;border-radius:6px;padding:3px 8px">${typeHint} · ${exs.length} ex<span id="_chk_badge_${sess}" style="color:#3ecf8e">${doneCount>0?` · ${doneCount}/${exs.length} ✓`:''}</span></span>
+            <span id="_sess_chev_${sess}" style="font-size:11px;color:var(--muted);font-weight:700">${isOpen?'▲':'▼'}</span>
+          </div>
         </div>
-        <div class="sess-chk-wrap" data-total="${exs.length}">${previewLines}${more}</div>
-        <button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="margin-top:12px;width:100%;padding:10px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Log this session →</button>
+        <!-- Expandable body -->
+        <div id="_sess_body_${sess}" style="display:${isOpen?'block':'none'};padding:0 16px 16px">
+          <div class="sess-chk-wrap" data-total="${exs.length}" style="margin-bottom:12px">${allLines}</div>
+          <button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log this session →</button>
+        </div>
       </div>`;
     }
     wrap.innerHTML=_sessCard('am',amExs)+_sessCard('pm',pmExs);
@@ -1969,7 +2001,38 @@ function selectType(t){
     selectCircuit();
   }
 }
-function goAthleteStats(){ document.getElementById('astats-name').textContent=ST.athlete.name; renderAthStats(); showScreen('s-athlete-stats'); }
+function goAthleteStats(){ document.getElementById('astats-name').textContent=ST.athlete.name; renderAthStats(); _renderAthRecentLogs('my-recent-logs'); showScreen('s-athlete-stats'); }
+
+function _renderAthRecentLogs(targetId){
+  const wrap=document.getElementById(targetId); if(!wrap||!ST.athlete) return;
+  const d=getData();
+  const logs=d.logs.filter(l=>l.athleteName===ST.athlete.name&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint')).slice(-8).reverse();
+  if(!logs.length){ wrap.innerHTML='<div class="empty" style="padding:10px 0">아직 기록이 없어요</div>'; return; }
+  const typeLbl={weight:'🏋️ Weight',plyo:'🦘 Plyo',sprint:'⚡ Sprint'};
+  const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s'};
+  wrap.innerHTML=logs.map(l=>{
+    let stat='';
+    if(l.type==='weight') stat=`${(l.totalVolume||0).toLocaleString()} kg`;
+    else if(l.type==='sprint') stat=`${(l.totalDistance||0).toLocaleString()} m`;
+    else if(l.type==='plyo'){
+      const pts=[];
+      if((l.totalReps||0)>0) pts.push(`${l.totalReps} reps`);
+      if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
+      stat=pts.join(' · ')||'—';
+    }
+    return `<div class="detail-card" style="margin-bottom:8px">
+      <div class="detail-row">
+        <span style="font-size:12px;color:var(--muted)">${l.date}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="badge ${typeBadge[l.type]}">${l.type}</span>
+          <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ 수정</button>
+        </div>
+      </div>
+      <div class="detail-row"><span class="detail-key">기록</span><span class="detail-val">${stat}</span></div>
+      ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
+    </div>`;
+  }).join('');
+}
 function goCoachLogin(){
   ST.pinBuf=''; updatePinDots(); document.getElementById('pin-error').textContent=''; showScreen('s-coach-login');
   // Keyboard support for Mac/desktop
@@ -2465,7 +2528,9 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add'
   }
 
   saveData(d);
-  document.getElementById('success-msg').textContent=`Session saved! ${summaryParts.join(' · ')}`;
+  const _wasEdit=!!document.getElementById('w-edit-banner')?.style.display?.includes('block');
+  document.getElementById('success-msg').textContent=_wasEdit?`수정 완료! ✅ ${summaryParts.join(' · ')}`:`Session saved! ${summaryParts.join(' · ')}`;
+  _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
 }
 
@@ -2661,6 +2726,7 @@ function saveSprint(dupMode){
   };
   d.logs.push(log); saveData(d);
   document.getElementById('success-msg').textContent=`Sprint Training saved! Total: ${Math.round(totalDist).toLocaleString()} m ⚡`;
+  _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
 }
 
