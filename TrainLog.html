@@ -1652,15 +1652,17 @@ function goLogTraining(){
       const typeHint=isSprintOnly?'⚡ Sprint':'🏋️ Weight';
       const previewLines=exs.slice(0,5).map(e=>{
         let detail='';
-        if(e.planSets) detail+=` ${e.planSets}×${e.planReps||'—'}`;
-        if(e.planDistance) detail+=` ${e.planDistance}m`;
-        if(e.planIntensity) detail+=` @ ${e.planIntensity}%`;
+        {const dp=[];
+        if(e.planIntensity) dp.push(`${e.planIntensity}%`);
+        if(e.planDistance) dp.push(`${e.planDistance}m`);
+        if(e.planSets||e.planReps) dp.push(`${e.planSets||'—'}×${e.planReps||'—'}`);
+        if(dp.length) detail+=` ${dp.join(' · ')}`; }
         let restStr='';
         const _cardIsSprint=TRAINING_STRUCTURE[e.trainingType]?.params==='sprint';
         if(_cardIsSprint&&(e.planRestTime||e.planRestTimeReps)){
           const parts=[];
-          if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} / sets`);
-          if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} / reps`);
+          if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · sets`);
+          if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · reps`);
           restStr=`<span style="color:rgba(79,142,247,.7)"> / Rest: ${parts.join(' · ')}</span>`;
         } else if(!_cardIsSprint&&e.planRestTime){
           const rUnit=e.planRestUnit||'s';
@@ -2014,13 +2016,12 @@ function renderExList(){
     if(params==='lifting'){
       const _liftPlanParts=[];
       if(fromPlan&&ex.planIntensity) _liftPlanParts.push(`${ex.planIntensity}%`);
-      if(fromPlan&&ex.planSets) _liftPlanParts.push(`${ex.planSets} sets`);
-      if(fromPlan&&ex.planReps) _liftPlanParts.push(`${ex.planReps} reps`);
+      if(fromPlan&&(ex.planSets||ex.planReps)) _liftPlanParts.push(`${ex.planSets||'—'}×${ex.planReps||'—'}`);
       let liftRestStr='';
       if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
         const parts=[];
-        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} / sets`);
-        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} / reps`);
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · sets`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · reps`);
         liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       const liftPlanSummary=_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`:'';
@@ -2095,13 +2096,12 @@ function renderExList(){
       const repLbl=repType==='contacts'?'Contacts':'Reps';
       const legTag=`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:rgba(62,207,142,.15);color:#3ecf8e;margin-left:4px">${legMode}</span>`;
       const _plyoPlanParts=[];
-      if(fromPlan&&ex.planSets) _plyoPlanParts.push(`${ex.planSets} sets`);
-      if(fromPlan&&ex.planReps) _plyoPlanParts.push(`${ex.planReps} ${repType==='contacts'?'contacts':'reps'}`);
+      if(fromPlan&&(ex.planSets||ex.planReps)) _plyoPlanParts.push(`${ex.planSets||'—'}×${ex.planReps||'—'}${repType==='contacts'?' contacts':''}`);
       let plyoRestStr='';
       if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
         const parts=[];
-        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} / sets`);
-        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} / reps`);
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · sets`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · reps`);
         plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       const plyoPlanSummary=_plyoPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_plyoPlanParts.join(' · ')}${plyoRestStr}</div>`:'';
@@ -2124,13 +2124,12 @@ function renderExList(){
       const _sprintPlanParts=[];
       if(fromPlan&&ex.planIntensity) _sprintPlanParts.push(`${ex.planIntensity}%`);
       if(fromPlan&&ex.planDistance) _sprintPlanParts.push(`${ex.planDistance}m`);
-      if(fromPlan&&ex.planSets) _sprintPlanParts.push(`${ex.planSets} sets`);
-      if(fromPlan&&ex.planReps) _sprintPlanParts.push(`${ex.planReps} reps`);
+      if(fromPlan&&(ex.planSets||ex.planReps)) _sprintPlanParts.push(`${ex.planSets||'—'}×${ex.planReps||'—'}`);
       let sprintRestStr='';
       if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
         const parts=[];
-        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} / sets`);
-        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} / reps`);
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · sets`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · reps`);
         sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
@@ -2433,16 +2432,18 @@ function renderProgram(){
   }
   function _exLine(e){
     let p='';
-    if(e.planSets||e.planReps) p+=` ${e.planSets||'—'}×${e.planReps||'—'}`;
-    if(e.planIntensity) p+=` @ ${e.planIntensity}%`;
-    if(e.planDistance) p+=` ${e.planDistance}m`;
+    {const dp=[];
+    if(e.planIntensity) dp.push(`${e.planIntensity}%`);
+    if(e.planDistance) dp.push(`${e.planDistance}m`);
+    if(e.planSets||e.planReps) dp.push(`${e.planSets||'—'}×${e.planReps||'—'}`);
+    if(dp.length) p+=` ${dp.join(' · ')}`; }
     const bwTag=(e.isBW||BW_EXERCISES.has(e.name))?`<span style="font-size:9px;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:4px;padding:1px 5px;margin-right:4px;font-weight:700">BW</span>`:'';
     // Rest info
     let restStr='';
     if(e.planRestTime||e.planRestTimeReps){
       const parts=[];
-      if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} / sets`);
-      if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} / reps`);
+      if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · sets`);
+      if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · reps`);
       restStr=`<span style="color:rgba(79,142,247,.7);font-size:11px"> / Rest: ${parts.join(' · ')}</span>`;
     }
     // Contraction info
@@ -3958,14 +3959,13 @@ function renderPlanAccordion(){
       const parts=[];
       if(e.planIntensity) parts.push(`${e.planIntensity}%`);
       if(e.planDistance) parts.push(`${e.planDistance}m`);
-      if(e.planSets) parts.push(`${e.planSets} sets`);
-      if(e.planReps) parts.push(`${e.planReps} reps`);
+      if(e.planSets||e.planReps) parts.push(`${e.planSets||'—'}×${e.planReps||'—'}`);
       let restStr='';
       const _ovIsSprint=TRAINING_STRUCTURE[e.trainingType]?.params==='sprint';
       if(_ovIsSprint&&(e.planRestTime||e.planRestTimeReps)){
         const parts=[];
-        if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} / sets`);
-        if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} / reps`);
+        if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · sets`);
+        if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · reps`);
         restStr=`<span style="color:rgba(79,142,247,.75)"> / Rest: ${parts.join(' · ')}</span>`;
       } else if(!_ovIsSprint&&e.planRestTime){
         const rUnit=e.planRestUnit||'s';
