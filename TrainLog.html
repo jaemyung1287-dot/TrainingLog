@@ -1663,7 +1663,7 @@ function goLogTraining(){
         let contractStr='';
         if(e.planContractionType){
           const cVal=e.planContractionValue?` · ${e.planContractionValue}`:'';
-          contractStr=`<span style="color:rgba(167,139,250,.75)"> · ${e.planContractionType}${cVal}</span>`;
+          contractStr=`<span style="color:rgba(167,139,250,.75)"> / ${e.planContractionType}${cVal}</span>`;
         }
         return `<div style="font-size:12px;color:var(--muted);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);flex-wrap:wrap">${e.name}<span style="color:rgba(255,255,255,.35);margin-left:4px">${detail}</span>${restStr}${contractStr}</div>`;
       }).join('');
@@ -3652,6 +3652,82 @@ function _cancelPlanSelect(){
   ST._planSelecting=false; ST._planSelectedIdxs=new Set();
   renderPlanAccordion();
 }
+
+// ── Drag-to-reorder (mouse + touch) ──────────────────────
+let _ovDragSrcIdx=null;
+let _ovTouchSrcIdx=null;
+let _ovTouchClone=null;
+
+function _ovDragStart(e,idx){
+  _ovDragSrcIdx=idx;
+  e.dataTransfer.effectAllowed='move';
+  e.currentTarget.style.opacity='0.4';
+}
+function _ovDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.plan-ov-row').forEach(r=>r.style.background='');
+  e.currentTarget.style.background='rgba(79,142,247,.12)';
+}
+function _ovDrop(e,toIdx){
+  e.preventDefault();
+  if(_ovDragSrcIdx===null||_ovDragSrcIdx===toIdx) return;
+  _ovReorder(_ovDragSrcIdx,toIdx);
+  _ovDragSrcIdx=null;
+}
+function _ovDragEnd(e){
+  e.currentTarget.style.opacity='';
+  document.querySelectorAll('.plan-ov-row').forEach(r=>r.style.background='');
+  _ovDragSrcIdx=null;
+}
+
+function _ovTouchStart(e,idx){
+  _ovTouchSrcIdx=idx;
+  const row=e.currentTarget;
+  const rect=row.getBoundingClientRect();
+  _ovTouchClone=row.cloneNode(true);
+  _ovTouchClone.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;pointer-events:none;z-index:9999;border-radius:10px;background:#2a2a42;box-shadow:0 8px 32px rgba(0,0,0,.5)`;
+  document.body.appendChild(_ovTouchClone);
+  row.style.opacity='0.3';
+}
+function _ovTouchMove(e){
+  if(!_ovTouchClone) return;
+  e.preventDefault();
+  const t=e.touches[0];
+  _ovTouchClone.style.top=(t.clientY-30)+'px';
+  _ovTouchClone.style.left=_ovTouchClone.style.left;
+  // Highlight target row
+  document.querySelectorAll('.plan-ov-row').forEach(r=>r.style.background='');
+  const el=document.elementFromPoint(t.clientX,t.clientY);
+  const row=el?.closest('.plan-ov-row');
+  if(row) row.style.background='rgba(79,142,247,.12)';
+}
+function _ovTouchEnd(e,fromIdx){
+  if(!_ovTouchClone) return;
+  const t=e.changedTouches[0];
+  const el=document.elementFromPoint(t.clientX,t.clientY);
+  const toRow=el?.closest('.plan-ov-row');
+  const toIdx=toRow?parseInt(toRow.dataset.idx):null;
+  _ovTouchClone.remove(); _ovTouchClone=null;
+  document.querySelectorAll('.plan-ov-row').forEach(r=>{r.style.background='';r.style.opacity='';});
+  if(toIdx!==null&&toIdx!==fromIdx) _ovReorder(fromIdx,toIdx);
+  _ovTouchSrcIdx=null;
+}
+
+function _ovReorder(fromIdx,toIdx){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
+  const grpData=plan[ST._planGroup]||plan['all']; if(!grpData) return;
+  const sess=ST._planSession||'am';
+  const exs=grpData[sess]?.exercises||grpData.exercises;
+  if(!exs) return;
+  const moved=exs.splice(fromIdx,1)[0];
+  exs.splice(toIdx,0,moved);
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
+}
+
 function _togglePlanExSel(idx){
   if(!ST._planSelectedIdxs) ST._planSelectedIdxs=new Set();
   if(ST._planSelectedIdxs.has(idx)) ST._planSelectedIdxs.delete(idx);
@@ -3850,55 +3926,68 @@ function renderPlanAccordion(){
     let html=`<div style="margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <div style="font-size:13px;font-weight:700;color:var(--muted);flex:1">${sessLabel} · ${allExs.length} exercise${allExs.length>1?'s':''}</div>`;
     if(!ST._planSelecting){
-      html+=`<button onclick="_startPlanSelect()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(79,142,247,.4);background:rgba(79,142,247,.1);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer">☑ Select</button>
+      html+=`<button onclick="_startPlanSelect()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(79,142,247,.4);background:rgba(79,142,247,.1);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer">↕ Reorder</button>
       <button onclick="clearPlanSession()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(233,69,96,.4);background:rgba(233,69,96,.1);color:#e94560;font-size:12px;font-weight:700;cursor:pointer">🗑 All</button>`;
     } else {
-      html+=`<button onclick="_toggleSelectAll(${allExs.length})" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:12px;font-weight:700;cursor:pointer">${allSelected?'✗ None':'✓ All'}</button>`;
-      if(selCount>0){
-        html+=`<button onclick="_deleteSelectedPlanExs()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(233,69,96,.4);background:rgba(233,69,96,.12);color:#e94560;font-size:12px;font-weight:700;cursor:pointer">🗑 Delete (${selCount})</button>`;
-      }
-      html+=`<button onclick="_cancelPlanSelect()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer">Cancel</button>`;
+      html+=`<button onclick="_cancelPlanSelect()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(62,207,142,.4);background:rgba(62,207,142,.1);color:#3ecf8e;font-size:12px;font-weight:700;cursor:pointer">✓ Done</button>`;
     }
     html+='</div>';
 
-    Object.entries(byType).forEach(([type,{info,exs}])=>{
-      const color=(info&&info.color)||'#888';
-      html+=`<div style="margin-bottom:14px;border-radius:14px;border:1px solid ${color}33;overflow:hidden">
-        <div style="padding:10px 14px;background:${color}18;display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">${info?info.icon:''}</span>
-          <span style="font-size:13px;font-weight:700;color:var(--text)">${type}</span>
-          <span style="font-size:11px;color:var(--muted);margin-left:auto">${exs.length} ex</span>
-        </div>`;
-      exs.forEach(({e,idx})=>{
-        const parts=[];
-        if(e.planIntensity) parts.push(`${e.planIntensity}%`);
-        if(e.planDistance) parts.push(`${e.planDistance}m`);
-        if(e.planSets) parts.push(`${e.planSets} sets`);
-        if(e.planReps) parts.push(`${e.planReps} reps`);
-        const detail=parts.length?`<span style="color:rgba(198,168,90,.8);font-size:11px">${parts.join(' · ')}</span>`:'';
-        const sub=e.subCategory?`<span style="font-size:10px;color:var(--muted)">${e.subCategory}</span>`:'';
-        const isSel=ST._planSelectedIdxs.has(idx);
-        const rowBg=isSel?'background:rgba(233,69,96,.1);':'';
-        if(ST._planSelecting){
-          const chk=isSel
-            ?`<div style="width:20px;height:20px;border-radius:6px;background:#e94560;border:2px solid #e94560;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="color:#fff;font-size:12px;font-weight:900">✓</span></div>`
-            :`<div style="width:20px;height:20px;border-radius:6px;border:2px solid rgba(255,255,255,.25);flex-shrink:0"></div>`;
-          html+=`<div onclick="_togglePlanExSel(${idx})" style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:10px;cursor:pointer;${rowBg}">
-            ${chk}
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1">
-              <span style="font-size:13px;font-weight:600;color:var(--text)">${e.name}</span>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">${sub}${detail}</div>
+    // Flat list — no category headers
+    const _ovExDetail=(e)=>{
+      const parts=[];
+      if(e.planIntensity) parts.push(`${e.planIntensity}%`);
+      if(e.planDistance) parts.push(`${e.planDistance}m`);
+      if(e.planSets) parts.push(`${e.planSets} sets`);
+      if(e.planReps) parts.push(`${e.planReps} reps`);
+      let restStr='';
+      if(e.planRestTime){
+        const rUnit=e.planRestUnit||'s';
+        const rTypes=(e.planRestType||[]);
+        const rTypeLbl=rTypes.length?' · '+rTypes.join(' & '):'';
+        restStr=`<span style="color:rgba(79,142,247,.75)"> / Rest: ${e.planRestTime}${rUnit}${rTypeLbl}</span>`;
+      }
+      let contractStr='';
+      if(e.planContractionType){
+        const cVal=e.planContractionValue?` · ${e.planContractionValue}`:'';
+        contractStr=`<span style="color:rgba(167,139,250,.75)"> / ${e.planContractionType}${cVal}</span>`;
+      }
+      const detailStr=parts.length?`<span style="color:rgba(198,168,90,.8)">${parts.join(' · ')}</span>`:'';
+      return `<span style="font-size:11px">${detailStr}${restStr}${contractStr}</span>`;
+    };
+
+    html+=`<div id="plan-ov-list" style="border-radius:14px;border:1px solid rgba(255,255,255,.08);overflow:hidden">`;
+    allExs.forEach((e,idx)=>{
+      const info=TRAINING_STRUCTURE[e.trainingType];
+      const typeIcon=info?info.icon:'';
+      if(ST._planSelecting){
+        html+=`<div class="plan-ov-row" draggable="true" data-idx="${idx}"
+          ondragstart="_ovDragStart(event,${idx})"
+          ondragover="_ovDragOver(event)"
+          ondrop="_ovDrop(event,${idx})"
+          ondragend="_ovDragEnd(event)"
+          ontouchstart="_ovTouchStart(event,${idx})"
+          ontouchmove="_ovTouchMove(event)"
+          ontouchend="_ovTouchEnd(event,${idx})"
+          style="padding:10px 14px;border-top:${idx===0?'none':'1px solid rgba(255,255,255,.05)'};display:flex;align-items:center;gap:10px;cursor:grab;user-select:none;transition:background .15s">
+          <span style="font-size:18px;color:rgba(255,255,255,.25);flex-shrink:0;cursor:grab">⠿</span>
+          <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:13px;font-weight:600;color:var(--text)">${typeIcon} ${e.name}</span>
             </div>
-          </div>`;
-        } else {
-          html+=`<div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.05);display:flex;flex-direction:column;gap:3px">
-            <span style="font-size:13px;font-weight:600;color:var(--text)">${e.name}</span>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">${sub}${detail}</div>
-          </div>`;
-        }
-      });
-      html+='</div>';
+            <div style="display:flex;flex-wrap:wrap">${_ovExDetail(e)}</div>
+          </div>
+        </div>`;
+      } else {
+        html+=`<div style="padding:10px 14px;border-top:${idx===0?'none':'1px solid rgba(255,255,255,.05)'};display:flex;flex-direction:column;gap:3px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">${typeIcon} ${e.name}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap">${_ovExDetail(e)}</div>
+        </div>`;
+      }
     });
+    html+='</div>';
     wrap.innerHTML=html;
     return;
   }
