@@ -847,6 +847,8 @@ tr:last-child td{border-bottom:none}
     <div class="stats-grid" id="today-stats-grid"></div>
     <div class="sec-ttl">Team Condition Today</div>
     <div id="today-condition-bars"></div>
+    <div class="sec-ttl">Morning Check Logged</div>
+    <div id="today-cond-list"></div>
     <div class="sec-ttl">Training Logged</div>
     <div id="today-log-list"></div>
     <div class="sec-ttl" style="display:flex;justify-content:space-between;align-items:center">
@@ -854,8 +856,6 @@ tr:last-child td{border-bottom:none}
       <span id="not-logged-count" style="font-size:12px;color:var(--muted);font-weight:400"></span>
     </div>
     <div id="today-not-logged"></div>
-    <div class="sec-ttl">Morning Check Logged</div>
-    <div id="today-cond-list"></div>
   </div>
 
   <!-- LOAD -->
@@ -2001,6 +2001,7 @@ function selectType(t){
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
             planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
+            planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
             // Actual logged values
@@ -2020,6 +2021,7 @@ function selectType(t){
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
             planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
+            planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
             intensity:e.planIntensity||'', sets:e.planSets||'', reps:e.planReps||'',
@@ -2118,6 +2120,7 @@ function selectType(t){
             name:e.name, subCategory:e.subCategory||ls.subCategory||null, fromPlan:true,
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'', planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
+            planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             intensity:ls.intensity?String(ls.intensity):'',
             distance:ls.distance?String(ls.distance):'',
             sets:ls.sets?String(ls.sets):'', reps:ls.reps?String(ls.reps):'',
@@ -2128,6 +2131,7 @@ function selectType(t){
             name:e.name, subCategory:e.subCategory, fromPlan:true,
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'', planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
+            planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             intensity:e.planIntensity||'', distance:e.planDistance||'',
             sets:e.planSets||'', reps:e.planReps||'', effort:''
           };
@@ -2364,33 +2368,71 @@ function renderBodyParts(){
   renderPartGroup('parts-core',BODY_PARTS.core,'core');
   renderSorenessSliders();
 }
+const _SECTION_COL={
+  upper:{color:'#4f8ef7',bg:'rgba(79,142,247,.15)',border:'rgba(79,142,247,.3)',label:'Upper Body'},
+  lower:{color:'#3ecf8e',bg:'rgba(62,207,142,.15)',border:'rgba(62,207,142,.3)',label:'Lower Body'},
+  core: {color:'#a78bfa',bg:'rgba(167,139,250,.15)',border:'rgba(167,139,250,.3)',label:'Core'}
+};
 function renderPartGroup(id,parts,gk){
+  const sc=_SECTION_COL[gk]||{color:'var(--orange)',bg:'rgba(247,169,79,.15)',border:'rgba(247,169,79,.3)'};
   const wrap=document.getElementById(id); wrap.innerHTML='';
   parts.forEach(p=>{
     const key=`${gk}:${p}`;
+    const sel=ST.selectedParts[key]!==undefined;
     const el=document.createElement('div');
-    el.className='part-chip'+(ST.selectedParts[key]!==undefined?' sel':'');
+    el.className='part-chip';
     el.textContent=p;
+    if(sel){
+      el.style.borderColor=sc.color; el.style.background=sc.bg;
+      el.style.color=sc.color; el.style.fontWeight='700';
+    }
     el.onclick=()=>{
-      if(ST.selectedParts[key]!==undefined) delete ST.selectedParts[key];
-      else ST.selectedParts[key]=5;
-      el.classList.toggle('sel'); renderSorenessSliders();
+      if(ST.selectedParts[key]!==undefined){
+        delete ST.selectedParts[key];
+        el.style.borderColor=''; el.style.background='';
+        el.style.color=''; el.style.fontWeight='';
+      } else {
+        ST.selectedParts[key]=5;
+        el.style.borderColor=sc.color; el.style.background=sc.bg;
+        el.style.color=sc.color; el.style.fontWeight='700';
+      }
+      renderSorenessSliders();
     };
     wrap.appendChild(el);
   });
 }
 function renderSorenessSliders(){
   const wrap=document.getElementById('soreness-sliders'); wrap.innerHTML='';
+  const groups={upper:[],lower:[],core:[]};
   Object.entries(ST.selectedParts).forEach(([key,val])=>{
-    const part=key.split(':')[1];
-    const div=document.createElement('div'); div.className='soreness-slider-item';
-    div.innerHTML=`<span class="soreness-part-lbl">${part}</span>
-      <input type="range" min="1" max="10" value="${val}" style="flex:1;-webkit-appearance:none;height:6px;border-radius:3px;background:var(--border);outline:none">
-      <span style="font-size:14px;font-weight:700;min-width:24px;text-align:right;color:var(--orange)">${val}</span>`;
-    const slider=div.querySelector('input');
-    const valEl=div.querySelector('span:last-child');
-    slider.addEventListener('input',()=>{ ST.selectedParts[key]=parseInt(slider.value); valEl.textContent=slider.value; });
-    wrap.appendChild(div);
+    const sec=key.split(':')[0];
+    if(groups[sec]) groups[sec].push({key,part:key.split(':')[1],val});
+  });
+  const active=Object.keys(groups).filter(s=>groups[s].length>0);
+  let first=true;
+  active.forEach(sec=>{
+    const sc=_SECTION_COL[sec]||{color:'var(--orange)',bg:'rgba(247,169,79,.15)',border:'rgba(247,169,79,.3)',label:sec};
+    if(!first){
+      const divider=document.createElement('div');
+      divider.style.cssText='height:1px;background:var(--border);margin:12px 0';
+      wrap.appendChild(divider);
+    }
+    first=false;
+    const secLbl=document.createElement('div');
+    secLbl.style.cssText=`font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${sc.color};margin-top:8px;margin-bottom:4px;padding-left:2px`;
+    secLbl.textContent=sc.label;
+    wrap.appendChild(secLbl);
+    groups[sec].forEach(({key,part,val})=>{
+      const div=document.createElement('div'); div.className='soreness-slider-item';
+      div.style.borderColor=sc.border;
+      div.innerHTML=`<span class="soreness-part-lbl" style="color:${sc.color}">${part}</span>
+        <input type="range" min="1" max="10" value="${val}" style="flex:1;-webkit-appearance:none;height:6px;border-radius:3px;background:var(--border);outline:none">
+        <span style="font-size:14px;font-weight:700;min-width:24px;text-align:right;color:${sc.color}">${val}</span>`;
+      const slider=div.querySelector('input');
+      const valEl=div.querySelector('span:last-child');
+      slider.addEventListener('input',()=>{ ST.selectedParts[key]=parseInt(slider.value); valEl.textContent=slider.value; });
+      wrap.appendChild(div);
+    });
   });
 }
 
@@ -2856,7 +2898,14 @@ function renderSprintSets(){
     if(fromPlan&&s.planDistance) _spPlanParts.push(`${s.planDistance}m`);
     if(fromPlan&&s.planSets) _spPlanParts.push(`${s.planSets} sets`);
     if(fromPlan&&s.planReps) _spPlanParts.push(`${s.planReps} reps`);
-    const spPlanSummary=_spPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_spPlanParts.join(' · ')}</div>`:'';
+    let _spRestStr='';
+    if(fromPlan&&(s.planRestTime||s.planRestTimeReps)){
+      const _rp=[];
+      if(s.planRestTime) _rp.push(`${s.planRestTime}${s.planRestUnit||'s'} · sets`);
+      if(s.planRestTimeReps) _rp.push(`${s.planRestTimeReps}${s.planRestUnitReps||'s'} · reps`);
+      _spRestStr=` <span style="color:#4f8ef7">/ Rest: ${_rp.join(' · ')}</span>`;
+    }
+    const spPlanSummary=_spPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_spPlanParts.join(' · ')}${_spRestStr}</div>`:'';
     const setsEdited=fromPlan&&s.planSets!==''&&String(s.sets)!==String(s.planSets);
     const repsEdited=fromPlan&&s.planReps!==''&&String(s.reps)!==String(s.planReps);
 
@@ -3852,18 +3901,22 @@ function exportExcel(){
   XLSX.utils.book_append_sheet(wb,wsTab,'Tabata');
 
   // ── Sheet 4: Condition ───────────────────────────
-  // Focus: wellness & readiness variables
-  const condHdr=['Date','Athlete','Group','Fatigue (1-10)','Mood (1-10)','Sleep (hrs)','Sleep Quality (1-10)','Soreness Sites'];
+  // Focus: wellness & readiness variables + individual body-part soreness columns
+  const _ALL_PARTS=[...BODY_PARTS.upper,...BODY_PARTS.lower,...BODY_PARTS.core];
+  const condHdr=['Date','Athlete','Group','Fatigue (1-10)','Mood (1-10)','Sleep (hrs)','Sleep Quality (1-10)',..._ALL_PARTS.map(p=>`Soreness: ${p}`),'Notes'];
   const condRows=[condHdr];
   d.logs.filter(l=>l.type==='condition').forEach(l=>{
-    const soreness=(l.soreness||[]).map(s=>`${s.part}(${s.intensity})`).join('; ');
+    const sMap={};
+    (l.soreness||[]).forEach(s=>{ sMap[s.part]=s.intensity; });
     condRows.push([
       l.date, l.athleteName, l.group||'',
-      l.fatigue||'', l.mood||'', l.sleepHours||'', l.sleepQuality||'', soreness
+      l.fatigue||'', l.mood||'', l.sleepHours||'', l.sleepQuality||'',
+      ..._ALL_PARTS.map(p=>sMap[p]||''),
+      l.notes||''
     ]);
   });
   const wsC=XLSX.utils.aoa_to_sheet(condRows);
-  wsC['!cols']=[{wch:12},{wch:18},{wch:8},{wch:14},{wch:12},{wch:12},{wch:18},{wch:35}];
+  wsC['!cols']=[{wch:12},{wch:18},{wch:8},{wch:14},{wch:12},{wch:12},{wch:18},..._ALL_PARTS.map(()=>({wch:16})),{wch:30}];
   XLSX.utils.book_append_sheet(wb,wsC,'Condition');
 
   // ── Sheet 4: Weight Load ─────────────────────────
@@ -5424,18 +5477,13 @@ function _duplicatePlanEx(idx){
   const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
   const exs=_getPlanSessionExsFromData(plan); if(!exs) return;
   const original=exs[idx]; if(!original) return;
-  // Deep-copy the exercise object, resetting intensity/load fields but keeping name, type, rest, structure
+  // Deep-copy all values — intensity, sets, reps, rest, contraction, everything
   const copy=JSON.parse(JSON.stringify(original));
-  // Reset load/intensity values so coach sets them fresh, keep rest times and structure
-  const params=TRAINING_STRUCTURE[copy.trainingType]?.params||'lifting';
-  if(params==='lifting'){ copy.planIntensity=''; copy.planSets=''; copy.planReps=''; copy.planContractionValue=''; }
-  else if(params==='sprint'){ copy.planIntensity=''; copy.planSets=''; copy.planReps=''; copy.planDistance=''; }
-  else if(params==='plyo'){ copy.planSets=''; copy.planReps=''; }
   // Insert immediately after the original
   exs.splice(idx+1,0,copy);
   saveData(d);
   renderPlanAccordion();
-  showToast(`${original.name} duplicated`);
+  showToast(`${original.name} copied ✓`);
 }
 
 function _updatePlanEx(idx,field,val){
