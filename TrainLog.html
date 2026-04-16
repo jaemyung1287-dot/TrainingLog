@@ -1799,6 +1799,7 @@ function selectType(t){
       ST.sprintSets=sprintExs.map(e=>({
         name:e.name, subCategory:e.subCategory, fromPlan:true,
         planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'', planDistance:e.planDistance||'',
+        planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
         intensity:e.planIntensity||'', distance:e.planDistance||'',
         sets:e.planSets||'', reps:e.planReps||'', effort:''
       }));
@@ -1999,8 +2000,8 @@ function renderExList(){
       if(fromPlan&&ex.planRestTime){
         const rUnit=ex.planRestUnit||'s';
         const rTypes=(ex.planRestType||[]);
-        const rTypeLbl=rTypes.length?rTypes.join('+')+'후':'';
-        liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' per '+rTypeLbl:''}</span>`;
+        const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
+        liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' / '+rTypeLbl:''}</span>`;
       }
       const liftPlanSummary=_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`:'';
       // Contraction info (read-only for athlete)
@@ -2080,8 +2081,8 @@ function renderExList(){
       if(fromPlan&&ex.planRestTime){
         const rUnit=ex.planRestUnit||'s';
         const rTypes=(ex.planRestType||[]);
-        const rTypeLbl=rTypes.length?rTypes.join('+')+'후':'';
-        plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' per '+rTypeLbl:''}</span>`;
+        const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
+        plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' / '+rTypeLbl:''}</span>`;
       }
       const plyoPlanSummary=_plyoPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_plyoPlanParts.join(' · ')}${plyoRestStr}</div>`:'';
       paramsHtml=`
@@ -2109,8 +2110,8 @@ function renderExList(){
       if(fromPlan&&ex.planRestTime){
         const rUnit=ex.planRestUnit||'s';
         const rTypes=(ex.planRestType||[]);
-        const rTypeLbl=rTypes.length?rTypes.join('+')+'후':'';
-        sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' per '+rTypeLbl:''}</span>`;
+        const rTypeLbl=rTypes.length?rTypes.join(' & '):'';
+        sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' / '+rTypeLbl:''}</span>`;
       }
       const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
       paramsHtml=`
@@ -2213,7 +2214,8 @@ function saveWeight(){
         isBodyweight:isBW, extraKg:isBW?parseFloat(e.extraKg)||0:null,
         sets:parseInt(e.sets)||0, reps:parseInt(e.reps)||0,
         effort:e.effort||null, fromPlan:e.fromPlan||false,
-        meanV:e.meanV?parseFloat(e.meanV):null, peakV:e.peakV?parseFloat(e.peakV):null
+        meanV:e.meanV?parseFloat(e.meanV):null, peakV:e.peakV?parseFloat(e.peakV):null,
+        planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null, planRestType:e.planRestType||[]
       };
     }),
     totalVolume:Math.round(totalVol),
@@ -2371,7 +2373,7 @@ function saveSprint(){
     phase:document.getElementById('sp-phase').value,
     week:document.getElementById('sp-week').value,
     sprintType:ST.sprintSets[0]?.subCategory||'Sprint Training',
-    sets:sets.map(s=>({name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:parseFloat(s.actualTime)||null,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false})),
+    sets:sets.map(s=>({name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:parseFloat(s.actualTime)||null,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]})),
     totalDistance:Math.round(totalDist),
     rpe:parseInt(document.getElementById('sl-srpe').value),
     notes:document.getElementById('sprint-notes').value
@@ -3190,7 +3192,7 @@ function exportExcel(){
     'Vertical Power':'Power (Vertical)','Horizontal Power':'Power (Horizontal)',
     'Reactive / Elastic':'Reactive / Elastic','Circuit':'Circuit'
   };
-  const wloadHdr=['Date','Athlete','Group','Phase','Week','Body Region','Category','Exercise','Sets','Reps','Load (kg)','Tonnage (kg)','Intensity (%)'];
+  const wloadHdr=['Date','Athlete','Group','Phase','Week','Body Region','Category','Exercise','Sets','Reps','Load (kg)','Tonnage (kg)','Intensity (%)','Rest Time','Rest Unit','Rest Type'];
   const wloadRows=[wloadHdr];
   d.logs.filter(l=>l.type==='weight'&&!_isBulk(l)).forEach(l=>{
     (l.exercises||[]).forEach(e=>{
@@ -3201,7 +3203,8 @@ function exportExcel(){
         _bodyRegion(sub),
         SUB_LABEL[sub]||sub||'–',
         e.name||'', e.sets||'', e.reps||'',
-        e.weight||'', tonnage||'', e.intensity||''
+        e.weight||'', tonnage||'', e.intensity||'',
+        e.planRestTime||'', e.planRestUnit||'', (e.planRestType||[]).join('+')
       ]);
     });
   });
@@ -3217,7 +3220,7 @@ function exportExcel(){
   });
   wloadRows.unshift(wlHdr);
   const wsWL=XLSX.utils.aoa_to_sheet(wloadRows);
-  wsWL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:16},{wch:22},{wch:28},{wch:6},{wch:6},{wch:10},{wch:14},{wch:12}];
+  wsWL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:16},{wch:22},{wch:28},{wch:6},{wch:6},{wch:10},{wch:14},{wch:12},{wch:10},{wch:10},{wch:14}];
   XLSX.utils.book_append_sheet(wb,wsWL,'Weight Load');
 
   // ── Sheet 5: Sprint Load ─────────────────────────
@@ -3231,7 +3234,7 @@ function exportExcel(){
     'Resistance Sprinting':'Resistance Sprinting',
     'Sprint Training':'Sprint Training'
   };
-  const sloadHdr=['Date','Athlete','Group','Phase','Week','Sprint Category','Sprint Name','Distance (m)','Sets','Reps','Total Distance (m)','Intensity (%)'];
+  const sloadHdr=['Date','Athlete','Group','Phase','Week','Sprint Category','Sprint Name','Distance (m)','Sets','Reps','Total Distance (m)','Intensity (%)','Rest Time','Rest Unit','Rest Type'];
   const sloadRows=[sloadHdr];
   d.logs.filter(l=>l.type==='sprint'&&!_isBulk(l)).forEach(l=>{
     (l.sets||[]).forEach(s=>{
@@ -3242,7 +3245,8 @@ function exportExcel(){
         SPRINT_CAT_LABEL[cat]||cat,
         s.name||l.sprintType||'–',
         s.distance||'', s.sets||'', s.reps||'',
-        totalDist||'', s.intensity||''
+        totalDist||'', s.intensity||'',
+        s.planRestTime||'', s.planRestUnit||'', (s.planRestType||[]).join('+')
       ]);
     });
   });
@@ -3258,7 +3262,7 @@ function exportExcel(){
   });
   sloadRows.unshift(slHdr);
   const wsSL=XLSX.utils.aoa_to_sheet(sloadRows);
-  wsSL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:28},{wch:20},{wch:12},{wch:6},{wch:6},{wch:16},{wch:12}];
+  wsSL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:28},{wch:20},{wch:12},{wch:6},{wch:6},{wch:16},{wch:12},{wch:10},{wch:10},{wch:14}];
   XLSX.utils.book_append_sheet(wb,wsSL,'Sprint Load');
 
   // ── Download ─────────────────────────────────────
