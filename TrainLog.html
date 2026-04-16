@@ -800,6 +800,10 @@ tr:last-child td{border-bottom:none}
     <canvas id="chart-my-sprint"></canvas>
   </div>
   <div class="chart-box">
+    <div class="chart-title">🦘 Plyometric Volume (reps + contacts)</div>
+    <canvas id="chart-my-plyo"></canvas>
+  </div>
+  <div class="chart-box">
     <div class="chart-title">😩 Fatigue · 😊 Mood · 😴 Sleep Quality</div>
     <canvas id="chart-my-condition"></canvas>
   </div>
@@ -872,8 +876,10 @@ tr:last-child td{border-bottom:none}
       <button class="period-btn" onclick="setPeriod('month',this)">30 Days</button>
       <button class="period-btn" onclick="setPeriod('year',this)">1 Year</button>
     </div>
-    <div class="chart-box"><div class="chart-title">🏋️ Weight Volume (kg)</div><canvas id="chart-load-weight"></canvas></div>
+    <div class="chart-box"><div class="chart-title">🏋️ Power Development Volume (kg)</div><canvas id="chart-load-power"></canvas></div>
+    <div class="chart-box"><div class="chart-title">💪 Resistance Training Volume (kg)</div><canvas id="chart-load-resistance"></canvas></div>
     <div class="chart-box"><div class="chart-title">⚡ Sprint Distance (m)</div><canvas id="chart-load-sprint"></canvas></div>
+    <div class="chart-box"><div class="chart-title">🦘 Plyometric Volume (reps + contacts)</div><canvas id="chart-load-plyo"></canvas></div>
     <!-- Condition: single athlete → combined 3-line chart -->
     <div id="load-cond-single" class="chart-box" style="display:none">
       <div class="chart-title">😩 Fatigue · 😊 Mood · 😴 Sleep Quality</div>
@@ -959,8 +965,10 @@ tr:last-child td{border-bottom:none}
     <button class="btn btn-g btn-sm" onclick="goCoachRecord()" style="margin-top:12px;width:auto;padding:10px 20px">＋ Add Record · Bestzeit</button>
   </div>
   <div class="stats-grid" id="detail-stats"></div>
-  <div class="chart-box"><div class="chart-title">🏋️ Weight Volume (kg) — 14 days</div><canvas id="chart-detail-weight"></canvas></div>
+  <div class="chart-box"><div class="chart-title">🏋️ Power Development Volume (kg) — 14 days</div><canvas id="chart-detail-power"></canvas></div>
+  <div class="chart-box"><div class="chart-title">💪 Resistance Training Volume (kg) — 14 days</div><canvas id="chart-detail-resistance"></canvas></div>
   <div class="chart-box"><div class="chart-title">⚡ Sprint Distance (m) — 14 days</div><canvas id="chart-detail-sprint"></canvas></div>
+  <div class="chart-box"><div class="chart-title">🦘 Plyometric Volume (reps + contacts) — 14 days</div><canvas id="chart-detail-plyo"></canvas></div>
   <div class="chart-box"><div class="chart-title">😩 Fatigue · 😊 Mood · 😴 Sleep Quality — 14 days</div><canvas id="chart-detail-condition"></canvas></div>
   <div class="sec-ttl">🏅 Records · Bestzeiten</div>
   <div id="detail-records"></div>
@@ -3190,6 +3198,7 @@ function renderAthStats(){
   // Summary cards removed (rendered in charts below)
 
   const sDist=dates.map(dt=>myLogs.filter(l=>l.type==='sprint'&&l.date===dt).reduce((s,l)=>s+(l.totalDistance||0),0));
+  const plyoVol=dates.map(dt=>myLogs.filter(l=>l.type==='plyo'&&l.date===dt).reduce((s,l)=>s+(l.totalReps||0)+(l.totalContacts||0),0));
   const fat=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].fatigue:null; });
   const mood=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].mood:null; });
   const slp=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].sleepQuality:null; });
@@ -3197,10 +3206,11 @@ function renderAthStats(){
   mkChart('chart-my-upper',[{label:'Power Development (kg)',data:liftingVol,type:'bar',backgroundColor:'rgba(255,179,71,.75)'}],labels);
   mkChart('chart-my-lower',[{label:'Resistance Training (kg)',data:weightVol,type:'bar',backgroundColor:'rgba(74,158,255,.75)'}],labels);
   mkChart('chart-my-sprint',[{label:'Distance (m)',data:sDist,type:'bar',backgroundColor:'rgba(62,207,142,.7)'}],labels);
+  mkChart('chart-my-plyo',[{label:'Reps + Contacts',data:plyoVol,type:'bar',backgroundColor:'rgba(167,139,250,.75)'}],labels);
   mkChart('chart-my-condition',[
-    {label:'Fatigue',data:fat,borderColor:'#e94560',backgroundColor:'transparent',tension:.4,pointRadius:3},
-    {label:'Mood',data:mood,borderColor:'#3ecf8e',backgroundColor:'transparent',tension:.4,pointRadius:3},
-    {label:'Sleep Q',data:slp,borderColor:'#4f8ef7',backgroundColor:'transparent',tension:.4,pointRadius:3}
+    {label:'Fatigue',data:fat,borderColor:'#e94560',backgroundColor:'#e94560',tension:.4,pointRadius:5,pointStyle:'circle'},
+    {label:'Mood',data:mood,borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'},
+    {label:'Sleep Q',data:slp,borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
   ],labels);
   renderMyRecords();
   ST._teamPeriod=ST._teamPeriod||'week';
@@ -3465,48 +3475,67 @@ function renderLoadTab(){
   if(condSingle) condSingle.style.display=isAll?'none':'block';
   if(condAll) condAll.style.display=isAll?'block':'none';
 
+  // Helper: compute volume for a weight log by training type
+  function _pvol(l){ return (l.exercises||[]).reduce((s,e)=>e.trainingType==='Power Development'?s+(e.weight||0)*(e.sets||0)*(e.reps||0):s,0); }
+  function _rvol(l){ return (l.exercises||[]).reduce((s,e)=>e.trainingType==='Resistance Training'?s+(e.weight||0)*(e.sets||0)*(e.reps||0):s,0); }
+  function _plyvol(l){ return (l.totalReps||0)+(l.totalContacts||0); }
+  // Condition dataset helpers — different pointStyle per metric so overlapping values stay visible
+  function _condDs(label,data,color,pStyle){ return {label,data,borderColor:color,backgroundColor:color,tension:.4,pointRadius:5,pointHoverRadius:7,pointStyle:pStyle}; }
+
   if(loadPeriod==='year'){
     const months=getLast12Months();
     const labels=months.map(m=>m.label);
     const fl=(type)=>d.logs.filter(l=>l.type===type&&(isAll||l.athleteName===fn));
-    const wl=fl('weight'),sl=fl('sprint'),cc=fl('condition');
+    const wl=fl('weight'),sl=fl('sprint'),pl=fl('plyo'),cc=fl('condition');
+    const pwl=wl.filter(l=>(l.exercises||[]).some(e=>e.trainingType==='Power Development'));
+    const rwl=wl.filter(l=>(l.exercises||[]).some(e=>e.trainingType==='Resistance Training'));
     // Year view: aggregate dots per month
     if(isAll){
-      _mkDotChart('chart-load-weight',  wl, months.map(m=>m.key), labels, l=>l.totalVolume,   ' kg', 'prefix');
-      _mkDotChart('chart-load-sprint',  sl, months.map(m=>m.key), labels, l=>l.totalDistance, ' m',  'prefix');
-      _mkDotChart('chart-load-fatigue', cc, months.map(m=>m.key), labels, l=>l.fatigue,       '',    'prefix');
-      _mkDotChart('chart-load-mood',    cc, months.map(m=>m.key), labels, l=>l.mood,           '',    'prefix');
-      _mkDotChart('chart-load-sleepq',  cc, months.map(m=>m.key), labels, l=>l.sleepQuality,   '',    'prefix');
+      _mkDotChart('chart-load-power',     pwl, months.map(m=>m.key), labels, _pvol,   ' kg', 'prefix');
+      _mkDotChart('chart-load-resistance',rwl, months.map(m=>m.key), labels, _rvol,   ' kg', 'prefix');
+      _mkDotChart('chart-load-sprint',    sl,  months.map(m=>m.key), labels, l=>l.totalDistance, ' m', 'prefix');
+      _mkDotChart('chart-load-plyo',      pl,  months.map(m=>m.key), labels, _plyvol, '',    'prefix');
+      _mkDotChart('chart-load-fatigue', cc, months.map(m=>m.key), labels, l=>l.fatigue,     '', 'prefix');
+      _mkDotChart('chart-load-mood',    cc, months.map(m=>m.key), labels, l=>l.mood,         '', 'prefix');
+      _mkDotChart('chart-load-sleepq',  cc, months.map(m=>m.key), labels, l=>l.sleepQuality, '', 'prefix');
       document.getElementById('load-cond-table').innerHTML='';
     } else {
-      _mkSingleDotChart('chart-load-weight', wl, months.map(m=>m.key), labels, l=>l.totalVolume, ' kg', '#4f8ef7');
-      _mkSingleDotChart('chart-load-sprint', sl, months.map(m=>m.key), labels, l=>l.totalDistance, ' m', '#3ecf8e');
+      _mkSingleDotChart('chart-load-power',     pwl, months.map(m=>m.key), labels, _pvol,   ' kg', '#f7a94f');
+      _mkSingleDotChart('chart-load-resistance',rwl, months.map(m=>m.key), labels, _rvol,   ' kg', '#4f8ef7');
+      _mkSingleDotChart('chart-load-sprint',    sl,  months.map(m=>m.key), labels, l=>l.totalDistance, ' m', '#3ecf8e');
+      _mkSingleDotChart('chart-load-plyo',      pl,  months.map(m=>m.key), labels, _plyvol, '',    '#a78bfa');
       mkChart('chart-load-condition',[
-        {label:'Fatigue',data:months.map(m=>{ const c=cc.filter(l=>l.date.startsWith(m.key)); return c.length?Math.round(c.reduce((s,l)=>s+l.fatigue,0)/c.length*10)/10:null; }),borderColor:'#e94560',backgroundColor:'transparent',tension:.4,pointRadius:5,pointHoverRadius:7},
-        {label:'Mood',data:months.map(m=>{ const c=cc.filter(l=>l.date.startsWith(m.key)); return c.length?Math.round(c.reduce((s,l)=>s+l.mood,0)/c.length*10)/10:null; }),borderColor:'#3ecf8e',backgroundColor:'transparent',tension:.4,pointRadius:5,pointHoverRadius:7},
-        {label:'Sleep Q',data:months.map(m=>{ const c=cc.filter(l=>l.date.startsWith(m.key)); return c.length?Math.round(c.reduce((s,l)=>s+l.sleepQuality,0)/c.length*10)/10:null; }),borderColor:'#4f8ef7',backgroundColor:'transparent',tension:.4,pointRadius:5,pointHoverRadius:7}
+        _condDs('Fatigue', months.map(m=>{ const c=cc.filter(l=>l.date.startsWith(m.key)); return c.length?Math.round(c.reduce((s,l)=>s+l.fatigue,0)/c.length*10)/10:null; }), '#e94560', 'circle'),
+        _condDs('Mood',    months.map(m=>{ const c=cc.filter(l=>l.date.startsWith(m.key)); return c.length?Math.round(c.reduce((s,l)=>s+l.mood,0)/c.length*10)/10:null; }),    '#3ecf8e', 'rect'),
+        _condDs('Sleep Q', months.map(m=>{ const c=cc.filter(l=>l.date.startsWith(m.key)); return c.length?Math.round(c.reduce((s,l)=>s+l.sleepQuality,0)/c.length*10)/10:null; }), '#4f8ef7', 'rectRot')
       ],labels);
     }
   } else {
     const n=loadPeriod==='week'?7:30; const dates=getLast(n); const labels=dates.map(fmtDate);
     const fl=(type)=>d.logs.filter(l=>l.type===type&&dates.includes(l.date)&&(isAll||l.athleteName===fn));
-    const wl=fl('weight'),sl=fl('sprint'),cc=fl('condition');
+    const wl=fl('weight'),sl=fl('sprint'),pl=fl('plyo'),cc=fl('condition');
+    const pwl=wl.filter(l=>(l.exercises||[]).some(e=>e.trainingType==='Power Development'));
+    const rwl=wl.filter(l=>(l.exercises||[]).some(e=>e.trainingType==='Resistance Training'));
 
     if(isAll){
       // All athletes: dots per athlete, names in tooltip
-      _mkDotChart('chart-load-weight', wl, dates, labels, l=>l.totalVolume, ' kg');
-      _mkDotChart('chart-load-sprint', sl, dates, labels, l=>l.totalDistance, ' m');
-      _mkDotChart('chart-load-fatigue', cc, dates, labels, l=>l.fatigue,       '');
-      _mkDotChart('chart-load-mood',    cc, dates, labels, l=>l.mood,           '');
-      _mkDotChart('chart-load-sleepq',  cc, dates, labels, l=>l.sleepQuality,   '');
+      _mkDotChart('chart-load-power',     pwl, dates, labels, _pvol,   ' kg');
+      _mkDotChart('chart-load-resistance',rwl, dates, labels, _rvol,   ' kg');
+      _mkDotChart('chart-load-sprint',    sl,  dates, labels, l=>l.totalDistance, ' m');
+      _mkDotChart('chart-load-plyo',      pl,  dates, labels, _plyvol, '');
+      _mkDotChart('chart-load-fatigue', cc, dates, labels, l=>l.fatigue,     '');
+      _mkDotChart('chart-load-mood',    cc, dates, labels, l=>l.mood,         '');
+      _mkDotChart('chart-load-sleepq',  cc, dates, labels, l=>l.sleepQuality, '');
     } else {
       // Single athlete: dot per session, no legend
-      _mkSingleDotChart('chart-load-weight', wl, dates, labels, l=>l.totalVolume, ' kg', '#4f8ef7');
-      _mkSingleDotChart('chart-load-sprint', sl, dates, labels, l=>l.totalDistance, ' m', '#3ecf8e');
+      _mkSingleDotChart('chart-load-power',     pwl, dates, labels, _pvol,   ' kg', '#f7a94f');
+      _mkSingleDotChart('chart-load-resistance',rwl, dates, labels, _rvol,   ' kg', '#4f8ef7');
+      _mkSingleDotChart('chart-load-sprint',    sl,  dates, labels, l=>l.totalDistance, ' m', '#3ecf8e');
+      _mkSingleDotChart('chart-load-plyo',      pl,  dates, labels, _plyvol, '',    '#a78bfa');
       mkChart('chart-load-condition',[
-        {label:'Fatigue',data:dates.map(dt=>{ const c=cc.filter(l=>l.date===dt); return c.length?c[c.length-1].fatigue:null; }),borderColor:'#e94560',backgroundColor:'transparent',tension:.4,pointRadius:5,pointHoverRadius:7},
-        {label:'Mood',data:dates.map(dt=>{ const c=cc.filter(l=>l.date===dt); return c.length?c[c.length-1].mood:null; }),borderColor:'#3ecf8e',backgroundColor:'transparent',tension:.4,pointRadius:5,pointHoverRadius:7},
-        {label:'Sleep Q',data:dates.map(dt=>{ const c=cc.filter(l=>l.date===dt); return c.length?c[c.length-1].sleepQuality:null; }),borderColor:'#4f8ef7',backgroundColor:'transparent',tension:.4,pointRadius:5,pointHoverRadius:7}
+        _condDs('Fatigue', dates.map(dt=>{ const c=cc.filter(l=>l.date===dt); return c.length?c[c.length-1].fatigue:null; }),      '#e94560', 'circle'),
+        _condDs('Mood',    dates.map(dt=>{ const c=cc.filter(l=>l.date===dt); return c.length?c[c.length-1].mood:null; }),         '#3ecf8e', 'rect'),
+        _condDs('Sleep Q', dates.map(dt=>{ const c=cc.filter(l=>l.date===dt); return c.length?c[c.length-1].sleepQuality:null; }), '#4f8ef7', 'rectRot')
       ],labels);
     }
     _renderCondTable(cc.slice().sort((a,b)=>b.date.localeCompare(a.date)));
@@ -3575,12 +3604,14 @@ function openAthDetail(name){ ST._detailAthName=name;
     <div class="stat"><div class="stat-lbl">7d Sprint</div><div class="stat-val c-green">${sd.toLocaleString()}<span style="font-size:12px">m</span></div></div>
     <div class="stat"><div class="stat-lbl">Avg Fatigue</div><div class="stat-val c-red">${af}</div></div>
     <div class="stat"><div class="stat-lbl">Avg Mood</div><div class="stat-val c-purple">${am}</div></div>`;
-  mkChart('chart-detail-weight',[{label:'Volume (kg)',data:dates.map(dt=>logs.filter(l=>l.type==='weight'&&l.date===dt).reduce((s,l)=>s+l.totalVolume,0)),type:'bar',backgroundColor:'rgba(79,142,247,.7)'}],labels);
+  mkChart('chart-detail-power',[{label:'Power Dev (kg)',data:dates.map(dt=>logs.filter(l=>l.type==='weight'&&l.date===dt).reduce((s,l)=>s+(l.exercises||[]).reduce((ss,e)=>e.trainingType==='Power Development'?ss+(e.weight||0)*(e.sets||0)*(e.reps||0):ss,0),0)),type:'bar',backgroundColor:'rgba(247,169,79,.75)'}],labels);
+  mkChart('chart-detail-resistance',[{label:'Resistance (kg)',data:dates.map(dt=>logs.filter(l=>l.type==='weight'&&l.date===dt).reduce((s,l)=>s+(l.exercises||[]).reduce((ss,e)=>e.trainingType==='Resistance Training'?ss+(e.weight||0)*(e.sets||0)*(e.reps||0):ss,0),0)),type:'bar',backgroundColor:'rgba(79,142,247,.7)'}],labels);
   mkChart('chart-detail-sprint',[{label:'Distance (m)',data:dates.map(dt=>logs.filter(l=>l.type==='sprint'&&l.date===dt).reduce((s,l)=>s+(l.totalDistance||0),0)),type:'bar',backgroundColor:'rgba(62,207,142,.7)'}],labels);
+  mkChart('chart-detail-plyo',[{label:'Reps + Contacts',data:dates.map(dt=>logs.filter(l=>l.type==='plyo'&&l.date===dt).reduce((s,l)=>s+(l.totalReps||0)+(l.totalContacts||0),0)),type:'bar',backgroundColor:'rgba(167,139,250,.75)'}],labels);
   mkChart('chart-detail-condition',[
-    {label:'Fatigue',data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].fatigue:null; }),borderColor:'#e94560',backgroundColor:'transparent',tension:.4,pointRadius:3},
-    {label:'Mood',data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].mood:null; }),borderColor:'#3ecf8e',backgroundColor:'transparent',tension:.4,pointRadius:3},
-    {label:'Sleep Q',data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].sleepQuality:null; }),borderColor:'#4f8ef7',backgroundColor:'transparent',tension:.4,pointRadius:3}
+    {label:'Fatigue', data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].fatigue:null; }),      borderColor:'#e94560',backgroundColor:'#e94560',tension:.4,pointRadius:5,pointStyle:'circle'},
+    {label:'Mood',    data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].mood:null; }),         borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'},
+    {label:'Sleep Q', data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].sleepQuality:null; }), borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
   ],labels);
   // Records section
   const recWrap=document.getElementById('detail-records');
