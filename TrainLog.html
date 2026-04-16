@@ -812,8 +812,6 @@ tr:last-child td{border-bottom:none}
   <div id="team-anon-stats"></div>
   <div class="sec-ttl" style="margin-top:20px">🏅 My Records · Meine Bestzeiten</div>
   <div id="my-records-list"></div>
-  <div class="sec-ttl" style="margin-top:20px">📋 Recent Logs · Letzte Einträge</div>
-  <div id="my-recent-logs"></div>
 </div>
 
 <!-- COACH LOGIN -->
@@ -1802,12 +1800,38 @@ function goLogTraining(){
       if(!exs.length) return '';
       const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
       const isSprintOnly=exs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
-      const hasSprint=exs.some(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
-      const typeHint=isSprintOnly?'⚡ Sprint':hasSprint?'🏋️⚡ Mixed':'🏋️ Weight';
       const chkKey=_chkKey(sess);
       const ck=ST._chks[chkKey]||new Set();
       const doneCount=ck.size;
       const isOpen=ST._sessExpanded.has(sess);
+
+      // ── Actual logged status for today ──
+      const _todayLogs=getData().logs.filter(l=>
+        l.athleteName===ST.athlete.name&&l.date===today&&
+        (l.type==='weight'||l.type==='plyo'||l.type==='sprint'));
+      // Which types does this session require?
+      const _sessTypes=new Set();
+      exs.forEach(e=>{
+        const p=TRAINING_STRUCTURE[e.trainingType]?.params;
+        if(p==='sprint') _sessTypes.add('sprint');
+        else if(p==='plyo') _sessTypes.add('plyo');
+        else _sessTypes.add('weight');
+      });
+      const _loggedTypes=new Set(_todayLogs.map(l=>l.type));
+      const _sessLogged=[..._sessTypes].every(t=>_loggedTypes.has(t));
+      // Collect all exercise names actually submitted today
+      const _loggedExNames=new Set(_todayLogs.flatMap(l=>{
+        const arr=(l.type==='weight'||l.type==='plyo')?(l.exercises||[]):(l.sets||[]);
+        return arr.map(e=>e.name||'').filter(Boolean);
+      }));
+      // Which plan exercises are missing from actual submissions?
+      const _missingExs=_sessLogged?exs.filter(e=>!_loggedExNames.has(e.name)):[];
+      // Header status badge
+      const _statusBadge=_sessLogged
+        ?(_missingExs.length
+          ?`<span style="font-size:11px;font-weight:700;background:rgba(247,169,79,.15);color:#f7a94f;border-radius:6px;padding:3px 8px">⚠️ ${_missingExs.length} not logged</span>`
+          :`<span style="font-size:11px;font-weight:700;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:6px;padding:3px 8px">✓ Logged</span>`)
+        :`<span style="font-size:11px;font-weight:700;background:rgba(247,169,79,.1);color:#f7a94f;border-radius:6px;padding:3px 8px">⏳ Not yet</span>`;
 
       // Collapsed preview: first 3 exercise names
       const previewNames=exs.slice(0,3).map(e=>e.name).join(', ')+(exs.length>3?` +${exs.length-3}`:'');
@@ -1815,6 +1839,8 @@ function goLogTraining(){
       // All exercise rows (shown when expanded)
       const allLines=exs.map((e,idx)=>{
         const isDone=ck.has(idx);
+        const _wasLogged=_loggedExNames.has(e.name);
+        const _isMissing=_sessLogged&&!_wasLogged;
         let detail='';
         {const dp=[];
         if(e.planIntensity) dp.push(`${e.planIntensity}%`);
@@ -1839,14 +1865,21 @@ function goLogTraining(){
           const cVal=e.planContractionValue?` · ${e.planContractionValue}`:'';
           contractStr=`<span style="color:rgba(167,139,250,.75)"> / ${e.planContractionType}${cVal}</span>`;
         }
+        // Actual log status indicator (separate from checkbox)
+        const _logTag=_sessLogged
+          ?(_wasLogged
+            ?`<span style="font-size:10px;font-weight:700;color:#3ecf8e;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(62,207,142,.08)">✓</span>`
+            :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! 미제출</span>`)
+          :'';
         return `<div id="_chk_${sess}_${idx}" onclick="_toggleChk(event,'${chkKey}','${sess}',${idx})"
-          style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:${isDone?'rgba(255,255,255,.2)':'var(--muted)'}">
+          style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:${isDone?'rgba(255,255,255,.2)':_isMissing?'#f7a94f':'var(--muted)'}">
           <span class="_chk-circle" style="width:18px;height:18px;border-radius:50%;flex-shrink:0;border:1.5px solid ${isDone?'#3ecf8e':'rgba(255,255,255,.2)'};background:${isDone?'#3ecf8e':'transparent'};display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700">${isDone?'✓':''}</span>
-          <span class="_chk-label" style="${isDone?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
+          <span class="_chk-label" style="flex:1;${isDone?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
+          ${_logTag}
         </div>`;
       }).join('');
 
-      return `<div class="menu-card" style="margin-bottom:14px;text-align:left;padding:0;overflow:hidden">
+      return `<div class="menu-card" style="margin-bottom:14px;text-align:left;padding:0;overflow:hidden;${_sessLogged&&!_missingExs.length?'border-color:rgba(62,207,142,.3)':_isMissing?'border-color:rgba(247,169,79,.3)':''}">
         <!-- Header (always visible, tap to expand) -->
         <div onclick="_toggleSessExpand('${sess}')" style="padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
           <div style="display:flex;flex-direction:column;gap:3px">
@@ -1854,7 +1887,7 @@ function goLogTraining(){
             <span style="font-size:11px;color:var(--muted)">${previewNames}</span>
           </div>
           <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
-            <span style="font-size:11px;font-weight:700;background:rgba(79,142,247,.15);color:#4f8ef7;border-radius:6px;padding:3px 8px">${typeHint} · ${exs.length} ex<span id="_chk_badge_${sess}" style="color:#3ecf8e">${doneCount>0?` · ${doneCount}/${exs.length} ✓`:''}</span></span>
+            ${_statusBadge}
             <span id="_sess_chev_${sess}" style="font-size:11px;color:var(--muted);font-weight:700">${isOpen?'▲':'▼'}</span>
           </div>
         </div>
@@ -2031,7 +2064,7 @@ function selectType(t){
     selectCircuit();
   }
 }
-function goAthleteStats(){ document.getElementById('astats-name').textContent=ST.athlete.name; renderAthStats(); _renderAthRecentLogs('my-recent-logs'); showScreen('s-athlete-stats'); }
+function goAthleteStats(){ document.getElementById('astats-name').textContent=ST.athlete.name; renderAthStats(); showScreen('s-athlete-stats'); }
 
 function _renderAthRecentLogs(targetId){
   const wrap=document.getElementById(targetId); if(!wrap||!ST.athlete) return;
