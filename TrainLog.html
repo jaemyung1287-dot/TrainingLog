@@ -4058,6 +4058,7 @@ function _editLog(logId){
   if(!ath) return;
   ST.athlete=ath;
   ST.editingLogId=logId;
+  ST._extraEditLogIds=[];
   const prog=d.programs[ath.group]||{};
 
   if(log.type==='weight'||log.type==='plyo'){
