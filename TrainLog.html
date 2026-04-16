@@ -2237,6 +2237,7 @@ function _renderAthRecentLogs(targetId){
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge ${typeBadge[l.type]}">${l.type}</span>
             <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
+            <button onclick="_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete</button>
           </div>
         </div>
         <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
@@ -4132,13 +4133,53 @@ function _editLog(logId){
 }
 
 function deleteLog(id, ctx){
-  // ctx: 'today' | 'detail'
+  // ctx: 'today' | 'detail' | 'load'
   const d=getData();
   d.logs=d.logs.filter(l=>l.id!==id);
   saveData(d);
   showToast('Log deleted');
   if(ctx==='detail'&&ST._detailAthName) openAthDetail(ST._detailAthName);
   else { renderToday(); if(ctx==='load') renderLoadTab(); }
+}
+
+// Delete from athlete's Recent Logs view — with confirmation modal
+function _deleteAthLog(id){
+  const d=getData();
+  const log=d.logs.find(l=>l.id===id);
+  if(!log) return;
+  const typeLabel={weight:'Weight Training',plyo:'Plyo Training',sprint:'Sprint Training'};
+  const label=typeLabel[log.type]||log.type;
+  const stat=log.type==='weight'?`${(log.totalVolume||0).toLocaleString()} kg`
+    :log.type==='sprint'?`${(log.totalDistance||0).toLocaleString()} m`
+    :log.type==='plyo'?`${log.totalReps||0} reps / ${log.totalContacts||0} contacts`:'';
+
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
+  el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;border-top:1px solid var(--border)">
+    <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">Delete this log?</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:6px">${log.date} · <b style="color:var(--text)">${label}</b></div>
+    ${stat?`<div style="font-size:13px;color:var(--muted);margin-bottom:20px">Result: <b style="color:var(--text)">${stat}</b></div>`:'<div style="margin-bottom:20px"></div>'}
+    <div style="font-size:12px;color:#f7a94f;margin-bottom:20px;padding:10px 12px;background:rgba(247,169,79,.08);border:1px solid rgba(247,169,79,.25);border-radius:10px">⚠️ This will also remove it from the coach view.</div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <button id="_del-confirm" style="padding:14px;border-radius:12px;background:#e94560;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Delete · Löschen</button>
+      <button id="_del-cancel" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Cancel · Abbrechen</button>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  const rm=()=>document.body.removeChild(el);
+  el.querySelector('#_del-confirm').onclick=()=>{
+    rm();
+    const dd=getData();
+    dd.logs=dd.logs.filter(l=>l.id!==id);
+    saveData(dd); // saves locally + syncs to Firebase → coach view updated
+    showToast('Log deleted · Gelöscht');
+    _renderAthRecentLogs('log-sess-recent');
+    // Also refresh log-session view if open
+    const logSess=document.getElementById('s-log-session');
+    if(logSess?.classList.contains('active')) goLogTraining();
+  };
+  el.querySelector('#_del-cancel').onclick=()=>rm();
+  el.onclick=(ev)=>{ if(ev.target===el) rm(); };
 }
 
 // ════════════════════════════════════════════════
