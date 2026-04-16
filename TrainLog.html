@@ -2097,7 +2097,7 @@ function renderExList(){
       const repLbl=repType==='contacts'?'Contacts':'Reps';
       const legTag=`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:rgba(62,207,142,.15);color:#3ecf8e;margin-left:4px">${legMode}</span>`;
       const _plyoPlanParts=[];
-      if(fromPlan&&(ex.planSets||ex.planReps)) _plyoPlanParts.push(`${ex.planSets||'—'}×${ex.planReps||'—'}${repType==='contacts'?' contacts':''}`);
+      if(fromPlan&&(ex.planSets||ex.planReps)) _plyoPlanParts.push(`${ex.planSets||'—'}×${ex.planReps||'—'}`);
       let plyoRestStr='';
       if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
         const parts=[];
@@ -2782,8 +2782,18 @@ function renderToday(){
     if(l.type==='sprint'){
       statsHtml=`<div class="detail-row"><span class="detail-key">Distance</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`;
     } else if(l.type==='plyo'){
-      if((l.totalReps||0)>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${l.totalReps.toLocaleString()}</span></div>`;
-      if((l.totalContacts||0)>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${l.totalContacts.toLocaleString()}</span></div>`;
+      // Derive contacts/reps — handles both new format (totalContacts defined) and old format (all in totalReps)
+      const _plyoExs=l.exercises||[];
+      let _dispReps=0,_dispContacts=0;
+      if(l.totalContacts!==undefined&&l.totalContacts!==null){
+        _dispReps=l.totalReps||0; _dispContacts=l.totalContacts||0;
+      } else {
+        _dispContacts=_plyoExs.filter(e=>e.planRepType==='contacts').reduce((s,e)=>s+(e.sets||0)*(e.reps||0),0);
+        _dispReps=_plyoExs.filter(e=>(e.planRepType||'reps')!=='contacts').reduce((s,e)=>s+(e.sets||0)*(e.reps||0),0);
+        if(!_dispReps&&!_dispContacts) _dispReps=l.totalReps||0;
+      }
+      if(_dispReps>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${_dispReps.toLocaleString()}</span></div>`;
+      if(_dispContacts>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${_dispContacts.toLocaleString()}</span></div>`;
       if(!statsHtml) statsHtml=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">—</span></div>`;
     } else {
       statsHtml=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${(l.totalVolume||0).toLocaleString()} kg</span></div>`;
@@ -2965,7 +2975,7 @@ function openAthDetail(name){ ST._detailAthName=name;
     <div class="detail-row"><span class="detail-key">${l.date}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':'b-c'}">${l.type}</span>${_dBtn(l.id)}</div></div>
     ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>`${e.name}${e.isBodyweight?`<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:5px;background:rgba(62,207,142,.2);color:#3ecf8e;margin-left:3px">BW${e.bwBase?` ${e.bwBase}kg`:''}</span>`:''}`).join(', ')}</span></div>`:''}
     ${l.type==='sprint'?`<div class="detail-row"><span class="detail-key">Type</span><span class="detail-val">${l.sprintType||''}</span></div><div class="detail-row"><span class="detail-key">Total Dist</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`:''}
-    ${l.type==='plyo'?`${(l.totalReps||0)>0?`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${l.totalReps.toLocaleString()}</span></div>`:''}${(l.totalContacts||0)>0?`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${l.totalContacts.toLocaleString()}</span></div>`:''}<div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>`${e.name}${(e.planRepType||'reps')==='contacts'?' (contacts)':''}`).join(', ')}</span></div>`:''}
+    ${l.type==='plyo'?(()=>{const _pe=l.exercises||[];let _dr=0,_dc=0;if(l.totalContacts!==undefined&&l.totalContacts!==null){_dr=l.totalReps||0;_dc=l.totalContacts||0;}else{_dc=_pe.filter(e=>e.planRepType==='contacts').reduce((s,e)=>s+(e.sets||0)*(e.reps||0),0);_dr=_pe.filter(e=>(e.planRepType||'reps')!=='contacts').reduce((s,e)=>s+(e.sets||0)*(e.reps||0),0);if(!_dr&&!_dc)_dr=l.totalReps||0;}return (_dr>0?`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${_dr.toLocaleString()}</span></div>`:'')+(_dc>0?`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${_dc.toLocaleString()}</span></div>`:'')+`<div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${_pe.map(e=>e.name).join(', ')}</span></div>`;})():''}
     ${l.type==='tabata'?`<div class="detail-row"><span class="detail-key">Completed</span><span class="detail-val">${l.completedRounds??'—'}/8 rounds</span></div>`:''}
     ${l.type==='condition'?`<div class="detail-row"><span class="detail-key">Sleep</span><span class="detail-val">${l.sleepHours}h · Q:${l.sleepQuality}</span></div><div class="detail-row"><span class="detail-key">Fatigue/Mood</span><span class="detail-val">${l.fatigue}/${l.mood}</span></div>`:''}
     ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
