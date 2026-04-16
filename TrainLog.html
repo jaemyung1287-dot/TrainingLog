@@ -2254,7 +2254,8 @@ function saveWeight(){
 
   // ── Plyo log ──
   if(plyoExs.length){
-    const totalReps=plyoExs.reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
+    const totalReps=plyoExs.filter(e=>(e.planRepType||'reps')!=='contacts').reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
+    const totalContacts=plyoExs.filter(e=>(e.planRepType||'reps')==='contacts').reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
     d.logs.push({
       id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'plyo',
       phase,week,
@@ -2266,9 +2267,12 @@ function saveWeight(){
         effort:e.effort||null, fromPlan:e.fromPlan||false,
         planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null
       })),
-      totalReps, rpe, notes
+      totalReps, totalContacts, rpe, notes
     });
-    summaryParts.push(`${totalReps} reps 🦘`);
+    const sp=[];
+    if(totalReps>0) sp.push(`${totalReps} reps`);
+    if(totalContacts>0) sp.push(`${totalContacts} contacts`);
+    summaryParts.push(`${sp.join(' · ')} 🦘`);
   }
 
   // ── Sprint log (from mixed session) ──
@@ -2765,7 +2769,7 @@ function renderToday(){
     return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0"></span>`;
   };
   const _effortRow=(l)=>{
-    const exs=l.type==='weight'?(l.exercises||[]):(l.sets||[]);
+    const exs=(l.type==='weight'||l.type==='plyo')?(l.exercises||[]):(l.sets||[]);
     const withEffort=exs.filter(e=>e.effort);
     if(!withEffort.length) return '';
     const items=withEffort.map(e=>`<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">${_effortDot(e.effort)}<span>${e.name}</span></span>`).join('');
@@ -2778,7 +2782,9 @@ function renderToday(){
     if(l.type==='sprint'){
       statsHtml=`<div class="detail-row"><span class="detail-key">Distance</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`;
     } else if(l.type==='plyo'){
-      statsHtml=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${(l.totalReps||0).toLocaleString()}</span></div>`;
+      if((l.totalReps||0)>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${l.totalReps.toLocaleString()}</span></div>`;
+      if((l.totalContacts||0)>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${l.totalContacts.toLocaleString()}</span></div>`;
+      if(!statsHtml) statsHtml=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">—</span></div>`;
     } else {
       statsHtml=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${(l.totalVolume||0).toLocaleString()} kg</span></div>`;
     }
@@ -2959,7 +2965,7 @@ function openAthDetail(name){ ST._detailAthName=name;
     <div class="detail-row"><span class="detail-key">${l.date}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':'b-c'}">${l.type}</span>${_dBtn(l.id)}</div></div>
     ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>`${e.name}${e.isBodyweight?`<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:5px;background:rgba(62,207,142,.2);color:#3ecf8e;margin-left:3px">BW${e.bwBase?` ${e.bwBase}kg`:''}</span>`:''}`).join(', ')}</span></div>`:''}
     ${l.type==='sprint'?`<div class="detail-row"><span class="detail-key">Type</span><span class="detail-val">${l.sprintType||''}</span></div><div class="detail-row"><span class="detail-key">Total Dist</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`:''}
-    ${l.type==='plyo'?`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${(l.totalReps||0).toLocaleString()}</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>e.name).join(', ')}</span></div>`:''}
+    ${l.type==='plyo'?`${(l.totalReps||0)>0?`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${l.totalReps.toLocaleString()}</span></div>`:''}${(l.totalContacts||0)>0?`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${l.totalContacts.toLocaleString()}</span></div>`:''}<div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>`${e.name}${(e.planRepType||'reps')==='contacts'?' (contacts)':''}`).join(', ')}</span></div>`:''}
     ${l.type==='tabata'?`<div class="detail-row"><span class="detail-key">Completed</span><span class="detail-val">${l.completedRounds??'—'}/8 rounds</span></div>`:''}
     ${l.type==='condition'?`<div class="detail-row"><span class="detail-key">Sleep</span><span class="detail-val">${l.sleepHours}h · Q:${l.sleepQuality}</span></div><div class="detail-row"><span class="detail-key">Fatigue/Mood</span><span class="detail-val">${l.fatigue}/${l.mood}</span></div>`:''}
     ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
@@ -4170,8 +4176,8 @@ function renderPlanAccordion(){
         // Build parameter fields based on category params type
         // Shared two-field rest helper (used by all exercise types)
         const _restInline=(idx)=>{
-          const sr=ex.planRestTime||''; const su=ex.planRestUnit||'s';
-          const rr=ex.planRestTimeReps||''; const ru=ex.planRestUnitReps||'s';
+          const sr=ex.planRestTime||''; const su=ex.planRestUnit||'m';
+          const rr=ex.planRestTimeReps||''; const ru=ex.planRestUnitReps||'m';
           const _rw=(val,unit,tKey,uKey,pfx)=>
             `<div style="display:flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;height:28px;flex-shrink:0">
               <span style="padding:0 6px;font-size:10px;font-weight:700;color:var(--muted);border-right:1px solid var(--border);height:100%;display:flex;align-items:center;flex-shrink:0">${pfx}</span>
@@ -4529,7 +4535,7 @@ function _addPlanExToData(type,sub,name){
   if(!grpPlan[sess]) grpPlan[sess]={exercises:[]};
   const params=TRAINING_STRUCTURE[type]?.params||'lifting';
   const isBW=BW_EXERCISES.has(name);
-  const exObj={name,trainingType:type,subCategory:sub,isBW};
+  const exObj={name,trainingType:type,subCategory:sub,isBW,planRestUnit:'m',planRestUnitReps:'m'};
   if(params==='lifting'){ exObj.planIntensity=''; exObj.planSets=''; exObj.planReps=''; exObj.planContractionType=''; exObj.planContractionValue=''; }
   else if(params==='sprint'){ exObj.planIntensity=''; exObj.planSets=''; exObj.planReps=''; exObj.planDistance=''; exObj.planEnergySystem=''; }
   else if(params==='plyo'){ exObj.planSets=''; exObj.planReps=''; exObj.planRepType='reps'; exObj.planLegMode='DL'; }
