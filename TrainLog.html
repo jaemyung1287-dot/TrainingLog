@@ -1566,7 +1566,7 @@ function fmtDate(s){ const p=s.split('-'); return `${p[1]}/${p[2]}`; }
 // ════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════
-const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_chks:{},_sessExpanded:new Set()};
+const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_sessExpanded:new Set()};
 let loadPeriod='week';
 
 // ════════════════════════════════════════════════
@@ -1951,30 +1951,73 @@ function selectType(t){
     const banner=document.getElementById('w-plan-banner');
     const addBtn=document.getElementById('w-add-ex-btn');
     if(planExs.length){
-      // Pre-populate from plan — map plan fields to athlete entry fields
       const athData=getData().athletes.find(a=>a.name===ST.athlete.name);
       const athBW=athData?.bodyWeight||null;
-      ST.exercises=planExs.map(e=>({
-        name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true,
-        // Store plan values for edited-detection
-        planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
-        planDistance:e.planDistance||'',
-        planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
-        // Contraction fields (coach-set, athlete read-only)
-        planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
-        // Plyo-specific plan fields
-        planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
-        // Pre-fill athlete fields from plan
-        intensity:e.planIntensity||'', sets:e.planSets||'', reps:e.planReps||'',
-        // BW mode: from plan flag OR auto-detected from exercise name
-        isBodyweight:e.isBW||BW_EXERCISES.has(e.name)||false,
-        weight:(e.isBW||BW_EXERCISES.has(e.name))&&athBW?String(athBW):'',
-        extraKg:'',
-        distance:e.planDistance||'', effort:''
-      }));
       const sessLabel=sess==='am'?'🌅 AM':'🌇 PM';
-      banner.style.display='block';
-      banner.textContent=`📋 ${sessLabel} session loaded — enter your numbers below`;
+
+      // ── Check for existing logs that overlap with this session's plan ──
+      const _planExNames=new Set(planExs.map(e=>e.name));
+      const _todayLogs2=getData().logs.filter(l=>
+        l.athleteName===ST.athlete.name&&l.date===today&&
+        (l.type==='weight'||l.type==='plyo'));
+      const _matchLogs=_todayLogs2.filter(l=>
+        (l.exercises||[]).some(e=>_planExNames.has(e.name)));
+      // Build lookup: exercise name → logged data
+      const _loggedByName={};
+      _matchLogs.forEach(l=>(l.exercises||[]).forEach(e=>{if(e.name) _loggedByName[e.name]=e;}));
+      const _hasExisting=_matchLogs.length>0;
+
+      if(_hasExisting){
+        // Enter edit mode for the matched logs — this skips dup-detection and only replaces these specific logs
+        const _primaryLog=_matchLogs.find(l=>l.type==='weight')||_matchLogs[0];
+        ST.editingLogId=_primaryLog.id;
+        ST._extraEditLogIds=_matchLogs.filter(l=>l.id!==_primaryLog.id).map(l=>l.id);
+        banner.style.display='none';
+        const eb=document.getElementById('w-edit-banner');
+        if(eb){eb.style.display='block';eb.textContent='✏️ Adding to existing session — fill in the missing exercises';}
+      } else {
+        ST._extraEditLogIds=[];
+        banner.style.display='block';
+        banner.textContent=`📋 ${sessLabel} session loaded — enter your numbers below`;
+      }
+
+      // Pre-fill: use actual logged values where available, plan defaults for new/missing exercises
+      ST.exercises=planExs.map(e=>{
+        const lg=_loggedByName[e.name];
+        if(lg){
+          return {
+            name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true,
+            planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
+            planDistance:e.planDistance||'',
+            planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
+            planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
+            planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
+            // Actual logged values
+            intensity:lg.intensity!=null?String(lg.intensity):'',
+            weight:lg.weight!=null?String(lg.weight):'',
+            sets:lg.sets?String(lg.sets):'', reps:lg.reps?String(lg.reps):'',
+            isBodyweight:lg.isBodyweight||BW_EXERCISES.has(e.name)||false,
+            extraKg:lg.extraKg!=null?String(lg.extraKg):'',
+            bwBase:lg.bwBase!=null?String(lg.bwBase):'',
+            distance:lg.distance?String(lg.distance):'',
+            effort:lg.effort||null, done:true,
+            meanV:lg.meanV!=null?String(lg.meanV):'', peakV:lg.peakV!=null?String(lg.peakV):''
+          };
+        } else {
+          return {
+            name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true,
+            planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
+            planDistance:e.planDistance||'',
+            planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
+            planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
+            planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
+            intensity:e.planIntensity||'', sets:e.planSets||'', reps:e.planReps||'',
+            isBodyweight:e.isBW||BW_EXERCISES.has(e.name)||false,
+            weight:(e.isBW||BW_EXERCISES.has(e.name))&&athBW?String(athBW):'',
+            extraKg:'', distance:e.planDistance||'', effort:''
+          };
+        }
+      });
       // Update screen title/logo based on session content
       const allSprint=planExs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
       const hasSprint=planExs.some(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
@@ -2036,16 +2079,49 @@ function selectType(t){
     let sprintExs=_sprintSessExs(grpData,sess);
     if(!sprintExs.length) sprintExs=_sprintSessExs(grpData,sess==='am'?'pm':'am');
     if(sprintExs.length){
-      ST.sprintSets=sprintExs.map(e=>({
-        name:e.name, subCategory:e.subCategory, fromPlan:true,
-        planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'', planDistance:e.planDistance||'',
-        planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
-        intensity:e.planIntensity||'', distance:e.planDistance||'',
-        sets:e.planSets||'', reps:e.planReps||'', effort:''
-      }));
-      const sessLabel=sess==='am'?'🌅 AM':'🌇 PM';
-      sprintBanner.style.display='block';
-      sprintBanner.textContent=`📋 ${sessLabel} · ${sprintExs.length} sprint exercise${sprintExs.length>1?'s':''} loaded from today's plan`;
+      const sessLabel2=sess==='am'?'🌅 AM':'🌇 PM';
+      // ── Check for existing sprint log that overlaps with this session ──
+      const _sprintPlanNames=new Set(sprintExs.map(e=>e.name));
+      const _existSprintLog=getData().logs.find(l=>
+        l.athleteName===ST.athlete.name&&l.date===today&&l.type==='sprint'&&
+        (l.sets||[]).some(s=>_sprintPlanNames.has(s.name)));
+      const _sprintLoggedByName={};
+      if(_existSprintLog) ((_existSprintLog.sets)||[]).forEach(s=>{if(s.name) _sprintLoggedByName[s.name]=s;});
+
+      if(_existSprintLog){
+        ST.editingLogId=_existSprintLog.id;
+        ST._extraEditLogIds=[];
+        sprintBanner.style.display='none';
+        const seb=document.getElementById('sp-edit-banner');
+        if(seb){seb.style.display='block';seb.textContent='✏️ Adding to existing session — fill in the missing exercises';}
+      } else {
+        ST._extraEditLogIds=[];
+        sprintBanner.style.display='block';
+        sprintBanner.textContent=`📋 ${sessLabel2} · ${sprintExs.length} sprint exercise${sprintExs.length>1?'s':''} loaded from today's plan`;
+      }
+
+      ST.sprintSets=sprintExs.map(e=>{
+        const ls=_sprintLoggedByName[e.name];
+        if(ls){
+          return {
+            name:e.name, subCategory:e.subCategory||ls.subCategory||null, fromPlan:true,
+            planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'', planDistance:e.planDistance||'',
+            planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
+            intensity:ls.intensity?String(ls.intensity):'',
+            distance:ls.distance?String(ls.distance):'',
+            sets:ls.sets?String(ls.sets):'', reps:ls.reps?String(ls.reps):'',
+            effort:ls.effort||null
+          };
+        } else {
+          return {
+            name:e.name, subCategory:e.subCategory, fromPlan:true,
+            planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'', planDistance:e.planDistance||'',
+            planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
+            intensity:e.planIntensity||'', distance:e.planDistance||'',
+            sets:e.planSets||'', reps:e.planReps||'', effort:''
+          };
+        }
+      });
       sprintAddBtn.style.display='none';
       document.getElementById('sp-phase').value=plan.phase||prog.phase||'';
       document.getElementById('sp-week').value=plan.week||prog.week||'';
@@ -2585,10 +2661,12 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
 
   const d=getData();
 
-  // ── Edit mode: remove original log ──
+  // ── Edit mode: remove original log(s) ──
   if(ST.editingLogId){
-    d.logs=d.logs.filter(l=>l.id!==ST.editingLogId);
-    ST.editingLogId=null;
+    const _eid=ST.editingLogId;
+    const _xids=ST._extraEditLogIds||[];
+    d.logs=d.logs.filter(l=>l.id!==_eid&&!_xids.includes(l.id));
+    ST.editingLogId=null; ST._extraEditLogIds=[];
     document.getElementById('w-edit-banner').style.display='none';
     document.getElementById('w-screen-title').textContent='Weight Training';
     document.getElementById('w-screen-logo').textContent='🏋️ Weights';
@@ -2866,10 +2944,12 @@ function saveSprint(dupMode){
 
   const d=getData();
 
-  // ── Edit mode: remove original log ──
+  // ── Edit mode: remove original log(s) ──
   if(ST.editingLogId){
-    d.logs=d.logs.filter(l=>l.id!==ST.editingLogId);
-    ST.editingLogId=null;
+    const _eid=ST.editingLogId;
+    const _xids=ST._extraEditLogIds||[];
+    d.logs=d.logs.filter(l=>l.id!==_eid&&!_xids.includes(l.id));
+    ST.editingLogId=null; ST._extraEditLogIds=[];
     document.getElementById('sp-edit-banner').style.display='none';
   }
 
@@ -3244,7 +3324,20 @@ function renderToday(){
 
   // ── Not logged today ──
   const trainedNames=new Set(tr.map(l=>l.athleteName));
-  const notLogged=d.athletes.filter(a=>!trainedNames.has(a.name));
+  // Only flag athletes who have a session plan today (if their plan was cleared, don't show them)
+  const _todayPlan=d.sessionPlans[today];
+  function _athleteHasPlanToday(a){
+    if(!_todayPlan) return false;
+    const grpData=_todayPlan[a.group]||_todayPlan['all'];
+    if(!grpData) return false;
+    const exs=[
+      ...(grpData.am?.exercises||[]),
+      ...(grpData.pm?.exercises||[]),
+      ...(Array.isArray(grpData.exercises)?grpData.exercises:[])
+    ];
+    return exs.length>0;
+  }
+  const notLogged=d.athletes.filter(a=>!trainedNames.has(a.name)&&_athleteHasPlanToday(a));
   const nlw=document.getElementById('today-not-logged');
   const countEl=document.getElementById('not-logged-count');
   if(countEl) countEl.textContent=notLogged.length?`${notLogged.length} athletes`:'';
