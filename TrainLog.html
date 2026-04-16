@@ -1869,7 +1869,7 @@ function goLogTraining(){
         const _logTag=_sessLogged
           ?(_wasLogged
             ?`<span style="font-size:10px;font-weight:700;color:#3ecf8e;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(62,207,142,.08)">✓</span>`
-            :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! 미제출</span>`)
+            :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! Not logged</span>`)
           :'';
         return `<div id="_chk_${sess}_${idx}" onclick="_toggleChk(event,'${chkKey}','${sess}',${idx})"
           style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:${isDone?'rgba(255,255,255,.2)':_isMissing?'#f7a94f':'var(--muted)'}">
@@ -1879,7 +1879,7 @@ function goLogTraining(){
         </div>`;
       }).join('');
 
-      return `<div class="menu-card" style="margin-bottom:14px;text-align:left;padding:0;overflow:hidden;${_sessLogged&&!_missingExs.length?'border-color:rgba(62,207,142,.3)':_isMissing?'border-color:rgba(247,169,79,.3)':''}">
+      return `<div class="menu-card" style="margin-bottom:14px;text-align:left;padding:0;overflow:hidden;${_sessLogged&&!_missingExs.length?'border-color:rgba(62,207,142,.3)':_sessLogged&&_missingExs.length?'border-color:rgba(247,169,79,.3)':''}">
         <!-- Header (always visible, tap to expand) -->
         <div onclick="_toggleSessExpand('${sess}')" style="padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
           <div style="display:flex;flex-direction:column;gap:3px">
