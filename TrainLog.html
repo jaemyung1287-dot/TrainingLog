@@ -4083,21 +4083,19 @@ function renderPlanAccordion(){
         const _restInline=(idx)=>{
           const sr=ex.planRestTime||''; const su=ex.planRestUnit||'s';
           const rr=ex.planRestTimeReps||''; const ru=ex.planRestUnitReps||'s';
-          const _rw=(val,unit,tKey,uKey,lbl)=>
-            `<div class="mini-wrap" style="flex-shrink:0">
-              <div style="display:flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;height:34px">
-                <input type="number" placeholder="—" value="${val}" oninput="_updatePlanEx(${idx},'${tKey}',this.value)"
-                  style="width:26px;background:none;border:none;outline:none;color:var(--text);font-size:12px;font-weight:700;text-align:center;padding:0 2px;font-family:inherit">
-                <div style="display:flex;flex-direction:column;height:100%;border-left:1px solid var(--border)">
-                  <button onclick="_updatePlanEx(${idx},'${uKey}','m');renderPlanAccordion()" style="flex:1;background:${unit==='m'?'rgba(79,142,247,.2)':'none'};border:none;border-bottom:1px solid var(--border);color:${unit==='m'?'#4f8ef7':'var(--muted)'};font-size:9px;font-weight:700;cursor:pointer;padding:0 5px;font-family:inherit;line-height:1">m</button>
-                  <button onclick="_updatePlanEx(${idx},'${uKey}','s');renderPlanAccordion()" style="flex:1;background:${unit==='s'?'rgba(79,142,247,.2)':'none'};border:none;color:${unit==='s'?'#4f8ef7':'var(--muted)'};font-size:9px;font-weight:700;cursor:pointer;padding:0 5px;font-family:inherit;line-height:1">s</button>
-                </div>
+          const _rw=(val,unit,tKey,uKey,pfx)=>
+            `<div style="display:flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;height:28px;flex-shrink:0">
+              <span style="padding:0 6px;font-size:10px;font-weight:700;color:var(--muted);border-right:1px solid var(--border);height:100%;display:flex;align-items:center;flex-shrink:0">${pfx}</span>
+              <input type="number" placeholder="—" value="${val}" oninput="_updatePlanEx(${idx},'${tKey}',this.value)"
+                style="width:36px;background:none;border:none;outline:none;color:var(--text);font-size:12px;font-weight:700;text-align:center;padding:0 4px;font-family:inherit">
+              <div style="display:flex;flex-direction:column;height:100%;border-left:1px solid var(--border)">
+                <button onclick="_updatePlanEx(${idx},'${uKey}','m');renderPlanAccordion()" style="flex:1;background:${unit==='m'?'rgba(79,142,247,.2)':'none'};border:none;border-bottom:1px solid var(--border);color:${unit==='m'?'#4f8ef7':'var(--muted)'};font-size:9px;font-weight:700;cursor:pointer;padding:0 6px;font-family:inherit;line-height:1">m</button>
+                <button onclick="_updatePlanEx(${idx},'${uKey}','s');renderPlanAccordion()" style="flex:1;background:${unit==='s'?'rgba(79,142,247,.2)':'none'};border:none;color:${unit==='s'?'#4f8ef7':'var(--muted)'};font-size:9px;font-weight:700;cursor:pointer;padding:0 6px;font-family:inherit;line-height:1">s</button>
               </div>
-              <div class="mini-lbl">${lbl}</div>
             </div>`;
-          return `<div style="display:flex;gap:4px;margin-left:8px;align-items:flex-start;flex-shrink:0">
-            ${_rw(sr,su,'planRestTime','planRestUnit','S rest')}
-            ${_rw(rr,ru,'planRestTimeReps','planRestUnitReps','R rest')}
+          return `<div style="display:flex;gap:5px;margin-left:8px;align-items:center;flex-shrink:0">
+            ${_rw(sr,su,'planRestTime','planRestUnit','S')}
+            ${_rw(rr,ru,'planRestTimeReps','planRestUnitReps','R')}
           </div>`;
         };
         let fieldsHtml='';
@@ -4175,12 +4173,12 @@ function renderPlanAccordion(){
         const restUnit=ex.planRestUnit||'s';
         const restTypes=ex.planRestType||[];
         item.innerHTML=`
-          <div class="plan-ex-name-row" style="align-items:flex-start;margin-bottom:8px">
-            <div style="display:flex;align-items:flex-start;flex:1;min-width:0">
-              <span class="plan-ex-name-text" style="padding-top:10px;flex-shrink:0">${ex.name}</span>
+          <div class="plan-ex-name-row" style="margin-bottom:8px">
+            <div style="display:flex;align-items:center;flex:1;min-width:0">
+              <span class="plan-ex-name-text" style="flex-shrink:0">${ex.name}</span>
               ${_restInline(globalIdx)}
             </div>
-            <div style="display:flex;align-items:flex-start;padding-top:4px;flex-shrink:0">
+            <div style="display:flex;align-items:center;flex-shrink:0">
               <button class="plan-ex-dup" onclick="_duplicatePlanEx(${globalIdx})" title="Duplicate exercise">⊕</button>
               <button class="plan-ex-del" onclick="removePlanExercise(${globalIdx})">×</button>
             </div>
