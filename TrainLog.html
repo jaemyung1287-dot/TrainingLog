@@ -200,10 +200,10 @@ tr:last-child td{border-bottom:none}
 .plan-ex-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;margin-bottom:5px}
 .plan-ex-name-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .plan-ex-name-text{font-size:14px;font-weight:600;color:#C8C8E8}
-.plan-rest-wrap{display:flex;align-items:center;background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.35);border-radius:8px;overflow:hidden;margin-left:8px;flex-shrink:0}
-.plan-rest-num{width:38px;background:none;border:none;outline:none;color:#4f8ef7;font-size:13px;font-weight:700;text-align:center;padding:3px 2px;font-family:inherit}
+.plan-rest-wrap{display:flex;align-items:center;background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.35);border-radius:8px;overflow:hidden;margin-left:8px;flex-shrink:0;height:22px}
+.plan-rest-num{width:30px;background:none;border:none;outline:none;color:#4f8ef7;font-size:13px;font-weight:700;text-align:center;padding:0 2px;font-family:inherit;height:100%}
 .plan-rest-num::placeholder{color:rgba(79,142,247,.35)}
-.plan-rest-utb{padding:2px 6px;border:none;background:none;color:rgba(79,142,247,.4);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:block;line-height:1.2;border-left:1px solid rgba(79,142,247,.2)}
+.plan-rest-utb{padding:0 5px;border:none;border-left:1px solid rgba(79,142,247,.15);background:none;color:rgba(79,142,247,.4);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;height:100%}
 .plan-rest-utb.on{background:rgba(79,142,247,.25);color:#4f8ef7}
 .plan-rest-chips{display:flex;align-items:center;gap:6px;margin-bottom:8px}
 .plan-rt-lbl{font-size:10px;color:var(--muted);font-weight:600}
@@ -4015,10 +4015,8 @@ function renderPlanAccordion(){
               <span class="plan-ex-name-text">${ex.name}</span>
               <div class="plan-rest-wrap">
                 <input class="plan-rest-num" type="number" placeholder="—" value="${restTime}" oninput="_updatePlanEx(${globalIdx},'planRestTime',this.value)">
-                <div style="display:flex;flex-direction:column;border-left:1px solid rgba(79,142,247,.2)">
-                  <button class="plan-rest-utb${restUnit==='m'?' on':''}" onclick="_updatePlanRestUnit(${globalIdx},'m')">m</button>
-                  <button class="plan-rest-utb${restUnit==='s'?' on':''}" onclick="_updatePlanRestUnit(${globalIdx},'s')">s</button>
-                </div>
+                <button class="plan-rest-utb${restUnit==='m'?' on':''}" onclick="_updatePlanRestUnit(${globalIdx},'m')">m</button>
+                <button class="plan-rest-utb${restUnit==='s'?' on':''}" onclick="_updatePlanRestUnit(${globalIdx},'s')">s</button>
               </div>
             </div>
             <button class="plan-ex-del" onclick="removePlanExercise(${globalIdx})">×</button>
