@@ -198,8 +198,18 @@ tr:last-child td{border-bottom:none}
 .plan-sub-section{padding:0 16px 14px 16px}
 .plan-sub-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:rgba(255,255,255,.3);padding:11px 4px 8px;border-top:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}
 .plan-ex-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;margin-bottom:5px}
-.plan-ex-name-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.plan-ex-name-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .plan-ex-name-text{font-size:14px;font-weight:600;color:#C8C8E8}
+.plan-rest-wrap{display:flex;align-items:center;background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.35);border-radius:8px;overflow:hidden;margin-left:8px;flex-shrink:0}
+.plan-rest-num{width:38px;background:none;border:none;outline:none;color:#4f8ef7;font-size:13px;font-weight:700;text-align:center;padding:5px 2px;font-family:inherit}
+.plan-rest-num::placeholder{color:rgba(79,142,247,.35)}
+.plan-rest-utb{padding:3px 6px;border:none;background:none;color:rgba(79,142,247,.4);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:block;line-height:1.3;border-left:1px solid rgba(79,142,247,.2)}
+.plan-rest-utb.on{background:rgba(79,142,247,.25);color:#4f8ef7}
+.plan-rest-chips{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.plan-rt-lbl{font-size:10px;color:var(--muted);font-weight:600}
+.plan-rt-chip{padding:3px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;user-select:none}
+.plan-rt-chip.sel-sets{border-color:rgba(62,207,142,.5);background:rgba(62,207,142,.12);color:#3ecf8e}
+.plan-rt-chip.sel-reps{border-color:rgba(247,169,79,.5);background:rgba(247,169,79,.12);color:#f7a94f}
 .plan-ex-del{background:none;border:none;color:rgba(255,255,255,.25);font-size:16px;cursor:pointer;padding:2px 6px;border-radius:6px;transition:color .15s;font-family:inherit}
 .plan-ex-del:hover{color:var(--accent)}
 .plan-add-btn{display:flex;align-items:center;gap:8px;width:100%;background:none;border:1px dashed rgba(255,255,255,.12);border-radius:8px;padding:9px 14px;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer;margin-top:4px;transition:all .15s;font-family:inherit;text-align:left}
@@ -224,7 +234,7 @@ tr:last-child td{border-bottom:none}
 /* Edited field highlight */
 .mini-in.plan-edited{border-color:var(--orange)!important;background:rgba(247,169,79,.1)!important}
 .plan-val-tag{font-size:9px;color:var(--muted);margin-top:2px;display:block;text-align:center}
-.plan-summary-row{font-size:11px;font-weight:600;color:rgba(198,168,90,.85);margin-top:6px;padding:4px 8px;background:rgba(198,168,90,.08);border-radius:7px;letter-spacing:.02em}
+.plan-summary-row{font-size:13px;font-weight:600;color:rgba(198,168,90,.9);margin-top:6px;padding:6px 10px;background:rgba(198,168,90,.08);border-radius:7px;letter-spacing:.02em}
 /* Home mode card hover states */
 .btn-athlete,.btn-coach{transition:box-shadow .35s ease,transform .25s ease}
 .btn-athlete:hover{transform:translateY(-3px) scale(1.012);box-shadow:0 28px 70px rgba(0,0,0,.92),0 0 0 1.5px rgba(198,168,90,.6),0 0 50px rgba(180,50,60,.3),0 0 80px rgba(198,168,90,.1)!important}
@@ -1972,13 +1982,7 @@ function renderExList(){
 
     // Header row
     const headerHtml=fromPlan
-      ? `<div style="display:flex;flex-direction:column;gap:5px">
-           <div style="display:flex;gap:5px;flex-wrap:wrap">
-             <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px;background:${typeColor}44;border:1px solid ${typeColor}88;color:${typeColor}">${ex.trainingType||''}</span>
-             <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,.06);color:var(--muted)">${ex.subCategory||''}</span>
-           </div>
-           <span style="font-size:14px;font-weight:700;color:#D4D0E8">${ex.name}</span>
-         </div>
+      ? `<span style="font-size:16px;font-weight:700;color:#D4D0E8;flex:1">${ex.name}</span>
          <span style="font-size:10px;color:var(--muted)">📋</span>`
       : `<input class="ex-name" placeholder="Exercise name" value="${ex.name}" oninput="ST.exercises[${i}].name=this.value">
          <button class="del-btn" onclick="removeEx(${i})">×</button>`;
@@ -1990,7 +1994,14 @@ function renderExList(){
       if(fromPlan&&ex.planIntensity) _liftPlanParts.push(`${ex.planIntensity}%`);
       if(fromPlan&&ex.planSets) _liftPlanParts.push(`${ex.planSets} sets`);
       if(fromPlan&&ex.planReps) _liftPlanParts.push(`${ex.planReps} reps`);
-      const liftPlanSummary=_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}</div>`:'';
+      let liftRestStr='';
+      if(fromPlan&&ex.planRestTime){
+        const rUnit=ex.planRestUnit||'s';
+        const rTypes=(ex.planRestType||[]);
+        const rTypeLbl=rTypes.length?rTypes.join('+')+'후':'';
+        liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' per '+rTypeLbl:''}</span>`;
+      }
+      const liftPlanSummary=_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`:'';
       // Contraction info (read-only for athlete)
       let contractionBadge='';
       if(fromPlan&&ex.planContractionType){
@@ -2064,7 +2075,14 @@ function renderExList(){
       const _plyoPlanParts=[];
       if(fromPlan&&ex.planSets) _plyoPlanParts.push(`${ex.planSets} sets`);
       if(fromPlan&&ex.planReps) _plyoPlanParts.push(`${ex.planReps} ${repType==='contacts'?'contacts':'reps'}`);
-      const plyoPlanSummary=_plyoPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_plyoPlanParts.join(' · ')}</div>`:'';
+      let plyoRestStr='';
+      if(fromPlan&&ex.planRestTime){
+        const rUnit=ex.planRestUnit||'s';
+        const rTypes=(ex.planRestType||[]);
+        const rTypeLbl=rTypes.length?rTypes.join('+')+'후':'';
+        plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' per '+rTypeLbl:''}</span>`;
+      }
+      const plyoPlanSummary=_plyoPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_plyoPlanParts.join(' · ')}${plyoRestStr}</div>`:'';
       paramsHtml=`
         <div class="ex-nums" style="grid-template-columns:1fr 1fr">
           <div class="mini-wrap">
@@ -2086,7 +2104,14 @@ function renderExList(){
       if(fromPlan&&ex.planDistance) _sprintPlanParts.push(`${ex.planDistance}m`);
       if(fromPlan&&ex.planSets) _sprintPlanParts.push(`${ex.planSets} sets`);
       if(fromPlan&&ex.planReps) _sprintPlanParts.push(`${ex.planReps} reps`);
-      const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}</div>`:'';
+      let sprintRestStr='';
+      if(fromPlan&&ex.planRestTime){
+        const rUnit=ex.planRestUnit||'s';
+        const rTypes=(ex.planRestType||[]);
+        const rTypeLbl=rTypes.length?rTypes.join('+')+'후':'';
+        sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${rUnit}${rTypeLbl?' per '+rTypeLbl:''}</span>`;
+      }
+      const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
       paramsHtml=`
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-bottom:6px">
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="%" value="${ex.intensity||''}" oninput="ST.exercises[${i}].intensity=this.value"><div class="mini-lbl">Int %</div></div>
@@ -2158,7 +2183,7 @@ function setExEffort(i,val){
   ST.exercises[i].effort=val;
 }
 function toggleBW(i){ ST.exercises[i].isBodyweight=!ST.exercises[i].isBodyweight; if(ST.exercises[i].isBodyweight){ ST.exercises[i].weight=''; } else { ST.exercises[i].extraKg=''; } renderExList(); }
-function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',effort:'',isBodyweight:false,extraKg:''}); renderExList(); }
+function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:''}); renderExList(); }
 function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exercises.push({name:'',intensity:'',weight:'',sets:'',reps:'',effort:''}); renderExList(); }
 
 function saveWeight(){
@@ -3970,11 +3995,31 @@ function renderPlanAccordion(){
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">${repType==='contacts'?'Contacts':'Reps'}</div></div>
           </div>`;
         }
+        const restTime=ex.planRestTime||'';
+        const restUnit=ex.planRestUnit||'s';
+        const restTypes=ex.planRestType||[];
+        const restChipsHtml=(restTime||restTypes.length)?`
+          <div class="plan-rest-chips">
+            <span class="plan-rt-lbl">휴식 기준</span>
+            <span class="plan-rt-chip${restTypes.includes('sets')?' sel-sets':''}" onclick="_togglePlanRestType(${globalIdx},'sets')">Sets 후${restTypes.includes('sets')?' ✕':''}</span>
+            <span class="plan-rt-chip${restTypes.includes('reps')?' sel-reps':''}" onclick="_togglePlanRestType(${globalIdx},'reps')">Reps 후${restTypes.includes('reps')?' ✕':''}</span>
+          </div>`:'<div class="plan-rest-chips"><span class="plan-rt-lbl">휴식 기준</span><span class="plan-rt-chip" onclick="_togglePlanRestType('+globalIdx+',\'sets\')">Sets 후</span><span class="plan-rt-chip" onclick="_togglePlanRestType('+globalIdx+',\'reps\')">Reps 후</span></div>';
         item.innerHTML=`
           <div class="plan-ex-name-row">
-            <span class="plan-ex-name-text">${ex.name}</span>
+            <div style="display:flex;align-items:center;flex:1">
+              <span class="plan-ex-name-text">${ex.name}</span>
+              <div class="plan-rest-wrap">
+                <input class="plan-rest-num" type="number" placeholder="—" value="${restTime}" oninput="_updatePlanEx(${globalIdx},'planRestTime',this.value)">
+                <div style="display:flex;flex-direction:column;border-left:1px solid rgba(79,142,247,.2)">
+                  <button class="plan-rest-utb${restUnit==='s'?' on':''}" onclick="_updatePlanRestUnit(${globalIdx},'s')">s</button>
+                  <button class="plan-rest-utb${restUnit==='m'?' on':''}" onclick="_updatePlanRestUnit(${globalIdx},'m')">m</button>
+                </div>
+              </div>
+            </div>
             <button class="plan-ex-del" onclick="removePlanExercise(${globalIdx})">×</button>
-          </div>${fieldsHtml}`;
+          </div>
+          ${restChipsHtml}
+          ${fieldsHtml}`;
         subWrap.appendChild(item);
       });
 
@@ -4336,6 +4381,28 @@ function _updatePlanEx(idx,field,val){
   if(exs[idx]) exs[idx][field]=val;
   d.sessionPlans[ST._planDay]=plan;
   saveData(d);
+}
+function _togglePlanRestType(idx,type){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
+  const exs=_getPlanSessionExsFromData(plan); if(!exs) return;
+  const ex=exs[idx]; if(!ex) return;
+  if(!ex.planRestType) ex.planRestType=[];
+  const i=ex.planRestType.indexOf(type);
+  if(i>=0) ex.planRestType.splice(i,1); else ex.planRestType.push(type);
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
+}
+function _updatePlanRestUnit(idx,unit){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
+  const exs=_getPlanSessionExsFromData(plan); if(!exs) return;
+  const ex=exs[idx]; if(!ex) return;
+  ex.planRestUnit=unit;
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
 }
 function _togglePlanExBW(idx){
   const d=getData();
