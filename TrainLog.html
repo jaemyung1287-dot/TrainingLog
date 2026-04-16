@@ -1865,7 +1865,7 @@ function goLogTraining(){
         </div>
       </div>`;
     }
-    wrap.innerHTML=_sessCard('am',amExs)+_sessCard('pm',pmExs);
+    wrap.innerHTML=_sessCard('am',amExs)+_sessCard('pm',pmExs)+_recentLogsSection();
   } else {
     title.textContent=`${ST.athlete.name}, what did you do?`;
     sub.textContent='No session plan for today — select type manually';
@@ -1881,9 +1881,16 @@ function goLogTraining(){
           <div class="lbl">Sprint Training</div>
           <div class="desc" style="color:var(--gold)">Sprinttraining</div>
         </div>
-      </div>`;
+      </div>`+_recentLogsSection();
   }
+  _renderAthRecentLogs('log-sess-recent');
   showScreen('s-log-session');
+}
+function _recentLogsSection(){
+  return `<div style="margin-top:20px">
+    <div class="sec-ttl" style="margin-bottom:10px">📋 Recent Logs · Letzte Einträge</div>
+    <div id="log-sess-recent"></div>
+  </div>`;
 }
 function _selectLogSession(sess,type){
   ST._todayPlanSession=sess;
@@ -2029,43 +2036,55 @@ function goAthleteStats(){ document.getElementById('astats-name').textContent=ST
 function _renderAthRecentLogs(targetId){
   const wrap=document.getElementById(targetId); if(!wrap||!ST.athlete) return;
   const d=getData();
-  const typeLbl={weight:'🏋️ Weight',plyo:'🦘 Plyo',sprint:'⚡ Sprint'};
   const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s'};
+  const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡'};
+  const typeLabel={weight:'Weight Training',plyo:'Plyo Training',sprint:'Sprint Training'};
   const grp=ST.athlete.group;
-
-  // Build a set of days with session plans for this athlete (last 14 days)
-  const last14=getLast(14);
-  const plannedDays=new Set();
-  last14.forEach(ds=>{
-    const plan=d.sessionPlans[ds];
-    if(!plan) return;
-    const grpData=plan[grp]||plan['all'];
-    if(!grpData) return;
-    // Check if there's any exercise content (AM or PM)
-    const hasAM=grpData.am&&Array.isArray(grpData.am.exercises)&&grpData.am.exercises.length>0;
-    const hasPM=grpData.pm&&Array.isArray(grpData.pm.exercises)&&grpData.pm.exercises.length>0;
-    const hasFlat=Array.isArray(grpData.exercises)&&grpData.exercises.length>0;
-    if(hasAM||hasPM||hasFlat) plannedDays.add(ds);
-  });
-
-  // Get recent logs (last 14 days, weight/plyo/sprint)
   const today=todayStr();
+  const last14=getLast(14);
   const cutoff=last14[0];
+
+  // Helper: get exercises from a session plan group block
+  function _sessExs(gd,s){
+    if(!gd) return [];
+    if(gd[s]&&Array.isArray(gd[s].exercises)) return gd[s].exercises;
+    if(s==='am'&&Array.isArray(gd.exercises)) return gd.exercises;
+    return [];
+  }
+  // Helper: derive which log-types were planned for a given date
+  function _plannedTypesFor(ds){
+    const plan=d.sessionPlans[ds]; if(!plan) return new Set();
+    const grpData=plan[grp]||plan['all']; if(!grpData) return new Set();
+    const exs=[..._sessExs(grpData,'am'),..._sessExs(grpData,'pm')];
+    const types=new Set();
+    exs.forEach(e=>{
+      const p=TRAINING_STRUCTURE[e.trainingType]?.params;
+      if(p==='sprint') types.add('sprint');
+      else if(p==='plyo') types.add('plyo');
+      else if(p==='lifting') types.add('weight');
+    });
+    return types;
+  }
+
+  // Get recent logs (last 14 days)
   const myLogs=d.logs.filter(l=>
     l.athleteName===ST.athlete.name&&
     (l.type==='weight'||l.type==='plyo'||l.type==='sprint')&&
     l.date>=cutoff
   );
-  // Map date → logs[]
   const logsByDate={};
   myLogs.forEach(l=>{ (logsByDate[l.date]=logsByDate[l.date]||[]).push(l); });
-  // Logged dates set
   const loggedDates=new Set(myLogs.map(l=>l.date));
 
-  // Build timeline entries: logged days + planned-but-missed days
-  // Collect all relevant dates
-  const allDates=new Set([...loggedDates,...plannedDays]);
-  // Sort descending (newest first)
+  // Build planned days map: date → Set<type>
+  const plannedTypesMap={};
+  last14.forEach(ds=>{
+    const types=_plannedTypesFor(ds);
+    if(types.size>0) plannedTypesMap[ds]=types;
+  });
+
+  // Collect all relevant dates and sort descending
+  const allDates=new Set([...loggedDates,...Object.keys(plannedTypesMap)]);
   const sortedDates=[...allDates].sort((a,b)=>b.localeCompare(a)).slice(0,14);
 
   if(!sortedDates.length){
@@ -2073,57 +2092,65 @@ function _renderAthRecentLogs(targetId){
     return;
   }
 
-  const today_dt=new Date(); today_dt.setHours(0,0,0,0);
   wrap.innerHTML=sortedDates.map(ds=>{
-    const isPast=ds<today; // strictly before today
+    const isPast=ds<today;
     const isToday=ds===today;
-    const hasLog=logsByDate[ds]&&logsByDate[ds].length>0;
-    const wasPlanned=plannedDays.has(ds);
+    const logsForDay=logsByDate[ds]||[];
+    const loggedTypes=new Set(logsForDay.map(l=>l.type));
+    const plannedTypes=plannedTypesMap[ds]||new Set();
+    let html='';
 
-    if(hasLog){
-      // Render each log for this date
-      return (logsByDate[ds]||[]).map(l=>{
-        let stat='';
-        if(l.type==='weight') stat=`${(l.totalVolume||0).toLocaleString()} kg`;
-        else if(l.type==='sprint') stat=`${(l.totalDistance||0).toLocaleString()} m`;
-        else if(l.type==='plyo'){
-          const pts=[];
-          if((l.totalReps||0)>0) pts.push(`${l.totalReps} reps`);
-          if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
-          stat=pts.join(' · ')||'—';
-        }
-        return `<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
-          <div class="detail-row">
-            <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span class="badge ${typeBadge[l.type]}">${l.type}</span>
-              <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
-            </div>
+    // Show all logged entries for this date
+    logsForDay.forEach(l=>{
+      let stat='';
+      if(l.type==='weight') stat=`${(l.totalVolume||0).toLocaleString()} kg`;
+      else if(l.type==='sprint') stat=`${(l.totalDistance||0).toLocaleString()} m`;
+      else if(l.type==='plyo'){
+        const pts=[];
+        if((l.totalReps||0)>0) pts.push(`${l.totalReps} reps`);
+        if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
+        stat=pts.join(' · ')||'—';
+      }
+      html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
+        <div class="detail-row">
+          <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="badge ${typeBadge[l.type]}">${l.type}</span>
+            <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
           </div>
-          <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
-          ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
-        </div>`;
-      }).join('');
-    } else if(wasPlanned && isPast){
-      // Planned day with no log — show missed card
-      return `<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(239,68,68,.45);opacity:.85">
+        </div>
+        <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
+        ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
+      </div>`;
+    });
+
+    // Today: show per-type "not yet logged" for each planned type that's missing
+    if(isToday){
+      plannedTypes.forEach(t=>{
+        if(!loggedTypes.has(t)){
+          html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(247,169,79,.5)">
+            <div class="detail-row">
+              <span style="font-size:12px;color:var(--muted)">${ds} <span style="color:#f7a94f;font-weight:700">· Today</span></span>
+              <span style="font-size:11px;font-weight:700;color:#f7a94f;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.3);padding:3px 8px;border-radius:6px">⏳ Not yet</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">${typeEmoji[t]} ${typeLabel[t]} not logged yet · Noch nicht eingetragen</div>
+          </div>`;
+        }
+      });
+    }
+
+    // Past days: if plan existed but nothing logged at all
+    if(isPast && plannedTypes.size>0 && logsForDay.length===0){
+      html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(239,68,68,.45);opacity:.85">
         <div class="detail-row">
           <span style="font-size:12px;color:var(--muted)">${ds}</span>
           <span style="font-size:11px;font-weight:700;color:#ef4444;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);padding:3px 8px;border-radius:6px">✗ Not logged · Nicht eingetragen</span>
         </div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px">Training was scheduled but no log was submitted.</div>
       </div>`;
-    } else if(wasPlanned && isToday){
-      // Today's plan not yet logged — neutral reminder, not a failure
-      return `<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(247,169,79,.5)">
-        <div class="detail-row">
-          <span style="font-size:12px;color:var(--muted)">${ds} <span style="color:#f7a94f;font-weight:700">· Today</span></span>
-          <span style="font-size:11px;font-weight:700;color:#f7a94f;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.3);padding:3px 8px;border-radius:6px">⏳ Not yet logged</span>
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">Don't forget to log today's session! · Vergiss nicht, dein Training einzutragen!</div>
-      </div>`;
     }
-    return '';
+
+    return html;
   }).join('');
 }
 function goCoachLogin(){
