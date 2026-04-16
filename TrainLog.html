@@ -435,6 +435,17 @@ tr:last-child td{border-bottom:none}
   </div>
   <div class="ttl" id="menu-greeting">Hey! 👋</div>
   <div class="sub" id="menu-date-sub"></div>
+  <!-- Coach reminder notification banner -->
+  <div id="ath-notif-banner" style="display:none;margin-bottom:16px;border-radius:14px;background:linear-gradient(135deg,rgba(247,169,79,.18),rgba(247,120,79,.12));border:1.5px solid rgba(247,169,79,.5);padding:14px 16px">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <span style="font-size:26px;line-height:1">🔔</span>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:800;color:#f7a94f">Reminder from your coach · Erinnerung vom Trainer</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Don't forget to log today's training! · Vergiss nicht, dein Training einzutragen!</div>
+      </div>
+    </div>
+    <button onclick="dismissNotification(ST.athlete?.name)" style="margin-top:10px;width:100%;padding:8px;border-radius:10px;border:1.5px solid rgba(247,169,79,.4);background:rgba(247,169,79,.12);color:#f7a94f;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Got it · Verstanden ✓</button>
+  </div>
   <!-- Today's plan quick-start banner (shown when plan exists) -->
   <div id="menu-today-plan-card" style="display:none;margin-bottom:16px;border-radius:16px;background:linear-gradient(135deg,rgba(79,142,247,.18),rgba(62,207,142,.12));border:1px solid rgba(79,142,247,.35);padding:16px;cursor:pointer" onclick="goLogTraining()">
     <div style="display:flex;align-items:center;gap:10px">
@@ -840,6 +851,11 @@ tr:last-child td{border-bottom:none}
     <div id="today-condition-bars"></div>
     <div class="sec-ttl">Training Logged</div>
     <div id="today-log-list"></div>
+    <div class="sec-ttl" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Not Logged Today</span>
+      <span id="not-logged-count" style="font-size:12px;color:var(--muted);font-weight:400"></span>
+    </div>
+    <div id="today-not-logged"></div>
     <div class="sec-ttl">Morning Check Logged</div>
     <div id="today-cond-list"></div>
   </div>
@@ -1494,6 +1510,7 @@ function getData(){
     if(!d.records) d.records=[];
     if(!d.sessionPlans) d.sessionPlans={};
     if(!d.phvRecords) d.phvRecords=[];
+    if(!d.notifications) d.notifications=[];
     if(d.programs){
       ['A','B'].forEach(g=>{
         if(d.programs[g]&&!d.programs[g].images) d.programs[g].images={macro:null,meso:null,micro:null};
@@ -1607,6 +1624,12 @@ function _enterAthleteMenu(){
     card.style.display='block';
   } else {
     card.style.display='none';
+  }
+  // Show notification banner if coach sent a reminder
+  const notifBanner=document.getElementById('ath-notif-banner');
+  if(notifBanner){
+    const notif=_getMyNotif();
+    notifBanner.style.display=notif?'block':'none';
   }
   showScreen('s-athlete-menu');
 }
@@ -2006,31 +2029,101 @@ function goAthleteStats(){ document.getElementById('astats-name').textContent=ST
 function _renderAthRecentLogs(targetId){
   const wrap=document.getElementById(targetId); if(!wrap||!ST.athlete) return;
   const d=getData();
-  const logs=d.logs.filter(l=>l.athleteName===ST.athlete.name&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint')).slice(-8).reverse();
-  if(!logs.length){ wrap.innerHTML='<div class="empty" style="padding:10px 0">No logs yet · Noch keine Einträge</div>'; return; }
   const typeLbl={weight:'🏋️ Weight',plyo:'🦘 Plyo',sprint:'⚡ Sprint'};
   const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s'};
-  wrap.innerHTML=logs.map(l=>{
-    let stat='';
-    if(l.type==='weight') stat=`${(l.totalVolume||0).toLocaleString()} kg`;
-    else if(l.type==='sprint') stat=`${(l.totalDistance||0).toLocaleString()} m`;
-    else if(l.type==='plyo'){
-      const pts=[];
-      if((l.totalReps||0)>0) pts.push(`${l.totalReps} reps`);
-      if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
-      stat=pts.join(' · ')||'—';
-    }
-    return `<div class="detail-card" style="margin-bottom:8px">
-      <div class="detail-row">
-        <span style="font-size:12px;color:var(--muted)">${l.date}</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span class="badge ${typeBadge[l.type]}">${l.type}</span>
-          <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
+  const grp=ST.athlete.group;
+
+  // Build a set of days with session plans for this athlete (last 14 days)
+  const last14=getLast(14);
+  const plannedDays=new Set();
+  last14.forEach(ds=>{
+    const plan=d.sessionPlans[ds];
+    if(!plan) return;
+    const grpData=plan[grp]||plan['all'];
+    if(!grpData) return;
+    // Check if there's any exercise content (AM or PM)
+    const hasAM=grpData.am&&Array.isArray(grpData.am.exercises)&&grpData.am.exercises.length>0;
+    const hasPM=grpData.pm&&Array.isArray(grpData.pm.exercises)&&grpData.pm.exercises.length>0;
+    const hasFlat=Array.isArray(grpData.exercises)&&grpData.exercises.length>0;
+    if(hasAM||hasPM||hasFlat) plannedDays.add(ds);
+  });
+
+  // Get recent logs (last 14 days, weight/plyo/sprint)
+  const today=todayStr();
+  const cutoff=last14[0];
+  const myLogs=d.logs.filter(l=>
+    l.athleteName===ST.athlete.name&&
+    (l.type==='weight'||l.type==='plyo'||l.type==='sprint')&&
+    l.date>=cutoff
+  );
+  // Map date → logs[]
+  const logsByDate={};
+  myLogs.forEach(l=>{ (logsByDate[l.date]=logsByDate[l.date]||[]).push(l); });
+  // Logged dates set
+  const loggedDates=new Set(myLogs.map(l=>l.date));
+
+  // Build timeline entries: logged days + planned-but-missed days
+  // Collect all relevant dates
+  const allDates=new Set([...loggedDates,...plannedDays]);
+  // Sort descending (newest first)
+  const sortedDates=[...allDates].sort((a,b)=>b.localeCompare(a)).slice(0,14);
+
+  if(!sortedDates.length){
+    wrap.innerHTML='<div class="empty" style="padding:10px 0">No logs yet · Noch keine Einträge</div>';
+    return;
+  }
+
+  const today_dt=new Date(); today_dt.setHours(0,0,0,0);
+  wrap.innerHTML=sortedDates.map(ds=>{
+    const isPast=ds<today; // strictly before today
+    const isToday=ds===today;
+    const hasLog=logsByDate[ds]&&logsByDate[ds].length>0;
+    const wasPlanned=plannedDays.has(ds);
+
+    if(hasLog){
+      // Render each log for this date
+      return (logsByDate[ds]||[]).map(l=>{
+        let stat='';
+        if(l.type==='weight') stat=`${(l.totalVolume||0).toLocaleString()} kg`;
+        else if(l.type==='sprint') stat=`${(l.totalDistance||0).toLocaleString()} m`;
+        else if(l.type==='plyo'){
+          const pts=[];
+          if((l.totalReps||0)>0) pts.push(`${l.totalReps} reps`);
+          if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
+          stat=pts.join(' · ')||'—';
+        }
+        return `<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
+          <div class="detail-row">
+            <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="badge ${typeBadge[l.type]}">${l.type}</span>
+              <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
+            </div>
+          </div>
+          <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
+          ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
+        </div>`;
+      }).join('');
+    } else if(wasPlanned && isPast){
+      // Planned day with no log — show missed card
+      return `<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(239,68,68,.45);opacity:.85">
+        <div class="detail-row">
+          <span style="font-size:12px;color:var(--muted)">${ds}</span>
+          <span style="font-size:11px;font-weight:700;color:#ef4444;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);padding:3px 8px;border-radius:6px">✗ Not logged · Nicht eingetragen</span>
         </div>
-      </div>
-      <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
-      ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
-    </div>`;
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Training was scheduled but no log was submitted.</div>
+      </div>`;
+    } else if(wasPlanned && isToday){
+      // Today's plan not yet logged — neutral reminder, not a failure
+      return `<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(247,169,79,.5)">
+        <div class="detail-row">
+          <span style="font-size:12px;color:var(--muted)">${ds} <span style="color:#f7a94f;font-weight:700">· Today</span></span>
+          <span style="font-size:11px;font-weight:700;color:#f7a94f;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.3);padding:3px 8px;border-radius:6px">⏳ Not yet logged</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Don't forget to log today's session! · Vergiss nicht, dein Training einzutragen!</div>
+      </div>`;
+    }
+    return '';
   }).join('');
 }
 function goCoachLogin(){
@@ -3088,6 +3181,33 @@ function renderToday(){
     </div>`;
   };
   tlw.innerHTML=tr.length?tr.map(_logCard).join(''):'<div class="empty" style="padding:12px 0">No training logged today</div>';
+
+  // ── Not logged today ──
+  const trainedNames=new Set(tr.map(l=>l.athleteName));
+  const notLogged=d.athletes.filter(a=>!trainedNames.has(a.name));
+  const nlw=document.getElementById('today-not-logged');
+  const countEl=document.getElementById('not-logged-count');
+  if(countEl) countEl.textContent=notLogged.length?`${notLogged.length} athletes`:'';
+  if(nlw){
+    if(!notLogged.length){
+      nlw.innerHTML='<div class="empty" style="padding:12px 0">Everyone has logged today 🎉</div>';
+    } else {
+      nlw.innerHTML=notLogged.map(a=>{
+        const hasReminder=d.notifications.some(n=>n.athleteName===a.name&&n.date===today&&!n.read);
+        return `<div class="detail-card" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:8px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${a.name}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Group ${a.group}${hasReminder?` · <span style="color:#f7a94f">Reminder sent ✓</span>`:''}</div>
+          </div>
+          <button onclick="sendReminder('${a.name}')"
+            style="padding:7px 14px;border-radius:10px;border:1.5px solid ${hasReminder?'rgba(247,169,79,.4)':'rgba(79,142,247,.4)'};background:${hasReminder?'rgba(247,169,79,.08)':'rgba(79,142,247,.08)'};color:${hasReminder?'#f7a94f':'#4f8ef7'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+            ${hasReminder?'🔔 Sent':'🔔 Remind'}
+          </button>
+        </div>`;
+      }).join('');
+    }
+  }
+
   const clw=document.getElementById('today-cond-list');
   clw.innerHTML=cl.length?cl.map(l=>`<div class="detail-card">
     <div class="detail-row"><span class="detail-key" style="font-weight:700">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge b-c">Condition</span>${_delBtn(l.id,'today')}</div></div>
@@ -3724,6 +3844,35 @@ function _showSaveConfirmModal(onConfirm){
   el.querySelector('#_sc-confirm').onclick=()=>{rm();onConfirm();};
   el.querySelector('#_sc-review').onclick=()=>rm();
   el.onclick=(ev)=>{if(ev.target===el)rm();};
+}
+
+// ── Coach notifications ──
+function sendReminder(athleteName){
+  const d=getData();
+  // Remove any existing unread reminder for this athlete today
+  d.notifications=d.notifications.filter(n=>!(n.athleteName===athleteName&&n.date===todayStr()&&!n.read));
+  d.notifications.push({athleteName, date:todayStr(), read:false});
+  saveData(d);
+  showToast(`Reminder sent to ${athleteName}`);
+  renderToday();
+}
+function dismissNotification(athleteName){
+  const d=getData();
+  d.notifications=d.notifications.filter(n=>!(n.athleteName===athleteName&&n.date===todayStr()));
+  saveData(d);
+  const banner=document.getElementById('ath-notif-banner');
+  if(banner) banner.style.display='none';
+}
+function _getMyNotif(){
+  if(!ST.athlete) return null;
+  const d=getData();
+  return d.notifications.find(n=>n.athleteName===ST.athlete.name&&n.date===todayStr()&&!n.read)||null;
+}
+function _markNotifRead(){
+  if(!ST.athlete) return;
+  const d=getData();
+  d.notifications.forEach(n=>{ if(n.athleteName===ST.athlete.name&&n.date===todayStr()) n.read=true; });
+  saveData(d);
 }
 
 // ── Duplicate detection modal ──
