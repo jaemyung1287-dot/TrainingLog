@@ -751,11 +751,11 @@ tr:last-child td{border-bottom:none}
   <div class="sub">Last 14 days</div>
   <!-- vol-split-summary removed -->
   <div class="chart-box">
-    <div class="chart-title">🏋️ Lifting Volume — Power · Strength · Muscular Endurance (kg)</div>
+    <div class="chart-title">🏋️ Power Development Volume (kg)</div>
     <canvas id="chart-my-upper"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">💪 Weight Training Volume — Movement Patterns (kg)</div>
+    <div class="chart-title">💪 Resistance Training Volume (kg)</div>
     <canvas id="chart-my-lower"></canvas>
   </div>
   <div class="chart-box">
@@ -1653,7 +1653,19 @@ function goLogTraining(){
         if(e.planSets) detail+=` ${e.planSets}×${e.planReps||'—'}`;
         if(e.planDistance) detail+=` ${e.planDistance}m`;
         if(e.planIntensity) detail+=` @ ${e.planIntensity}%`;
-        return `<div style="font-size:12px;color:var(--muted);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${e.name}<span style="color:rgba(255,255,255,.35);margin-left:4px">${detail}</span></div>`;
+        let restStr='';
+        if(e.planRestTime){
+          const rUnit=e.planRestUnit||'s';
+          const rTypes=(e.planRestType||[]);
+          const rTypeLbl=rTypes.length?' · '+rTypes.join(' & '):'';
+          restStr=`<span style="color:rgba(79,142,247,.7)"> / Rest: ${e.planRestTime}${rUnit}${rTypeLbl}</span>`;
+        }
+        let contractStr='';
+        if(e.planContractionType){
+          const cVal=e.planContractionValue?` · ${e.planContractionValue}`:'';
+          contractStr=`<span style="color:rgba(167,139,250,.75)"> · ${e.planContractionType}${cVal}</span>`;
+        }
+        return `<div style="font-size:12px;color:var(--muted);padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);flex-wrap:wrap">${e.name}<span style="color:rgba(255,255,255,.35);margin-left:4px">${detail}</span>${restStr}${contractStr}</div>`;
       }).join('');
       const more=exs.length>5?`<div style="font-size:11px;color:var(--muted);margin-top:4px">+ ${exs.length-5} more exercises</div>`:'';
       return `<div class="menu-card" onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="margin-bottom:14px;text-align:left;padding:16px">
@@ -2170,19 +2182,14 @@ function renderExList(){
 // Edited check triggered on blur (onblur="renderExList()") to avoid losing input focus
 function setExEffort(i,val){
   ST.exercises[i].effort=val;
-  // Update buttons in-place without full re-render (avoids losing focus)
-  ['Low','Medium','High'].forEach(v=>{
-    const btns=document.getElementById('exercise-list').querySelectorAll(`.effort-row`);
-    if(btns[i]){
-      btns[i].querySelectorAll('.effort-btn').forEach((btn,bi)=>{
-        const labels=['Low','Medium','High'];
-        const isSelected=labels[bi]===val;
-        const cls=isSelected?` sel-${labels[bi].toLowerCase()}`:'';
-        btn.className='effort-btn'+cls;
-      });
-    }
-  });
-  ST.exercises[i].effort=val;
+  const clsMap={Low:'sel-low',Medium:'sel-med',High:'sel-high'};
+  const btns=document.getElementById('exercise-list').querySelectorAll('.effort-row');
+  if(btns[i]){
+    btns[i].querySelectorAll('.effort-btn').forEach((btn,bi)=>{
+      const label=['Low','Medium','High'][bi];
+      btn.className='effort-btn'+(label===val?' '+clsMap[label]:'');
+    });
+  }
 }
 function toggleBW(i){ ST.exercises[i].isBodyweight=!ST.exercises[i].isBodyweight; if(ST.exercises[i].isBodyweight){ ST.exercises[i].weight=''; } else { ST.exercises[i].extraKg=''; } renderExList(); }
 function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:''}); renderExList(); }
@@ -2355,10 +2362,11 @@ function renderSprintSets(){
 }
 function setSprintEffort(i,val){
   ST.sprintSets[i].effort=val;
+  const clsMap={Low:'sel-low',Medium:'sel-med',High:'sel-high'};
   const rows=document.getElementById('sprint-sets-list').querySelectorAll('.effort-row');
   if(rows[i]) rows[i].querySelectorAll('.effort-btn').forEach((btn,bi)=>{
-    const cls=['Low','Medium','High'][bi]===val?` sel-${val.toLowerCase()}`:'';
-    btn.className='effort-btn'+cls;
+    const label=['Low','Medium','High'][bi];
+    btn.className='effort-btn'+(label===val?' '+clsMap[label]:'');
   });
 }
 function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
@@ -2421,7 +2429,21 @@ function renderProgram(){
     if(e.planIntensity) p+=` @ ${e.planIntensity}%`;
     if(e.planDistance) p+=` ${e.planDistance}m`;
     const bwTag=(e.isBW||BW_EXERCISES.has(e.name))?`<span style="font-size:9px;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:4px;padding:1px 5px;margin-right:4px;font-weight:700">BW</span>`:'';
-    return `<div style="font-size:13px;padding:3px 0;color:var(--text);display:flex;align-items:baseline;gap:2px">${bwTag}<span>${e.name}</span><span style="color:var(--muted);font-size:12px">${p}</span></div>`;
+    // Rest info
+    let restStr='';
+    if(e.planRestTime){
+      const rUnit=e.planRestUnit||'s';
+      const rTypes=(e.planRestType||[]);
+      const rTypeLbl=rTypes.length?' · '+rTypes.join(' & '):'';
+      restStr=`<span style="color:rgba(79,142,247,.7);font-size:11px;margin-left:6px">Rest: ${e.planRestTime}${rUnit}${rTypeLbl}</span>`;
+    }
+    // Contraction info
+    let contractStr='';
+    if(e.planContractionType){
+      const cVal=e.planContractionValue?` · ${e.planContractionValue}`:'';
+      contractStr=`<span style="font-size:11px;color:rgba(167,139,250,.75);margin-left:6px">${e.planContractionType}${cVal}</span>`;
+    }
+    return `<div style="font-size:13px;padding:3px 0;color:var(--text);display:flex;align-items:baseline;gap:2px;flex-wrap:wrap">${bwTag}<span>${e.name}</span><span style="color:var(--muted);font-size:12px">${p}</span>${restStr}${contractStr}</div>`;
   }
   function _sessBlock(exs,sd,label,color){
     if(!exs.length) return '';
@@ -2429,11 +2451,7 @@ function renderProgram(){
     // Group by trainingType
     const byType={}; exs.forEach(e=>{ const t=e.trainingType||'Other'; (byType[t]=byType[t]||[]).push(e); });
     const exHtml=Object.entries(byType).map(([type,es])=>{
-      const info=TRAINING_STRUCTURE[type];
-      return `<div style="margin-bottom:8px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:2px">${info?info.icon+' ':''}${type}</div>
-        ${es.map(_exLine).join('')}
-      </div>`;
+      return `<div style="margin-bottom:8px">${es.map(_exLine).join('')}</div>`;
     }).join('');
     return `<div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.05)">
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:${color};margin-bottom:8px">${label}</div>
@@ -2500,11 +2518,11 @@ function _exVolSplit(logs){
       total+=vol;
     });
   });
-  // Aggregate by main category: Power Lifting vs Weight Training
+  // Aggregate by main category: Power Development vs Resistance Training
   let liftingVol=0, weightVol=0;
   Object.entries(byType).forEach(([k,v])=>{
-    if(k.startsWith('Power Lifting')) liftingVol+=v;
-    else if(k.startsWith('Weight Training')) weightVol+=v;
+    if(k.startsWith('Power Development')) liftingVol+=v;
+    else if(k.startsWith('Resistance Training')) weightVol+=v;
   });
   return {lifting:Math.round(liftingVol), weight:Math.round(weightVol), total:Math.round(total), byType};
 }
@@ -2529,8 +2547,8 @@ function renderAthStats(){
   const mood=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].mood:null; });
   const slp=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].sleepQuality:null; });
 
-  mkChart('chart-my-upper',[{label:'Lifting (kg)',data:liftingVol,type:'bar',backgroundColor:'rgba(255,179,71,.75)'}],labels);
-  mkChart('chart-my-lower',[{label:'Weight Training (kg)',data:weightVol,type:'bar',backgroundColor:'rgba(74,158,255,.75)'}],labels);
+  mkChart('chart-my-upper',[{label:'Power Development (kg)',data:liftingVol,type:'bar',backgroundColor:'rgba(255,179,71,.75)'}],labels);
+  mkChart('chart-my-lower',[{label:'Resistance Training (kg)',data:weightVol,type:'bar',backgroundColor:'rgba(74,158,255,.75)'}],labels);
   mkChart('chart-my-sprint',[{label:'Distance (m)',data:sDist,type:'bar',backgroundColor:'rgba(62,207,142,.7)'}],labels);
   mkChart('chart-my-condition',[
     {label:'Fatigue',data:fat,borderColor:'#e94560',backgroundColor:'transparent',tension:.4,pointRadius:3},
@@ -2673,10 +2691,23 @@ function renderToday(){
   } else cbw.innerHTML='<div class="empty" style="padding:16px 0"><div class="ei">😴</div>No condition data yet</div>';
   const tlw=document.getElementById('today-log-list');
   const _delBtn=(id,ctx)=>`<button onclick="deleteLog('${id}','${ctx}')" style="padding:3px 8px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
+  const _effortDot=(ef)=>{
+    if(!ef) return '';
+    const c=ef==='High'?'#e94560':ef==='Medium'?'#f7a94f':'#3ecf8e';
+    return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0"></span>`;
+  };
+  const _effortRow=(l)=>{
+    const exs=l.type==='weight'?(l.exercises||[]):(l.sets||[]);
+    const withEffort=exs.filter(e=>e.effort);
+    if(!withEffort.length) return '';
+    const items=withEffort.map(e=>`<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">${_effortDot(e.effort)}<span>${e.name}</span></span>`).join('');
+    return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)">${items}</div>`;
+  };
   tlw.innerHTML=tr.length?tr.map(l=>`<div class="detail-card">
     <div class="detail-row"><span class="detail-key">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':'b-s'}">${l.type}</span>${_delBtn(l.id,'today')}</div></div>
     <div class="detail-row"><span class="detail-key">${l.type==='weight'?'Volume':'Distance'}</span><span class="detail-val">${l.type==='weight'?l.totalVolume.toLocaleString()+' kg':l.totalDistance.toLocaleString()+' m'}</span></div>
     <div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe??'—'}/10</span></div>
+    ${_effortRow(l)}
   </div>`).join(''):'<div class="empty" style="padding:12px 0">No training logged today</div>';
   const clw=document.getElementById('today-cond-list');
   clw.innerHTML=cl.length?cl.map(l=>`<div class="detail-card">
