@@ -3904,7 +3904,7 @@ function exportExcel(){
   const allMarks=new Set();
   sprintTimeLogs.forEach(l=>(l.sets||[]).forEach(s=>(s.splits||[]).forEach(sp=>allMarks.add(sp.mark))));
   const sortedMarks=[...allMarks].sort((a,b)=>Number(a)-Number(b));
-  const sprintHdr=['Date','Athlete','Group','Phase','Week','Sprint Type','Distance (m)','Sets','Reps','Intensity (%)','Total Time (s)',...sortedMarks.map(m=>m+'m Split (s)')];
+  const sprintHdr=['Date','Athlete','Group','Phase','Week','Sprint Type','Distance (m)','Split Every (m)','Sets','Reps','Total Time (s)',...sortedMarks.map(m=>m+'m Split (s)')];
   const sprintRows=[sprintHdr];
   sprintTimeLogs.forEach(l=>{
     (l.sets||[]).forEach(s=>{
@@ -3912,14 +3912,14 @@ function exportExcel(){
       (s.splits||[]).forEach(sp=>smap[sp.mark]=sp.time);
       sprintRows.push([
         l.date, l.athleteName, l.group||'', l.phase||'', l.week||'',
-        l.sprintType||'', s.distance||'', s.sets||'', s.reps||'',
-        s.intensity||'', s.totalTime||'',
+        l.sprintType||'', s.distance||'', s.splitEvery||'', s.sets||'', s.reps||'',
+        s.totalTime||'',
         ...sortedMarks.map(m=>smap[m]!==undefined?smap[m]:'')
       ]);
     });
   });
   const wsT=XLSX.utils.aoa_to_sheet(sprintRows);
-  wsT['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:14},{wch:12},{wch:6},{wch:6},{wch:12},{wch:14},...sortedMarks.map(()=>({wch:14}))];
+  wsT['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:14},{wch:12},{wch:14},{wch:6},{wch:6},{wch:14},...sortedMarks.map(()=>({wch:14}))];
   XLSX.utils.book_append_sheet(wb,wsT,'Sprint Times');
 
   // ── Sheet 2: Weight – Power / Velocity / Force ───
@@ -3960,7 +3960,67 @@ function exportExcel(){
   wsTab['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:12},...Array(8).fill({wch:5}),{wch:12},{wch:14}];
   XLSX.utils.book_append_sheet(wb,wsTab,'Tabata');
 
-  // ── Sheet 4: Condition ───────────────────────────
+  // ── Sheet 4: Circuit Training ────────────────────
+  // Mode A: total rounds O/X per athlete
+  // Mode B: per-station × per-round matrix
+  // Mode C: per-station rounds-done count
+  const circuitLogs=d.logs.filter(l=>l.type==='circuit'&&_isBulk(l));
+  // Collect all unique station names across all circuit logs for Mode B/C columns
+  const circuitStationSet=new Set();
+  circuitLogs.forEach(l=>{
+    if(l.circuitMode==='B'||l.circuitMode==='C'){
+      (l.stations||[]).forEach(st=>circuitStationSet.add(st.name||st));
+    }
+  });
+  const allCircuitStations=[...circuitStationSet];
+  const maxRounds=circuitLogs.reduce((mx,l)=>Math.max(mx,l.totalRounds||0),0);
+  // Build a unified header that covers all modes
+  // Mode A columns: R1…Rn (round O/X)
+  // Mode B/C columns: station name columns
+  const circuitHdr=[
+    'Date','Athlete','Group','Phase','Week',
+    'Mode','Total Rounds','Effort (%)',
+    // Mode A: per-round columns
+    ...Array.from({length:maxRounds},(_,i)=>`R${i+1}`),
+    // Mode B/C: per-station columns
+    ...allCircuitStations
+  ];
+  const circuitRows=[circuitHdr];
+  circuitLogs.forEach(l=>{
+    const m=l.circuitMode||'A';
+    const tr=l.totalRounds||0;
+    // Mode A: rounds is array of booleans
+    const roundCols=Array.from({length:maxRounds},(_,i)=>{
+      if(m==='A'){ return (l.rounds||[])[i]!==undefined?((l.rounds[i])?'O':'X'):''; }
+      return '';
+    });
+    // Mode B/C: per-station summary
+    const stationCols=allCircuitStations.map(sname=>{
+      if(m==='B'){
+        const st=(l.stations||[]).find(s=>s.name===sname);
+        if(!st) return '';
+        const done=(st.rounds||[]).filter(r=>r).length;
+        return `${done}/${tr}`;
+      }
+      if(m==='C'){
+        const st=(l.stations||[]).find(s=>s.name===sname);
+        if(!st) return '';
+        return `${st.roundsDone||0}/${tr}`;
+      }
+      return '';
+    });
+    circuitRows.push([
+      l.date, l.athleteName, l.group||'', l.phase||'', l.week||'',
+      m, tr, l.effort||'',
+      ...roundCols,
+      ...stationCols
+    ]);
+  });
+  const wsCirc=XLSX.utils.aoa_to_sheet(circuitRows);
+  wsCirc['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:8},{wch:14},{wch:12},...Array(maxRounds).fill({wch:5}),...allCircuitStations.map(()=>({wch:18}))];
+  XLSX.utils.book_append_sheet(wb,wsCirc,'Circuit');
+
+  // ── Sheet 5: Condition ───────────────────────────
   // Focus: wellness & readiness variables + individual body-part soreness columns
   const _ALL_PARTS=[...BODY_PARTS.upper,...BODY_PARTS.lower,...BODY_PARTS.core];
   const condHdr=['Date','Athlete','Group','Fatigue (1-10)','Mood (1-10)','Sleep (hrs)','Sleep Quality (1-10)',..._ALL_PARTS.map(p=>`Soreness: ${p}`),'Notes'];
@@ -3979,7 +4039,7 @@ function exportExcel(){
   wsC['!cols']=[{wch:12},{wch:18},{wch:8},{wch:14},{wch:12},{wch:12},{wch:18},..._ALL_PARTS.map(()=>({wch:16})),{wch:30}];
   XLSX.utils.book_append_sheet(wb,wsC,'Condition');
 
-  // ── Sheet 4: Weight Load ─────────────────────────
+  // ── Sheet 6: Weight Load ─────────────────────────
   // Focus: volume/tonnage, organised by Body Region → Category
   // Body region classification based on subCategory
   const LOWER_SUBS=new Set(['Knee Dominant','Hip Hinge','Unilateral Training','Lower Leg']);
@@ -4033,7 +4093,7 @@ function exportExcel(){
   wsWL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:16},{wch:22},{wch:28},{wch:6},{wch:6},{wch:10},{wch:14},{wch:12},{wch:10},{wch:10},{wch:14}];
   XLSX.utils.book_append_sheet(wb,wsWL,'Weight Load');
 
-  // ── Sheet 5: Sprint Load ─────────────────────────
+  // ── Sheet 7: Sprint Load ─────────────────────────
   // Focus: volume/distance, organised by sprint category (subCategory)
   const SPRINT_CAT_LABEL={
     'Acceleration':'Acceleration',
@@ -5760,7 +5820,6 @@ function goBulkEntry(){
   document.getElementById('bulk-phase').value='';
   document.getElementById('bulk-week').value='';
   document.getElementById('bulk-exercise').value='Back Squat';
-  document.getElementById('bulk-intensity').value='';
   ST._bulkData={};
   ST._bulkType='weight';
   ST._bulkSprintTiming='total';
