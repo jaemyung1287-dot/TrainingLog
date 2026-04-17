@@ -691,40 +691,47 @@ tr:last-child td{border-bottom:none}
   <!-- Type selection -->
   <div class="fg">
     <label class="fl">Record Type · Typ</label>
-    <div class="type-grid">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">
       <div class="type-card sel" id="rt-sprint" onclick="selectRecType('sprint')">
         <span class="ico">⚡</span>
         <div class="lbl">Sprint</div>
-        <div class="desc" style="color:var(--gold)">Sprintzeit</div>
+        <div class="desc" style="color:var(--gold)">60m</div>
       </div>
       <div class="type-card" id="rt-ice" onclick="selectRecType('icestart')">
         <span class="ico">🧊</span>
         <div class="lbl">Ice Start</div>
-        <div class="desc" style="color:var(--gold)">Eisstart</div>
+        <div class="desc" style="color:var(--gold)">구간 시간</div>
       </div>
-      <div class="type-card" id="rt-strength" onclick="selectRecType('strength')" style="grid-column:span 2">
+      <div class="type-card" id="rt-track" onclick="selectRecType('trackstart')">
+        <span class="ico">🏃</span>
+        <div class="lbl">Track Start</div>
+        <div class="desc" style="color:var(--gold)">구간 시간</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:8px">
+      <div class="type-card" id="rt-strength" onclick="selectRecType('strength')">
         <span class="ico">🏋️</span>
-        <div class="lbl">Strength Performance</div>
-        <div class="desc" style="color:var(--gold)">Kraftleistung · Squat · Deadlift · Power Clean</div>
+        <div class="lbl">Strength</div>
+        <div class="desc" style="color:var(--gold)">Squat · Deadlift · Power Clean</div>
       </div>
     </div>
   </div>
 
-  <!-- Sprint / Ice Start fields -->
+  <!-- Timed fields (Sprint / Ice Start / Track Start) -->
   <div id="rec-timed-fields">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div class="fg" style="margin:0">
         <label class="fl">Distance (m)</label>
-        <input class="fi" id="rec-distance" type="number" placeholder="e.g. 30">
+        <input class="fi" id="rec-distance" type="number" placeholder="e.g. 60">
       </div>
       <div class="fg" style="margin:0">
-        <label class="fl">Time (seconds)</label>
-        <input class="fi" id="rec-time" type="number" step="0.001" placeholder="e.g. 3.842">
+        <label class="fl">Time (s)</label>
+        <input class="fi" id="rec-time" type="number" step="0.001" placeholder="e.g. 6.842">
       </div>
     </div>
   </div>
 
-  <!-- Strength Performance fields -->
+  <!-- Strength fields — load only -->
   <div id="rec-strength-fields" style="display:none">
     <div class="fg">
       <label class="fl">Exercise · Übung</label>
@@ -734,30 +741,9 @@ tr:last-child td{border-bottom:none}
         <div class="chip chip-a" data-ex="powerclean" onclick="selectExercise('powerclean',this)">Power Clean</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div class="fg" style="margin:0"><label class="fl">Load (kg) *</label><input class="fi" id="rec-load" type="number" step="0.5" placeholder="e.g. 120"></div>
-      <div class="fg" style="margin:0"><label class="fl">Contraction Time (s)</label><input class="fi" id="rec-ctime" type="number" step="0.001" placeholder="e.g. 0.620"></div>
-    </div>
-    <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Velocity (m/s)</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div class="fg" style="margin:0"><label class="fl">Mean</label><input class="fi" id="rec-velocity" type="number" step="0.001" placeholder="e.g. 0.82"></div>
-      <div class="fg" style="margin:0"><label class="fl">Peak</label><input class="fi" id="rec-peak-velocity" type="number" step="0.001" placeholder="e.g. 1.14"></div>
-    </div>
-    <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Force (N)</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div class="fg" style="margin:0"><label class="fl">Mean</label><input class="fi" id="rec-force" type="number" placeholder="e.g. 1840"></div>
-      <div class="fg" style="margin:0"><label class="fl">Peak</label><input class="fi" id="rec-peak-force" type="number" placeholder="e.g. 2240"></div>
-    </div>
-    <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Power (W)</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px">
-      <div class="fg" style="margin:0"><label class="fl">Mean</label><input class="fi" id="rec-power" type="number" placeholder="e.g. 1509"></div>
-      <div class="fg" style="margin:0"><label class="fl">Peak</label><input class="fi" id="rec-peak-power" type="number" placeholder="e.g. 2180"></div>
-    </div>
-    <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Time to Peak (s)</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
-      <div class="fg" style="margin:0"><label class="fl">to Velocity</label><input class="fi" id="rec-ttp-v" type="number" step="0.001" placeholder="e.g. 0.31"></div>
-      <div class="fg" style="margin:0"><label class="fl">to Force</label><input class="fi" id="rec-ttp-f" type="number" step="0.001" placeholder="e.g. 0.18"></div>
-      <div class="fg" style="margin:0"><label class="fl">to Power</label><input class="fi" id="rec-ttp-p" type="number" step="0.001" placeholder="e.g. 0.22"></div>
+    <div class="fg">
+      <label class="fl">Load (kg)</label>
+      <input class="fi" id="rec-load" type="number" step="0.5" placeholder="e.g. 120">
     </div>
   </div>
 
@@ -767,7 +753,7 @@ tr:last-child td{border-bottom:none}
   </div>
   <div class="fg">
     <label class="fl">Notes (optional)</label>
-    <input class="fi" id="rec-notes" placeholder="Wind, track, conditions, 1RM test...">
+    <input class="fi" id="rec-notes" placeholder="Track, conditions, competition...">
   </div>
   <button class="btn btn-g" onclick="saveRecord()">Save Record ✓</button>
 </div>
@@ -1066,20 +1052,17 @@ tr:last-child td{border-bottom:none}
   <!-- Start-specific header info -->
   <div id="bulk-start-header" style="display:none;margin-bottom:12px">
     <!-- Sub-type: Ice Start vs Track Start -->
-    <div style="display:flex;gap:8px;margin-bottom:10px">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
       <button id="bulk-start-sub-ice" onclick="setBulkStartSubType('icestart')" style="flex:1;padding:10px;border-radius:10px;background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3);font-size:13px;font-weight:700;cursor:pointer">🧊 Ice Start</button>
       <button id="bulk-start-sub-track" onclick="setBulkStartSubType('trackstart')" style="flex:1;padding:10px;border-radius:10px;background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07);font-size:13px;font-weight:700;cursor:pointer">🏃 Track Start</button>
     </div>
-    <!-- Timing mode -->
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <button id="bulk-start-timing-total" onclick="setBulkStartTiming('total')" style="flex:1;padding:10px;border-radius:10px;background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3);font-size:13px;font-weight:700;cursor:pointer">⏱ Total Time</button>
-      <button id="bulk-start-timing-splits" onclick="setBulkStartTiming('splits')" style="flex:1;padding:10px;border-radius:10px;background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07);font-size:13px;font-weight:700;cursor:pointer">📊 Split Times</button>
+    <!-- Custom split marks -->
+    <label class="fl" style="margin-bottom:6px">📏 측정 구간 거리 (m) — 직접 추가</label>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input class="fi" type="number" id="bulk-start-mark-input" placeholder="e.g. 15" style="flex:1;margin:0" onkeydown="if(event.key==='Enter'){addBulkStartMark();event.preventDefault()}">
+      <button onclick="addBulkStartMark()" style="padding:10px 16px;border-radius:10px;border:none;background:rgba(79,142,247,.2);color:var(--blue);font-size:14px;font-weight:800;cursor:pointer">+ Add</button>
     </div>
-    <!-- Configurable record split -->
-    <div class="fg" style="margin:0">
-      <label class="fl">📍 Record Split (m) — 기록으로 사용할 구간거리</label>
-      <input class="fi" type="number" id="bulk-start-record-split" placeholder="e.g. 30  (비워두면 전체 시간 사용)" oninput="ST._bulkStartRecordSplit=this.value">
-    </div>
+    <div id="bulk-start-marks-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:8px"></div>
   </div>
 
   <!-- Circuit-specific header info -->
@@ -4525,13 +4508,10 @@ function goCoachRecord(){
   ST.selectedExercise='squat';
   document.getElementById('rec-date').value=todayStr();
   document.getElementById('rec-time').value='';
-  document.getElementById('rec-distance').value='';
+  document.getElementById('rec-distance').value='60';
   document.getElementById('rec-notes').value='';
   document.getElementById('rec-load').value='';
-  document.getElementById('rec-velocity').value='';
-  document.getElementById('rec-force').value='';
-  document.getElementById('rec-power').value='';
-  document.querySelectorAll('#rt-sprint,#rt-ice,#rt-strength').forEach(el=>el.classList.remove('sel'));
+  document.querySelectorAll('#rt-sprint,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
   document.getElementById('rt-sprint').classList.add('sel');
   document.getElementById('rec-timed-fields').style.display='';
   document.getElementById('rec-strength-fields').style.display='none';
@@ -4549,10 +4529,15 @@ function backFromRecord(){
 
 function selectRecType(t){
   recType=t;
-  document.querySelectorAll('#rt-sprint,#rt-ice,#rt-strength').forEach(el=>el.classList.remove('sel'));
-  document.getElementById(t==='sprint'?'rt-sprint':t==='icestart'?'rt-ice':'rt-strength').classList.add('sel');
-  document.getElementById('rec-timed-fields').style.display=t==='strength'?'none':'';
-  document.getElementById('rec-strength-fields').style.display=t==='strength'?'':'none';
+  document.querySelectorAll('#rt-sprint,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
+  const idMap={sprint:'rt-sprint',icestart:'rt-ice',trackstart:'rt-track',strength:'rt-strength'};
+  document.getElementById(idMap[t]).classList.add('sel');
+  const isStrength=t==='strength';
+  document.getElementById('rec-timed-fields').style.display=isStrength?'none':'';
+  document.getElementById('rec-strength-fields').style.display=isStrength?'':'none';
+  // Pre-fill distance defaults
+  if(t==='sprint') document.getElementById('rec-distance').value='60';
+  else if(t!=='strength') document.getElementById('rec-distance').value='';
 }
 
 function selectExercise(ex,el){
@@ -4567,24 +4552,14 @@ function saveRecord(){
   let rec={id:genId(),date:document.getElementById('rec-date').value||todayStr(),athleteName:ST.coachRecordAthlete,group:ath?ath.group:'',type:recType};
   if(recType==='strength'){
     const load=parseFloat(document.getElementById('rec-load').value);
-    if(!load){ showToast('Enter load (kg)'); return; }
+    if(!load){ showToast('Load (kg)를 입력하세요'); return; }
     rec.exercise=ST.selectedExercise;
     rec.load=load;
-    rec.velocity=parseFloat(document.getElementById('rec-velocity').value)||null;
-    rec.peakVelocity=parseFloat(document.getElementById('rec-peak-velocity').value)||null;
-    rec.force=parseFloat(document.getElementById('rec-force').value)||null;
-    rec.peakForce=parseFloat(document.getElementById('rec-peak-force').value)||null;
-    rec.power=parseFloat(document.getElementById('rec-power').value)||null;
-    rec.peakPower=parseFloat(document.getElementById('rec-peak-power').value)||null;
-    rec.contractionTime=parseFloat(document.getElementById('rec-ctime').value)||null;
-    rec.timeToPeakVelocity=parseFloat(document.getElementById('rec-ttp-v').value)||null;
-    rec.timeToPeakForce=parseFloat(document.getElementById('rec-ttp-f').value)||null;
-    rec.timeToPeakPower=parseFloat(document.getElementById('rec-ttp-p').value)||null;
     rec.notes=document.getElementById('rec-notes').value;
   } else {
     const dist=parseFloat(document.getElementById('rec-distance').value);
     const time=parseFloat(document.getElementById('rec-time').value);
-    if(!dist||!time){ showToast('Enter distance and time'); return; }
+    if(!dist||!time){ showToast('거리와 시간을 입력하세요'); return; }
     rec.distance=dist;
     rec.time=time;
     rec.notes=document.getElementById('rec-notes').value;
@@ -5981,8 +5956,7 @@ function goBulkEntry(){
   ST._bulkType='weight';
   ST._bulkSprintTiming='total';
   ST._bulkStartSubType='icestart';
-  ST._bulkStartTiming='total';
-  ST._bulkStartRecordSplit='';
+  ST._bulkStartSplitMarks=[];
   ST._bulkGroup='A';
   ST._bulkSelectedIds=new Set();
   ST._bulkSelectorOpen=false;
@@ -6018,7 +5992,6 @@ function setBulkType(type){
   ST._bulkType=type;
   ST._bulkData={};
   ST._bulkSprintTiming='total';
-  ST._bulkStartTiming='total';
   // Auto-select group: Tabata → A, Circuit → B
   if(type==='tabata') setBulkGroup('A');
   else if(type==='circuit') setBulkGroup('B');
@@ -6046,7 +6019,7 @@ function _updateBulkTypeUI(){
   document.getElementById('bulk-start-header').style.display=isST?'block':'none';
   document.getElementById('bulk-tabata-header').style.display=isT?'block':'none';
   document.getElementById('bulk-circuit-header').style.display=isC?'block':'none';
-  if(isST) _updateBulkStartUI();
+  if(isST){ _updateBulkStartUI(); _renderStartMarkChips(); }
   if(isC) _updateBulkCircuitModeUI();
 }
 function setBulkSprintTiming(mode){
@@ -6070,12 +6043,6 @@ function setBulkStartSubType(sub){
   _updateBulkStartUI();
   renderBulkAthletes();
 }
-function setBulkStartTiming(mode){
-  ST._bulkStartTiming=mode;
-  ST._bulkData={};
-  _updateBulkStartTimingUI();
-  renderBulkAthletes();
-}
 function _updateBulkStartUI(){
   const isIce=ST._bulkStartSubType==='icestart';
   const base='flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;';
@@ -6086,43 +6053,55 @@ function _updateBulkStartUI(){
   const trackBtn=document.getElementById('bulk-start-sub-track');
   if(iceBtn) iceBtn.style.cssText=base+(isIce?iceOn:off);
   if(trackBtn) trackBtn.style.cssText=base+(!isIce?trackOn:off);
-  _updateBulkStartTimingUI();
 }
-function _updateBulkStartTimingUI(){
-  const isSplits=ST._bulkStartTiming==='splits';
-  const tBtn=document.getElementById('bulk-start-timing-total');
-  const sBtn=document.getElementById('bulk-start-timing-splits');
-  if(!tBtn) return;
-  tBtn.style.cssText='flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;'+(isSplits?'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)':'background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3)');
-  sBtn.style.cssText='flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;'+(isSplits?'background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3)':'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)');
+function addBulkStartMark(){
+  const inp=document.getElementById('bulk-start-mark-input');
+  if(!inp) return;
+  const val=parseFloat(inp.value);
+  if(!val||val<=0) return;
+  if(!(ST._bulkStartSplitMarks||[]).includes(val)){
+    if(!ST._bulkStartSplitMarks) ST._bulkStartSplitMarks=[];
+    ST._bulkStartSplitMarks.push(val);
+    ST._bulkStartSplitMarks.sort((a,b)=>a-b);
+    ST._bulkData={};
+  }
+  inp.value='';
+  _renderStartMarkChips();
+  renderBulkAthletes();
 }
-function _buildStartTimingHtml(aid,ei,entry,isSplits,splitMarks){
-  if(!isSplits){
-    return `<div class="ex-nums" style="grid-template-columns:1fr;margin-top:8px">
-      <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${entry.time||''}" oninput="_setBulkField('${aid}',${ei},'time',this.value)" style="font-size:18px;font-weight:800;color:#3ecf8e;text-align:center"><div class="mini-lbl" style="text-align:center">⏱ Time (s)</div></div>
-    </div>`;
+function removeBulkStartMark(val){
+  if(!ST._bulkStartSplitMarks) return;
+  ST._bulkStartSplitMarks=ST._bulkStartSplitMarks.filter(m=>m!==val);
+  ST._bulkData={};
+  _renderStartMarkChips();
+  renderBulkAthletes();
+}
+function _renderStartMarkChips(){
+  const container=document.getElementById('bulk-start-marks-chips');
+  if(!container) return;
+  const marks=ST._bulkStartSplitMarks||[];
+  if(!marks.length){
+    container.innerHTML='<span style="font-size:12px;color:var(--muted);padding:4px 0">구간 거리를 추가하면 여기에 표시됩니다</span>';
+    return;
   }
-  if(!splitMarks.length){
-    return `<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">Dist (m)와 Split Every (m)를 입력하면 스플릿 칸이 나타납니다</div>`;
+  container.innerHTML=marks.map(m=>`<div style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:var(--blue);font-size:13px;font-weight:700">0–${m}m<button onclick="removeBulkStartMark(${m})" style="background:none;border:none;color:rgba(79,142,247,.7);font-size:14px;font-weight:900;cursor:pointer;padding:0;line-height:1">×</button></div>`).join('');
+}
+function _buildStartTimingHtml(aid,ei,entry){
+  const marks=ST._bulkStartSplitMarks||[];
+  if(!marks.length){
+    return `<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">위 헤더에서 측정 구간 거리를 추가하세요 (예: 15, 30, 45…)</div>`;
   }
-  const cols=Math.min(splitMarks.length,6);
-  const recSplit=parseFloat(ST._bulkStartRecordSplit)||null;
+  const cols=Math.min(marks.length,4);
   return `<div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;text-align:center">⏱ SPLIT TIMES (s)</div>
   <div class="ex-nums" style="grid-template-columns:repeat(${cols},1fr);gap:6px">
-    ${splitMarks.map((m,i)=>{
-      const prev=i===0?0:splitMarks[i-1];
-      const isRec=recSplit&&Math.abs(m-recSplit)<0.001;
-      return `<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${aid}',${ei},${m},this.value)" style="font-size:13px;padding:8px 2px;text-align:center${isRec?';border-color:var(--gold);background:rgba(201,168,76,.15)':''}"><div class="mini-lbl" style="font-size:9px;text-align:center;line-height:1.3${isRec?';color:var(--gold);font-weight:800':''}">${m}m${isRec?' ★':''}<br><span style="opacity:.6">${prev}–${m}m</span></div></div>`;
-    }).join('')}
+    ${marks.map(m=>`<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${aid}',${ei},${m},this.value)" style="font-size:14px;padding:8px 2px;text-align:center"><div class="mini-lbl" style="font-size:10px;text-align:center;line-height:1.4">0–${m}m</div></div>`).join('')}
   </div>`;
 }
 function _refreshStartTiming(aid,ei){
   const bd=ST._bulkData[aid]; if(!bd||!bd.entries[ei]) return;
   const entry=bd.entries[ei];
   const el=document.getElementById(`bulk-start-timing-${aid}-${ei}`); if(!el) return;
-  const isSplits=ST._bulkStartTiming==='splits';
-  const marks=_bulkSplitMarks(entry.distance,entry.splitEvery||10);
-  el.innerHTML=_buildStartTimingHtml(aid,ei,entry,isSplits,marks);
+  el.innerHTML=_buildStartTimingHtml(aid,ei,entry);
 }
 
 function _bulkSplitMarks(dist,interval){
@@ -6335,7 +6314,7 @@ function _defaultBulkEntry(){
     if(m==='B') return {mode:'B',completion:s.map(()=>Array(r).fill(true)),effort:''};
     if(m==='C') return {mode:'C',stationDone:s.map(()=>r),effort:''};
   }
-  // sprint and start share the same entry shape
+  if(t==='start') return {splits:{}};
   return {distance:'',splitEvery:10,time:'',splits:{},setDur:'',rest:''};
 }
 function addBulkEntry(aid){
@@ -6471,24 +6450,12 @@ function renderBulkAthletes(){
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.peakP}" oninput="_setBulkField('${a.id}',${ei},'peakP',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak P</div></div>
         </div>`;
       } else if(isST) {
-        // Start (Ice / Track) — per-entry split marks
-        const isSplits=ST._bulkStartTiming==='splits';
-        const sDist=parseFloat(entry.distance)||0;
-        const sInterval=parseFloat(entry.splitEvery)||10;
-        const entryMarks=_bulkSplitMarks(sDist,sInterval);
-        const timingHtml=_buildStartTimingHtml(a.id,ei,entry,isSplits,entryMarks);
+        // Start (Ice / Track) — custom marks from header
+        const timingHtml=_buildStartTimingHtml(a.id,ei,entry);
         const subLabel=ST._bulkStartSubType==='icestart'?'🧊 Ice Start':'🏃 Track Start';
         entriesHtml+=`${entryHdr}
         <div style="font-size:10px;font-weight:800;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${subLabel}</div>
-        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:0;gap:10px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.distance||''}" oninput="_setBulkField('${a.id}',${ei},'distance',this.value);_refreshStartTiming('${a.id}',${ei})" style="text-align:center"><div class="mini-lbl" style="text-align:center">Dist (m)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="10" value="${entry.splitEvery||10}" oninput="_setBulkField('${a.id}',${ei},'splitEvery',this.value);_refreshStartTiming('${a.id}',${ei})" style="text-align:center"><div class="mini-lbl" style="text-align:center">Split Every (m)</div></div>
-        </div>
-        <div id="bulk-start-timing-${a.id}-${ei}">${timingHtml}</div>
-        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.setDur||''}" oninput="_setBulkField('${a.id}',${ei},'setDur',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Set Dur (s)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.rest||''}" oninput="_setBulkField('${a.id}',${ei},'rest',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Rest (s)</div></div>
-        </div>`;
+        <div id="bulk-start-timing-${a.id}-${ei}">${timingHtml}</div>`;
       } else if(!isC) {
         // Sprint — per-entry split marks
         const isSplits=ST._bulkSprintTiming==='splits';
@@ -7006,7 +6973,6 @@ function saveBulkEntry(){
   const exerciseName=isW?(document.getElementById('bulk-exercise').value||'Exercise'):'';
   const sprintType=(!isW&&!isT&&!isC&&!isST)?document.getElementById('bulk-sprint-type').value:'';
   const startSubType=isST?ST._bulkStartSubType:'';
-  const startRecordSplit=isST?(parseFloat(ST._bulkStartRecordSplit)||null):null;
 
   let saved=0;
   const autoFeedSaves=[];
@@ -7088,44 +7054,25 @@ function saveBulkEntry(){
       });
       saved++;
     } else if(isST) {
-      // Start (Ice Start / Track Start)
+      // Start (Ice Start / Track Start) — custom split marks
+      const marks=ST._bulkStartSplitMarks||[];
       const startSets=[];
       entries.forEach((entry,si)=>{
-        const dist=parseFloat(entry.distance)||0;
-        if(!dist) return;
-        const totalTime=parseFloat(entry.time)||null;
-        const rawSplits=entry.splits||{};
-        const splitEntries=Object.entries(rawSplits).filter(([,v])=>v!=='').map(([m,v])=>({mark:parseFloat(m),time:parseFloat(v)})).sort((x,y)=>x.mark-y.mark);
-        startSets.push({
-          distance:dist,
-          splitEvery:parseFloat(entry.splitEvery)||10,
-          attemptNo:si+1,
-          setDuration:parseFloat(entry.setDur)||null,
-          restInterval:parseFloat(entry.rest)||null,
-          totalTime,
-          splits:splitEntries.length?splitEntries:null
-        });
+        const splitEntries=(entry.splits?Object.entries(entry.splits):[]).filter(([,v])=>v!=='').map(([m,v])=>({mark:parseFloat(m),time:parseFloat(v)})).sort((x,y)=>x.mark-y.mark);
+        if(!splitEntries.length) return;
+        startSets.push({attemptNo:si+1,splits:splitEntries});
       });
       if(!startSets.length) return;
-      const totalDistST=startSets.reduce((acc,s)=>acc+(s.distance||0),0);
       d.logs.push({
         id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:startSubType,
         phase, week,
         sets:startSets,
-        totalDistance:Math.round(totalDistST),
-        recordSplit:startRecordSplit,
+        splitMarks:marks,
         rpe:null, source:'bulk', notes:'[Bulk Entry]'
       });
-      // Auto-feed: use record split time if set, else total time
-      const startAttempts=startSets.map(s=>{
-        let recTime=null;
-        if(startRecordSplit&&s.splits){
-          const splitHit=s.splits.find(sp=>Math.abs(sp.mark-startRecordSplit)<0.001);
-          if(splitHit) recTime=splitHit.time;
-        }
-        if(recTime===null) recTime=s.totalTime;
-        return {distance:startRecordSplit||s.distance,time:recTime};
-      }).filter(s=>s.time&&s.distance);
+      // Auto-feed: each (mark, time) → one record per distance
+      const startAttempts=[];
+      startSets.forEach(s=>s.splits.forEach(sp=>startAttempts.push({distance:sp.mark,time:sp.time})));
       if(startAttempts.length) autoFeedSaves.push({type:'start',subType:startSubType,athleteName:a.name,group:a.group,date:dateVal,data:startAttempts});
       saved++;
     } else {
