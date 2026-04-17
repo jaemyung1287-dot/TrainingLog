@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0f0f1e">
+<meta name="theme-color" content="#0d1117">
 <title>Team Bayern Skeleton</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -14,17 +14,17 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
-  --bg:#0f0f1e;--bg2:#16163a;--card:#1c1c3a;--input:#22224a;
-  --border:#2e2e5e;--accent:#e94560;--blue:#4f8ef7;--green:#3ecf8e;
-  --gold:#FFCE00;--de-red:#DD0000;--de-black:#111;
-  --orange:#f7a94f;--purple:#a78bfa;--text:#f0f0ff;--muted:#8888aa;--r:14px;
+  --bg:#0d1117;--bg2:#161b22;--card:#161b22;--input:#1c2330;
+  --border:#262f3d;--accent:#c9a84c;--red:#e94560;--blue:#4f8ef7;--green:#3ecf8e;
+  --gold:#c9a84c;--de-red:#DD0000;--de-black:#111;
+  --orange:#f7a94f;--purple:#a78bfa;--text:#e6edf3;--muted:#8b949e;--r:14px;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;display:flex;justify-content:center}
 #app-root{width:100%;max-width:480px;position:relative}
 .screen{display:none;min-height:100vh;flex-direction:column;padding:24px 20px calc(100px + env(safe-area-inset-bottom,0px));width:100%}
 .screen.active{display:flex}
 .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
-.logo{font-size:20px;font-weight:900;background:linear-gradient(135deg,#e94560,#4f8ef7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
+.logo{font-size:20px;font-weight:900;background:linear-gradient(135deg,#c9a84c,#e8d8a0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
 .back{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;color:var(--muted);font-size:13px;cursor:pointer}
 .ttl{font-size:28px;font-weight:800;margin-bottom:6px;line-height:1.2}
 .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
@@ -37,18 +37,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .group-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px}
 .chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:4px}
 .chip{padding:11px 20px;border-radius:40px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:15px;cursor:pointer;transition:all .2s}
-.chip.sel{border-color:var(--accent);background:rgba(233,69,96,.15);color:var(--accent);font-weight:700}
+.chip.sel{border-color:var(--accent);background:rgba(201,168,76,.15);color:var(--accent);font-weight:700}
 .chip-a{border-color:rgba(79,142,247,.4)}
 .chip-b{border-color:rgba(62,207,142,.4)}
 .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .menu-card{background:var(--card);border:2px solid var(--border);border-radius:18px;padding:24px 12px;text-align:center;cursor:pointer;transition:all .2s}
-.menu-card:active{border-color:var(--accent);background:rgba(233,69,96,.1)}
+.menu-card:active{border-color:var(--accent);background:rgba(201,168,76,.1)}
 .menu-card .ico{font-size:36px;display:block;margin-bottom:10px}
 .menu-card .lbl{font-size:14px;font-weight:700}
 .menu-card .desc{font-size:11px;color:var(--muted);margin-top:4px}
 .type-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
 .type-card{background:var(--card);border:2px solid var(--border);border-radius:18px;padding:24px 12px;text-align:center;cursor:pointer;transition:all .2s}
-.type-card.sel,.type-card:active{border-color:var(--accent);background:rgba(233,69,96,.1)}
+.type-card.sel,.type-card:active{border-color:var(--accent);background:rgba(201,168,76,.1)}
 .type-card .ico{font-size:42px;display:block;margin-bottom:10px}
 .type-card .lbl{font-size:14px;font-weight:700}
 .type-card .desc{font-size:11px;color:var(--muted);margin-top:4px}
@@ -66,14 +66,14 @@ textarea.fi{resize:vertical;min-height:80px}
 .ex-row{background:var(--input);border-radius:var(--r);padding:14px;margin-bottom:10px;border:1px solid var(--border)}
 .ex-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .ex-name{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:8px 12px;flex:1;margin-right:8px;outline:none;font-family:inherit}
-.del-btn{background:rgba(233,69,96,.2);border:none;color:var(--accent);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.del-btn{background:rgba(233,69,96,.2);border:none;color:var(--red);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ex-nums{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
 .mini-wrap{text-align:center}
 .mini-in{width:100%;padding:10px 6px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:17px;font-weight:700;text-align:center;outline:none;font-family:inherit}
 .mini-lbl{font-size:10px;color:var(--muted);margin-top:4px}
 .btn{width:100%;padding:17px;border:none;border-radius:var(--r);font-size:16px;font-weight:700;cursor:pointer;transition:transform .15s;margin-bottom:10px;font-family:inherit}
 .btn:active{transform:scale(.98)}
-.btn-p{background:linear-gradient(135deg,#e94560,#c0273f);color:#fff}
+.btn-p{background:linear-gradient(135deg,#c9a84c,#a07c2d);color:#0d1117}
 .btn-s{background:var(--card);border:1px solid var(--border);color:var(--text)}
 .btn-g{background:linear-gradient(135deg,#3ecf8e,#0f9e67);color:#fff}
 .btn-b{background:linear-gradient(135deg,#4f8ef7,#1e5fd4);color:#fff}
@@ -98,7 +98,7 @@ tr:last-child td{border-bottom:none}
 .b-w{background:rgba(79,142,247,.2);color:var(--blue)}
 .b-s{background:rgba(62,207,142,.2);color:var(--green)}
 .b-c{background:rgba(247,169,79,.2);color:var(--orange)}
-.b-r{background:rgba(233,69,96,.2);color:var(--accent)}
+.b-r{background:rgba(233,69,96,.2);color:var(--red)}
 .sec-ttl{font-size:17px;font-weight:800;margin:16px 0 10px}
 .fbar{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:none}
 .fbar::-webkit-scrollbar{display:none}
@@ -145,7 +145,7 @@ tr:last-child td{border-bottom:none}
 .prog-day-card.today{border-color:var(--accent)}
 .prog-day-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .prog-day-name{font-size:15px;font-weight:700}
-.prog-day-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(233,69,96,.2);color:var(--accent);font-weight:700}
+.prog-day-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(201,168,76,.2);color:var(--accent);font-weight:700}
 .prog-session-block{background:var(--input);border-radius:10px;padding:10px 12px;margin-bottom:6px}
 .prog-session-time{font-size:11px;color:var(--blue);font-weight:700;text-transform:uppercase;margin-bottom:4px}
 .prog-session-type{font-size:14px;font-weight:700;margin-bottom:2px}
@@ -164,7 +164,7 @@ tr:last-child td{border-bottom:none}
 .prog-mgmt-body{padding:0 14px 14px;display:none}
 .prog-mgmt-body.open{display:block}
 .prog-mgmt-session{background:var(--input);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border)}
-.del-ath{background:rgba(233,69,96,.15);border:none;color:var(--accent);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+.del-ath{background:rgba(233,69,96,.15);border:none;color:var(--red);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
 .ath-detail-header{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px;text-align:center}
 .ath-detail-name{font-size:22px;font-weight:800;margin-bottom:4px}
 .ath-detail-meta{font-size:13px;color:var(--muted)}
@@ -173,7 +173,7 @@ tr:last-child td{border-bottom:none}
 .toggle-btn.on{background:var(--card);color:var(--text)}
 /* Records */
 .rec-row{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
-.rec-pr{border-color:var(--gold);background:rgba(255,206,0,.06)}
+.rec-pr{border-color:var(--gold);background:rgba(201,168,76,.08)}
 .rec-time-val{font-size:22px;font-weight:800;color:var(--gold)}
 .rec-group-hdr{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:14px 0 6px}
 /* Program Images */
@@ -225,7 +225,7 @@ tr:last-child td{border-bottom:none}
 /* Group toggle */
 .plan-grp-toggle{display:flex;background:rgba(255,255,255,.06);border-radius:10px;padding:3px;margin-bottom:16px}
 .plan-grp-btn{flex:1;padding:9px;border:none;background:none;color:var(--muted);font-size:13px;font-weight:600;border-radius:8px;cursor:pointer;font-family:inherit;transition:all .2s}
-.plan-grp-btn.on{background:rgba(255,255,255,.12);color:var(--text)}
+.plan-grp-btn.on{background:rgba(201,168,76,.18);color:var(--accent)}
 /* Effort buttons (athlete only) */
 .effort-row{display:flex;gap:5px;margin-top:8px}
 .effort-lbl{font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
@@ -1055,7 +1055,7 @@ tr:last-child td{border-bottom:none}
     </div>
     <!-- Timing mode -->
     <div style="display:flex;gap:8px;margin-bottom:10px">
-      <button id="bulk-timing-total" onclick="setBulkSprintTiming('total')" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,206,0,.15);color:var(--gold);font-size:13px;font-weight:700;cursor:pointer">⏱ Total Time</button>
+      <button id="bulk-timing-total" onclick="setBulkSprintTiming('total')" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.15);color:var(--gold);font-size:13px;font-weight:700;cursor:pointer">⏱ Total Time</button>
       <button id="bulk-timing-splits" onclick="setBulkSprintTiming('splits')" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.07);background:var(--card);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer">📊 Split Times</button>
     </div>
     <!-- Split interval moved to per-entry card -->
@@ -1067,7 +1067,7 @@ tr:last-child td{border-bottom:none}
     <div style="margin-bottom:12px">
       <label class="fl" style="margin-bottom:8px">Recording Mode</label>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <button id="bulk-cmode-A" onclick="setBulkCircuitMode('A')" style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,206,0,.4);background:rgba(255,206,0,.12);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;text-align:left"><span style="font-size:14px">A</span> · 전체 라운드 O/X <span style="font-weight:400;opacity:.7">— 라운드별 완료 여부만 기록</span></button>
+        <button id="bulk-cmode-A" onclick="setBulkCircuitMode('A')" style="padding:10px 14px;border-radius:10px;border:1px solid rgba(201,168,76,.4);background:rgba(201,168,76,.12);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;text-align:left"><span style="font-size:14px">A</span> · 전체 라운드 O/X <span style="font-weight:400;opacity:.7">— 라운드별 완료 여부만 기록</span></button>
         <button id="bulk-cmode-B" onclick="setBulkCircuitMode('B')" style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;text-align:left"><span style="font-size:14px">B</span> · 스테이션 × 라운드 매트릭스 <span style="font-weight:400;opacity:.7">— 각 스테이션에서 어떤 라운드를 완료했는지</span></button>
         <button id="bulk-cmode-C" onclick="setBulkCircuitMode('C')" style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;text-align:left"><span style="font-size:14px">C</span> · 스테이션별 완료 라운드 수 <span style="font-weight:400;opacity:.7">— 각 스테이션에서 완료한 라운드 수 입력</span></button>
       </div>
@@ -4459,12 +4459,12 @@ function _timedRecHtml(recs, maxRows){
     grp.entries.slice(0,maxRows).forEach((r,i)=>{
       const isBest=r.id===best.id;
       html+=`<div class="rec-row${isBest?' rec-pr':''}">
-        <div style="width:34px;height:34px;border-radius:50%;background:${isBest?'rgba(255,206,0,.2)':'var(--input)'};display:flex;align-items:center;justify-content:center;font-size:${isBest?'18':'14'}px;flex-shrink:0">${isBest?'🥇':'#'+(i+1)}</div>
+        <div style="width:34px;height:34px;border-radius:50%;background:${isBest?'rgba(201,168,76,.2)':'var(--input)'};display:flex;align-items:center;justify-content:center;font-size:${isBest?'18':'14'}px;flex-shrink:0">${isBest?'🥇':'#'+(i+1)}</div>
         <div style="flex:1">
           <div style="font-size:${isBest?'21':'17'}px;font-weight:800;color:${isBest?'var(--gold)':'var(--text)'}">${r.time.toFixed(3)}<span style="font-size:12px;font-weight:400;color:var(--muted)">s</span></div>
           <div style="font-size:11px;color:var(--muted);margin-top:1px">${r.date}${r.notes?' · '+r.notes:''}</div>
         </div>
-        ${isBest?'<span style="font-size:10px;font-weight:800;color:var(--gold);background:rgba(255,206,0,.12);padding:4px 10px;border-radius:20px;letter-spacing:.5px">PR</span>':''}
+        ${isBest?'<span style="font-size:10px;font-weight:800;color:var(--gold);background:rgba(201,168,76,.12);padding:4px 10px;border-radius:20px;letter-spacing:.5px">PR</span>':''}
       </div>`;
     });
   });
@@ -4487,7 +4487,7 @@ function _strengthRecHtml(recs, maxRows){
       const isLoadPR=r.id===bestLoad.id;
       const isPowPR=bestPower&&r.id===bestPower.id&&!isLoadPR;
       html+=`<div class="rec-row${isLoadPR?' rec-pr':''}">
-        <div style="width:34px;height:34px;border-radius:50%;background:${isLoadPR?'rgba(255,206,0,.2)':isPowPR?'rgba(247,169,79,.15)':'var(--input)'};display:flex;align-items:center;justify-content:center;font-size:${isLoadPR||isPowPR?'17':'13'}px;flex-shrink:0">${isLoadPR?'🥇':isPowPR?'⚡':'#'+(i+1)}</div>
+        <div style="width:34px;height:34px;border-radius:50%;background:${isLoadPR?'rgba(201,168,76,.2)':isPowPR?'rgba(247,169,79,.15)':'var(--input)'};display:flex;align-items:center;justify-content:center;font-size:${isLoadPR||isPowPR?'17':'13'}px;flex-shrink:0">${isLoadPR?'🥇':isPowPR?'⚡':'#'+(i+1)}</div>
         <div style="flex:1">
           <div style="font-size:${isLoadPR?'20':'16'}px;font-weight:800;color:${isLoadPR?'var(--gold)':'var(--text)'}">
             ${r.load}kg
@@ -4497,7 +4497,7 @@ function _strengthRecHtml(recs, maxRows){
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:1px">${r.date}${r.notes?' · '+r.notes:''}</div>
         </div>
-        ${isLoadPR?'<span style="font-size:10px;font-weight:800;color:var(--gold);background:rgba(255,206,0,.12);padding:4px 10px;border-radius:20px">PR</span>':''}
+        ${isLoadPR?'<span style="font-size:10px;font-weight:800;color:var(--gold);background:rgba(201,168,76,.12);padding:4px 10px;border-radius:20px">PR</span>':''}
         ${isPowPR?'<span style="font-size:10px;font-weight:800;color:var(--orange);background:rgba(247,169,79,.12);padding:4px 10px;border-radius:20px">⚡PR</span>':''}
       </div>`;
     });
@@ -5899,7 +5899,7 @@ function _updateBulkTimingUI(){
   const tBtn=document.getElementById('bulk-timing-total');
   const sBtn=document.getElementById('bulk-timing-splits');
   if(!tBtn) return;
-  tBtn.style.cssText=`flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;`+(isSplits?'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)':'background:rgba(255,206,0,.15);color:var(--gold);border:1px solid rgba(255,206,0,.3)');
+  tBtn.style.cssText=`flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;`+(isSplits?'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)':'background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3)');
   sBtn.style.cssText=`flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;`+(isSplits?'background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3)':'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)');
 }
 function _bulkSplitMarks(dist,interval){
@@ -6056,14 +6056,14 @@ function renderBulkAthleteSelector(){
   const groupAthletes=athletes.filter(a=>a.group===ST._bulkGroup);
   const selectedCount=groupAthletes.filter(a=>ST._bulkSelectedIds.has(a.id)).length;
   const btnLabel=selectedCount?`👥 ${selectedCount}명 선택됨 ▾`:'👥 선수 선택 ▾';
-  const btnBorder=selectedCount?'rgba(255,206,0,.4)':'var(--border)';
-  const btnBg=selectedCount?'rgba(255,206,0,.08)':'var(--card)';
+  const btnBorder=selectedCount?'rgba(201,168,76,.4)':'var(--border)';
+  const btnBg=selectedCount?'rgba(201,168,76,.08)':'var(--card)';
   const btnColor=selectedCount?'var(--gold)':'var(--muted)';
   let pickerHtml='';
   if(ST._bulkSelectorOpen){
     const chips=groupAthletes.map(a=>{
       const sel=ST._bulkSelectedIds.has(a.id);
-      return `<button onclick="toggleBulkAthlete('${a.id}')" style="padding:9px 16px;border-radius:20px;border:1px solid ${sel?'var(--gold)':'rgba(255,255,255,.15)'};background:${sel?'rgba(255,206,0,.15)':'var(--input)'};color:${sel?'var(--gold)':'var(--muted)'};font-size:13px;font-weight:${sel?'700':'400'};cursor:pointer;white-space:nowrap">${sel?'✓ ':''}${a.name}</button>`;
+      return `<button onclick="toggleBulkAthlete('${a.id}')" style="padding:9px 16px;border-radius:20px;border:1px solid ${sel?'rgba(201,168,76,.6)':'rgba(255,255,255,.1)'};background:${sel?'rgba(201,168,76,.15)':'var(--input)'};color:${sel?'var(--gold)':'var(--muted)'};font-size:13px;font-weight:${sel?'700':'400'};cursor:pointer;white-space:nowrap">${sel?'✓ ':''}${a.name}</button>`;
     }).join('');
     pickerHtml=`
     <div style="padding:14px;background:var(--card);border-radius:14px;border:1px solid var(--border);margin-top:8px">
@@ -6071,8 +6071,8 @@ function renderBulkAthleteSelector(){
         ${chips||'<span style="color:var(--muted);font-size:13px">이 그룹에 선수가 없습니다</span>'}
       </div>
       <div style="display:flex;gap:8px">
-        <button onclick="selectAllBulkAthletes()" style="padding:7px 14px;border-radius:8px;border:none;background:rgba(79,142,247,.2);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer">전체 선택</button>
-        <button onclick="clearBulkAthletes()" style="padding:7px 14px;border-radius:8px;border:none;background:rgba(233,69,96,.15);color:#e94560;font-size:12px;font-weight:700;cursor:pointer">선택 해제</button>
+        <button onclick="selectAllBulkAthletes()" style="padding:7px 14px;border-radius:8px;border:none;background:rgba(201,168,76,.18);color:#c9a84c;font-size:12px;font-weight:700;cursor:pointer">전체 선택</button>
+        <button onclick="clearBulkAthletes()" style="padding:7px 14px;border-radius:8px;border:none;background:rgba(233,69,96,.12);color:#e94560;font-size:12px;font-weight:700;cursor:pointer">선택 해제</button>
       </div>
     </div>`;
   }
@@ -6203,12 +6203,16 @@ function renderBulkAthletes(){
         const ipStr=ip>0?`${_tabataBulkPace(ip,ig)} km/h`:'— km/h';
         const ipCol=ip>=100?'#e94560':ip>=85?'var(--gold)':'#3ecf8e';
         entriesHtml+=`${entryHdr}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;align-items:end">
-          <div class="fg" style="margin:0"><label class="fl" style="font-size:11px">Intensity %</label>
-            <input class="fi" type="number" placeholder="e.g. 80" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value);_updateTabataBulkPace('${a.id}',${ei},this.value,'${ig}')" style="height:40px"></div>
-          <div style="padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border);display:flex;flex-direction:column;gap:2px;min-height:40px;justify-content:center">
-            <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.5px">PACE</div>
-            <div id="bulk-tab-pace-${a.id}-${ei}" style="font-size:16px;font-weight:800;color:${ip>0?ipCol:'var(--muted)'}">${ipStr}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:6px">INTENSITY %</div>
+            <input class="fi" type="number" placeholder="e.g. 80" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value);_updateTabataBulkPace('${a.id}',${ei},this.value,'${ig}')" style="height:44px;margin:0">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:6px">PACE</div>
+            <div style="height:44px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border);display:flex;align-items:center;justify-content:center">
+              <span id="bulk-tab-pace-${a.id}-${ei}" style="font-size:16px;font-weight:800;color:${ip>0?ipCol:'var(--muted)'}">${ipStr}</span>
+            </div>
           </div>
         </div>
         <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;text-align:center">ROUNDS · 20s/10s × 8</div>
