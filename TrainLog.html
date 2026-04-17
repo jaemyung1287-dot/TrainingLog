@@ -3666,49 +3666,56 @@ function _buildPerfHtml(recs){
   let html='';
   const _distBlock=(entries,prColor,prBg,unit,isTime,cPrefix)=>{
     const sorted=isTime?[...entries].sort((a,b)=>a.time-b.time):[...entries].sort((a,b)=>b.load-a.load);
-    const pr=sorted[0];
-    const byDate=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
-    const cid=cPrefix;
-    const prVal=isTime?pr.time.toFixed(3):pr.load;
-    const prNote=isTime?(pr.notes||''):(pr.velocity?`v: ${pr.velocity}m/s`:'');
-    return `<div class="perf-dist-block">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">${isTime?(pr.distance+'m'):(EX_LABELS[pr.exercise]||pr.exercise)}</div>
-        <div class="perf-pr-line">
-          <span class="perf-pr-num" style="color:${prColor}">${prVal}</span>
-          <span class="perf-pr-unit">${unit}</span>
-          <span style="font-size:10px;font-weight:800;color:${prColor};background:${prBg};padding:2px 8px;border-radius:20px;margin-left:6px">PR</span>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${pr.date}${prNote?' · '+prNote:''}</div>
-      ${byDate.length>1?`<div class="perf-spark-wrap"><canvas id="${cid}"></canvas></div>`:''}
-      ${sorted.slice(1,4).map((r,i)=>`<div class="perf-recent-row">
-        <span style="min-width:22px;color:var(--muted)">#${i+2}</span>
-        <span style="flex:1">${isTime?r.time.toFixed(3)+'s':r.load+'kg'}${!isTime&&r.velocity?' · v:'+r.velocity+'m/s':''}</span>
-        <span>${r.date}</span>
-      </div>`).join('')}
-    </div>`;
+    const prBest=isTime?sorted[0].time:sorted[0].load;
+    // Most recent first
+    const byDate=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
+    const getLabel=r=>isTime?String(r.distance)+'m':(EX_LABELS[r.exercise]||r.exercise);
+    const getVal=r=>isTime?r.time.toFixed(3):r.load;
+    const isPR=r=>isTime?r.time===prBest:r.load===prBest;
+    const rows=byDate.map(r=>{
+      const p=isPR(r);
+      return `<div style="display:flex;align-items:center;padding:9px 16px;border-bottom:1px solid rgba(255,255,255,.04)">
+        <span style="font-size:12px;color:var(--muted);min-width:34px;flex-shrink:0">${r.date.slice(5)}</span>
+        <span style="font-size:12px;color:var(--muted);margin:0 6px;flex-shrink:0">·</span>
+        <span style="font-size:12px;color:var(--text);flex:1">${getLabel(r)}</span>
+        <span style="font-size:13px;font-weight:${p?'800':'500'};color:${p?prColor:'var(--text)'}">${getVal(r)} <span style="font-size:11px;font-weight:400;color:var(--muted)">${unit}</span></span>
+        ${p?`<span style="font-size:10px;font-weight:800;color:${prColor};background:${prBg};padding:2px 7px;border-radius:20px;margin-left:8px">PR</span>`:`<span style="display:inline-block;min-width:39px"></span>`}
+      </div>`;
+    }).join('');
+    const sparkHtml=byDate.length>1?`<div style="height:48px;padding:0 12px 8px"><canvas id="${cPrefix}"></canvas></div>`:'';
+    return `<div class="perf-dist-block" style="padding:0">${rows}${sparkHtml}</div>`;
   };
 
-  // Sprint
-  const sprintRecs=recs.filter(r=>r.type==='sprint');
-  if(sprintRecs.length){
-    html+=`<div class="perf-sec-hdr">⚡ Sprint</div><div class="perf-cat-card">`;
-    const byDist={};
-    sprintRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
-    Object.keys(byDist).sort((a,b)=>a-b).forEach(dist=>{
-      html+=_distBlock(byDist[dist],'var(--gold)','rgba(201,168,76,.12)','s',true,`spark-sprint-${dist}`);
-    });
-    html+='</div>';
-  }
   // Ice Start
   const iceRecs=recs.filter(r=>r.type==='icestart');
   if(iceRecs.length){
     html+=`<div class="perf-sec-hdr">🧊 Ice Start</div><div class="perf-cat-card">`;
     const byDist={};
     iceRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
-    Object.keys(byDist).sort((a,b)=>a-b).forEach(dist=>{
-      html+=_distBlock(byDist[dist],'var(--blue)','rgba(79,142,247,.12)','s',true,`spark-ice-${dist}`);
+    Object.keys(byDist).sort().forEach(dist=>{
+      html+=_distBlock(byDist[dist],'var(--blue)','rgba(79,142,247,.12)','s',true,`spark-ice-${String(dist).replace(/[^a-z0-9]/gi,'_')}`);
+    });
+    html+='</div>';
+  }
+  // Track Start
+  const trackRecs=recs.filter(r=>r.type==='trackstart');
+  if(trackRecs.length){
+    html+=`<div class="perf-sec-hdr">🏃 Track Start</div><div class="perf-cat-card">`;
+    const byDist={};
+    trackRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
+    Object.keys(byDist).sort().forEach(dist=>{
+      html+=_distBlock(byDist[dist],'var(--orange)','rgba(247,169,79,.12)','s',true,`spark-track-${String(dist).replace(/[^a-z0-9]/gi,'_')}`);
+    });
+    html+='</div>';
+  }
+  // Sprint
+  const sprintRecs=recs.filter(r=>r.type==='sprint');
+  if(sprintRecs.length){
+    html+=`<div class="perf-sec-hdr">⚡ Sprint</div><div class="perf-cat-card">`;
+    const byDist={};
+    sprintRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
+    Object.keys(byDist).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(dist=>{
+      html+=_distBlock(byDist[dist],'var(--gold)','rgba(201,168,76,.12)','s',true,`spark-sprint-${dist}`);
     });
     html+='</div>';
   }
@@ -3750,14 +3757,16 @@ function _renderPerfSparklines(recs){
       }
     });
   };
-  const byDist={sprint:{},icestart:{},strength:{}};
+  const byDist={sprint:{},icestart:{},trackstart:{},strength:{}};
   recs.forEach(r=>{
     if(r.type==='sprint'){ if(!byDist.sprint[r.distance])byDist.sprint[r.distance]=[]; byDist.sprint[r.distance].push(r); }
     else if(r.type==='icestart'){ if(!byDist.icestart[r.distance])byDist.icestart[r.distance]=[]; byDist.icestart[r.distance].push(r); }
+    else if(r.type==='trackstart'){ if(!byDist.trackstart[r.distance])byDist.trackstart[r.distance]=[]; byDist.trackstart[r.distance].push(r); }
     else if(r.type==='strength'){ if(!byDist.strength[r.exercise])byDist.strength[r.exercise]=[]; byDist.strength[r.exercise].push(r); }
   });
   Object.keys(byDist.sprint).forEach(d=>_spark(`spark-sprint-${d}`,byDist.sprint[d],true));
-  Object.keys(byDist.icestart).forEach(d=>_spark(`spark-ice-${d}`,byDist.icestart[d],true));
+  Object.keys(byDist.icestart).forEach(d=>_spark(`spark-ice-${String(d).replace(/[^a-z0-9]/gi,'_')}`,byDist.icestart[d],true));
+  Object.keys(byDist.trackstart).forEach(d=>_spark(`spark-track-${String(d).replace(/[^a-z0-9]/gi,'_')}`,byDist.trackstart[d],true));
   Object.keys(byDist.strength).forEach(ex=>_spark(`spark-str-${ex.replace(/[^a-z0-9]/gi,'_')}`,byDist.strength[ex],false));
 }
 
