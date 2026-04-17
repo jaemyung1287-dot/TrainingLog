@@ -237,6 +237,16 @@ tr:last-child td{border-bottom:none}
 .mini-in.plan-edited{border-color:var(--orange)!important;background:rgba(247,169,79,.1)!important}
 .plan-val-tag{font-size:9px;color:var(--muted);margin-top:2px;display:block;text-align:center}
 .plan-summary-row{font-size:13px;font-weight:600;color:rgba(198,168,90,.9);margin-top:6px;padding:6px 10px;background:rgba(198,168,90,.08);border-radius:7px;letter-spacing:.02em}
+/* ── Athlete Performance Section ── */
+.perf-sec-hdr{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 8px;padding-left:2px}
+.perf-cat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;overflow:hidden}
+.perf-dist-block{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.04)}
+.perf-dist-block:last-child{border-bottom:none}
+.perf-pr-line{display:flex;align-items:baseline;gap:4px}
+.perf-pr-num{font-size:24px;font-weight:900;line-height:1}
+.perf-pr-unit{font-size:13px;font-weight:500;color:var(--muted)}
+.perf-spark-wrap{height:58px;margin:8px 0 4px}
+.perf-recent-row{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11px;color:var(--muted);border-top:1px solid rgba(255,255,255,.04)}
 /* Home mode card hover states */
 .btn-athlete,.btn-coach{transition:box-shadow .35s ease,transform .25s ease}
 .btn-athlete:hover{transform:translateY(-3px) scale(1.012);box-shadow:0 28px 70px rgba(0,0,0,.92),0 0 0 1.5px rgba(198,168,90,.6),0 0 50px rgba(180,50,60,.3),0 0 80px rgba(198,168,90,.1)!important}
@@ -959,20 +969,9 @@ tr:last-child td{border-bottom:none}
     <button class="back" onclick="backToCoach()">← Back</button>
     <span class="logo">📈 Athlete</span>
   </div>
-  <div class="ath-detail-header">
-    <div class="ath-detail-name" id="detail-name"></div>
-    <div class="ath-detail-meta" id="detail-meta"></div>
-    <button class="btn btn-g btn-sm" onclick="goCoachRecord()" style="margin-top:12px;width:auto;padding:10px 20px">＋ Add Record · Bestzeit</button>
-  </div>
-  <div class="stats-grid" id="detail-stats"></div>
-  <div class="chart-box"><div class="chart-title">🏋️ Power Development Volume (kg) — 14 days</div><canvas id="chart-detail-power"></canvas></div>
-  <div class="chart-box"><div class="chart-title">💪 Resistance Training Volume (kg) — 14 days</div><canvas id="chart-detail-resistance"></canvas></div>
-  <div class="chart-box"><div class="chart-title">⚡ Sprint Distance (m) — 14 days</div><canvas id="chart-detail-sprint"></canvas></div>
-  <div class="chart-box"><div class="chart-title">🦘 Plyometric Volume (reps + contacts) — 14 days</div><canvas id="chart-detail-plyo"></canvas></div>
-  <div class="chart-box"><div class="chart-title">😩 Fatigue · 😊 Mood · 😴 Sleep Quality — 14 days</div><canvas id="chart-detail-condition"></canvas></div>
-  <div class="sec-ttl">🏅 Records · Bestzeiten</div>
-  <div id="detail-records"></div>
-  <div class="sec-ttl" style="margin-top:16px">Recent Logs</div>
+  <div id="detail-profile-card"></div>
+  <div id="detail-performance"></div>
+  <div class="sec-ttl" style="margin-top:4px">Recent Logs</div>
   <div id="detail-logs"></div>
 </div>
 
@@ -3613,49 +3612,173 @@ function renderAthletesTab(){
     wrap.appendChild(div);
   });
 }
-function openAthDetail(name){ ST._detailAthName=name;
-  const d=getData(); const ath=d.athletes.find(a=>a.name===name);
-  const dates=getLast(14); const labels=dates.map(fmtDate);
-  const logs=d.logs.filter(l=>l.athleteName===name);
-  document.getElementById('detail-name').textContent=name;
-  document.getElementById('detail-meta').textContent=`Group ${ath.group} · Last 14 days`;
-  const wd=getLast(7); const wk=logs.filter(l=>wd.includes(l.date));
-  const wv=wk.filter(l=>l.type==='weight').reduce((s,l)=>s+l.totalVolume,0);
-  const sd=wk.filter(l=>l.type==='sprint').reduce((s,l)=>s+l.totalDistance,0);
-  const cl=wk.filter(l=>l.type==='condition');
-  const af=cl.length?Math.round(cl.reduce((s,l)=>s+l.fatigue,0)/cl.length*10)/10:'-';
-  const am=cl.length?Math.round(cl.reduce((s,l)=>s+l.mood,0)/cl.length*10)/10:'-';
-  document.getElementById('detail-stats').innerHTML=`
-    <div class="stat"><div class="stat-lbl">7d Volume</div><div class="stat-val c-blue">${wv.toLocaleString()}<span style="font-size:12px">kg</span></div></div>
-    <div class="stat"><div class="stat-lbl">7d Sprint</div><div class="stat-val c-green">${sd.toLocaleString()}<span style="font-size:12px">m</span></div></div>
-    <div class="stat"><div class="stat-lbl">Avg Fatigue</div><div class="stat-val c-red">${af}</div></div>
-    <div class="stat"><div class="stat-lbl">Avg Mood</div><div class="stat-val c-purple">${am}</div></div>`;
-  mkChart('chart-detail-power',[{label:'Power Dev (kg)',data:dates.map(dt=>logs.filter(l=>l.type==='weight'&&l.date===dt).reduce((s,l)=>s+(l.exercises||[]).reduce((ss,e)=>e.trainingType==='Power Development'?ss+(e.weight||0)*(e.sets||0)*(e.reps||0):ss,0),0)),type:'bar',backgroundColor:'rgba(247,169,79,.75)'}],labels);
-  mkChart('chart-detail-resistance',[{label:'Resistance (kg)',data:dates.map(dt=>logs.filter(l=>l.type==='weight'&&l.date===dt).reduce((s,l)=>s+(l.exercises||[]).reduce((ss,e)=>e.trainingType==='Resistance Training'?ss+(e.weight||0)*(e.sets||0)*(e.reps||0):ss,0),0)),type:'bar',backgroundColor:'rgba(79,142,247,.7)'}],labels);
-  mkChart('chart-detail-sprint',[{label:'Distance (m)',data:dates.map(dt=>logs.filter(l=>l.type==='sprint'&&l.date===dt).reduce((s,l)=>s+(l.totalDistance||0),0)),type:'bar',backgroundColor:'rgba(62,207,142,.7)'}],labels);
-  mkChart('chart-detail-plyo',[{label:'Reps + Contacts',data:dates.map(dt=>logs.filter(l=>l.type==='plyo'&&l.date===dt).reduce((s,l)=>s+(l.totalReps||0)+(l.totalContacts||0),0)),type:'bar',backgroundColor:'rgba(167,139,250,.75)'}],labels);
-  mkChart('chart-detail-condition',[
-    {label:'Fatigue', data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].fatigue:null; }),      borderColor:'#e94560',backgroundColor:'#e94560',tension:.4,pointRadius:5,pointStyle:'circle'},
-    {label:'Mood',    data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].mood:null; }),         borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'},
-    {label:'Sleep Q', data:dates.map(dt=>{ const c=logs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].sleepQuality:null; }), borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
-  ],labels);
-  // Records section
-  const recWrap=document.getElementById('detail-records');
-  if(recWrap) recWrap.innerHTML=renderAthRecords(name);
+function openAthDetail(name){
+  ST._detailAthName=name;
+  const d=getData();
+  const ath=d.athletes.find(a=>a.name===name);
+
+  // ── Profile card ──
+  const age=ath.dob?Math.floor(calcAge(ath.dob)):null;
+  const latestPHV=(d.phvRecords||[]).filter(r=>r.athleteId===ath.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const phvBadge=latestPHV
+    ?`<span style="padding:3px 9px;border-radius:14px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);font-size:11px;font-weight:700;color:#a78bfa;margin-left:8px">${latestPHV.offset>=0?'+':''}${latestPHV.offset.toFixed(2)} PHV</span>`
+    :'';
+  const genderStr=ath.gender==='M'?'♂ Male':ath.gender==='F'?'♀ Female':'';
+  document.getElementById('detail-profile-card').innerHTML=`
+    <div class="ath-detail-header">
+      <div class="ath-detail-name">${name}</div>
+      <div class="ath-detail-meta" style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px">
+        <span>Group ${ath.group}</span>${age?`<span style="color:var(--border)">·</span><span>${age}y</span>`:''}${genderStr?`<span style="color:var(--border)">·</span><span>${genderStr}</span>`:''}${ath.dob?`<span style="color:var(--border)">·</span><span style="font-size:11px">${ath.dob}</span>`:''}${phvBadge}
+      </div>
+      <button onclick="goCoachRecord()" style="margin-top:14px;padding:10px 22px;border-radius:var(--r);border:none;background:linear-gradient(135deg,var(--gold),#a07c2d);color:#0d1117;font-size:13px;font-weight:800;cursor:pointer">＋ Add Record · Bestzeit</button>
+    </div>`;
+
+  // ── Performance section ──
+  const recs=(d.records||[]).filter(r=>r.athleteName===name);
+  document.getElementById('detail-performance').innerHTML=_buildPerfHtml(recs);
+  setTimeout(()=>_renderPerfSparklines(recs),40);
+
+  // ── Recent logs ──
   const recent=d.logs.filter(l=>l.athleteName===name).slice(-20).reverse();
   const _dBtn=(id)=>`<button onclick="deleteLog('${id}','detail')" style="padding:3px 8px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
   const _eBtn=(id)=>{const l=d.logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="_editLog('${id}')" style="padding:3px 8px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';}
   document.getElementById('detail-logs').innerHTML=recent.length?recent.map(l=>`<div class="detail-card">
     <div class="detail-row"><span class="detail-key">${l.date}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':'b-c'}">${l.type}</span>${_eBtn(l.id)}${_dBtn(l.id)}</div></div>
-    ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>`${e.name}${e.isBodyweight?`<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:5px;background:rgba(62,207,142,.2);color:#3ecf8e;margin-left:3px">BW${e.bwBase?` ${e.bwBase}kg`:''}</span>`:''}`).join(', ')}</span></div>`:''}
+    ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>e.name).join(', ')}</span></div>`:''}
     ${l.type==='sprint'?`<div class="detail-row"><span class="detail-key">Type</span><span class="detail-val">${l.sprintType||''}</span></div><div class="detail-row"><span class="detail-key">Total Dist</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`:''}
-    ${l.type==='plyo'?(()=>{const _pe=l.exercises||[];let _dr=0,_dc=0;if(l.totalContacts!==undefined&&l.totalContacts!==null){_dr=l.totalReps||0;_dc=l.totalContacts||0;}else{_dc=_pe.filter(e=>e.planRepType==='contacts').reduce((s,e)=>s+(e.sets||0)*(e.reps||0),0);_dr=_pe.filter(e=>(e.planRepType||'reps')!=='contacts').reduce((s,e)=>s+(e.sets||0)*(e.reps||0),0);if(!_dr&&!_dc)_dr=l.totalReps||0;}return (_dr>0?`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${_dr.toLocaleString()}</span></div>`:'')+(_dc>0?`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${_dc.toLocaleString()}</span></div>`:'')+`<div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${_pe.map(e=>e.name).join(', ')}</span></div>`;})():''}
     ${l.type==='tabata'?`<div class="detail-row"><span class="detail-key">Completed</span><span class="detail-val">${l.completedRounds??'—'}/8 rounds</span></div>`:''}
     ${l.type==='condition'?`<div class="detail-row"><span class="detail-key">Sleep</span><span class="detail-val">${l.sleepHours}h · Q:${l.sleepQuality}</span></div><div class="detail-row"><span class="detail-key">Fatigue/Mood</span><span class="detail-val">${l.fatigue}/${l.mood}</span></div>`:''}
     ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
   </div>`).join(''):'<div class="empty">No logs yet</div>';
+
   document.getElementById('coach-tabbar').classList.remove('show');
   showScreen('s-ath-detail');
+}
+
+// ── Build performance HTML ──
+function _buildPerfHtml(recs){
+  if(!recs.length) return `<div class="empty" style="padding:28px 0"><div class="ei">🏅</div><div style="font-size:15px;font-weight:700;margin-bottom:6px">No records yet</div><div style="font-size:12px">Add manually with the button above, or records will be auto-filled when you save Bulk Entry data</div></div>`;
+  let html='';
+  const _distBlock=(entries,prColor,prBg,unit,isTime,cPrefix)=>{
+    const sorted=isTime?[...entries].sort((a,b)=>a.time-b.time):[...entries].sort((a,b)=>b.load-a.load);
+    const pr=sorted[0];
+    const byDate=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
+    const cid=cPrefix;
+    const prVal=isTime?pr.time.toFixed(3):pr.load;
+    const prNote=isTime?(pr.notes||''):(pr.velocity?`v: ${pr.velocity}m/s`:'');
+    return `<div class="perf-dist-block">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">${isTime?(pr.distance+'m'):(EX_LABELS[pr.exercise]||pr.exercise)}</div>
+        <div class="perf-pr-line">
+          <span class="perf-pr-num" style="color:${prColor}">${prVal}</span>
+          <span class="perf-pr-unit">${unit}</span>
+          <span style="font-size:10px;font-weight:800;color:${prColor};background:${prBg};padding:2px 8px;border-radius:20px;margin-left:6px">PR</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${pr.date}${prNote?' · '+prNote:''}</div>
+      ${byDate.length>1?`<div class="perf-spark-wrap"><canvas id="${cid}"></canvas></div>`:''}
+      ${sorted.slice(1,4).map((r,i)=>`<div class="perf-recent-row">
+        <span style="min-width:22px;color:var(--muted)">#${i+2}</span>
+        <span style="flex:1">${isTime?r.time.toFixed(3)+'s':r.load+'kg'}${!isTime&&r.velocity?' · v:'+r.velocity+'m/s':''}</span>
+        <span>${r.date}</span>
+      </div>`).join('')}
+    </div>`;
+  };
+
+  // Sprint
+  const sprintRecs=recs.filter(r=>r.type==='sprint');
+  if(sprintRecs.length){
+    html+=`<div class="perf-sec-hdr">⚡ Sprint</div><div class="perf-cat-card">`;
+    const byDist={};
+    sprintRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
+    Object.keys(byDist).sort((a,b)=>a-b).forEach(dist=>{
+      html+=_distBlock(byDist[dist],'var(--gold)','rgba(201,168,76,.12)','s',true,`spark-sprint-${dist}`);
+    });
+    html+='</div>';
+  }
+  // Ice Start
+  const iceRecs=recs.filter(r=>r.type==='icestart');
+  if(iceRecs.length){
+    html+=`<div class="perf-sec-hdr">🧊 Ice Start</div><div class="perf-cat-card">`;
+    const byDist={};
+    iceRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
+    Object.keys(byDist).sort((a,b)=>a-b).forEach(dist=>{
+      html+=_distBlock(byDist[dist],'var(--blue)','rgba(79,142,247,.12)','s',true,`spark-ice-${dist}`);
+    });
+    html+='</div>';
+  }
+  // Strength
+  const strRecs=recs.filter(r=>r.type==='strength');
+  if(strRecs.length){
+    html+=`<div class="perf-sec-hdr">🏋️ Strength</div><div class="perf-cat-card">`;
+    const byEx={};
+    strRecs.forEach(r=>{ if(!byEx[r.exercise])byEx[r.exercise]=[]; byEx[r.exercise].push(r); });
+    Object.keys(byEx).sort().forEach(ex=>{
+      html+=_distBlock(byEx[ex],'var(--green)','rgba(62,207,142,.12)','kg',false,`spark-str-${ex.replace(/[^a-z0-9]/gi,'_')}`);
+    });
+    html+='</div>';
+  }
+  return html||`<div class="empty" style="padding:20px 0"><div class="ei">🏅</div>No records yet</div>`;
+}
+
+// ── Render sparkline charts ──
+function _renderPerfSparklines(recs){
+  const _spark=(id,entries,isTime)=>{
+    if(!entries||entries.length<2) return;
+    const sorted=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
+    const labels=sorted.map(r=>r.date.slice(5));
+    const data=sorted.map(r=>isTime?r.time:r.load);
+    const color=isTime?'#c9a84c':'#3ecf8e';
+    if(ST.charts[id]) ST.charts[id].destroy();
+    const ctx=document.getElementById(id); if(!ctx) return;
+    ST.charts[id]=new Chart(ctx,{
+      type:'line',
+      data:{labels,datasets:[{data,borderColor:color,backgroundColor:color+'18',borderWidth:2,pointRadius:4,pointHoverRadius:7,tension:.35,fill:true,spanGaps:true}]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label(item){return ` ${item.raw}${isTime?'s':'kg'}`;} }}},
+        scales:{
+          x:{ticks:{color:'#8b949e',font:{size:9},maxRotation:0,maxTicksLimit:6},grid:{color:'rgba(38,47,61,.7)'}},
+          y:{reverse:isTime,ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:3},grid:{color:'rgba(38,47,61,.7)'}}
+        },
+        animation:{duration:220}
+      }
+    });
+  };
+  const byDist={sprint:{},icestart:{},strength:{}};
+  recs.forEach(r=>{
+    if(r.type==='sprint'){ if(!byDist.sprint[r.distance])byDist.sprint[r.distance]=[]; byDist.sprint[r.distance].push(r); }
+    else if(r.type==='icestart'){ if(!byDist.icestart[r.distance])byDist.icestart[r.distance]=[]; byDist.icestart[r.distance].push(r); }
+    else if(r.type==='strength'){ if(!byDist.strength[r.exercise])byDist.strength[r.exercise]=[]; byDist.strength[r.exercise].push(r); }
+  });
+  Object.keys(byDist.sprint).forEach(d=>_spark(`spark-sprint-${d}`,byDist.sprint[d],true));
+  Object.keys(byDist.icestart).forEach(d=>_spark(`spark-ice-${d}`,byDist.icestart[d],true));
+  Object.keys(byDist.strength).forEach(ex=>_spark(`spark-str-${ex.replace(/[^a-z0-9]/gi,'_')}`,byDist.strength[ex],false));
+}
+
+// ── Auto-feed records from Bulk ──
+function _autoFeedRecordsFromBulk(saves){
+  if(!saves||!saves.length) return;
+  const d=getData();
+  if(!d.records) d.records=[];
+  let added=0;
+  saves.forEach(s=>{
+    if(s.type==='sprint'){
+      (s.data||[]).forEach(attempt=>{
+        if(!attempt.distance||!attempt.time) return;
+        d.records.push({id:genId(),date:s.date,athleteName:s.athleteName,group:s.group,type:'sprint',distance:attempt.distance,time:attempt.time,notes:'[Bulk]'});
+        added++;
+      });
+    } else if(s.type==='weight'){
+      (s.data||[]).forEach(entry=>{
+        if(!entry.exercise||!entry.load) return;
+        d.records.push({id:genId(),date:s.date,athleteName:s.athleteName,group:s.group,type:'strength',exercise:entry.exercise,load:entry.load,velocity:entry.velocity||null,force:entry.force||null,power:entry.power||null,notes:'[Bulk]'});
+        added++;
+      });
+    }
+  });
+  if(added){ saveData(d); }
+  return added;
 }
 
 // ── PROGRAM MANAGEMENT ──
@@ -6762,6 +6885,7 @@ function saveBulkEntry(){
   const sprintType=(!isW&&!isT&&!isC)?document.getElementById('bulk-sprint-type').value:'';
 
   let saved=0;
+  const autoFeedSaves=[];
   const selected=athletes.filter(a=>ST._bulkSelectedIds.has(a.id));
   selected.forEach(a=>{
     const bd=ST._bulkData[a.id];
@@ -6834,6 +6958,10 @@ function saveBulkEntry(){
         totalVolume:Math.round(totalVol),
         rpe:null, source:'bulk', notes:'[Bulk Entry]'
       });
+      // Auto-feed: best load per exercise → records
+      autoFeedSaves.push({type:'weight',athleteName:a.name,group:a.group,date:dateVal,
+        data:exerciseEntries.map(e=>({exercise:e.name,load:e.weight,velocity:e.meanVelocity,force:e.meanForce,power:e.meanPower})).filter(e=>e.load>0)
+      });
       saved++;
     } else {
       const sprintSets=[];
@@ -6854,7 +6982,7 @@ function saveBulkEntry(){
         });
       });
       if(!sprintSets.length) return;
-      const totalDist=sprintSets.reduce((acc,s)=>acc+(s.distance*s.sets*s.reps),0);
+      const totalDist=sprintSets.reduce((acc,s)=>acc+(s.distance||0),0);
       d.logs.push({
         id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:'sprint',
         phase, week, sprintType,
@@ -6862,13 +6990,17 @@ function saveBulkEntry(){
         totalDistance:Math.round(totalDist),
         rpe:null, source:'bulk', notes:'[Bulk Entry]'
       });
+      // Auto-feed: all timed sprint attempts → records
+      const timedAttempts=sprintSets.filter(s=>s.totalTime&&s.distance).map(s=>({distance:s.distance,time:s.totalTime}));
+      if(timedAttempts.length) autoFeedSaves.push({type:'sprint',athleteName:a.name,group:a.group,date:dateVal,data:timedAttempts});
       saved++;
     }
   });
 
   if(!saved){ showToast('저장할 데이터가 없습니다 — 먼저 데이터를 입력하세요'); return; }
   saveData(d);
-  showToast(`✓ ${saved}명 저장 완료`);
+  const recAdded=_autoFeedRecordsFromBulk(autoFeedSaves);
+  showToast(`✓ ${saved}명 저장 완료${recAdded?' · 🏅 '+recAdded+'개 기록 반영':''}`);
   ST._bulkData={};
   ST._bulkSelectedIds=new Set();
   ST._bulkSelectorOpen=false;
