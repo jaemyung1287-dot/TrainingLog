@@ -691,28 +691,24 @@ tr:last-child td{border-bottom:none}
   <!-- Type selection -->
   <div class="fg">
     <label class="fl">Record Type · Typ</label>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div class="type-card sel" id="rt-sprint" onclick="selectRecType('sprint')">
         <span class="ico">⚡</span>
         <div class="lbl">Sprint</div>
-        <div class="desc" style="color:var(--gold)">60m</div>
       </div>
+      <div class="type-card" id="rt-strength" onclick="selectRecType('strength')">
+        <span class="ico">🏋️</span>
+        <div class="lbl">Strength</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div class="type-card" id="rt-ice" onclick="selectRecType('icestart')">
         <span class="ico">🧊</span>
         <div class="lbl">Ice Start</div>
-        <div class="desc" style="color:var(--gold)">구간 시간</div>
       </div>
       <div class="type-card" id="rt-track" onclick="selectRecType('trackstart')">
         <span class="ico">🏃</span>
         <div class="lbl">Track Start</div>
-        <div class="desc" style="color:var(--gold)">구간 시간</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr;gap:8px">
-      <div class="type-card" id="rt-strength" onclick="selectRecType('strength')">
-        <span class="ico">🏋️</span>
-        <div class="lbl">Strength</div>
-        <div class="desc" style="color:var(--gold)">Squat · Deadlift · Power Clean</div>
       </div>
     </div>
   </div>
