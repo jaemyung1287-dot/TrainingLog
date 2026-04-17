@@ -1006,9 +1006,12 @@ tr:last-child td{border-bottom:none}
   <div class="ttl">Team Entry <span style="font-size:16px;color:var(--muted)">· Bulk Data</span></div>
 
   <!-- Session type selector -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
     <button id="bulk-btn-weight" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--gold);color:#000;border:none" onclick="setBulkType('weight')">🏋️ Weight</button>
     <button id="bulk-btn-sprint" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('sprint')">⚡ Sprint</button>
+    <button id="bulk-btn-start" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('start')">🚀 Start</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
     <button id="bulk-btn-tabata" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('tabata')">🔥 Tabata</button>
     <button id="bulk-btn-circuit" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('circuit')">🔄 Circuit</button>
   </div>
@@ -1058,6 +1061,25 @@ tr:last-child td{border-bottom:none}
       <button id="bulk-timing-splits" onclick="setBulkSprintTiming('splits')" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.07);background:var(--card);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer">📊 Split Times</button>
     </div>
     <!-- Split interval moved to per-entry card -->
+  </div>
+
+  <!-- Start-specific header info -->
+  <div id="bulk-start-header" style="display:none;margin-bottom:12px">
+    <!-- Sub-type: Ice Start vs Track Start -->
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button id="bulk-start-sub-ice" onclick="setBulkStartSubType('icestart')" style="flex:1;padding:10px;border-radius:10px;background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3);font-size:13px;font-weight:700;cursor:pointer">🧊 Ice Start</button>
+      <button id="bulk-start-sub-track" onclick="setBulkStartSubType('trackstart')" style="flex:1;padding:10px;border-radius:10px;background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07);font-size:13px;font-weight:700;cursor:pointer">🏃 Track Start</button>
+    </div>
+    <!-- Timing mode -->
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button id="bulk-start-timing-total" onclick="setBulkStartTiming('total')" style="flex:1;padding:10px;border-radius:10px;background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3);font-size:13px;font-weight:700;cursor:pointer">⏱ Total Time</button>
+      <button id="bulk-start-timing-splits" onclick="setBulkStartTiming('splits')" style="flex:1;padding:10px;border-radius:10px;background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07);font-size:13px;font-weight:700;cursor:pointer">📊 Split Times</button>
+    </div>
+    <!-- Configurable record split -->
+    <div class="fg" style="margin:0">
+      <label class="fl">📍 Record Split (m) — 기록으로 사용할 구간거리</label>
+      <input class="fi" type="number" id="bulk-start-record-split" placeholder="e.g. 30  (비워두면 전체 시간 사용)" oninput="ST._bulkStartRecordSplit=this.value">
+    </div>
   </div>
 
   <!-- Circuit-specific header info -->
@@ -3769,6 +3791,14 @@ function _autoFeedRecordsFromBulk(saves){
         d.records.push({id:genId(),date:s.date,athleteName:s.athleteName,group:s.group,type:'sprint',distance:attempt.distance,time:attempt.time,notes:'[Bulk]'});
         added++;
       });
+    } else if(s.type==='start'){
+      // Ice Start or Track Start — save as their respective type
+      const recType=s.subType||'icestart';
+      (s.data||[]).forEach(attempt=>{
+        if(!attempt.distance||!attempt.time) return;
+        d.records.push({id:genId(),date:s.date,athleteName:s.athleteName,group:s.group,type:recType,distance:attempt.distance,time:attempt.time,notes:'[Bulk]'});
+        added++;
+      });
     } else if(s.type==='weight'){
       (s.data||[]).forEach(entry=>{
         if(!entry.exercise||!entry.load) return;
@@ -4489,7 +4519,7 @@ let recType='sprint';
 const EX_LABELS={squat:'Back Squat',deadlift:'Deadlift',powerclean:'Power Clean'};
 
 function goCoachRecord(){
-  const name=document.getElementById('detail-name').textContent;
+  const name=ST._detailAthName||'';
   ST.coachRecordAthlete=name;
   recType='sprint';
   ST.selectedExercise='squat';
@@ -5950,6 +5980,9 @@ function goBulkEntry(){
   ST._bulkData={};
   ST._bulkType='weight';
   ST._bulkSprintTiming='total';
+  ST._bulkStartSubType='icestart';
+  ST._bulkStartTiming='total';
+  ST._bulkStartRecordSplit='';
   ST._bulkGroup='A';
   ST._bulkSelectedIds=new Set();
   ST._bulkSelectorOpen=false;
@@ -5985,6 +6018,7 @@ function setBulkType(type){
   ST._bulkType=type;
   ST._bulkData={};
   ST._bulkSprintTiming='total';
+  ST._bulkStartTiming='total';
   // Auto-select group: Tabata → A, Circuit → B
   if(type==='tabata') setBulkGroup('A');
   else if(type==='circuit') setBulkGroup('B');
@@ -5995,20 +6029,24 @@ function setBulkType(type){
 
 function _updateBulkTypeUI(){
   const t=ST._bulkType;
-  const isW=t==='weight', isS=t==='sprint', isT=t==='tabata', isC=t==='circuit';
+  const isW=t==='weight', isS=t==='sprint', isST=t==='start', isT=t==='tabata', isC=t==='circuit';
   const base='height:48px;font-size:13px;font-weight:700;border:none;cursor:pointer;border-radius:12px;';
   const on='background:var(--gold);color:#000;';
   const off='background:var(--card);color:var(--muted);border:1px solid var(--border);';
+  const startOn='background:rgba(79,142,247,.2);color:var(--blue);border:1px solid rgba(79,142,247,.4);';
   const tabOn='background:rgba(233,69,96,.2);color:#e94560;border:1px solid rgba(233,69,96,.4);';
   const circOn='background:rgba(62,207,142,.2);color:#3ecf8e;border:1px solid rgba(62,207,142,.4);';
   document.getElementById('bulk-btn-weight').style.cssText=base+(isW?on:off);
   document.getElementById('bulk-btn-sprint').style.cssText=base+(isS?on:off);
+  document.getElementById('bulk-btn-start').style.cssText=base+(isST?startOn:off);
   document.getElementById('bulk-btn-tabata').style.cssText=base+(isT?tabOn:off);
   document.getElementById('bulk-btn-circuit').style.cssText=base+(isC?circOn:off);
   document.getElementById('bulk-weight-header').style.display=isW?'block':'none';
   document.getElementById('bulk-sprint-header').style.display=isS?'block':'none';
+  document.getElementById('bulk-start-header').style.display=isST?'block':'none';
   document.getElementById('bulk-tabata-header').style.display=isT?'block':'none';
   document.getElementById('bulk-circuit-header').style.display=isC?'block':'none';
+  if(isST) _updateBulkStartUI();
   if(isC) _updateBulkCircuitModeUI();
 }
 function setBulkSprintTiming(mode){
@@ -6025,6 +6063,68 @@ function _updateBulkTimingUI(){
   tBtn.style.cssText=`flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;`+(isSplits?'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)':'background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3)');
   sBtn.style.cssText=`flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;`+(isSplits?'background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3)':'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)');
 }
+// ── Start (Ice/Track) helpers ───────────────────
+function setBulkStartSubType(sub){
+  ST._bulkStartSubType=sub;
+  ST._bulkData={};
+  _updateBulkStartUI();
+  renderBulkAthletes();
+}
+function setBulkStartTiming(mode){
+  ST._bulkStartTiming=mode;
+  ST._bulkData={};
+  _updateBulkStartTimingUI();
+  renderBulkAthletes();
+}
+function _updateBulkStartUI(){
+  const isIce=ST._bulkStartSubType==='icestart';
+  const base='flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;';
+  const iceOn='background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3);';
+  const trackOn='background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3);';
+  const off='background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07);';
+  const iceBtn=document.getElementById('bulk-start-sub-ice');
+  const trackBtn=document.getElementById('bulk-start-sub-track');
+  if(iceBtn) iceBtn.style.cssText=base+(isIce?iceOn:off);
+  if(trackBtn) trackBtn.style.cssText=base+(!isIce?trackOn:off);
+  _updateBulkStartTimingUI();
+}
+function _updateBulkStartTimingUI(){
+  const isSplits=ST._bulkStartTiming==='splits';
+  const tBtn=document.getElementById('bulk-start-timing-total');
+  const sBtn=document.getElementById('bulk-start-timing-splits');
+  if(!tBtn) return;
+  tBtn.style.cssText='flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;'+(isSplits?'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)':'background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3)');
+  sBtn.style.cssText='flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;'+(isSplits?'background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3)':'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)');
+}
+function _buildStartTimingHtml(aid,ei,entry,isSplits,splitMarks){
+  if(!isSplits){
+    return `<div class="ex-nums" style="grid-template-columns:1fr;margin-top:8px">
+      <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${entry.time||''}" oninput="_setBulkField('${aid}',${ei},'time',this.value)" style="font-size:18px;font-weight:800;color:#3ecf8e;text-align:center"><div class="mini-lbl" style="text-align:center">⏱ Time (s)</div></div>
+    </div>`;
+  }
+  if(!splitMarks.length){
+    return `<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">Dist (m)와 Split Every (m)를 입력하면 스플릿 칸이 나타납니다</div>`;
+  }
+  const cols=Math.min(splitMarks.length,6);
+  const recSplit=parseFloat(ST._bulkStartRecordSplit)||null;
+  return `<div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;text-align:center">⏱ SPLIT TIMES (s)</div>
+  <div class="ex-nums" style="grid-template-columns:repeat(${cols},1fr);gap:6px">
+    ${splitMarks.map((m,i)=>{
+      const prev=i===0?0:splitMarks[i-1];
+      const isRec=recSplit&&Math.abs(m-recSplit)<0.001;
+      return `<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${aid}',${ei},${m},this.value)" style="font-size:13px;padding:8px 2px;text-align:center${isRec?';border-color:var(--gold);background:rgba(201,168,76,.15)':''}"><div class="mini-lbl" style="font-size:9px;text-align:center;line-height:1.3${isRec?';color:var(--gold);font-weight:800':''}">${m}m${isRec?' ★':''}<br><span style="opacity:.6">${prev}–${m}m</span></div></div>`;
+    }).join('')}
+  </div>`;
+}
+function _refreshStartTiming(aid,ei){
+  const bd=ST._bulkData[aid]; if(!bd||!bd.entries[ei]) return;
+  const entry=bd.entries[ei];
+  const el=document.getElementById(`bulk-start-timing-${aid}-${ei}`); if(!el) return;
+  const isSplits=ST._bulkStartTiming==='splits';
+  const marks=_bulkSplitMarks(entry.distance,entry.splitEvery||10);
+  el.innerHTML=_buildStartTimingHtml(aid,ei,entry,isSplits,marks);
+}
+
 function _bulkSplitMarks(dist,interval){
   dist=parseFloat(dist)||0; interval=parseFloat(interval)||10;
   if(!dist||!interval||interval>dist) return [];
@@ -6235,6 +6335,7 @@ function _defaultBulkEntry(){
     if(m==='B') return {mode:'B',completion:s.map(()=>Array(r).fill(true)),effort:''};
     if(m==='C') return {mode:'C',stationDone:s.map(()=>r),effort:''};
   }
+  // sprint and start share the same entry shape
   return {distance:'',splitEvery:10,time:'',splits:{},setDur:'',rest:''};
 }
 function addBulkEntry(aid){
@@ -6300,6 +6401,7 @@ function renderBulkAthletes(){
   const isW=ST._bulkType==='weight';
   const isT=ST._bulkType==='tabata';
   const isC=ST._bulkType==='circuit';
+  const isST=ST._bulkType==='start';
 
   selected.forEach(a=>{
     if(!ST._bulkData[a.id]) ST._bulkData[a.id]={skip:false,entries:[_defaultBulkEntry()]};
@@ -6367,6 +6469,25 @@ function renderBulkAthletes(){
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.peakF}" oninput="_setBulkField('${a.id}',${ei},'peakF',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak F</div></div>
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.meanP}" oninput="_setBulkField('${a.id}',${ei},'meanP',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Mean P</div></div>
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.peakP}" oninput="_setBulkField('${a.id}',${ei},'peakP',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak P</div></div>
+        </div>`;
+      } else if(isST) {
+        // Start (Ice / Track) — per-entry split marks
+        const isSplits=ST._bulkStartTiming==='splits';
+        const sDist=parseFloat(entry.distance)||0;
+        const sInterval=parseFloat(entry.splitEvery)||10;
+        const entryMarks=_bulkSplitMarks(sDist,sInterval);
+        const timingHtml=_buildStartTimingHtml(a.id,ei,entry,isSplits,entryMarks);
+        const subLabel=ST._bulkStartSubType==='icestart'?'🧊 Ice Start':'🏃 Track Start';
+        entriesHtml+=`${entryHdr}
+        <div style="font-size:10px;font-weight:800;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${subLabel}</div>
+        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:0;gap:10px">
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.distance||''}" oninput="_setBulkField('${a.id}',${ei},'distance',this.value);_refreshStartTiming('${a.id}',${ei})" style="text-align:center"><div class="mini-lbl" style="text-align:center">Dist (m)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="10" value="${entry.splitEvery||10}" oninput="_setBulkField('${a.id}',${ei},'splitEvery',this.value);_refreshStartTiming('${a.id}',${ei})" style="text-align:center"><div class="mini-lbl" style="text-align:center">Split Every (m)</div></div>
+        </div>
+        <div id="bulk-start-timing-${a.id}-${ei}">${timingHtml}</div>
+        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.setDur||''}" oninput="_setBulkField('${a.id}',${ei},'setDur',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Set Dur (s)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.rest||''}" oninput="_setBulkField('${a.id}',${ei},'rest',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Rest (s)</div></div>
         </div>`;
       } else if(!isC) {
         // Sprint — per-entry split marks
@@ -6881,8 +7002,11 @@ function saveBulkEntry(){
   const isW=ST._bulkType==='weight';
   const isT=ST._bulkType==='tabata';
   const isC=ST._bulkType==='circuit';
+  const isST=ST._bulkType==='start';
   const exerciseName=isW?(document.getElementById('bulk-exercise').value||'Exercise'):'';
-  const sprintType=(!isW&&!isT&&!isC)?document.getElementById('bulk-sprint-type').value:'';
+  const sprintType=(!isW&&!isT&&!isC&&!isST)?document.getElementById('bulk-sprint-type').value:'';
+  const startSubType=isST?ST._bulkStartSubType:'';
+  const startRecordSplit=isST?(parseFloat(ST._bulkStartRecordSplit)||null):null;
 
   let saved=0;
   const autoFeedSaves=[];
@@ -6962,6 +7086,47 @@ function saveBulkEntry(){
       autoFeedSaves.push({type:'weight',athleteName:a.name,group:a.group,date:dateVal,
         data:exerciseEntries.map(e=>({exercise:e.name,load:e.weight,velocity:e.meanVelocity,force:e.meanForce,power:e.meanPower})).filter(e=>e.load>0)
       });
+      saved++;
+    } else if(isST) {
+      // Start (Ice Start / Track Start)
+      const startSets=[];
+      entries.forEach((entry,si)=>{
+        const dist=parseFloat(entry.distance)||0;
+        if(!dist) return;
+        const totalTime=parseFloat(entry.time)||null;
+        const rawSplits=entry.splits||{};
+        const splitEntries=Object.entries(rawSplits).filter(([,v])=>v!=='').map(([m,v])=>({mark:parseFloat(m),time:parseFloat(v)})).sort((x,y)=>x.mark-y.mark);
+        startSets.push({
+          distance:dist,
+          splitEvery:parseFloat(entry.splitEvery)||10,
+          attemptNo:si+1,
+          setDuration:parseFloat(entry.setDur)||null,
+          restInterval:parseFloat(entry.rest)||null,
+          totalTime,
+          splits:splitEntries.length?splitEntries:null
+        });
+      });
+      if(!startSets.length) return;
+      const totalDistST=startSets.reduce((acc,s)=>acc+(s.distance||0),0);
+      d.logs.push({
+        id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:startSubType,
+        phase, week,
+        sets:startSets,
+        totalDistance:Math.round(totalDistST),
+        recordSplit:startRecordSplit,
+        rpe:null, source:'bulk', notes:'[Bulk Entry]'
+      });
+      // Auto-feed: use record split time if set, else total time
+      const startAttempts=startSets.map(s=>{
+        let recTime=null;
+        if(startRecordSplit&&s.splits){
+          const splitHit=s.splits.find(sp=>Math.abs(sp.mark-startRecordSplit)<0.001);
+          if(splitHit) recTime=splitHit.time;
+        }
+        if(recTime===null) recTime=s.totalTime;
+        return {distance:startRecordSplit||s.distance,time:recTime};
+      }).filter(s=>s.time&&s.distance);
+      if(startAttempts.length) autoFeedSaves.push({type:'start',subType:startSubType,athleteName:a.name,group:a.group,date:dateVal,data:startAttempts});
       saved++;
     } else {
       const sprintSets=[];
