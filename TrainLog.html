@@ -1023,10 +1023,7 @@ tr:last-child td{border-bottom:none}
 
   <!-- Weight-specific header info -->
   <div id="bulk-weight-header" style="margin-bottom:12px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="fg" style="margin:0"><label class="fl">Exercise · Übung</label><input class="fi" id="bulk-exercise" placeholder="e.g. Back Squat" value="Back Squat"></div>
-      <div class="fg" style="margin:0"><label class="fl">Intensity %</label><input class="fi" id="bulk-intensity" type="number" placeholder="e.g. 85"></div>
-    </div>
+    <div class="fg" style="margin:0"><label class="fl">Exercise · Übung</label><input class="fi" id="bulk-exercise" placeholder="e.g. Back Squat" value="Back Squat"></div>
   </div>
 
   <!-- Tabata-specific header info -->
@@ -1043,27 +1040,21 @@ tr:last-child td{border-bottom:none}
 
   <!-- Sprint-specific header info -->
   <div id="bulk-sprint-header" style="display:none;margin-bottom:12px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div class="fg" style="margin:0"><label class="fl">Sprint Type</label>
-        <select class="fi" id="bulk-sprint-type">
-          <option value="acc">Acceleration</option>
-          <option value="maxv">Max Velocity</option>
-          <option value="se1">SE1</option>
-          <option value="se2">SE2</option>
-          <option value="tempo">Tempo</option>
-        </select>
-      </div>
-      <div class="fg" style="margin:0"><label class="fl">Distance (m)</label><input class="fi" id="bulk-distance" type="number" placeholder="e.g. 30" oninput="renderBulkAthletes()"></div>
+    <div class="fg" style="margin:0 0 10px"><label class="fl">Sprint Type</label>
+      <select class="fi" id="bulk-sprint-type">
+        <option value="acc">Acceleration</option>
+        <option value="maxv">Max Velocity</option>
+        <option value="se1">SE1</option>
+        <option value="se2">SE2</option>
+        <option value="tempo">Tempo</option>
+      </select>
     </div>
     <!-- Timing mode -->
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <button id="bulk-timing-total" onclick="setBulkSprintTiming('total')" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,206,0,.15);color:var(--gold);font-size:13px;font-weight:700;cursor:pointer">⏱ Total Time</button>
       <button id="bulk-timing-splits" onclick="setBulkSprintTiming('splits')" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.07);background:var(--card);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer">📊 Split Times</button>
     </div>
-    <!-- Split interval (shown only in splits mode) -->
-    <div id="bulk-split-interval-row" style="display:none;margin-bottom:4px">
-      <div class="fg" style="margin:0"><label class="fl">Split every (m)</label><input class="fi" id="bulk-split-interval" type="number" value="10" min="5" max="100" step="5" oninput="renderBulkAthletes()"></div>
-    </div>
+    <!-- Split interval moved to per-entry card -->
   </div>
 
   <!-- Circuit-specific header info -->
@@ -5770,7 +5761,6 @@ function goBulkEntry(){
   document.getElementById('bulk-week').value='';
   document.getElementById('bulk-exercise').value='Back Squat';
   document.getElementById('bulk-intensity').value='';
-  document.getElementById('bulk-distance').value='';
   ST._bulkData={};
   ST._bulkType='weight';
   ST._bulkSprintTiming='total';
@@ -5842,19 +5832,39 @@ function _updateBulkTimingUI(){
   const isSplits=ST._bulkSprintTiming==='splits';
   const tBtn=document.getElementById('bulk-timing-total');
   const sBtn=document.getElementById('bulk-timing-splits');
-  const intRow=document.getElementById('bulk-split-interval-row');
   if(!tBtn) return;
   tBtn.style.cssText=`flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;`+(isSplits?'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)':'background:rgba(255,206,0,.15);color:var(--gold);border:1px solid rgba(255,206,0,.3)');
   sBtn.style.cssText=`flex:1;padding:10px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;`+(isSplits?'background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3)':'background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07)');
-  if(intRow) intRow.style.display=isSplits?'block':'none';
 }
-function _bulkSplitMarks(){
-  const dist=parseFloat(document.getElementById('bulk-distance')?.value)||0;
-  const interval=parseFloat(document.getElementById('bulk-split-interval')?.value)||10;
+function _bulkSplitMarks(dist,interval){
+  dist=parseFloat(dist)||0; interval=parseFloat(interval)||10;
   if(!dist||!interval||interval>dist) return [];
   const marks=[];
   for(let m=interval;m<=dist+0.001;m+=interval) marks.push(Math.round(m*10)/10);
   return marks;
+}
+function _buildSprintTimingHtml(aid,ei,entry,isSplits,splitMarks){
+  if(!isSplits){
+    return `<div class="ex-nums" style="grid-template-columns:1fr;margin-top:8px">
+      <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${entry.time||''}" oninput="_setBulkField('${aid}',${ei},'time',this.value)" style="font-size:18px;font-weight:800;color:#3ecf8e;text-align:center"><div class="mini-lbl" style="text-align:center">⏱ Time (s)</div></div>
+    </div>`;
+  }
+  if(!splitMarks.length){
+    return `<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">Dist (m)와 Split Every (m)를 입력하면 스플릿 칸이 나타납니다</div>`;
+  }
+  const cols=Math.min(splitMarks.length,6);
+  return `<div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;text-align:center">⏱ SPLIT TIMES (s)</div>
+  <div class="ex-nums" style="grid-template-columns:repeat(${cols},1fr);gap:6px">
+    ${splitMarks.map(m=>`<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${aid}',${ei},${m},this.value)" style="font-size:13px;padding:8px 2px;text-align:center"><div class="mini-lbl" style="text-align:center">${m}m</div></div>`).join('')}
+  </div>`;
+}
+function _refreshSprintTiming(aid,ei){
+  const bd=ST._bulkData[aid]; if(!bd||!bd.entries[ei]) return;
+  const entry=bd.entries[ei];
+  const el=document.getElementById(`bulk-sprint-timing-${aid}-${ei}`); if(!el) return;
+  const isSplits=ST._bulkSprintTiming==='splits';
+  const marks=_bulkSplitMarks(entry.distance, entry.splitEvery||10);
+  el.innerHTML=_buildSprintTimingHtml(aid,ei,entry,isSplits,marks);
 }
 // ── Circuit Training helpers ────────────────────
 function setBulkCircuitMode(mode){
@@ -6036,7 +6046,7 @@ function _defaultBulkEntry(){
     if(m==='B') return {mode:'B',completion:s.map(()=>Array(r).fill(true)),effort:''};
     if(m==='C') return {mode:'C',stationDone:s.map(()=>r),effort:''};
   }
-  return {distance:'',intensity:'',sets:'',reps:'',time:'',splits:{},setDur:'',rest:''};
+  return {distance:'',splitEvery:10,sets:'',reps:'',time:'',splits:{},setDur:'',rest:''};
 }
 function addBulkEntry(aid){
   if(!ST._bulkData[aid]) return;
@@ -6088,7 +6098,6 @@ function renderBulkAthletes(){
   const isW=ST._bulkType==='weight';
   const isT=ST._bulkType==='tabata';
   const isC=ST._bulkType==='circuit';
-  const splitMarks=(!isW&&!isT&&!isC)?_bulkSplitMarks():[];
 
   selected.forEach(a=>{
     if(!ST._bulkData[a.id]) ST._bulkData[a.id]={skip:false,entries:[_defaultBulkEntry()]};
@@ -6145,33 +6154,23 @@ function renderBulkAthletes(){
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.peakP}" oninput="_setBulkField('${a.id}',${ei},'peakP',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak P</div></div>
         </div>`;
       } else if(!isC) {
-        // Sprint
+        // Sprint — per-entry split marks
         const isSplits=ST._bulkSprintTiming==='splits';
-        let timingHtml='';
-        if(isSplits&&splitMarks.length){
-          const cols=Math.min(splitMarks.length,6);
-          timingHtml=`<div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;text-align:center">⏱ Split Times (s)</div>
-          <div class="ex-nums" style="grid-template-columns:repeat(${cols},1fr);gap:6px">
-            ${splitMarks.map(m=>`<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${a.id}',${ei},${m},this.value)" style="font-size:13px;padding:8px 2px;text-align:center"><div class="mini-lbl" style="text-align:center">${m}m</div></div>`).join('')}
-          </div>`;
-        } else if(isSplits&&!splitMarks.length){
-          timingHtml=`<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">거리(m)를 입력하면 스플릿 칸이 나타납니다</div>`;
-        } else {
-          timingHtml=`<div class="ex-nums" style="grid-template-columns:1fr;margin-top:8px">
-            <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${entry.time||''}" oninput="_setBulkField('${a.id}',${ei},'time',this.value)" style="font-size:18px;font-weight:800;color:#3ecf8e;text-align:center"><div class="mini-lbl" style="text-align:center">⏱ Time (s)</div></div>
-          </div>`;
-        }
+        const sDist=parseFloat(entry.distance)||0;
+        const sInterval=parseFloat(entry.splitEvery)||10;
+        const entryMarks=_bulkSplitMarks(sDist,sInterval);
+        const timingHtml=_buildSprintTimingHtml(a.id,ei,entry,isSplits,entryMarks);
         entriesHtml+=`${entryHdr}
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:0;gap:10px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.distance}" oninput="_setBulkField('${a.id}',${ei},'distance',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Dist (m)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Int %</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.sets}" oninput="_setBulkField('${a.id}',${ei},'sets',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Sets</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.reps}" oninput="_setBulkField('${a.id}',${ei},'reps',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Reps</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.distance||''}" oninput="_setBulkField('${a.id}',${ei},'distance',this.value);_refreshSprintTiming('${a.id}',${ei})" style="text-align:center"><div class="mini-lbl" style="text-align:center">Dist (m)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="10" value="${entry.splitEvery||10}" oninput="_setBulkField('${a.id}',${ei},'splitEvery',this.value);_refreshSprintTiming('${a.id}',${ei})" style="text-align:center"><div class="mini-lbl" style="text-align:center">Split Every (m)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.sets||''}" oninput="_setBulkField('${a.id}',${ei},'sets',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Sets</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.reps||''}" oninput="_setBulkField('${a.id}',${ei},'reps',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Reps</div></div>
         </div>
-        ${timingHtml}
+        <div id="bulk-sprint-timing-${a.id}-${ei}">${timingHtml}</div>
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.setDur}" oninput="_setBulkField('${a.id}',${ei},'setDur',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Set Dur (s)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.rest}" oninput="_setBulkField('${a.id}',${ei},'rest',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Rest (s)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.setDur||''}" oninput="_setBulkField('${a.id}',${ei},'setDur',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Set Dur (s)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.rest||''}" oninput="_setBulkField('${a.id}',${ei},'rest',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Rest (s)</div></div>
         </div>`;
       } else {
         // ── Circuit card (mode A / B / C) ──────────────
@@ -6670,10 +6669,8 @@ function saveBulkEntry(){
   const isT=ST._bulkType==='tabata';
   const isC=ST._bulkType==='circuit';
   const exerciseName=isW?(document.getElementById('bulk-exercise').value||'Exercise'):'';
-  const globalIntensity=isW?document.getElementById('bulk-intensity').value:'';
   const tabataIntensity=isT?(parseFloat(document.getElementById('bulk-tabata-intensity').value)||0):0;
   const sprintType=(!isW&&!isT&&!isC)?document.getElementById('bulk-sprint-type').value:'';
-  const globalDist=(!isW&&!isT&&!isC)?(parseFloat(document.getElementById('bulk-distance').value)||0):'';
 
   let saved=0;
   const selected=athletes.filter(a=>ST._bulkSelectedIds.has(a.id));
@@ -6728,7 +6725,7 @@ function saveBulkEntry(){
         if(!sets&&!reps&&!w) return;
         exerciseEntries.push({
           name:exerciseName,
-          intensity:parseFloat(entry.intensity||globalIntensity)||0,
+          intensity:parseFloat(entry.intensity)||0,
           weight:w, sets, reps,
           setDuration:parseFloat(entry.setDur)||null,
           restInterval:parseFloat(entry.rest)||null,
@@ -6753,7 +6750,7 @@ function saveBulkEntry(){
     } else {
       const sprintSets=[];
       entries.forEach(entry=>{
-        const dist=parseFloat(entry.distance)||globalDist||0;
+        const dist=parseFloat(entry.distance)||0;
         const sets=parseInt(entry.sets)||1;
         const reps=parseInt(entry.reps)||1;
         if(!dist) return;
@@ -6761,8 +6758,9 @@ function saveBulkEntry(){
         const rawSplits=entry.splits||{};
         const splitEntries=Object.entries(rawSplits).filter(([,v])=>v!=='').map(([m,v])=>({mark:parseFloat(m),time:parseFloat(v)})).sort((x,y)=>x.mark-y.mark);
         sprintSets.push({
-          intensity:parseFloat(entry.intensity)||0,
-          distance:dist, sets, reps,
+          distance:dist,
+          splitEvery:parseFloat(entry.splitEvery)||10,
+          sets, reps,
           setDuration:parseFloat(entry.setDur)||null,
           restInterval:parseFloat(entry.rest)||null,
           totalTime,
