@@ -1028,12 +1028,16 @@ tr:last-child td{border-bottom:none}
 
   <!-- Tabata-specific header info -->
   <div id="bulk-tabata-header" style="display:none;margin-bottom:12px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="fg" style="margin:0"><label class="fl">Intensity %</label><input class="fi" id="bulk-tabata-intensity" type="number" placeholder="e.g. 80"></div>
-      <div class="fg" style="margin:0;display:flex;align-items:flex-end">
-        <div style="padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.2);font-size:11px;color:rgba(233,69,96,.8);line-height:1.5;width:100%">
-          <strong style="color:#e94560">20s</strong> work · <strong style="color:#4f8ef7">10s</strong> rest · <strong style="color:#fff">8 rounds</strong>
-        </div>
+    <div style="padding:14px 18px;border-radius:14px;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.25);display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:20px">🔥</span>
+        <span style="font-size:15px;font-weight:800;color:#e94560">Tabata</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <span style="font-size:13px;color:rgba(255,255,255,.85)"><strong style="color:#e94560;font-size:16px">20s</strong> work</span>
+        <span style="font-size:13px;color:rgba(255,255,255,.85)"><strong style="color:#4f8ef7;font-size:16px">10s</strong> rest</span>
+        <span style="font-size:13px;color:rgba(255,255,255,.85)"><strong style="color:#fff;font-size:16px">8</strong> rounds</span>
+        <span style="font-size:13px;color:rgba(255,255,255,.85)"><strong style="color:#3ecf8e;font-size:16px">4:00</strong> total</span>
       </div>
     </div>
   </div>
@@ -3904,7 +3908,7 @@ function exportExcel(){
   const allMarks=new Set();
   sprintTimeLogs.forEach(l=>(l.sets||[]).forEach(s=>(s.splits||[]).forEach(sp=>allMarks.add(sp.mark))));
   const sortedMarks=[...allMarks].sort((a,b)=>Number(a)-Number(b));
-  const sprintHdr=['Date','Athlete','Group','Phase','Week','Sprint Type','Distance (m)','Split Every (m)','Sets','Reps','Total Time (s)',...sortedMarks.map(m=>m+'m Split (s)')];
+  const sprintHdr=['Date','Athlete','Group','Phase','Week','Sprint Type','Attempt No','Distance (m)','Split Every (m)','Total Time (s)',...sortedMarks.map(m=>m+'m Split (s)')];
   const sprintRows=[sprintHdr];
   sprintTimeLogs.forEach(l=>{
     (l.sets||[]).forEach(s=>{
@@ -3912,19 +3916,19 @@ function exportExcel(){
       (s.splits||[]).forEach(sp=>smap[sp.mark]=sp.time);
       sprintRows.push([
         l.date, l.athleteName, l.group||'', l.phase||'', l.week||'',
-        l.sprintType||'', s.distance||'', s.splitEvery||'', s.sets||'', s.reps||'',
+        l.sprintType||'', s.attemptNo||'', s.distance||'', s.splitEvery||'',
         s.totalTime||'',
         ...sortedMarks.map(m=>smap[m]!==undefined?smap[m]:'')
       ]);
     });
   });
   const wsT=XLSX.utils.aoa_to_sheet(sprintRows);
-  wsT['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:14},{wch:12},{wch:14},{wch:6},{wch:6},{wch:14},...sortedMarks.map(()=>({wch:14}))];
+  wsT['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:14},{wch:11},{wch:12},{wch:14},{wch:14},...sortedMarks.map(()=>({wch:14}))];
   XLSX.utils.book_append_sheet(wb,wsT,'Sprint Times');
 
   // ── Sheet 2: Weight – Power / Velocity / Force ───
   // Focus: Bulk Entry only — VBT performance variables
-  const vbtHdr=['Date','Athlete','Group','Phase','Week','Exercise','Sets','Reps','Load (kg)','Intensity (%)','Mean Velocity (m/s)','Peak Velocity (m/s)','Mean Force (N)','Peak Force (N)','Mean Power (W)','Peak Power (W)'];
+  const vbtHdr=['Date','Athlete','Group','Phase','Week','Exercise','Set No','Reps','Load (kg)','Intensity (%)','Mean Velocity (m/s)','Peak Velocity (m/s)','Mean Force (N)','Peak Force (N)','Mean Power (W)','Peak Power (W)'];
   const vbtRows=[vbtHdr];
   d.logs.filter(l=>l.type==='weight'&&_isBulk(l)).forEach(l=>{
     (l.exercises||[]).forEach(e=>{
@@ -5856,11 +5860,14 @@ function _updateBulkGroupUI(){
 }
 function setBulkType(type){
   ST._bulkType=type;
-  ST._bulkData={}; // reset entries when type changes (fields are different)
+  ST._bulkData={};
   ST._bulkSprintTiming='total';
+  // Auto-select group: Tabata → A, Circuit → B
+  if(type==='tabata') setBulkGroup('A');
+  else if(type==='circuit') setBulkGroup('B');
   _updateBulkTypeUI();
   _updateBulkTimingUI();
-  renderBulkAthletes(); // selector stays, only entry cards re-render
+  renderBulkAthletes();
 }
 
 function _updateBulkTypeUI(){
@@ -6098,14 +6105,14 @@ function clearBulkAthletes(){
 function _defaultBulkEntry(){
   const t=ST._bulkType;
   if(t==='tabata') return {rounds:[true,true,true,true,true,true,true,true],intensity:''};
-  if(t==='weight') return {sets:'',reps:'',weight:'',intensity:'',meanV:'',peakV:'',meanF:'',peakF:'',meanP:'',peakP:'',setDur:'',rest:''};
+  if(t==='weight') return {reps:'',weight:'',intensity:'',meanV:'',peakV:'',meanF:'',peakF:'',meanP:'',peakP:'',setDur:'',rest:''};
   if(t==='circuit'){
     const m=ST._bulkCircuitMode, r=ST._bulkCircuitRounds||3, s=ST._bulkCircuitStations||[];
     if(m==='A') return {mode:'A',rounds:Array(r).fill(true),effort:''};
     if(m==='B') return {mode:'B',completion:s.map(()=>Array(r).fill(true)),effort:''};
     if(m==='C') return {mode:'C',stationDone:s.map(()=>r),effort:''};
   }
-  return {distance:'',splitEvery:10,sets:'',reps:'',time:'',splits:{},setDur:'',rest:''};
+  return {distance:'',splitEvery:10,time:'',splits:{},setDur:'',rest:''};
 }
 function addBulkEntry(aid){
   if(!ST._bulkData[aid]) return;
@@ -6143,6 +6150,19 @@ function _setBulkField(aid,entryIdx,field,val){
   if(!ST._bulkData[aid]||!ST._bulkData[aid].entries[entryIdx]) return;
   ST._bulkData[aid].entries[entryIdx][field]=val;
 }
+function _tabataBulkPace(pct,gender){
+  const smax=TABATA_SMAX[gender]||15.9125;
+  return (smax*(pct/100)).toFixed(1);
+}
+function _updateTabataBulkPace(aid,ei,pct,gender){
+  const el=document.getElementById(`bulk-tab-pace-${aid}-${ei}`);
+  if(!el) return;
+  const p=parseFloat(pct);
+  if(!p||p<=0){ el.textContent='— km/h'; el.style.color='var(--muted)'; return; }
+  const pace=_tabataBulkPace(p,gender);
+  el.textContent=`${pace} km/h`;
+  el.style.color=p>=100?'#e94560':p>=85?'var(--gold)':'#3ecf8e';
+}
 
 function renderBulkAthletes(){
   const d=getData();
@@ -6178,10 +6198,16 @@ function renderBulkAthletes(){
           <button id="bulk-tab-round-${a.id}-${ei}-${i}" onclick="_toggleTabataRound('${a.id}',${ei},${i})"
             style="width:100%;padding:10px 4px;border-radius:10px;border:2px solid ${r?'rgba(62,207,142,.5)':'rgba(233,69,96,.5)'};background:${r?'rgba(62,207,142,.15)':'rgba(233,69,96,.15)'};color:${r?'#3ecf8e':'#e94560'};font-size:18px;font-weight:900;cursor:pointer;line-height:1">${r?'O':'X'}</button>
           <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:3px">R${i+1}</div>`).join('');
-        entriesHtml+=`${entryHdr}
-        <div class="fg" style="margin:0 0 8px"><label class="fl" style="font-size:11px">Intensity %</label>
-          <input class="fi" type="number" placeholder="e.g. 80" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value)" style="height:36px"></div>
-        <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:6px 0 8px;text-align:center">ROUNDS · 20s/10s × 8</div>
+        ${(()=>{const ip=parseFloat(entry.intensity)||0;const ig=a.gender||'M';const ipStr=ip>0?`${_tabataBulkPace(ip,ig)} km/h`:'— km/h';const ipCol=ip>=100?'#e94560':ip>=85?'var(--gold)':'#3ecf8e';return `${entryHdr}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;align-items:end">
+          <div class="fg" style="margin:0"><label class="fl" style="font-size:11px">Intensity %</label>
+            <input class="fi" type="number" placeholder="e.g. 80" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value);_updateTabataBulkPace('${a.id}',${ei},this.value,'${ig}')" style="height:40px"></div>
+          <div style="padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border);display:flex;flex-direction:column;gap:2px;min-height:40px;justify-content:center">
+            <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.5px">PACE</div>
+            <div id="bulk-tab-pace-${a.id}-${ei}" style="font-size:16px;font-weight:800;color:${ip>0?ipCol:'var(--muted)'}">${ipStr}</div>
+          </div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;text-align:center">ROUNDS · 20s/10s × 8</div>`;})()}
         <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:10px">${rBtns}</div>
         <div style="text-align:center;padding:8px 0;border-top:1px solid var(--border)">
           <span style="font-size:13px;color:var(--muted)">Completed: </span>
@@ -6190,8 +6216,7 @@ function renderBulkAthletes(){
         </div>`;
       } else if(isW){
         entriesHtml+=`${entryHdr}
-        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:0;gap:10px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.sets}" oninput="_setBulkField('${a.id}',${ei},'sets',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Sets</div></div>
+        <div class="ex-nums" style="grid-template-columns:1fr 1fr 1fr;margin-top:0;gap:10px">
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.reps}" oninput="_setBulkField('${a.id}',${ei},'reps',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Reps</div></div>
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.weight}" oninput="_setBulkField('${a.id}',${ei},'weight',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Load (kg)</div></div>
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Int %</div></div>
@@ -6223,8 +6248,6 @@ function renderBulkAthletes(){
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:0;gap:10px">
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.distance||''}" oninput="_setBulkField('${a.id}',${ei},'distance',this.value);_refreshSprintTiming('${a.id}',${ei})" style="text-align:center"><div class="mini-lbl" style="text-align:center">Dist (m)</div></div>
           <div class="mini-wrap"><input class="mini-in" type="number" placeholder="10" value="${entry.splitEvery||10}" oninput="_setBulkField('${a.id}',${ei},'splitEvery',this.value);_refreshSprintTiming('${a.id}',${ei})" style="text-align:center"><div class="mini-lbl" style="text-align:center">Split Every (m)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.sets||''}" oninput="_setBulkField('${a.id}',${ei},'sets',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Sets</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.reps||''}" oninput="_setBulkField('${a.id}',${ei},'reps',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Reps</div></div>
         </div>
         <div id="bulk-sprint-timing-${a.id}-${ei}">${timingHtml}</div>
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
@@ -6728,7 +6751,6 @@ function saveBulkEntry(){
   const isT=ST._bulkType==='tabata';
   const isC=ST._bulkType==='circuit';
   const exerciseName=isW?(document.getElementById('bulk-exercise').value||'Exercise'):'';
-  const tabataIntensity=isT?(parseFloat(document.getElementById('bulk-tabata-intensity').value)||0):0;
   const sprintType=(!isW&&!isT&&!isC)?document.getElementById('bulk-sprint-type').value:'';
 
   let saved=0;
@@ -6770,22 +6792,21 @@ function saveBulkEntry(){
         d.logs.push({
           id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:'tabata',
           phase, week, rounds, completedRounds,
-          intensity:parseFloat(entry.intensity)||tabataIntensity,
+          intensity:parseFloat(entry.intensity)||0,
           source:'bulk', notes:'[Bulk Entry]'
         });
       });
       saved++;
     } else if(isW){
       const exerciseEntries=[];
-      entries.forEach(entry=>{
+      entries.forEach((entry,si)=>{
         const w=parseFloat(entry.weight)||0;
-        const sets=parseInt(entry.sets)||0;
         const reps=parseInt(entry.reps)||0;
-        if(!sets&&!reps&&!w) return;
+        if(!reps&&!w) return;
         exerciseEntries.push({
           name:exerciseName,
           intensity:parseFloat(entry.intensity)||0,
-          weight:w, sets, reps,
+          weight:w, sets:si+1, reps,
           setDuration:parseFloat(entry.setDur)||null,
           restInterval:parseFloat(entry.rest)||null,
           meanVelocity:parseFloat(entry.meanV)||null,
@@ -6808,10 +6829,8 @@ function saveBulkEntry(){
       saved++;
     } else {
       const sprintSets=[];
-      entries.forEach(entry=>{
+      entries.forEach((entry,si)=>{
         const dist=parseFloat(entry.distance)||0;
-        const sets=parseInt(entry.sets)||1;
-        const reps=parseInt(entry.reps)||1;
         if(!dist) return;
         const totalTime=parseFloat(entry.time)||null;
         const rawSplits=entry.splits||{};
@@ -6819,7 +6838,7 @@ function saveBulkEntry(){
         sprintSets.push({
           distance:dist,
           splitEvery:parseFloat(entry.splitEvery)||10,
-          sets, reps,
+          attemptNo:si+1,
           setDuration:parseFloat(entry.setDur)||null,
           restInterval:parseFloat(entry.rest)||null,
           totalTime,
