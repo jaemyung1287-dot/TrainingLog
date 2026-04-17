@@ -688,6 +688,12 @@ tr:last-child td{border-bottom:none}
   <div class="ttl">Add Record <span style="font-size:18px;color:var(--muted)">· Bestzeit</span></div>
   <div class="sub" id="rec-athlete-sub" style="color:var(--gold);font-weight:700">For: —</div>
 
+  <!-- Date at top -->
+  <div class="fg">
+    <label class="fl">Date · Datum</label>
+    <input class="fi" id="rec-date" type="date">
+  </div>
+
   <!-- Type selection -->
   <div class="fg">
     <label class="fl">Record Type · Typ</label>
@@ -747,10 +753,6 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <div class="fg">
-    <label class="fl">Date · Datum</label>
-    <input class="fi" id="rec-date" type="date">
-  </div>
   <div class="fg">
     <label class="fl">Notes (optional)</label>
     <input class="fi" id="rec-notes" placeholder="Track, conditions, competition...">
@@ -1056,11 +1058,13 @@ tr:last-child td{border-bottom:none}
       <button id="bulk-start-sub-ice" onclick="setBulkStartSubType('icestart')" style="flex:1;padding:10px;border-radius:10px;background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3);font-size:13px;font-weight:700;cursor:pointer">🧊 Ice Start</button>
       <button id="bulk-start-sub-track" onclick="setBulkStartSubType('trackstart')" style="flex:1;padding:10px;border-radius:10px;background:var(--card);color:var(--muted);border:1px solid rgba(255,255,255,.07);font-size:13px;font-weight:700;cursor:pointer">🏃 Track Start</button>
     </div>
-    <!-- Custom split marks -->
-    <label class="fl" style="margin-bottom:6px">📏 측정 구간 거리 (m) — 직접 추가</label>
-    <div style="display:flex;gap:8px;margin-bottom:8px">
-      <input class="fi" type="number" id="bulk-start-mark-input" placeholder="e.g. 15" style="flex:1;margin:0" onkeydown="if(event.key==='Enter'){addBulkStartMark();event.preventDefault()}">
-      <button onclick="addBulkStartMark()" style="padding:10px 16px;border-radius:10px;border:none;background:rgba(79,142,247,.2);color:var(--blue);font-size:14px;font-weight:800;cursor:pointer">+ Add</button>
+    <!-- Custom split marks: From → To -->
+    <label class="fl" style="margin-bottom:6px">📏 측정 구간 (m) — 직접 추가</label>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <input class="fi" type="number" id="bulk-start-mark-from" placeholder="From" style="flex:1;margin:0;text-align:center" onkeydown="if(event.key==='Enter'){addBulkStartMark();event.preventDefault()}">
+      <span style="color:var(--muted);font-weight:700;font-size:16px;flex-shrink:0">→</span>
+      <input class="fi" type="number" id="bulk-start-mark-to" placeholder="To" style="flex:1;margin:0;text-align:center" onkeydown="if(event.key==='Enter'){addBulkStartMark();event.preventDefault()}">
+      <button onclick="addBulkStartMark()" style="padding:10px 14px;border-radius:10px;border:none;background:rgba(79,142,247,.2);color:var(--blue);font-size:14px;font-weight:800;cursor:pointer;flex-shrink:0">+ Add</button>
     </div>
     <div id="bulk-start-marks-chips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:8px"></div>
   </div>
@@ -6055,23 +6059,28 @@ function _updateBulkStartUI(){
   if(trackBtn) trackBtn.style.cssText=base+(!isIce?trackOn:off);
 }
 function addBulkStartMark(){
-  const inp=document.getElementById('bulk-start-mark-input');
-  if(!inp) return;
-  const val=parseFloat(inp.value);
-  if(!val||val<=0) return;
-  if(!(ST._bulkStartSplitMarks||[]).includes(val)){
-    if(!ST._bulkStartSplitMarks) ST._bulkStartSplitMarks=[];
-    ST._bulkStartSplitMarks.push(val);
-    ST._bulkStartSplitMarks.sort((a,b)=>a-b);
+  const fromInp=document.getElementById('bulk-start-mark-from');
+  const toInp=document.getElementById('bulk-start-mark-to');
+  if(!fromInp||!toInp) return;
+  const from=parseFloat(fromInp.value);
+  const to=parseFloat(toInp.value);
+  if(isNaN(from)||isNaN(to)||to<=from) { showToast('To는 From보다 커야 합니다'); return; }
+  if(!ST._bulkStartSplitMarks) ST._bulkStartSplitMarks=[];
+  const key=`${from}-${to}`;
+  const exists=ST._bulkStartSplitMarks.some(m=>m.key===key);
+  if(!exists){
+    ST._bulkStartSplitMarks.push({from,to,key});
+    ST._bulkStartSplitMarks.sort((a,b)=>a.from-b.from||a.to-b.to);
     ST._bulkData={};
   }
-  inp.value='';
+  fromInp.value='';
+  toInp.value='';
   _renderStartMarkChips();
   renderBulkAthletes();
 }
-function removeBulkStartMark(val){
+function removeBulkStartMark(key){
   if(!ST._bulkStartSplitMarks) return;
-  ST._bulkStartSplitMarks=ST._bulkStartSplitMarks.filter(m=>m!==val);
+  ST._bulkStartSplitMarks=ST._bulkStartSplitMarks.filter(m=>m.key!==key);
   ST._bulkData={};
   _renderStartMarkChips();
   renderBulkAthletes();
@@ -6081,20 +6090,20 @@ function _renderStartMarkChips(){
   if(!container) return;
   const marks=ST._bulkStartSplitMarks||[];
   if(!marks.length){
-    container.innerHTML='<span style="font-size:12px;color:var(--muted);padding:4px 0">구간 거리를 추가하면 여기에 표시됩니다</span>';
+    container.innerHTML='<span style="font-size:12px;color:var(--muted);padding:4px 0">구간을 추가하면 여기에 표시됩니다</span>';
     return;
   }
-  container.innerHTML=marks.map(m=>`<div style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:var(--blue);font-size:13px;font-weight:700">0–${m}m<button onclick="removeBulkStartMark(${m})" style="background:none;border:none;color:rgba(79,142,247,.7);font-size:14px;font-weight:900;cursor:pointer;padding:0;line-height:1">×</button></div>`).join('');
+  container.innerHTML=marks.map(m=>`<div style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:var(--blue);font-size:13px;font-weight:700">${m.from}–${m.to}m<button onclick="removeBulkStartMark('${m.key}')" style="background:none;border:none;color:rgba(79,142,247,.7);font-size:14px;font-weight:900;cursor:pointer;padding:0;line-height:1">×</button></div>`).join('');
 }
 function _buildStartTimingHtml(aid,ei,entry){
   const marks=ST._bulkStartSplitMarks||[];
   if(!marks.length){
-    return `<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">위 헤더에서 측정 구간 거리를 추가하세요 (예: 15, 30, 45…)</div>`;
+    return `<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">위에서 구간을 추가하세요 (예: 0→15, 15→45…)</div>`;
   }
   const cols=Math.min(marks.length,4);
   return `<div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;text-align:center">⏱ SPLIT TIMES (s)</div>
   <div class="ex-nums" style="grid-template-columns:repeat(${cols},1fr);gap:6px">
-    ${marks.map(m=>`<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${aid}',${ei},${m},this.value)" style="font-size:14px;padding:8px 2px;text-align:center"><div class="mini-lbl" style="font-size:10px;text-align:center;line-height:1.4">0–${m}m</div></div>`).join('')}
+    ${marks.map(m=>`<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m.key])||''}" oninput="_setBulkSplit('${aid}',${ei},'${m.key}',this.value)" style="font-size:14px;padding:8px 2px;text-align:center"><div class="mini-lbl" style="font-size:10px;text-align:center;line-height:1.4">${m.from}–${m.to}m</div></div>`).join('')}
   </div>`;
 }
 function _refreshStartTiming(aid,ei){
@@ -7054,11 +7063,14 @@ function saveBulkEntry(){
       });
       saved++;
     } else if(isST) {
-      // Start (Ice Start / Track Start) — custom split marks
+      // Start (Ice Start / Track Start) — custom interval marks {from,to,key}
       const marks=ST._bulkStartSplitMarks||[];
       const startSets=[];
       entries.forEach((entry,si)=>{
-        const splitEntries=(entry.splits?Object.entries(entry.splits):[]).filter(([,v])=>v!=='').map(([m,v])=>({mark:parseFloat(m),time:parseFloat(v)})).sort((x,y)=>x.mark-y.mark);
+        const splitEntries=marks.map(m=>({
+          from:m.from,to:m.to,key:m.key,
+          time:(entry.splits&&entry.splits[m.key])?parseFloat(entry.splits[m.key]):null
+        })).filter(s=>s.time!==null);
         if(!splitEntries.length) return;
         startSets.push({attemptNo:si+1,splits:splitEntries});
       });
@@ -7070,9 +7082,9 @@ function saveBulkEntry(){
         splitMarks:marks,
         rpe:null, source:'bulk', notes:'[Bulk Entry]'
       });
-      // Auto-feed: each (mark, time) → one record per distance
+      // Auto-feed: each interval → record with distance label "from-to"
       const startAttempts=[];
-      startSets.forEach(s=>s.splits.forEach(sp=>startAttempts.push({distance:sp.mark,time:sp.time})));
+      startSets.forEach(s=>s.splits.forEach(sp=>startAttempts.push({distance:sp.key,time:sp.time})));
       if(startAttempts.length) autoFeedSaves.push({type:'start',subType:startSubType,athleteName:a.name,group:a.group,date:dateVal,data:startAttempts});
       saved++;
     } else {
