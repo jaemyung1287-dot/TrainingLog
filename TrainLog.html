@@ -1007,10 +1007,11 @@ tr:last-child td{border-bottom:none}
   <div class="ttl">Team Entry <span style="font-size:16px;color:var(--muted)">· Bulk Data</span></div>
 
   <!-- Session type selector -->
-  <div style="display:flex;gap:8px;margin-bottom:16px">
-    <button id="bulk-btn-weight" class="btn btn-g" style="flex:1;height:48px;font-size:13px;font-weight:700;background:var(--gold);color:#000;border:none" onclick="setBulkType('weight')">🏋️ Weight</button>
-    <button id="bulk-btn-sprint" class="btn btn-g" style="flex:1;height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('sprint')">⚡ Sprint</button>
-    <button id="bulk-btn-tabata" class="btn btn-g" style="flex:1;height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('tabata')">🔥 Tabata</button>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+    <button id="bulk-btn-weight" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--gold);color:#000;border:none" onclick="setBulkType('weight')">🏋️ Weight</button>
+    <button id="bulk-btn-sprint" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('sprint')">⚡ Sprint</button>
+    <button id="bulk-btn-tabata" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('tabata')">🔥 Tabata</button>
+    <button id="bulk-btn-circuit" class="btn btn-g" style="height:48px;font-size:13px;font-weight:700;background:var(--card);color:var(--muted);border:1px solid var(--border)" onclick="setBulkType('circuit')">🔄 Circuit</button>
   </div>
 
   <!-- Date + Phase/Week -->
@@ -1065,16 +1066,46 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- Circuit-specific header info -->
+  <div id="bulk-circuit-header" style="display:none;margin-bottom:16px">
+    <!-- Mode selector -->
+    <div style="margin-bottom:12px">
+      <label class="fl" style="margin-bottom:8px">Recording Mode</label>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button id="bulk-cmode-A" onclick="setBulkCircuitMode('A')" style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,206,0,.4);background:rgba(255,206,0,.12);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;text-align:left"><span style="font-size:14px">A</span> · 전체 라운드 O/X <span style="font-weight:400;opacity:.7">— 라운드별 완료 여부만 기록</span></button>
+        <button id="bulk-cmode-B" onclick="setBulkCircuitMode('B')" style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;text-align:left"><span style="font-size:14px">B</span> · 스테이션 × 라운드 매트릭스 <span style="font-weight:400;opacity:.7">— 각 스테이션에서 어떤 라운드를 완료했는지</span></button>
+        <button id="bulk-cmode-C" onclick="setBulkCircuitMode('C')" style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;text-align:left"><span style="font-size:14px">C</span> · 스테이션별 완료 라운드 수 <span style="font-weight:400;opacity:.7">— 각 스테이션에서 완료한 라운드 수 입력</span></button>
+      </div>
+    </div>
+    <!-- Rounds count -->
+    <div class="fg" style="margin:0 0 12px">
+      <label class="fl">Planned Rounds</label>
+      <input class="fi" id="bulk-circuit-rounds" type="number" value="3" min="1" max="12" oninput="setBulkCircuitRounds(this.value)">
+    </div>
+    <!-- Stations (for Mode B and C) -->
+    <div id="bulk-circuit-stations-section">
+      <label class="fl" style="margin-bottom:8px">Stations (종목)</label>
+      <div id="bulk-circuit-stations-list" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px">
+        <input class="fi" id="bulk-circuit-station-input" placeholder="e.g. Box Jump" onkeydown="if(event.key==='Enter')addBulkCircuitStation()" style="flex:1">
+        <button onclick="addBulkCircuitStation()" style="padding:10px 18px;border-radius:12px;border:none;background:rgba(62,207,142,.2);color:#3ecf8e;font-size:16px;font-weight:700;cursor:pointer">＋</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Group selector -->
   <div class="plan-grp-toggle" style="margin-bottom:14px">
     <button class="plan-grp-btn on" id="bulk-grp-A" onclick="setBulkGroup('A')">Group A</button>
     <button class="plan-grp-btn" id="bulk-grp-B" onclick="setBulkGroup('B')">Group B</button>
   </div>
 
+  <!-- Athlete selector -->
+  <div id="bulk-athlete-selector" style="margin-bottom:12px"></div>
+
   <!-- Athlete rows -->
   <div id="bulk-athlete-list"></div>
 
-  <button class="btn btn-g" style="margin-top:12px;background:linear-gradient(135deg,var(--gold),#a07830)" onclick="saveBulkEntry()">💾 Save All Athletes</button>
+  <button class="btn btn-g" style="margin-top:12px;background:linear-gradient(135deg,var(--gold),#a07830)" onclick="saveBulkEntry()">💾 Save Selected Athletes</button>
 </div>
 
 <!-- SESSION PLANNER (Coach) -->
@@ -3762,9 +3793,12 @@ const ATH_PALETTE=['#4f8ef7','#3ecf8e','#f7a94f','#e94560','#a78bfa','#22d3ee','
 function _athColor(i){ return ATH_PALETTE[i%ATH_PALETTE.length]; }
 
 // Generic line chart (used for athlete-personal stats, etc.)
-function mkChart(id,datasets,labels){
+// opts: { yMax: number } — optional Y-axis ceiling
+function mkChart(id,datasets,labels,opts={}){
   if(ST.charts[id]){ ST.charts[id].destroy(); }
   const ctx=document.getElementById(id); if(!ctx)return;
+  const yAxis={ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'},min:0};
+  if(opts.yMax!=null) yAxis.max=opts.yMax;
   ST.charts[id]=new Chart(ctx,{
     type:'line',
     data:{labels,datasets:datasets.map(ds=>({...ds,borderWidth:2,spanGaps:true}))},
@@ -3773,7 +3807,7 @@ function mkChart(id,datasets,labels){
       plugins:{legend:{labels:{color:'#8888aa',font:{size:11},boxWidth:12}},tooltip:{mode:'index',intersect:false}},
       scales:{
         x:{ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'}},
-        y:{ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'},min:0}
+        y:yAxis
       },animation:{duration:300}
     }
   });
@@ -3781,7 +3815,9 @@ function mkChart(id,datasets,labels){
 
 // Dot chart: one dataset per athlete, scatter-style, with name in tooltip
 // dateMode: 'exact' (default) matches l.date===dt; 'prefix' matches l.date.startsWith(dt)
-function _mkDotChart(id, logs, dates, labels, valFn, unit, dateMode='exact'){
+// colorOverride: if set, all dots use this fixed color instead of per-athlete palette
+// yMax: optional Y-axis max
+function _mkDotChart(id, logs, dates, labels, valFn, unit, dateMode='exact', colorOverride=null, yMax=null){
   if(ST.charts[id]){ ST.charts[id].destroy(); }
   const ctx=document.getElementById(id); if(!ctx) return;
   const names=[...new Set(logs.map(l=>l.athleteName))].sort();
@@ -3793,9 +3829,11 @@ function _mkDotChart(id, logs, dates, labels, valFn, unit, dateMode='exact'){
       if(!dayLogs.length) return null;
       return dayLogs.reduce((s,l)=>s+valFn(l),0);
     }),
-    borderColor:_athColor(i), backgroundColor:_athColor(i),
+    borderColor:colorOverride||_athColor(i), backgroundColor:colorOverride||_athColor(i),
     pointRadius:6, pointHoverRadius:9, showLine:false, spanGaps:false
   }));
+  const yAxis={ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'},min:0};
+  if(yMax!=null) yAxis.max=yMax;
   ST.charts[id]=new Chart(ctx,{
     type:'line',
     data:{labels,datasets},
@@ -3813,7 +3851,7 @@ function _mkDotChart(id, logs, dates, labels, valFn, unit, dateMode='exact'){
       },
       scales:{
         x:{ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'}},
-        y:{ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'},min:0}
+        y:yAxis
       },animation:{duration:300}
     }
   });
@@ -5716,9 +5754,15 @@ function showPHVHistory(athleteId){
 //  BULK ENTRY
 // ════════════════════════════════════════════════
 ST._bulkType='weight';
-ST._bulkData={}; // athleteId → {sets,reps,weight,meanV,peakV,sets_s,rest,skip,time,splits}
+ST._bulkData={}; // athleteId → {skip, entries:[...]}
 ST._bulkSprintTiming='total'; // 'total' | 'splits'
 ST._bulkGroup='A';
+ST._bulkSelectedIds=new Set(); // selected athlete IDs
+ST._bulkSelectorOpen=false;
+// Circuit state
+ST._bulkCircuitMode='A'; // 'A' | 'B' | 'C'
+ST._bulkCircuitRounds=3;
+ST._bulkCircuitStations=[]; // ['Box Jump','Push Up',...]
 
 function goBulkEntry(){
   document.getElementById('bulk-date').value=todayStr();
@@ -5731,9 +5775,15 @@ function goBulkEntry(){
   ST._bulkType='weight';
   ST._bulkSprintTiming='total';
   ST._bulkGroup='A';
+  ST._bulkSelectedIds=new Set();
+  ST._bulkSelectorOpen=false;
+  ST._bulkCircuitMode='A';
+  ST._bulkCircuitRounds=3;
+  ST._bulkCircuitStations=[];
   _updateBulkTypeUI();
   _updateBulkTimingUI();
   _updateBulkGroupUI();
+  renderBulkAthleteSelector();
   renderBulkAthletes();
   showScreen('s-bulk-entry');
   document.getElementById('coach-tabbar').classList.add('show');
@@ -5742,7 +5792,11 @@ function goBulkEntry(){
 
 function setBulkGroup(g){
   ST._bulkGroup=g;
+  ST._bulkSelectedIds=new Set();
+  ST._bulkSelectorOpen=false;
+  ST._bulkData={};
   _updateBulkGroupUI();
+  renderBulkAthleteSelector();
   renderBulkAthletes();
 }
 function _updateBulkGroupUI(){
@@ -5753,25 +5807,30 @@ function _updateBulkGroupUI(){
 }
 function setBulkType(type){
   ST._bulkType=type;
-  ST._bulkData={};
+  ST._bulkData={}; // reset entries when type changes (fields are different)
   ST._bulkSprintTiming='total';
   _updateBulkTypeUI();
   _updateBulkTimingUI();
-  renderBulkAthletes();
+  renderBulkAthletes(); // selector stays, only entry cards re-render
 }
 
 function _updateBulkTypeUI(){
   const t=ST._bulkType;
-  const isW=t==='weight', isS=t==='sprint', isT=t==='tabata';
-  const base='flex:1;height:48px;font-size:13px;font-weight:700;border:none;cursor:pointer;border-radius:12px;';
-  const on='background:var(--gold);color:#000;', off='background:var(--card);color:var(--muted);border:1px solid var(--border);';
+  const isW=t==='weight', isS=t==='sprint', isT=t==='tabata', isC=t==='circuit';
+  const base='height:48px;font-size:13px;font-weight:700;border:none;cursor:pointer;border-radius:12px;';
+  const on='background:var(--gold);color:#000;';
+  const off='background:var(--card);color:var(--muted);border:1px solid var(--border);';
   const tabOn='background:rgba(233,69,96,.2);color:#e94560;border:1px solid rgba(233,69,96,.4);';
+  const circOn='background:rgba(62,207,142,.2);color:#3ecf8e;border:1px solid rgba(62,207,142,.4);';
   document.getElementById('bulk-btn-weight').style.cssText=base+(isW?on:off);
   document.getElementById('bulk-btn-sprint').style.cssText=base+(isS?on:off);
   document.getElementById('bulk-btn-tabata').style.cssText=base+(isT?tabOn:off);
+  document.getElementById('bulk-btn-circuit').style.cssText=base+(isC?circOn:off);
   document.getElementById('bulk-weight-header').style.display=isW?'block':'none';
   document.getElementById('bulk-sprint-header').style.display=isS?'block':'none';
   document.getElementById('bulk-tabata-header').style.display=isT?'block':'none';
+  document.getElementById('bulk-circuit-header').style.display=isC?'block':'none';
+  if(isC) _updateBulkCircuitModeUI();
 }
 function setBulkSprintTiming(mode){
   ST._bulkSprintTiming=mode;
@@ -5797,31 +5856,223 @@ function _bulkSplitMarks(){
   for(let m=interval;m<=dist+0.001;m+=interval) marks.push(Math.round(m*10)/10);
   return marks;
 }
-function _toggleTabataRound(aid,roundIdx){
+// ── Circuit Training helpers ────────────────────
+function setBulkCircuitMode(mode){
+  ST._bulkCircuitMode=mode;
+  ST._bulkData={}; // reset entry data when mode changes
+  _updateBulkCircuitModeUI();
+  renderBulkAthletes();
+}
+function setBulkCircuitRounds(val){
+  ST._bulkCircuitRounds=Math.max(1,parseInt(val)||3);
+  ST._bulkData={};
+  renderBulkAthletes();
+}
+function _updateBulkCircuitModeUI(){
+  const m=ST._bulkCircuitMode;
+  const onStyle='border:1px solid rgba(62,207,142,.5);background:rgba(62,207,142,.15);color:#3ecf8e;';
+  const offStyle='border:1px solid rgba(255,255,255,.1);background:var(--card);color:var(--muted);';
+  ['A','B','C'].forEach(x=>{
+    const btn=document.getElementById('bulk-cmode-'+x);
+    if(btn){
+      const base='padding:10px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;text-align:left;';
+      btn.style.cssText=base+(m===x?onStyle:offStyle);
+    }
+  });
+  // Stations section: show for B and C only
+  const sec=document.getElementById('bulk-circuit-stations-section');
+  if(sec) sec.style.display=(m==='A')?'none':'block';
+  renderBulkCircuitStations();
+}
+function renderBulkCircuitStations(){
+  const list=document.getElementById('bulk-circuit-stations-list');
+  if(!list) return;
+  const stations=ST._bulkCircuitStations||[];
+  list.innerHTML=stations.length?stations.map((s,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:10px;background:var(--input);margin-bottom:6px">
+      <span style="font-size:13px;font-weight:600;color:var(--text)">${i+1}. ${s}</span>
+      <button onclick="removeBulkCircuitStation(${i})" style="padding:3px 8px;border-radius:6px;border:none;background:rgba(233,69,96,.15);color:#e94560;font-size:12px;cursor:pointer">✕</button>
+    </div>`).join('')
+    :'<div style="font-size:12px;color:var(--muted);padding:4px 0">스테이션을 추가하세요</div>';
+}
+function addBulkCircuitStation(){
+  const inp=document.getElementById('bulk-circuit-station-input');
+  if(!inp) return;
+  const name=(inp.value||'').trim();
+  if(!name) return;
+  ST._bulkCircuitStations.push(name);
+  inp.value='';
+  // Sync existing entries
+  const r=ST._bulkCircuitRounds||3;
+  const si=ST._bulkCircuitStations.length-1;
+  Object.values(ST._bulkData).forEach(bd=>{
+    (bd.entries||[]).forEach(entry=>{
+      if(entry.mode==='B'){if(!entry.completion)entry.completion=[];entry.completion[si]=Array(r).fill(true);}
+      if(entry.mode==='C'){if(!entry.stationDone)entry.stationDone=[];entry.stationDone[si]=r;}
+    });
+  });
+  renderBulkCircuitStations();
+  renderBulkAthletes();
+}
+function removeBulkCircuitStation(idx){
+  ST._bulkCircuitStations.splice(idx,1);
+  // Sync existing entries
+  Object.values(ST._bulkData).forEach(bd=>{
+    (bd.entries||[]).forEach(entry=>{
+      if(entry.mode==='B'&&entry.completion) entry.completion.splice(idx,1);
+      if(entry.mode==='C'&&entry.stationDone) entry.stationDone.splice(idx,1);
+    });
+  });
+  renderBulkCircuitStations();
+  renderBulkAthletes();
+}
+// Toggle for Mode A
+function _toggleCircuitARound(aid,ei,ri){
+  if(!ST._bulkData[aid]||!ST._bulkData[aid].entries[ei]) return;
+  const entry=ST._bulkData[aid].entries[ei];
+  entry.rounds[ri]=!entry.rounds[ri];
+  const val=entry.rounds[ri];
+  const btn=document.getElementById(`bulk-circ-A-${aid}-${ei}-${ri}`);
+  if(btn){btn.textContent=val?'O':'X';btn.style.background=val?'rgba(62,207,142,.15)':'rgba(233,69,96,.15)';btn.style.color=val?'#3ecf8e':'#e94560';btn.style.border=`2px solid ${val?'rgba(62,207,142,.5)':'rgba(233,69,96,.5)'}`;}
+}
+// Toggle for Mode B (station × round)
+function _toggleCircuitBMatrix(aid,ei,si,ri){
+  if(!ST._bulkData[aid]||!ST._bulkData[aid].entries[ei]) return;
+  const entry=ST._bulkData[aid].entries[ei];
+  if(!entry.completion) entry.completion=[];
+  if(!entry.completion[si]) entry.completion[si]=Array(ST._bulkCircuitRounds||3).fill(true);
+  entry.completion[si][ri]=!entry.completion[si][ri];
+  const val=entry.completion[si][ri];
+  const btn=document.getElementById(`bulk-circ-B-${aid}-${ei}-${si}-${ri}`);
+  if(btn){btn.textContent=val?'O':'X';btn.style.background=val?'rgba(62,207,142,.12)':'rgba(233,69,96,.12)';btn.style.color=val?'#3ecf8e':'#e94560';btn.style.border=`1px solid ${val?'rgba(62,207,142,.4)':'rgba(233,69,96,.4)'}`;}
+}
+// Set done count for Mode C
+function _setCircuitCDone(aid,ei,si,val){
+  if(!ST._bulkData[aid]||!ST._bulkData[aid].entries[ei]) return;
+  const entry=ST._bulkData[aid].entries[ei];
+  if(!entry.stationDone) entry.stationDone=[];
+  entry.stationDone[si]=parseInt(val)||0;
+}
+// Set effort for circuit
+function _setCircuitEffort(aid,ei,val){
+  if(!ST._bulkData[aid]||!ST._bulkData[aid].entries[ei]) return;
+  ST._bulkData[aid].entries[ei].effort=val;
+  ['Low','Medium','High'].forEach(e=>{
+    const btn=document.getElementById(`bulk-effort-${aid}-${ei}-${e}`);
+    if(btn){const on=e===val;btn.style.background=on?'rgba(62,207,142,.15)':'var(--input)';btn.style.color=on?'#3ecf8e':'var(--muted)';btn.style.border=`1px solid ${on?'rgba(62,207,142,.4)':'rgba(255,255,255,.1)'}`;}
+  });
+}
+// Returns effort buttons HTML for circuit cards
+function _effortBtnsHtml(aid,ei,currentEffort){
+  const btns=['Low','Medium','High'].map(e=>{
+    const on=e===currentEffort;
+    return `<button id="bulk-effort-${aid}-${ei}-${e}" onclick="_setCircuitEffort('${aid}',${ei},'${e}')" style="flex:1;padding:8px 4px;border-radius:8px;border:1px solid ${on?'rgba(62,207,142,.4)':'rgba(255,255,255,.1)'};background:${on?'rgba(62,207,142,.15)':'var(--input)'};color:${on?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer">${e}</button>`;
+  }).join('');
+  return `<div style="margin-top:12px"><div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;text-align:center">Effort</div><div style="display:flex;gap:6px">${btns}</div></div>`;
+}
+
+// ── Athlete Selector ────────────────────────────
+function renderBulkAthleteSelector(){
+  const d=getData();
+  const athletes=d.athletes||[];
+  const wrap=document.getElementById('bulk-athlete-selector');
+  if(!wrap) return;
+  const groupAthletes=athletes.filter(a=>a.group===ST._bulkGroup);
+  const selectedCount=groupAthletes.filter(a=>ST._bulkSelectedIds.has(a.id)).length;
+  const btnLabel=selectedCount?`👥 ${selectedCount}명 선택됨 ▾`:'👥 선수 선택 ▾';
+  const btnBorder=selectedCount?'rgba(255,206,0,.4)':'var(--border)';
+  const btnBg=selectedCount?'rgba(255,206,0,.08)':'var(--card)';
+  const btnColor=selectedCount?'var(--gold)':'var(--muted)';
+  let pickerHtml='';
+  if(ST._bulkSelectorOpen){
+    const chips=groupAthletes.map(a=>{
+      const sel=ST._bulkSelectedIds.has(a.id);
+      return `<button onclick="toggleBulkAthlete('${a.id}')" style="padding:9px 16px;border-radius:20px;border:1px solid ${sel?'var(--gold)':'rgba(255,255,255,.15)'};background:${sel?'rgba(255,206,0,.15)':'var(--input)'};color:${sel?'var(--gold)':'var(--muted)'};font-size:13px;font-weight:${sel?'700':'400'};cursor:pointer;white-space:nowrap">${sel?'✓ ':''}${a.name}</button>`;
+    }).join('');
+    pickerHtml=`
+    <div style="padding:14px;background:var(--card);border-radius:14px;border:1px solid var(--border);margin-top:8px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        ${chips||'<span style="color:var(--muted);font-size:13px">이 그룹에 선수가 없습니다</span>'}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="selectAllBulkAthletes()" style="padding:7px 14px;border-radius:8px;border:none;background:rgba(79,142,247,.2);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer">전체 선택</button>
+        <button onclick="clearBulkAthletes()" style="padding:7px 14px;border-radius:8px;border:none;background:rgba(233,69,96,.15);color:#e94560;font-size:12px;font-weight:700;cursor:pointer">선택 해제</button>
+      </div>
+    </div>`;
+  }
+  wrap.innerHTML=`<button onclick="ST._bulkSelectorOpen=!ST._bulkSelectorOpen;renderBulkAthleteSelector()" style="width:100%;padding:13px 16px;border-radius:12px;border:1px solid ${btnBorder};background:${btnBg};color:${btnColor};font-size:14px;font-weight:700;cursor:pointer;text-align:left">${btnLabel}</button>${pickerHtml}`;
+}
+function toggleBulkAthlete(id){
+  if(ST._bulkSelectedIds.has(id)){
+    ST._bulkSelectedIds.delete(id);
+    delete ST._bulkData[id];
+  } else {
+    ST._bulkSelectedIds.add(id);
+  }
+  renderBulkAthleteSelector();
+  renderBulkAthletes();
+}
+function selectAllBulkAthletes(){
+  const d=getData();
+  (d.athletes||[]).filter(a=>a.group===ST._bulkGroup).forEach(a=>ST._bulkSelectedIds.add(a.id));
+  renderBulkAthleteSelector();
+  renderBulkAthletes();
+}
+function clearBulkAthletes(){
+  const d=getData();
+  (d.athletes||[]).filter(a=>a.group===ST._bulkGroup).forEach(a=>{ST._bulkSelectedIds.delete(a.id);delete ST._bulkData[a.id];});
+  renderBulkAthleteSelector();
+  renderBulkAthletes();
+}
+
+// ── Entry helpers ───────────────────────────────
+function _defaultBulkEntry(){
+  const t=ST._bulkType;
+  if(t==='tabata') return {rounds:[true,true,true,true,true,true,true,true],intensity:''};
+  if(t==='weight') return {sets:'',reps:'',weight:'',intensity:'',meanV:'',peakV:'',meanF:'',peakF:'',meanP:'',peakP:'',setDur:'',rest:''};
+  if(t==='circuit'){
+    const m=ST._bulkCircuitMode, r=ST._bulkCircuitRounds||3, s=ST._bulkCircuitStations||[];
+    if(m==='A') return {mode:'A',rounds:Array(r).fill(true),effort:''};
+    if(m==='B') return {mode:'B',completion:s.map(()=>Array(r).fill(true)),effort:''};
+    if(m==='C') return {mode:'C',stationDone:s.map(()=>r),effort:''};
+  }
+  return {distance:'',intensity:'',sets:'',reps:'',time:'',splits:{},setDur:'',rest:''};
+}
+function addBulkEntry(aid){
   if(!ST._bulkData[aid]) return;
-  ST._bulkData[aid].rounds[roundIdx]=!ST._bulkData[aid].rounds[roundIdx];
-  const val=ST._bulkData[aid].rounds[roundIdx];
-  const btn=document.getElementById(`bulk-tab-round-${aid}-${roundIdx}`);
+  ST._bulkData[aid].entries.push(_defaultBulkEntry());
+  renderBulkAthletes();
+}
+function removeBulkEntry(aid,idx){
+  if(!ST._bulkData[aid]||ST._bulkData[aid].entries.length<=1) return;
+  ST._bulkData[aid].entries.splice(idx,1);
+  renderBulkAthletes();
+}
+
+// ── Field setters (now take entryIdx) ──────────
+function _toggleTabataRound(aid,entryIdx,roundIdx){
+  if(!ST._bulkData[aid]||!ST._bulkData[aid].entries[entryIdx]) return;
+  const entry=ST._bulkData[aid].entries[entryIdx];
+  entry.rounds[roundIdx]=!entry.rounds[roundIdx];
+  const val=entry.rounds[roundIdx];
+  const btn=document.getElementById(`bulk-tab-round-${aid}-${entryIdx}-${roundIdx}`);
   if(btn){
     btn.textContent=val?'O':'X';
     btn.style.border=`2px solid ${val?'rgba(62,207,142,.5)':'rgba(233,69,96,.5)'}`;
     btn.style.background=val?'rgba(62,207,142,.15)':'rgba(233,69,96,.15)';
     btn.style.color=val?'#3ecf8e':'#e94560';
   }
-  const count=ST._bulkData[aid].rounds.filter(r=>r).length;
-  const countEl=document.getElementById(`bulk-tab-count-${aid}`);
-  if(countEl){
-    countEl.textContent=`${count}/8`;
-    countEl.style.color=count===8?'#3ecf8e':count>=6?'var(--gold)':'#e94560';
-  }
+  const count=entry.rounds.filter(r=>r).length;
+  const countEl=document.getElementById(`bulk-tab-count-${aid}-${entryIdx}`);
+  if(countEl){countEl.textContent=`${count}/8`;countEl.style.color=count===8?'#3ecf8e':count>=6?'var(--gold)':'#e94560';}
 }
-function _setBulkSplit(aid,mark,val){
-  if(!ST._bulkData[aid]) return;
-  ST._bulkData[aid].splits[mark]=val;
+function _setBulkSplit(aid,entryIdx,mark,val){
+  if(!ST._bulkData[aid]||!ST._bulkData[aid].entries[entryIdx]) return;
+  ST._bulkData[aid].entries[entryIdx].splits[mark]=val;
 }
-function _setBulkField(aid,field,val){
-  if(!ST._bulkData[aid]) return;
-  ST._bulkData[aid][field]=val;
+function _setBulkField(aid,entryIdx,field,val){
+  if(!ST._bulkData[aid]||!ST._bulkData[aid].entries[entryIdx]) return;
+  ST._bulkData[aid].entries[entryIdx][field]=val;
 }
 
 function renderBulkAthletes(){
@@ -5829,144 +6080,187 @@ function renderBulkAthletes(){
   const athletes=d.athletes||[];
   const wrap=document.getElementById('bulk-athlete-list');
   wrap.innerHTML='';
-  if(!athletes.length){
-    wrap.innerHTML='<div class="empty">No athletes registered yet.</div>'; return;
+  const selected=athletes.filter(a=>ST._bulkSelectedIds.has(a.id));
+  if(!selected.length){
+    wrap.innerHTML='<div class="empty" style="padding:20px;text-align:center;color:var(--muted);font-size:14px">위에서 선수를 선택하세요</div>';
+    return;
   }
   const isW=ST._bulkType==='weight';
   const isT=ST._bulkType==='tabata';
-  const splitMarks=(!isW&&!isT)?_bulkSplitMarks():[];
-  const filtered=athletes.filter(a=>a.group===ST._bulkGroup);
-  if(!filtered.length){
-    wrap.innerHTML=`<div class="empty">No Group ${ST._bulkGroup} athletes registered.</div>`; return;
-  }
-  filtered.forEach(a=>{
-    if(!ST._bulkData[a.id]) ST._bulkData[a.id]={sets:'',reps:'',weight:'',meanV:'',peakV:'',meanF:'',peakF:'',meanP:'',peakP:'',setDur:'',rest:'',distance:'',time:'',splits:{},skip:false,rounds:[true,true,true,true,true,true,true,true]};
+  const isC=ST._bulkType==='circuit';
+  const splitMarks=(!isW&&!isT&&!isC)?_bulkSplitMarks():[];
+
+  selected.forEach(a=>{
+    if(!ST._bulkData[a.id]) ST._bulkData[a.id]={skip:false,entries:[_defaultBulkEntry()]};
     const bd=ST._bulkData[a.id];
-    const card=document.createElement('div');
-    card.className='ex-row'; card.id=`bulk-row-${a.id}`;
-    card.style.marginBottom='14px';
-    if(isT){
-      // ── Tabata card ──────────────────────────────
-      const rounds=bd.rounds||[true,true,true,true,true,true,true,true];
-      const completedCount=rounds.filter(r=>r).length;
-      const roundBtns=rounds.map((r,i)=>`
-        <button id="bulk-tab-round-${a.id}-${i}" onclick="_toggleTabataRound('${a.id}',${i})"
-          style="width:100%;padding:10px 4px;border-radius:10px;border:2px solid ${r?'rgba(62,207,142,.5)':'rgba(233,69,96,.5)'};
-                 background:${r?'rgba(62,207,142,.15)':'rgba(233,69,96,.15)'};
-                 color:${r?'#3ecf8e':'#e94560'};font-size:18px;font-weight:900;cursor:pointer;line-height:1">
-          ${r?'O':'X'}
-        </button>
-        <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:3px">R${i+1}</div>
-      `).join('');
-      card.innerHTML=`
-      <div class="ex-top">
-        <div>
-          <span style="font-size:15px;font-weight:700;color:#e94560">${a.name}</span>
-          <span style="font-size:12px;color:var(--muted);margin-left:8px">Group ${a.group}</span>
-        </div>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
-          <input type="checkbox" id="bulk-skip-${a.id}" onchange="_setBulkField('${a.id}','skip',this.checked);document.getElementById('bulk-tab-body-${a.id}').style.opacity=this.checked?'0.35':'1'"> Skip
-        </label>
-      </div>
-      <div id="bulk-tab-body-${a.id}">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:10px 0 8px;text-align:center">ROUNDS · 20s/10s × 8</div>
-        <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:10px">
-          ${roundBtns}
-        </div>
+
+    // Build entries HTML
+    let entriesHtml='';
+    bd.entries.forEach((entry,ei)=>{
+      const canRemove=bd.entries.length>1;
+      const entryHdr=`<div style="display:flex;align-items:center;justify-content:space-between;margin:${ei>0?'14px':'0'} 0 10px">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Set ${ei+1}</span>
+        ${canRemove?`<button onclick="removeBulkEntry('${a.id}',${ei})" style="padding:3px 10px;border-radius:6px;border:none;background:rgba(233,69,96,.15);color:#e94560;font-size:12px;font-weight:700;cursor:pointer">✕ Remove</button>`:''}
+      </div>`;
+
+      if(isT){
+        const rounds=entry.rounds||[true,true,true,true,true,true,true,true];
+        const cc=rounds.filter(r=>r).length;
+        const rBtns=rounds.map((r,i)=>`
+          <button id="bulk-tab-round-${a.id}-${ei}-${i}" onclick="_toggleTabataRound('${a.id}',${ei},${i})"
+            style="width:100%;padding:10px 4px;border-radius:10px;border:2px solid ${r?'rgba(62,207,142,.5)':'rgba(233,69,96,.5)'};background:${r?'rgba(62,207,142,.15)':'rgba(233,69,96,.15)'};color:${r?'#3ecf8e':'#e94560'};font-size:18px;font-weight:900;cursor:pointer;line-height:1">${r?'O':'X'}</button>
+          <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:3px">R${i+1}</div>`).join('');
+        entriesHtml+=`${entryHdr}
+        <div class="fg" style="margin:0 0 8px"><label class="fl" style="font-size:11px">Intensity %</label>
+          <input class="fi" type="number" placeholder="e.g. 80" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value)" style="height:36px"></div>
+        <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:6px 0 8px;text-align:center">ROUNDS · 20s/10s × 8</div>
+        <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:10px">${rBtns}</div>
         <div style="text-align:center;padding:8px 0;border-top:1px solid var(--border)">
           <span style="font-size:13px;color:var(--muted)">Completed: </span>
-          <span id="bulk-tab-count-${a.id}" style="font-size:16px;font-weight:800;color:${completedCount===8?'#3ecf8e':completedCount>=6?'var(--gold)':'#e94560'}">${completedCount}/8</span>
+          <span id="bulk-tab-count-${a.id}-${ei}" style="font-size:16px;font-weight:800;color:${cc===8?'#3ecf8e':cc>=6?'var(--gold)':'#e94560'}">${cc}/8</span>
           <span style="font-size:13px;color:var(--muted)"> rounds</span>
-        </div>
-      </div>`;
-    } else if(isW){
-      card.innerHTML=`
-      <div class="ex-top">
-        <div>
-          <span style="font-size:15px;font-weight:700;color:var(--gold)">${a.name}</span>
-          <span style="font-size:12px;color:var(--muted);margin-left:8px">Group ${a.group}</span>
-        </div>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
-          <input type="checkbox" id="bulk-skip-${a.id}" onchange="ST._bulkData['${a.id}'].skip=this.checked;document.getElementById('bulk-fields-${a.id}').style.opacity=this.checked?'0.35':'1'"> Skip
-        </label>
-      </div>
-      <div id="bulk-fields-${a.id}">
-        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:10px;gap:10px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.sets}" oninput="_setBulkField('${a.id}','sets',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Sets</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.reps}" oninput="_setBulkField('${a.id}','reps',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Reps</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.weight}" oninput="_setBulkField('${a.id}','weight',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Load (kg)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.intensity||''}" oninput="_setBulkField('${a.id}','intensity',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Int %</div></div>
+        </div>`;
+      } else if(isW){
+        entriesHtml+=`${entryHdr}
+        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:0;gap:10px">
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.sets}" oninput="_setBulkField('${a.id}',${ei},'sets',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Sets</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.reps}" oninput="_setBulkField('${a.id}',${ei},'reps',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Reps</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.weight}" oninput="_setBulkField('${a.id}',${ei},'weight',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Load (kg)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Int %</div></div>
         </div>
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.setDur}" oninput="_setBulkField('${a.id}','setDur',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Set Dur (s)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.rest}" oninput="_setBulkField('${a.id}','rest',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Rest (s)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.setDur}" oninput="_setBulkField('${a.id}',${ei},'setDur',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Set Dur (s)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.rest}" oninput="_setBulkField('${a.id}',${ei},'rest',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Rest (s)</div></div>
         </div>
         <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:8px 0 4px;text-align:center">Velocity (m/s)</div>
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:0">
-          <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${bd.meanV}" oninput="_setBulkField('${a.id}','meanV',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Mean V</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${bd.peakV}" oninput="_setBulkField('${a.id}','peakV',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak V</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${entry.meanV}" oninput="_setBulkField('${a.id}',${ei},'meanV',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Mean V</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${entry.peakV}" oninput="_setBulkField('${a.id}',${ei},'peakV',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak V</div></div>
         </div>
         <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:8px 0 4px;text-align:center">Force (N) / Power (W)</div>
         <div class="ex-nums" style="grid-template-columns:repeat(4,1fr);margin-top:0">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.meanF}" oninput="_setBulkField('${a.id}','meanF',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Mean F</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.peakF}" oninput="_setBulkField('${a.id}','peakF',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak F</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.meanP}" oninput="_setBulkField('${a.id}','meanP',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Mean P</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.peakP}" oninput="_setBulkField('${a.id}','peakP',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak P</div></div>
-        </div>
-      </div>`;
-    } else {
-      // Sprint — build timing HTML
-      const isSplits=ST._bulkSprintTiming==='splits';
-      let timingHtml='';
-      if(isSplits&&splitMarks.length){
-        const cols=Math.min(splitMarks.length,6);
-        timingHtml=`
-        <div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;text-align:center">⏱ Split Times (s)</div>
-        <div class="ex-nums" style="grid-template-columns:repeat(${cols},1fr);gap:6px">
-          ${splitMarks.map(m=>`<div class="mini-wrap">
-            <input class="mini-in" type="number" step="0.001" placeholder="—" value="${(bd.splits&&bd.splits[m])||''}"
-              oninput="_setBulkSplit('${a.id}',${m},this.value)"
-              style="font-size:13px;padding:8px 2px;text-align:center">
-            <div class="mini-lbl" style="text-align:center">${m}m</div>
-          </div>`).join('')}
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.meanF}" oninput="_setBulkField('${a.id}',${ei},'meanF',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Mean F</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.peakF}" oninput="_setBulkField('${a.id}',${ei},'peakF',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak F</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.meanP}" oninput="_setBulkField('${a.id}',${ei},'meanP',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Mean P</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.peakP}" oninput="_setBulkField('${a.id}',${ei},'peakP',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Peak P</div></div>
         </div>`;
-      } else if(isSplits&&!splitMarks.length){
-        timingHtml=`<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">Enter Distance (m) above to show split inputs</div>`;
-      } else {
-        timingHtml=`
-        <div class="ex-nums" style="grid-template-columns:1fr;margin-top:8px">
-          <div class="mini-wrap">
-            <input class="mini-in" type="number" step="0.001" placeholder="—" value="${bd.time||''}"
-              oninput="_setBulkField('${a.id}','time',this.value)"
-              style="font-size:18px;font-weight:800;color:#3ecf8e;text-align:center">
-            <div class="mini-lbl" style="text-align:center">⏱ Time (s)</div>
-          </div>
-        </div>`;
-      }
-      card.innerHTML=`
-      <div class="ex-top">
-        <div>
-          <span style="font-size:15px;font-weight:700;color:var(--gold)">${a.name}</span>
-          <span style="font-size:12px;color:var(--muted);margin-left:8px">Group ${a.group}</span>
-        </div>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
-          <input type="checkbox" id="bulk-skip-${a.id}" onchange="_setBulkField('${a.id}','skip',this.checked);document.getElementById('bulk-fields-${a.id}').style.opacity=this.checked?'0.35':'1'"> Skip
-        </label>
-      </div>
-      <div id="bulk-fields-${a.id}">
-        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:10px;gap:10px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.distance}" oninput="_setBulkField('${a.id}','distance',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Dist (m)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.intensity||''}" oninput="_setBulkField('${a.id}','intensity',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Int %</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.sets}" oninput="_setBulkField('${a.id}','sets',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Sets</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.reps}" oninput="_setBulkField('${a.id}','reps',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Reps</div></div>
+      } else if(!isC) {
+        // Sprint
+        const isSplits=ST._bulkSprintTiming==='splits';
+        let timingHtml='';
+        if(isSplits&&splitMarks.length){
+          const cols=Math.min(splitMarks.length,6);
+          timingHtml=`<div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;text-align:center">⏱ Split Times (s)</div>
+          <div class="ex-nums" style="grid-template-columns:repeat(${cols},1fr);gap:6px">
+            ${splitMarks.map(m=>`<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${a.id}',${ei},${m},this.value)" style="font-size:13px;padding:8px 2px;text-align:center"><div class="mini-lbl" style="text-align:center">${m}m</div></div>`).join('')}
+          </div>`;
+        } else if(isSplits&&!splitMarks.length){
+          timingHtml=`<div style="margin-top:8px;padding:10px;border-radius:10px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.15);font-size:12px;color:rgba(79,142,247,.6);text-align:center">거리(m)를 입력하면 스플릿 칸이 나타납니다</div>`;
+        } else {
+          timingHtml=`<div class="ex-nums" style="grid-template-columns:1fr;margin-top:8px">
+            <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${entry.time||''}" oninput="_setBulkField('${a.id}',${ei},'time',this.value)" style="font-size:18px;font-weight:800;color:#3ecf8e;text-align:center"><div class="mini-lbl" style="text-align:center">⏱ Time (s)</div></div>
+          </div>`;
+        }
+        entriesHtml+=`${entryHdr}
+        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:0;gap:10px">
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.distance}" oninput="_setBulkField('${a.id}',${ei},'distance',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Dist (m)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Int %</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.sets}" oninput="_setBulkField('${a.id}',${ei},'sets',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Sets</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.reps}" oninput="_setBulkField('${a.id}',${ei},'reps',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Reps</div></div>
         </div>
         ${timingHtml}
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.setDur}" oninput="_setBulkField('${a.id}','setDur',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Set Dur (s)</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${bd.rest}" oninput="_setBulkField('${a.id}','rest',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Rest (s)</div></div>
-        </div>
-      </div>`;
-    }
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.setDur}" oninput="_setBulkField('${a.id}',${ei},'setDur',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Set Dur (s)</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${entry.rest}" oninput="_setBulkField('${a.id}',${ei},'rest',this.value)" style="text-align:center"><div class="mini-lbl" style="text-align:center">Rest (s)</div></div>
+        </div>`;
+      } else {
+        // ── Circuit card (mode A / B / C) ──────────────
+        const circMode=entry.mode||ST._bulkCircuitMode;
+        const totalR=ST._bulkCircuitRounds||3;
+        const stations=ST._bulkCircuitStations||[];
+        const noStations=`<div style="padding:12px;border-radius:10px;background:rgba(255,255,255,.04);font-size:12px;color:var(--muted);text-align:center">위 Circuit 설정에서 스테이션을 추가하세요</div>`;
+
+        if(circMode==='A'){
+          const rounds=entry.rounds||Array(totalR).fill(true);
+          const rBtns=Array.from({length:totalR},(_,ri)=>{
+            const r=rounds[ri]!==undefined?rounds[ri]:true;
+            return `<div><button id="bulk-circ-A-${a.id}-${ei}-${ri}" onclick="_toggleCircuitARound('${a.id}',${ei},${ri})"
+              style="width:100%;padding:10px 4px;border-radius:10px;border:2px solid ${r?'rgba(62,207,142,.5)':'rgba(233,69,96,.5)'};background:${r?'rgba(62,207,142,.15)':'rgba(233,69,96,.15)'};color:${r?'#3ecf8e':'#e94560'};font-size:16px;font-weight:900;cursor:pointer;line-height:1">${r?'O':'X'}</button>
+              <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:3px">R${ri+1}</div></div>`;
+          }).join('');
+          entriesHtml+=`${entryHdr}
+          <div style="font-size:10px;font-weight:700;color:#3ecf8e;letter-spacing:1px;text-transform:uppercase;margin:8px 0;text-align:center">CIRCUIT · ${totalR} Rounds</div>
+          <div style="display:grid;grid-template-columns:repeat(${Math.min(totalR,6)},1fr);gap:6px;margin-bottom:10px">${rBtns}</div>
+          ${_effortBtnsHtml(a.id,ei,entry.effort)}`;
+
+        } else if(circMode==='B'){
+          if(!stations.length){ entriesHtml+=`${entryHdr}${noStations}`; }
+          else {
+            const rHdrs=Array.from({length:totalR},(_,ri)=>`<div style="text-align:center;font-size:11px;font-weight:700;color:var(--muted)">R${ri+1}</div>`).join('');
+            const rows=stations.map((sName,si)=>{
+              const sRounds=entry.completion&&entry.completion[si]?entry.completion[si]:Array(totalR).fill(true);
+              const cells=Array.from({length:totalR},(_,ri)=>{
+                const r=sRounds[ri]!==undefined?sRounds[ri]:true;
+                return `<button id="bulk-circ-B-${a.id}-${ei}-${si}-${ri}" onclick="_toggleCircuitBMatrix('${a.id}',${ei},${si},${ri})"
+                  style="padding:7px 2px;border-radius:8px;border:1px solid ${r?'rgba(62,207,142,.4)':'rgba(233,69,96,.4)'};background:${r?'rgba(62,207,142,.12)':'rgba(233,69,96,.12)'};color:${r?'#3ecf8e':'#e94560'};font-size:13px;font-weight:700;cursor:pointer;width:100%">${r?'O':'X'}</button>`;
+              }).join('');
+              return `<div style="display:grid;grid-template-columns:72px repeat(${totalR},1fr);gap:4px;align-items:center;margin-bottom:4px">
+                <div style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${sName}">${sName}</div>${cells}</div>`;
+            }).join('');
+            entriesHtml+=`${entryHdr}
+            <div style="display:grid;grid-template-columns:72px repeat(${totalR},1fr);gap:4px;margin:8px 0 4px"><div></div>${rHdrs}</div>
+            ${rows}
+            ${_effortBtnsHtml(a.id,ei,entry.effort)}`;
+          }
+
+        } else if(circMode==='C'){
+          if(!stations.length){ entriesHtml+=`${entryHdr}${noStations}`; }
+          else {
+            const stRows=stations.map((sName,si)=>{
+              const done=entry.stationDone&&entry.stationDone[si]!==undefined?entry.stationDone[si]:totalR;
+              const pct=totalR>0?Math.round((done/totalR)*100):0;
+              const barColor=done>=totalR?'#3ecf8e':done>0?'var(--gold)':'#e94560';
+              return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                  <span style="font-size:13px;color:var(--text)">${sName}</span>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <input type="number" class="mini-in" value="${done}" min="0" max="${totalR}"
+                      oninput="_setCircuitCDone('${a.id}',${ei},${si},this.value)"
+                      style="width:48px;text-align:center;font-size:14px;font-weight:700;color:${barColor}">
+                    <span style="font-size:12px;color:var(--muted)">/ ${totalR}</span>
+                  </div>
+                </div>
+                <div style="height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden">
+                  <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width .2s"></div>
+                </div>
+              </div>`;
+            }).join('');
+            entriesHtml+=`${entryHdr}<div style="margin:8px 0">${stRows}</div>${_effortBtnsHtml(a.id,ei,entry.effort)}`;
+          }
+        }
+      } // end circuit else
+
+      // Divider between entries
+      if(ei < bd.entries.length-1) entriesHtml+=`<div style="margin:12px 0 0;border-top:1px dashed rgba(255,255,255,.12)"></div>`;
+    });
+
+    const card=document.createElement('div');
+    card.className='ex-row'; card.id=`bulk-row-${a.id}`;
+    card.style.marginBottom='14px';
+    card.innerHTML=`
+    <div class="ex-top" style="margin-bottom:8px">
+      <div>
+        <span style="font-size:15px;font-weight:700;color:${isT?'#e94560':isC?'#3ecf8e':'var(--gold)'}">${a.name}</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:8px">Group ${a.group}</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
+        <input type="checkbox" id="bulk-skip-${a.id}" ${bd.skip?'checked':''} onchange="ST._bulkData['${a.id}'].skip=this.checked;document.getElementById('bulk-body-${a.id}').style.opacity=this.checked?'0.35':'1'"> Skip
+      </label>
+    </div>
+    <div id="bulk-body-${a.id}" style="opacity:${bd.skip?'0.35':'1'}">
+      ${entriesHtml}
+      <button onclick="addBulkEntry('${a.id}')" style="width:100%;margin-top:14px;padding:11px;border-radius:10px;border:1px dashed rgba(255,255,255,.2);background:transparent;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer">＋ Add Set</button>
+    </div>`;
     wrap.appendChild(card);
   });
 }
@@ -6374,87 +6668,127 @@ function saveBulkEntry(){
   const week=document.getElementById('bulk-week').value;
   const isW=ST._bulkType==='weight';
   const isT=ST._bulkType==='tabata';
+  const isC=ST._bulkType==='circuit';
   const exerciseName=isW?(document.getElementById('bulk-exercise').value||'Exercise'):'';
   const globalIntensity=isW?document.getElementById('bulk-intensity').value:'';
   const tabataIntensity=isT?(parseFloat(document.getElementById('bulk-tabata-intensity').value)||0):0;
-  const sprintType=(!isW&&!isT)?document.getElementById('bulk-sprint-type').value:'';
-  const globalDist=(!isW&&!isT)?(parseFloat(document.getElementById('bulk-distance').value)||0):'';
+  const sprintType=(!isW&&!isT&&!isC)?document.getElementById('bulk-sprint-type').value:'';
+  const globalDist=(!isW&&!isT&&!isC)?(parseFloat(document.getElementById('bulk-distance').value)||0):'';
 
   let saved=0;
-  athletes.forEach(a=>{
+  const selected=athletes.filter(a=>ST._bulkSelectedIds.has(a.id));
+  selected.forEach(a=>{
     const bd=ST._bulkData[a.id];
     if(!bd||bd.skip) return;
+    const entries=bd.entries||[];
 
-    if(isT){
-      const rounds=bd.rounds||[true,true,true,true,true,true,true,true];
-      const completedRounds=rounds.filter(r=>r).length;
-      const log={
-        id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:'tabata',
-        phase, week,
-        rounds, completedRounds,
-        intensity:tabataIntensity,
-        source:'bulk', notes:'[Bulk Entry]'
-      };
-      d.logs.push(log); saved++;
+    if(isC){
+      // Circuit — each entry = one circuit log
+      const cMode=ST._bulkCircuitMode;
+      const totalRounds=ST._bulkCircuitRounds||3;
+      const circStations=ST._bulkCircuitStations||[];
+      entries.forEach(entry=>{
+        let stationData=null;
+        if(cMode==='B'&&circStations.length){
+          stationData=circStations.map((name,si)=>({name,rounds:(entry.completion&&entry.completion[si])||Array(totalRounds).fill(false)}));
+        } else if(cMode==='C'&&circStations.length){
+          stationData=circStations.map((name,si)=>({name,roundsDone:(entry.stationDone&&entry.stationDone[si])||0}));
+        }
+        const rounds=cMode==='A'?(entry.rounds||Array(totalRounds).fill(true)):null;
+        d.logs.push({
+          id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:'circuit',
+          phase, week,
+          circuitMode:cMode, totalRounds,
+          rounds,       // Mode A: overall round completion
+          stations:stationData, // Mode B/C: per-station data
+          effort:entry.effort||null,
+          source:'bulk', notes:'[Bulk Entry]'
+        });
+      });
+      saved++;
+    } else if(isT){
+      // Each entry = one tabata log (different intensity/rounds)
+      entries.forEach(entry=>{
+        const rounds=entry.rounds||[true,true,true,true,true,true,true,true];
+        const completedRounds=rounds.filter(r=>r).length;
+        d.logs.push({
+          id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:'tabata',
+          phase, week, rounds, completedRounds,
+          intensity:parseFloat(entry.intensity)||tabataIntensity,
+          source:'bulk', notes:'[Bulk Entry]'
+        });
+      });
+      saved++;
     } else if(isW){
-      const w=parseFloat(bd.weight)||0;
-      const sets=parseInt(bd.sets)||0;
-      const reps=parseInt(bd.reps)||0;
-      if(!sets&&!reps&&!w) return; // all empty — skip
-      const totalVol=w*sets*reps;
-      const log={
+      const exerciseEntries=[];
+      entries.forEach(entry=>{
+        const w=parseFloat(entry.weight)||0;
+        const sets=parseInt(entry.sets)||0;
+        const reps=parseInt(entry.reps)||0;
+        if(!sets&&!reps&&!w) return;
+        exerciseEntries.push({
+          name:exerciseName,
+          intensity:parseFloat(entry.intensity||globalIntensity)||0,
+          weight:w, sets, reps,
+          setDuration:parseFloat(entry.setDur)||null,
+          restInterval:parseFloat(entry.rest)||null,
+          meanVelocity:parseFloat(entry.meanV)||null,
+          peakVelocity:parseFloat(entry.peakV)||null,
+          meanForce:parseFloat(entry.meanF)||null,
+          peakForce:parseFloat(entry.peakF)||null,
+          meanPower:parseFloat(entry.meanP)||null,
+          peakPower:parseFloat(entry.peakP)||null
+        });
+      });
+      if(!exerciseEntries.length) return;
+      const totalVol=exerciseEntries.reduce((acc,e)=>acc+(e.weight*e.sets*e.reps),0);
+      d.logs.push({
         id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:'weight',
         phase, week,
-        exercises:[{
-          name:exerciseName,
-          intensity:parseFloat(bd.intensity||globalIntensity)||0,
-          weight:w, sets, reps,
-          setDuration:parseFloat(bd.setDur)||null,
-          restInterval:parseFloat(bd.rest)||null,
-          meanVelocity:parseFloat(bd.meanV)||null,
-          peakVelocity:parseFloat(bd.peakV)||null,
-          meanForce:parseFloat(bd.meanF)||null,
-          peakForce:parseFloat(bd.peakF)||null,
-          meanPower:parseFloat(bd.meanP)||null,
-          peakPower:parseFloat(bd.peakP)||null
-        }],
+        exercises:exerciseEntries,
         totalVolume:Math.round(totalVol),
         rpe:null, source:'bulk', notes:'[Bulk Entry]'
-      };
-      d.logs.push(log); saved++;
+      });
+      saved++;
     } else {
-      const dist=parseFloat(bd.distance)||globalDist||0;
-      const sets=parseInt(bd.sets)||1;
-      const reps=parseInt(bd.reps)||1;
-      if(!dist) return;
-      const totalDist=dist*sets*reps;
-      // Timing data
-      const totalTime=parseFloat(bd.time)||null;
-      const rawSplits=bd.splits||{};
-      const splitEntries=Object.entries(rawSplits).filter(([,v])=>v!=='').map(([m,v])=>({mark:parseFloat(m),time:parseFloat(v)})).sort((a,b)=>a.mark-b.mark);
-      const splitsData=splitEntries.length?splitEntries:null;
-      const log={
+      const sprintSets=[];
+      entries.forEach(entry=>{
+        const dist=parseFloat(entry.distance)||globalDist||0;
+        const sets=parseInt(entry.sets)||1;
+        const reps=parseInt(entry.reps)||1;
+        if(!dist) return;
+        const totalTime=parseFloat(entry.time)||null;
+        const rawSplits=entry.splits||{};
+        const splitEntries=Object.entries(rawSplits).filter(([,v])=>v!=='').map(([m,v])=>({mark:parseFloat(m),time:parseFloat(v)})).sort((x,y)=>x.mark-y.mark);
+        sprintSets.push({
+          intensity:parseFloat(entry.intensity)||0,
+          distance:dist, sets, reps,
+          setDuration:parseFloat(entry.setDur)||null,
+          restInterval:parseFloat(entry.rest)||null,
+          totalTime,
+          splits:splitEntries.length?splitEntries:null
+        });
+      });
+      if(!sprintSets.length) return;
+      const totalDist=sprintSets.reduce((acc,s)=>acc+(s.distance*s.sets*s.reps),0);
+      d.logs.push({
         id:genId(), date:dateVal, athleteName:a.name, group:a.group, type:'sprint',
         phase, week, sprintType,
-        sets:[{
-          intensity:parseFloat(bd.intensity)||0,
-          distance:dist, sets, reps,
-          setDuration:parseFloat(bd.setDur)||null,
-          restInterval:parseFloat(bd.rest)||null,
-          totalTime,          // s — for Total Time mode
-          splits:splitsData   // [{mark:10,time:1.23},{mark:20,time:2.05},...] for Split mode
-        }],
+        sets:sprintSets,
         totalDistance:Math.round(totalDist),
         rpe:null, source:'bulk', notes:'[Bulk Entry]'
-      };
-      d.logs.push(log); saved++;
+      });
+      saved++;
     }
   });
 
-  if(!saved){ showToast('Nothing to save — fill in data first'); return; }
+  if(!saved){ showToast('저장할 데이터가 없습니다 — 먼저 데이터를 입력하세요'); return; }
   saveData(d);
-  showToast(`✓ Saved ${saved} athlete${saved>1?'s':''}`);
+  showToast(`✓ ${saved}명 저장 완료`);
   ST._bulkData={};
+  ST._bulkSelectedIds=new Set();
+  ST._bulkSelectorOpen=false;
+  renderBulkAthleteSelector();
   renderBulkAthletes();
 }
 
