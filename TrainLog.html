@@ -3908,7 +3908,7 @@ function exportExcel(){
   const allMarks=new Set();
   sprintTimeLogs.forEach(l=>(l.sets||[]).forEach(s=>(s.splits||[]).forEach(sp=>allMarks.add(sp.mark))));
   const sortedMarks=[...allMarks].sort((a,b)=>Number(a)-Number(b));
-  const sprintHdr=['Date','Athlete','Group','Phase','Week','Sprint Type','Attempt No','Distance (m)','Split Every (m)','Total Time (s)',...sortedMarks.map(m=>m+'m Split (s)')];
+  const sprintHdr=['Date','Athlete','Group','Phase','Week','Sprint Type','Attempt No','Distance (m)','Split Every (m)','Total Time (s)',...sortedMarks.map((m,i)=>{const prev=i===0?0:sortedMarks[i-1];return`${m}m (${prev}-${m}m) Split (s)`;})];
   const sprintRows=[sprintHdr];
   sprintTimeLogs.forEach(l=>{
     (l.sets||[]).forEach(s=>{
@@ -4157,7 +4157,7 @@ function exportExcel(){
 
   // ── Download ─────────────────────────────────────
   XLSX.writeFile(wb,`TrainLog_${todayStr()}.xlsx`);
-  showToast('Excel exported ✓  (6 sheets: Sprint Times · Weight PVF · Tabata · Condition · Weight Load · Sprint Load)');
+  showToast('Excel exported ✓  (7 sheets: Sprint Times · Weight PVF · Tabata · Circuit · Condition · Weight Load · Sprint Load)');
 }
 
 function clearAllData(){
@@ -5921,7 +5921,7 @@ function _buildSprintTimingHtml(aid,ei,entry,isSplits,splitMarks){
   const cols=Math.min(splitMarks.length,6);
   return `<div style="font-size:10px;font-weight:700;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;text-align:center">⏱ SPLIT TIMES (s)</div>
   <div class="ex-nums" style="grid-template-columns:repeat(${cols},1fr);gap:6px">
-    ${splitMarks.map(m=>`<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${aid}',${ei},${m},this.value)" style="font-size:13px;padding:8px 2px;text-align:center"><div class="mini-lbl" style="text-align:center">${m}m</div></div>`).join('')}
+    ${splitMarks.map((m,i)=>{const prev=i===0?0:splitMarks[i-1];return`<div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="—" value="${(entry.splits&&entry.splits[m])||''}" oninput="_setBulkSplit('${aid}',${ei},${m},this.value)" style="font-size:13px;padding:8px 2px;text-align:center"><div class="mini-lbl" style="font-size:9px;text-align:center;line-height:1.3">${m}m<br><span style="opacity:.6">${prev}–${m}m</span></div></div>`;}).join('')}
   </div>`;
 }
 function _refreshSprintTiming(aid,ei){
