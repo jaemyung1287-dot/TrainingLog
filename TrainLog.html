@@ -6198,7 +6198,11 @@ function renderBulkAthletes(){
           <button id="bulk-tab-round-${a.id}-${ei}-${i}" onclick="_toggleTabataRound('${a.id}',${ei},${i})"
             style="width:100%;padding:10px 4px;border-radius:10px;border:2px solid ${r?'rgba(62,207,142,.5)':'rgba(233,69,96,.5)'};background:${r?'rgba(62,207,142,.15)':'rgba(233,69,96,.15)'};color:${r?'#3ecf8e':'#e94560'};font-size:18px;font-weight:900;cursor:pointer;line-height:1">${r?'O':'X'}</button>
           <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:3px">R${i+1}</div>`).join('');
-        ${(()=>{const ip=parseFloat(entry.intensity)||0;const ig=a.gender||'M';const ipStr=ip>0?`${_tabataBulkPace(ip,ig)} km/h`:'— km/h';const ipCol=ip>=100?'#e94560':ip>=85?'var(--gold)':'#3ecf8e';return `${entryHdr}
+        const ip=parseFloat(entry.intensity)||0;
+        const ig=a.gender||'M';
+        const ipStr=ip>0?`${_tabataBulkPace(ip,ig)} km/h`:'— km/h';
+        const ipCol=ip>=100?'#e94560':ip>=85?'var(--gold)':'#3ecf8e';
+        entriesHtml+=`${entryHdr}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;align-items:end">
           <div class="fg" style="margin:0"><label class="fl" style="font-size:11px">Intensity %</label>
             <input class="fi" type="number" placeholder="e.g. 80" value="${entry.intensity||''}" oninput="_setBulkField('${a.id}',${ei},'intensity',this.value);_updateTabataBulkPace('${a.id}',${ei},this.value,'${ig}')" style="height:40px"></div>
@@ -6207,7 +6211,7 @@ function renderBulkAthletes(){
             <div id="bulk-tab-pace-${a.id}-${ei}" style="font-size:16px;font-weight:800;color:${ip>0?ipCol:'var(--muted)'}">${ipStr}</div>
           </div>
         </div>
-        <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;text-align:center">ROUNDS · 20s/10s × 8</div>`;})()}
+        <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;text-align:center">ROUNDS · 20s/10s × 8</div>
         <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:10px">${rBtns}</div>
         <div style="text-align:center;padding:8px 0;border-top:1px solid var(--border)">
           <span style="font-size:13px;color:var(--muted)">Completed: </span>
