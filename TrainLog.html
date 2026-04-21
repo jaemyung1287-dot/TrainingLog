@@ -1833,13 +1833,29 @@ function goLogTraining(){
   }
   const amExs=_sessExs(grpData,'am');
   const pmExs=_sessExs(grpData,'pm');
-  const hasPlan=amExs.length||pmExs.length;
+  const amCond=(grpData?.am?.conditioningText||'').trim();
+  const pmCond=(grpData?.pm?.conditioningText||'').trim();
+  const hasPlan=amExs.length||pmExs.length||amCond||pmCond;
   const wrap=document.getElementById('log-sess-area');
   const title=document.getElementById('log-sess-title');
   const sub=document.getElementById('log-sess-sub');
   if(hasPlan){
     title.textContent='Today\'s Sessions';
     sub.textContent=plan?.phase?`${plan.phase}${plan.week?' · Week '+plan.week:''}`:'';
+    function _condCard(sess,condText){
+      if(!condText) return '';
+      const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
+      return `<div style="border-radius:14px;background:var(--card);border:1px solid rgba(224,123,57,.3);overflow:hidden;margin-bottom:12px">
+        <div style="padding:14px 16px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">🌀</span>
+          <div style="flex:1">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:2px">${label}</div>
+            <div style="font-size:15px;font-weight:700;color:#E07B39">Conditioning Session</div>
+          </div>
+        </div>
+        <div style="padding:0 16px 14px;font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.5">${condText}</div>
+      </div>`;
+    }
     function _sessCard(sess,exs){
       if(!exs.length) return '';
       const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
@@ -1942,7 +1958,7 @@ function goLogTraining(){
         </div>
       </div>`;
     }
-    wrap.innerHTML=_sessCard('am',amExs)+_sessCard('pm',pmExs)+_recentLogsSection();
+    wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_recentLogsSection();
   } else {
     title.textContent=`${ST.athlete.name}, what did you do?`;
     sub.textContent='No session plan for today — select type manually';
