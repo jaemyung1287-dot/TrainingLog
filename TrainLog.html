@@ -625,7 +625,7 @@ tr:last-child td{border-bottom:none}
   <div id="exercise-list"></div>
   <div id="w-add-ex-btn" style="display:none"><button class="btn btn-s" onclick="addExercise()" style="border-style:dashed;margin-bottom:16px">+ Add Exercise</button></div>
   <div id="w-conditioning-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(224,123,57,.07);border:1px solid rgba(224,123,57,.25)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🫁 Conditioning</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🌀 Conditioning</div>
     <div id="w-conditioning-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
   </div>
   <div id="w-cooldown-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.25)">
@@ -3161,7 +3161,7 @@ function renderProgram(){
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:${color};margin-bottom:8px">${label}</div>
       ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.5">🔆 ${wu}</div>`:''}
       ${exHtml}
-      ${condExs.length?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.6">🫁 ${condExs.map(e=>{const amt=e.amount?(e.sets?`${e.sets}×${e.amount}${e.unit!=='reps'?' '+e.unit:''}`:`${e.amount} ${e.unit}`):(e.sets?`${e.sets} sets`:'');const rest=e.rest?` / Rest ${e.rest}${e.restUnit||'s'}`:'';return `${e.name||'—'} ${amt}${rest}`;}).join(' · ')}</div>`:''}
+      ${condExs.length?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.6">🌀 ${condExs.map(e=>{const amt=e.amount?(e.sets?`${e.sets}×${e.amount}${e.unit!=='reps'?' '+e.unit:''}`:`${e.amount} ${e.unit}`):(e.sets?`${e.sets} sets`:'');const rest=e.rest?` / Rest ${e.rest}${e.restUnit||'s'}`:'';return `${e.name||'—'} ${amt}${rest}`;}).join(' · ')}</div>`:''}
       ${cd?`<div style="font-size:12px;color:rgba(79,142,247,.8);padding:5px 9px;background:rgba(79,142,247,.07);border-radius:7px;margin-top:4px;line-height:1.5">❄️ ${cd}</div>`:''}
     </div>`;
   }
@@ -5082,7 +5082,7 @@ function _makeConditioningCard(wrap,condExs){
   const metaText=count>0?`${count} exercise${count>1?'s':''} planned`:'No exercises planned';
   hdr.innerHTML=`
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="plan-acc-icon">🫁</div>
+      <div class="plan-acc-icon">🌀</div>
       <div>
         <div class="plan-acc-name">Conditioning</div>
         <div class="plan-acc-meta">${metaText}</div>
@@ -5517,7 +5517,7 @@ function renderPlanAccordion(){
   tabHdr.className='plan-acc-header';
   tabHdr.innerHTML=`
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="plan-acc-icon">🔥</div>
+      <div class="plan-acc-icon">🫁</div>
       <div>
         <div class="plan-acc-name">Tabata · NMT</div>
         <div class="plan-acc-meta">${planTabataSets.length?planTabataSets.length+' set'+(planTabataSets.length>1?'s':'')+' planned':'No sets planned'} · 20s/10s × 8</div>
