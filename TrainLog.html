@@ -625,7 +625,7 @@ tr:last-child td{border-bottom:none}
   <div id="exercise-list"></div>
   <div id="w-add-ex-btn" style="display:none"><button class="btn btn-s" onclick="addExercise()" style="border-style:dashed;margin-bottom:16px">+ Add Exercise</button></div>
   <div id="w-conditioning-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(224,123,57,.07);border:1px solid rgba(224,123,57,.25)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🫀 Conditioning</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🫁 Conditioning</div>
     <div id="w-conditioning-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
   </div>
   <div id="w-cooldown-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.25)">
@@ -2105,8 +2105,15 @@ function selectType(t){
       else { warmupBox.style.display='none'; }
       if(cd.trim()){ cooldownBox.style.display='block'; document.getElementById('w-cooldown-text').textContent=cd; }
       else { cooldownBox.style.display='none'; }
-      if(ct.trim()){ condBox.style.display='block'; document.getElementById('w-conditioning-text').textContent=ct; }
-      else { condBox.style.display='none'; }
+      const condExs=sessBlock?.conditioning||[];
+      if(condExs.length>0){
+        condBox.style.display='block';
+        document.getElementById('w-conditioning-text').innerHTML=condExs.map(e=>{
+          const amt=e.amount?(e.sets?`${e.sets}×${e.amount}${e.unit!=='reps'?' '+e.unit:''}`:`${e.amount} ${e.unit}`):(e.sets?`${e.sets} sets`:'');
+          const rest=e.rest?` · Rest ${e.rest}${e.restUnit||'s'}`:'';
+          return `<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">${e.name||'—'}<span style="color:var(--muted);font-size:12px"> ${amt}${rest}</span></div>`;
+        }).join('');
+      } else { condBox.style.display='none'; }
     } else {
       ST.exercises=[]; addBtn.style.display='block';
       banner.style.display='none';
@@ -3143,8 +3150,8 @@ function renderProgram(){
   }
   function _sessBlock(exs,sd,label,color){
     const wu=sd?.warmup||''; const cd=sd?.cooldown||'';
-    const ct=sd?.conditioningText||''; const ci=sd?.conditioningImage||'';
-    if(!exs.length&&!ct&&!ci) return '';
+    const condExs=sd?.conditioning||[];
+    if(!exs.length&&!condExs.length) return '';
     // Group by trainingType
     const byType={}; exs.forEach(e=>{ const t=e.trainingType||'Other'; (byType[t]=byType[t]||[]).push(e); });
     const exHtml=Object.entries(byType).map(([type,es])=>{
@@ -3154,7 +3161,7 @@ function renderProgram(){
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:${color};margin-bottom:8px">${label}</div>
       ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.5">🔆 ${wu}</div>`:''}
       ${exHtml}
-      ${ct?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.5">🫀 ${ct}</div>`:''}
+      ${condExs.length?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.6">🫁 ${condExs.map(e=>{const amt=e.amount?(e.sets?`${e.sets}×${e.amount}${e.unit!=='reps'?' '+e.unit:''}`:`${e.amount} ${e.unit}`):(e.sets?`${e.sets} sets`:'');const rest=e.rest?` / Rest ${e.rest}${e.restUnit||'s'}`:'';return `${e.name||'—'} ${amt}${rest}`;}).join(' · ')}</div>`:''}
       ${cd?`<div style="font-size:12px;color:rgba(79,142,247,.8);padding:5px 9px;background:rgba(79,142,247,.07);border-radius:7px;margin-top:4px;line-height:1.5">❄️ ${cd}</div>`:''}
     </div>`;
   }
@@ -3168,7 +3175,7 @@ function renderProgram(){
     const gd=plan?(plan[grp]||plan['all']):null;
     const amExs=_wExs(gd,'am'); const pmExs=_wExs(gd,'pm');
     const amSd=_wSess(gd,'am'); const pmSd=_wSess(gd,'pm');
-    const hasPlan=amExs.length>0||pmExs.length>0||(amSd?.conditioningText||amSd?.conditioningImage)||(pmSd?.conditioningText||pmSd?.conditioningImage);
+    const hasPlan=amExs.length>0||pmExs.length>0||(amSd?.conditioning||[]).length>0||(pmSd?.conditioning||[]).length>0;
     if(hasPlan) hasAnyPlan=true;
 
     const phaseInfo=plan?[plan.phase,plan.week?'Wk '+plan.week:''].filter(Boolean).join(' · '):'';
@@ -5061,7 +5068,7 @@ function _updatePlanSessionText(field,val){
   d.sessionPlans[ST._planDay]=plan;
   saveData(d);
 }
-function _makeConditioningCard(wrap,condText){
+function _makeConditioningCard(wrap,condExs){
   const key='conditioning';
   const isOpen=ST._planOpenCats.has(key);
   const card=document.createElement('div');
@@ -5071,13 +5078,14 @@ function _makeConditioningCard(wrap,condText){
   card.style.borderLeftWidth='3px';
   const hdr=document.createElement('div');
   hdr.className='plan-acc-header';
-  const hasText=condText&&condText.trim().length>0;
+  const count=condExs.length;
+  const metaText=count>0?`${count} exercise${count>1?'s':''} planned`:'No exercises planned';
   hdr.innerHTML=`
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="plan-acc-icon">🫀</div>
+      <div class="plan-acc-icon">🫁</div>
       <div>
         <div class="plan-acc-name">Conditioning</div>
-        <div class="plan-acc-meta">${hasText?condText.trim().substring(0,40)+(condText.trim().length>40?'…':''):'No notes yet'}</div>
+        <div class="plan-acc-meta">${metaText}</div>
       </div>
     </div>
     <span class="plan-acc-chevron">▾</span>`;
@@ -5088,12 +5096,72 @@ function _makeConditioningCard(wrap,condText){
   };
   const body=document.createElement('div');
   body.className='plan-acc-body';
+  // Build rows
+  const unitSel=(val,fn)=>`<select onchange="${fn}" style="background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:4px 6px;cursor:pointer;font-family:inherit">
+    <option value="reps"${val==='reps'?' selected':''}>reps</option>
+    <option value="s"${val==='s'?' selected':''}>s</option>
+    <option value="min"${val==='min'?' selected':''}>min</option>
+  </select>`;
+  const restSel=(val,fn)=>`<select onchange="${fn}" style="background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:4px 6px;cursor:pointer;font-family:inherit">
+    <option value="s"${val==='s'?' selected':''}>s</option>
+    <option value="min"${val==='min'?' selected':''}>min</option>
+  </select>`;
+  const rows=condExs.map((ex,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 52px 52px auto 52px auto 28px;gap:6px;align-items:center;margin-bottom:8px">
+      <input value="${ex.name||''}" placeholder="e.g. Bike Sprint" oninput="_updateCondEx(${i},'name',this.value)" style="padding:8px 10px;background:var(--input);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;font-family:inherit">
+      <input type="number" min="1" value="${ex.sets||''}" placeholder="Sets" oninput="_updateCondEx(${i},'sets',this.value)" style="padding:8px 6px;background:var(--input);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;text-align:center;font-family:inherit">
+      <input type="number" min="1" value="${ex.amount||''}" placeholder="×" oninput="_updateCondEx(${i},'amount',this.value)" style="padding:8px 6px;background:var(--input);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;text-align:center;font-family:inherit">
+      ${unitSel(ex.unit||'reps',`_updateCondEx(${i},'unit',this.value)`)}
+      <input type="number" min="0" value="${ex.rest||''}" placeholder="Rest" oninput="_updateCondEx(${i},'rest',this.value)" style="padding:8px 6px;background:var(--input);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;text-align:center;font-family:inherit">
+      ${restSel(ex.restUnit||'s',`_updateCondEx(${i},'restUnit',this.value)`)}
+      <button onclick="_removeCondEx(${i})" style="background:rgba(255,80,80,.15);border:none;border-radius:8px;color:#ff6b6b;font-size:16px;cursor:pointer;padding:4px 6px;line-height:1">✕</button>
+    </div>`).join('');
   body.innerHTML=`<div style="padding:14px 16px">
-    <textarea style="width:100%;min-height:90px;padding:12px 14px;background:var(--input);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;outline:none;resize:vertical;font-family:inherit;line-height:1.5" placeholder="e.g. 30 min bike, mobility circuit, massage, pool recovery…" oninput="_updatePlanSessionText('conditioningText',this.value)">${condText||''}</textarea>
+    <div style="display:grid;grid-template-columns:1fr 52px 52px auto 52px auto 28px;gap:6px;margin-bottom:6px">
+      <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px">EXERCISE</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-align:center">SETS</div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-align:center">AMT</div>
+      <div></div>
+      <div style="font-size:10px;color:var(--muted);font-weight:700;text-align:center">REST</div>
+      <div></div><div></div>
+    </div>
+    ${rows}
+    <button onclick="_addCondEx()" style="width:100%;margin-top:4px;padding:9px;background:none;border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">+ Add Exercise</button>
   </div>`;
   card.appendChild(hdr);
   card.appendChild(body);
   wrap.appendChild(card);
+}
+function _getCondExs(){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]||{};
+  const sess=ST._planSession||'am';
+  const grp=ST._planGroup;
+  if(!plan[grp]) plan[grp]={};
+  if(!plan[grp][sess]) plan[grp][sess]={exercises:[]};
+  if(!Array.isArray(plan[grp][sess].conditioning)) plan[grp][sess].conditioning=[];
+  return {d,plan,sess,grp};
+}
+function _addCondEx(){
+  const {d,plan,sess,grp}=_getCondExs();
+  plan[grp][sess].conditioning.push({name:'',sets:'',amount:'',unit:'reps',rest:'',restUnit:'s'});
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  ST._planOpenCats.add('conditioning');
+  renderPlanAccordion();
+}
+function _removeCondEx(idx){
+  const {d,plan,sess,grp}=_getCondExs();
+  plan[grp][sess].conditioning.splice(idx,1);
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
+}
+function _updateCondEx(idx,field,val){
+  const {d,plan,sess,grp}=_getCondExs();
+  plan[grp][sess].conditioning[idx][field]=val;
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
 }
 function _makePlanTextCard(wrap,key,label,icon,color,placeholder,currentVal){
   const isOpen=ST._planOpenCats.has(key);
@@ -5582,7 +5650,7 @@ function renderPlanAccordion(){
   if(ST._planActiveInput==='__circuit__') setTimeout(()=>{ const el=document.getElementById('pinp-circuit'); if(el)el.focus(); },40);
 
   // ── Conditioning Card ────────────────────────────────────────
-  _makeConditioningCard(wrap, sessObj?.conditioningText||'', sessObj?.conditioningImage||'');
+  _makeConditioningCard(wrap, sessObj?.conditioning||[]);
 
   // ── Cool-down Card (bottom) ──────────────────────────────────
   _makePlanTextCard(wrap,'cooldown','Cool-down','❄️','#4f8ef7',
