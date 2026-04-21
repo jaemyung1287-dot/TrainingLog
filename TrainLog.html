@@ -2100,12 +2100,10 @@ function selectType(t){
       const wu=sessBlock?.warmup||'';
       const cd=sessBlock?.cooldown||'';
       const ct=sessBlock?.conditioningText||'';
-      const ci=sessBlock?.conditioningImage||'';
       if(wu.trim()){ warmupBox.style.display='block'; document.getElementById('w-warmup-text').textContent=wu; }
       else { warmupBox.style.display='none'; }
       if(cd.trim()){ cooldownBox.style.display='block'; document.getElementById('w-cooldown-text').textContent=cd; }
       else { cooldownBox.style.display='none'; }
-      const ct=sessBlock?.conditioningText||'';
       if(ct.trim()){ condBox.style.display='block'; document.getElementById('w-conditioning-text').textContent=ct; }
       else { condBox.style.display='none'; }
     } else {
