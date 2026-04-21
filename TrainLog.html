@@ -253,6 +253,26 @@ tr:last-child td{border-bottom:none}
 .btn-athlete:hover{transform:translateY(-3px) scale(1.012);box-shadow:0 28px 70px rgba(0,0,0,.92),0 0 0 1.5px rgba(198,168,90,.6),0 0 50px rgba(180,50,60,.3),0 0 80px rgba(198,168,90,.1)!important}
 .btn-coach:hover{transform:translateY(-3px) scale(1.012);box-shadow:0 28px 70px rgba(0,0,0,.92),0 0 0 1.5px rgba(0,100,220,.65),0 0 50px rgba(0,61,165,.35),0 0 80px rgba(200,16,46,.08)!important}
 </style>
+<script>
+// Service Worker registration — auto-update on new deploy
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    // When a new SW is found and activates, reload to get the latest version
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      nw.addEventListener('statechange', () => {
+        if (nw.state === 'activated') {
+          window.location.reload();
+        }
+      });
+    });
+  });
+  // If SW controller changes (new SW took over all clients), reload
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
+}
+</script>
 </head>
 <body>
 <div id="app-root">
