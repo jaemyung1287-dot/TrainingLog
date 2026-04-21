@@ -625,9 +625,8 @@ tr:last-child td{border-bottom:none}
   <div id="exercise-list"></div>
   <div id="w-add-ex-btn" style="display:none"><button class="btn btn-s" onclick="addExercise()" style="border-style:dashed;margin-bottom:16px">+ Add Exercise</button></div>
   <div id="w-conditioning-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(224,123,57,.07);border:1px solid rgba(224,123,57,.25)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🔄 Conditioning</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🫀 Conditioning</div>
     <div id="w-conditioning-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
-    <div id="w-conditioning-img" style="margin-top:8px"></div>
   </div>
   <div id="w-cooldown-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.25)">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4f8ef7;margin-bottom:6px">❄️ Cool-down</div>
@@ -2106,7 +2105,7 @@ function selectType(t){
       else { warmupBox.style.display='none'; }
       if(cd.trim()){ cooldownBox.style.display='block'; document.getElementById('w-cooldown-text').textContent=cd; }
       else { cooldownBox.style.display='none'; }
-      if(ct.trim()||ci){ condBox.style.display='block'; document.getElementById('w-conditioning-text').textContent=ct; document.getElementById('w-conditioning-img').innerHTML=ci?`<img src="${ci}" style="max-width:100%;max-height:180px;border-radius:8px;margin-top:4px">`:''; }
+      if(ct.trim()){ condBox.style.display='block'; document.getElementById('w-conditioning-text').textContent=ct; }
       else { condBox.style.display='none'; }
     } else {
       ST.exercises=[]; addBtn.style.display='block';
@@ -3155,7 +3154,7 @@ function renderProgram(){
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:${color};margin-bottom:8px">${label}</div>
       ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.5">🔆 ${wu}</div>`:''}
       ${exHtml}
-      ${ct||ci?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.5">🔄 ${ct}${ci?`<br><img src="${ci}" style="max-width:100%;max-height:150px;border-radius:6px;margin-top:6px">`:''}</div>`:''}
+      ${ct?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.5">🫀 ${ct}</div>`:''}
       ${cd?`<div style="font-size:12px;color:rgba(79,142,247,.8);padding:5px 9px;background:rgba(79,142,247,.07);border-radius:7px;margin-top:4px;line-height:1.5">❄️ ${cd}</div>`:''}
     </div>`;
   }
@@ -5062,7 +5061,7 @@ function _updatePlanSessionText(field,val){
   d.sessionPlans[ST._planDay]=plan;
   saveData(d);
 }
-function _makeConditioningCard(wrap,condText,condImage){
+function _makeConditioningCard(wrap,condText){
   const key='conditioning';
   const isOpen=ST._planOpenCats.has(key);
   const card=document.createElement('div');
@@ -5073,17 +5072,12 @@ function _makeConditioningCard(wrap,condText,condImage){
   const hdr=document.createElement('div');
   hdr.className='plan-acc-header';
   const hasText=condText&&condText.trim().length>0;
-  const hasImage=!!condImage;
-  let metaText='No notes yet';
-  if(hasText&&hasImage) metaText=condText.trim().substring(0,30)+(condText.trim().length>30?'…':'')+' · 📎 Photo';
-  else if(hasText) metaText=condText.trim().substring(0,40)+(condText.trim().length>40?'…':'');
-  else if(hasImage) metaText='📎 Photo attached';
   hdr.innerHTML=`
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="plan-acc-icon">🔄</div>
+      <div class="plan-acc-icon">🫀</div>
       <div>
         <div class="plan-acc-name">Conditioning</div>
-        <div class="plan-acc-meta">${metaText}</div>
+        <div class="plan-acc-meta">${hasText?condText.trim().substring(0,40)+(condText.trim().length>40?'…':''):'No notes yet'}</div>
       </div>
     </div>
     <span class="plan-acc-chevron">▾</span>`;
@@ -5094,48 +5088,12 @@ function _makeConditioningCard(wrap,condText,condImage){
   };
   const body=document.createElement('div');
   body.className='plan-acc-body';
-  const imgHtml=hasImage
-    ?`<div style="margin-top:10px;position:relative;display:inline-block">
-        <img src="${condImage}" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:cover">
-        <button onclick="removeConditioningImg()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
-      </div>`
-    :`<label style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 14px;background:var(--input);border:1px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;color:var(--muted)">
-        📎 Attach Photo
-        <input type="file" accept="image/*" style="display:none" onchange="handleConditioningImg(this)">
-      </label>`;
   body.innerHTML=`<div style="padding:14px 16px">
     <textarea style="width:100%;min-height:90px;padding:12px 14px;background:var(--input);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;outline:none;resize:vertical;font-family:inherit;line-height:1.5" placeholder="e.g. 30 min bike, mobility circuit, massage, pool recovery…" oninput="_updatePlanSessionText('conditioningText',this.value)">${condText||''}</textarea>
-    ${imgHtml}
   </div>`;
   card.appendChild(hdr);
   card.appendChild(body);
   wrap.appendChild(card);
-}
-function handleConditioningImg(input){
-  const file=input.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    const img=new Image();
-    img.onload=function(){
-      const MAX=1200;
-      let w=img.width,h=img.height;
-      if(w>MAX||h>MAX){ if(w>h){ h=Math.round(h*MAX/w); w=MAX; } else { w=Math.round(w*MAX/h); h=MAX; } }
-      const canvas=document.createElement('canvas');
-      canvas.width=w; canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      const b64=canvas.toDataURL('image/jpeg',0.78);
-      _updatePlanSessionText('conditioningImage',b64);
-      renderPlanAccordion();
-      showToast('Photo attached ✓');
-    };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);
-  input.value='';
-}
-function removeConditioningImg(){
-  _updatePlanSessionText('conditioningImage','');
-  renderPlanAccordion();
 }
 function _makePlanTextCard(wrap,key,label,icon,color,placeholder,currentVal){
   const isOpen=ST._planOpenCats.has(key);
@@ -5574,7 +5532,7 @@ function renderPlanAccordion(){
   circHdr.className='plan-acc-header';
   circHdr.innerHTML=`
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="plan-acc-icon">🔄</div>
+      <div class="plan-acc-icon">🫀</div>
       <div>
         <div class="plan-acc-name">Circuit Training</div>
         <div class="plan-acc-meta">${circuitExs.length?circuitExs.length+' station'+(circuitExs.length>1?'s':''):'No stations planned'} · Group B</div>
