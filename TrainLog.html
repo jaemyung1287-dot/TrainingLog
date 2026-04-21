@@ -1661,7 +1661,8 @@ function _enterAthleteMenu(){
   const amExs=_sessExs(grpData,'am');
   const pmExs=_sessExs(grpData,'pm');
   const totalExs=amExs.length+pmExs.length;
-  if(totalExs>0){
+  const hasCond=(grpData?.am?.conditioningText||'').trim().length>0||(grpData?.pm?.conditioningText||'').trim().length>0;
+  if(totalExs>0||hasCond){
     card.style.display='block';
   } else {
     card.style.display='none';
