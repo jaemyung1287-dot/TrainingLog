@@ -3448,7 +3448,8 @@ function renderToday(){
       ...(grpData.pm?.exercises||[]),
       ...(Array.isArray(grpData.exercises)?grpData.exercises:[])
     ];
-    return exs.length>0;
+    const hasCond=(grpData.am?.conditioningText||'').trim().length>0||(grpData.pm?.conditioningText||'').trim().length>0;
+    return exs.length>0||hasCond;
   }
   const notLogged=d.athletes.filter(a=>!trainedNames.has(a.name)&&_athleteHasPlanToday(a));
   const nlw=document.getElementById('today-not-logged');
