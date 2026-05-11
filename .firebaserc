@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "traininglogskeleton"
+  },
+  "targets": {
+    "traininglogskeleton": {
+      "hosting": {
+        "trainlog": [
+          "traininglogskeleton"
+        ],
+        "road2030": [
+          "road-to-2030-kr"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

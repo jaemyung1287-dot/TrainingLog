@@ -1,0 +1,25 @@
+name: Deploy Road to 2030
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'RoadTo2030.html'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Copy to www-road2030
+        run: cp RoadTo2030.html www-road2030/index.html
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_TOKEN }}
+          projectId: traininglogskeleton
+          target: road2030
