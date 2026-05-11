@@ -403,7 +403,7 @@ if ('serviceWorker' in navigator) {
 <div id="s-condition" class="screen">
   <div class="hdr">
     <button class="back" onclick="showScreen('s-athlete-menu')">← 뒤로</button>
-    <span class="logo">🌡️ Condition</span>
+    <span class="logo">🌡️ 컨디션</span>
   </div>
   <div class="ttl">모닝 체크</div>
   <div class="sub">오늘 컨디션은 어때?</div>
@@ -422,40 +422,40 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Fatigue (1=none · 10=extreme)</label>
+    <label class="fl">피로도 (1=없음 · 10=극심함)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="3" id="sl-fatigue" oninput="updateSlider('sl-fatigue','sv-fatigue','high-bad')">
       <span class="sv good" id="sv-fatigue">3</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Mood (1=poor · 10=great)</label>
+    <label class="fl">기분 (1=나쁨 · 10=좋음)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="7" id="sl-mood" oninput="updateSlider('sl-mood','sv-mood','high-good')">
       <span class="sv good" id="sv-mood">7</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Muscle Soreness — Select affected areas</label>
+    <label class="fl">근육통 — 해당 부위 선택</label>
     <div class="part-section">
-      <div class="part-section-ttl">Upper Body · Oberkörper — Neck · Shoulder · Chest · Back · Arm</div>
+      <div class="part-section-ttl">상체 — 목 · 어깨 · 가슴 · 등 · 팔</div>
       <div class="part-chips" id="parts-upper"></div>
     </div>
     <div class="part-section">
-      <div class="part-section-ttl">Lower Body · Unterkörper — Hip · Quad · Glute · Hamstring · Adductor · Calf · Ankle · Foot</div>
+      <div class="part-section-ttl">하체 — 고관절 · 대퇴사두 · 둔근 · 햄스트링 · 내전근 · 종아리 · 발목 · 발</div>
       <div class="part-chips" id="parts-lower"></div>
     </div>
     <div class="part-section">
-      <div class="part-section-ttl">Core · Rumpf — Lower Back · Abs · Oblique</div>
+      <div class="part-section-ttl">코어 — 허리 · 복부 · 옆구리</div>
       <div class="part-chips" id="parts-core"></div>
     </div>
     <div id="soreness-sliders"></div>
   </div>
   <div class="fg">
-    <label class="fl">Notes (optional)</label>
-    <textarea class="fi" id="condition-notes" placeholder="Any additional remarks..."></textarea>
+    <label class="fl">메모 (선택사항)</label>
+    <textarea class="fi" id="condition-notes" placeholder="추가 사항을 입력하세요..."></textarea>
   </div>
-  <button class="btn btn-g" onclick="saveCondition()">Save ✓</button>
+  <button class="btn btn-g" onclick="saveCondition()">저장 ✓</button>
 </div>
 
 <!-- PROGRAM VIEW -->
@@ -548,7 +548,7 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Notes (optional)</label>
+    <label class="fl">메모 (선택사항)</label>
     <textarea class="fi" id="weight-notes" placeholder="Any remarks..."></textarea>
   </div>
   <button class="btn btn-g" onclick="saveWeight()">Save →</button>
@@ -586,7 +586,7 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Notes (optional)</label>
+    <label class="fl">메모 (선택사항)</label>
     <textarea class="fi" id="sprint-notes" placeholder="How did it feel?"></textarea>
   </div>
   <button class="btn btn-g" onclick="saveSprint()">Save →</button>
@@ -663,7 +663,7 @@ if ('serviceWorker' in navigator) {
   </div>
 
   <div class="fg">
-    <label class="fl">Notes (optional)</label>
+    <label class="fl">메모 (선택사항)</label>
     <input class="fi" id="rec-notes" placeholder="Track, conditions, competition...">
   </div>
   <button class="btn btn-g" onclick="saveRecord()">Save Record ✓</button>
@@ -1113,7 +1113,7 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Notes (optional)</label>
+    <label class="fl">메모 (선택사항)</label>
     <textarea class="fi" id="circuit-notes" placeholder="Session notes..."></textarea>
   </div>
   <button class="btn btn-g" onclick="saveCircuit()">Save Session →</button>
@@ -1222,9 +1222,9 @@ function stopCloudSync(){
 const SK_BASE='road2030_v1';
 function getSK(athId){ return SK_BASE+'_'+(athId||'shared'); } // Road to 2030 전용 데이터 공간
 const BODY_PARTS={
-  upper:['Neck','Shoulder','Chest','Back','Arm'],
-  lower:['Hip','Quad','Glute','Hamstring','Adductor','Calf','Ankle','Foot'],
-  core:['Lower Back','Abs','Oblique']
+  upper:['목','어깨','가슴','등','팔'],
+  lower:['고관절','대퇴사두','둔근','햄스트링','내전근','종아리','발목','발'],
+  core:['허리','복부','옆구리']
 };
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAYS_DE=['So','Mo','Di','Mi','Do','Fr','Sa'];
