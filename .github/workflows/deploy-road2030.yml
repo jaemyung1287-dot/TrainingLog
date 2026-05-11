@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'RoadTo2030.html'
+  workflow_dispatch:
 
 jobs:
   deploy:
