@@ -1513,12 +1513,51 @@ function goAthleteMode(){ stopCloudSync(); ST.athlete=null; showScreen('s-athlet
 function selectAthleteHome(id){
   window._currentAthleteId = id;
   stopCloudSync();
-  const d=getData();
-  const ath=d.athletes.find(a=>a.id===id);
-  if(!ath){ showToast('선수를 찾을 수 없어요'); return; }
-  ST.athlete=ath;
-  if(ath.pin){ showScreen('s-athlete-pin'); renderPinDots(); return; }
-  _enterAthleteMenu();
+
+  // 선수별 Firebase 데이터 로드 (새 기기/브라우저 대응)
+  _loadAthleteCloud(id).then(()=>{
+    const d=getData();
+    const ath=d.athletes.find(a=>a.id===id);
+    if(!ath){ showToast('선수를 찾을 수 없어요'); return; }
+    ST.athlete=ath;
+    if(ath.pin){ showScreen('s-athlete-pin'); renderPinDots(); return; }
+    _enterAthleteMenu();
+  });
+}
+
+// 선수별 Firestore 문서를 로드해서 로컬스토리지에 병합
+// - 클라우드 데이터가 있으면 로컬을 덮어씀 (최신 데이터 우선)
+// - 클라우드에 없으면 로컬 데이터 그대로 사용
+async function _loadAthleteCloud(id){
+  try{
+    const snap = await getCloudDoc(id).get();
+    if(!snap.exists) return; // 클라우드에 없으면 로컬 그대로
+    const cloudData = snap.data();
+    // 기본 필드 보완
+    if(!cloudData.records) cloudData.records=[];
+    if(!cloudData.sessionPlans) cloudData.sessionPlans={};
+    if(!cloudData.phvRecords) cloudData.phvRecords=[];
+    if(!cloudData.notifications) cloudData.notifications=[];
+    if(!cloudData.athletes||cloudData.athletes.length===0) cloudData.athletes=newData().athletes;
+    if(cloudData.programs){
+      ['A','B'].forEach(g=>{
+        if(cloudData.programs[g]&&!cloudData.programs[g].images)
+          cloudData.programs[g].images={macro:null,meso:null,micro:null};
+      });
+    }
+    // 로컬 이미지 보존 (Firestore에는 이미지 저장 안 함)
+    try{
+      const local=JSON.parse(localStorage.getItem(getSK(id)));
+      if(local?.programs){
+        ['A','B'].forEach(g=>{
+          if(local.programs[g]?.images) cloudData.programs[g].images=local.programs[g].images;
+        });
+      }
+    }catch(e){}
+    localStorage.setItem(getSK(id), JSON.stringify(cloudData));
+  }catch(e){
+    console.warn('[Road2030] 선수 클라우드 로드 실패, 로컬 사용:', e);
+  }
 }
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('이름을 선택해주세요'); return; }
