@@ -275,6 +275,7 @@ if ('serviceWorker' in navigator) {
     <!-- Invisible click targets aligned with the visual athlete cards -->
     <button class="home-hit home-hit-left" onclick="selectAthleteHome('a1')" aria-label="정승기 선택"></button>
     <button class="home-hit home-hit-right" onclick="selectAthleteHome('a2')" aria-label="여찬혁 선택"></button>
+    <button class="home-hit" onclick="showDashboard()" style="position:absolute;bottom:2%;left:50%;transform:translateX(-50%);width:auto;padding:10px 28px;background:rgba(10,48,40,0.7);border:1px solid rgba(201,168,76,0.4);border-radius:30px;color:rgba(201,168,76,0.8);font-size:13px;font-weight:700;letter-spacing:1px;z-index:10">📊 데이터 대시보드</button>
   </div>
 </div>
 
@@ -320,6 +321,17 @@ if ('serviceWorker' in navigator) {
   .home-hit-right{left:51.3%; top:61.5%; width:31.8%; height:19.3%;}
 }
 </style>
+
+<!-- COACH DASHBOARD -->
+<div id="s-coach-dashboard" class="screen">
+  <div class="hdr">
+    <button class="back" onclick="goHome()">← 홈</button>
+    <span class="logo">📊 데이터 대시보드</span>
+  </div>
+  <div class="ttl">선수 현황</div>
+  <div class="sub" id="coach-dash-date"></div>
+  <div id="coach-athlete-cards"></div>
+</div>
 
 <!-- ATHLETE SELECT -->
 <div id="s-athlete-select" class="screen">
@@ -709,25 +721,6 @@ if ('serviceWorker' in navigator) {
   <div id="team-anon-stats"></div>
   <div class="sec-ttl" style="margin-top:20px">🏅 My Records</div>
   <div id="my-records-list"></div>
-</div>
-
-<!-- COACH LOGIN -->
-<div id="s-coach-login" class="screen">
-  <div class="hdr">
-    <button class="back" onclick="goHome()">← 뒤로</button>
-    <span class="logo">🔒 Coach</span>
-  </div>
-  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
-    <div style="font-size:48px;margin-bottom:16px">🔐</div>
-    <div class="ttl" style="text-align:center">Enter Coach PIN</div>
-    <div class="sub" style="text-align:center">Default: 1234</div>
-    <div class="pin-wrap" id="pin-dots">
-      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
-      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
-    </div>
-    <div id="pin-error" style="color:var(--accent);font-size:13px;margin-bottom:16px;min-height:20px;text-align:center"></div>
-    <div class="numpad" id="numpad"></div>
-  </div>
 </div>
 
 <!-- COACH DASHBOARD -->
@@ -1151,7 +1144,9 @@ const FB_CONFIG={
 };
 firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();
-const CLOUD_DOC=db.collection('road2030').doc('korea');
+function getCloudDoc(athleteId){
+  return db.collection('road2030').doc('athlete_'+(athleteId||'shared'));
+}
 let _unsubscribe=null; // real-time listener handle
 
 // Strip base64 images before sending to Firestore (1MB doc limit)
@@ -1166,7 +1161,7 @@ function _stripImages(d){
 // Restore local images into cloud data
 function _restoreImages(cloudData){
   try{
-    const local=JSON.parse(localStorage.getItem(SK));
+    const local=JSON.parse(localStorage.getItem(getSK(window._currentAthleteId||'shared')));
     if(local?.programs){
       ['A','B'].forEach(g=>{
         if(local.programs[g]?.images) cloudData.programs[g].images=local.programs[g].images;
@@ -1178,13 +1173,13 @@ function _restoreImages(cloudData){
 
 // Push to Firestore (background, non-blocking)
 function syncToCloud(d){
-  CLOUD_DOC.set(_stripImages(d)).catch(e=>console.warn('[TrainLog] Firestore sync error:',e));
+  getCloudDoc(window._currentAthleteId||'shared').set(_stripImages(d)).catch(e=>console.warn('[TrainLog] Firestore sync error:',e));
 }
 
 // Load from Firestore on startup
 async function initFirebase(){
   try{
-    const snap=await CLOUD_DOC.get();
+    const snap=await getCloudDoc(window._currentAthleteId||'shared').get();
     if(snap.exists){
       const cloudData=_restoreImages(snap.data());
       // backward compat
@@ -1195,7 +1190,7 @@ async function initFirebase(){
             cloudData.programs[g].images={macro:null,meso:null,micro:null};
         });
       }
-      localStorage.setItem(SK,JSON.stringify(cloudData));
+      localStorage.setItem(getSK(window._currentAthleteId||'shared'),JSON.stringify(cloudData));
       console.log('[TrainLog] Loaded from Firebase ✓');
     } else {
       // First time — push local data to cloud
@@ -1211,11 +1206,11 @@ async function initFirebase(){
 // Start real-time listener (coach dashboard)
 function startCloudSync(){
   if(_unsubscribe) return; // already listening
-  _unsubscribe=CLOUD_DOC.onSnapshot(snap=>{
+  _unsubscribe=getCloudDoc(window._currentAthleteId||'shared').onSnapshot(snap=>{
     if(!snap.exists) return;
     const cloudData=_restoreImages(snap.data());
     if(!cloudData.records) cloudData.records=[];
-    localStorage.setItem(SK,JSON.stringify(cloudData));
+    localStorage.setItem(getSK(window._currentAthleteId||'shared'),JSON.stringify(cloudData));
     // Refresh coach view if active
     const coachEl=document.getElementById('s-coach');
     if(coachEl?.classList.contains('active')) renderCoachDash();
@@ -1228,7 +1223,8 @@ function stopCloudSync(){
   if(_unsubscribe){ _unsubscribe(); _unsubscribe=null; }
 }
 
-const SK='road2030_v1'; // Road to 2030 전용 데이터 공간
+const SK_BASE='road2030_v1';
+function getSK(athId){ return SK_BASE+'_'+(athId||'shared'); } // Road to 2030 전용 데이터 공간
 const BODY_PARTS={
   upper:['Neck','Shoulder','Chest','Back','Arm'],
   lower:['Hip','Quad','Glute','Hamstring','Adductor','Calf','Ankle','Foot'],
@@ -1441,7 +1437,7 @@ const REF_WEIGHT_EXERCISES=new Set([
 
 function getData(){
   try{
-    const d=JSON.parse(localStorage.getItem(SK))||newData();
+    const d=JSON.parse(localStorage.getItem(getSK(window._currentAthleteId||'shared')))||newData();
     if(!d.records) d.records=[];
     if(!d.sessionPlans) d.sessionPlans={};
     if(!d.phvRecords) d.phvRecords=[];
@@ -1473,7 +1469,7 @@ function newData(){
   };
 }
 function saveData(d){
-  localStorage.setItem(SK,JSON.stringify(d));
+  localStorage.setItem(getSK(window._currentAthleteId||'shared'),JSON.stringify(d));
   syncToCloud(d); // push to Firebase in background
 }
 function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -1513,6 +1509,7 @@ function showScreen(id){
 function goHome(){ stopCloudSync(); showScreen('s-home'); }
 function goAthleteMode(){ stopCloudSync(); ST.athlete=null; showScreen('s-athlete-select'); renderAthleteChips(); }
 function selectAthleteHome(id){
+  window._currentAthleteId = id;
   stopCloudSync();
   const d=getData();
   const ath=d.athletes.find(a=>a.id===id);
@@ -2209,7 +2206,7 @@ function _renderAthRecentLogs(targetId){
     return html;
   }).join('');
 }
-function goCoachLogin(){
+function showDashboard(){
   ST.pinBuf=''; updatePinDots(); document.getElementById('pin-error').textContent=''; showScreen('s-coach-login');
   // Keyboard support for Mac/desktop
   document.addEventListener('keydown',_coachPinKey);
@@ -4195,7 +4192,7 @@ function exportExcel(){
 
 function clearAllData(){
   if(!confirm('Delete ALL data? Cannot be undone.')) return;
-  localStorage.removeItem(SK);
+  localStorage.removeItem(getSK(window._currentAthleteId||'shared'));
   showToast('Data cleared');
   // Switch to Today tab and re-render everything from scratch
   switchTab('today', document.getElementById('tb-today'));
@@ -7083,6 +7080,155 @@ function saveBulkEntry(){
 // ════════════════════════════════════════════════
 let _tt;
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2500); }
+
+// ════════════════════════════════════════════════
+//  COACH LOGIN & DASHBOARD
+// ════════════════════════════════════════════════
+const COACH_PIN = '9090'; // 기본 코치 PIN
+let _coachPinBuf = '';
+
+function showDashboard(){
+  renderCoachDashboard();
+  showScreen('s-coach-dashboard');
+}
+
+function renderCoachNumpad(){
+  const wrap = document.getElementById('coach-numpad');
+  if(!wrap) return;
+  const nums = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  wrap.innerHTML = nums.map(n => 
+    n==='' ? '<div></div>' :
+    `<button class="np-btn${n==='⌫'?' del':''}" onclick="coachNumTap('${n}')">${n}</button>`
+  ).join('');
+}
+
+function updateCoachPinDots(){
+  for(let i=0;i<4;i++){
+    const el = document.getElementById('cpd'+i);
+    if(el) el.classList.toggle('filled', i < _coachPinBuf.length);
+  }
+}
+
+function coachNumTap(v){
+  if(v==='⌫'){ _coachPinBuf=_coachPinBuf.slice(0,-1); }
+  else if(_coachPinBuf.length<4){ _coachPinBuf+=v; }
+  updateCoachPinDots();
+  if(_coachPinBuf.length===4){
+    if(_coachPinBuf===COACH_PIN){
+      _coachPinBuf='';
+      renderCoachDashboard();
+      showScreen('s-coach-dashboard');
+    } else {
+      document.getElementById('coach-pin-error').textContent='PIN이 틀렸어요';
+      setTimeout(()=>{
+        _coachPinBuf='';
+        updateCoachPinDots();
+        document.getElementById('coach-pin-error').textContent='';
+      },1000);
+    }
+  }
+}
+
+async function renderCoachDashboard(){
+  const wrap = document.getElementById('coach-athlete-cards');
+  if(!wrap) return;
+  wrap.innerHTML = '<div class="empty"><div class="ei">⏳</div>데이터 로딩 중...</div>';
+  
+  const today = todayStr();
+  document.getElementById('coach-dash-date').textContent = today;
+  
+  const athletes = [
+    {id:'a1', name:'정승기'},
+    {id:'a2', name:'여찬혁'}
+  ];
+  
+  let html = '';
+  
+  for(const ath of athletes){
+    let d = null;
+    try {
+      const snap = await getCloudDoc(ath.id).get();
+      if(snap.exists){ d = snap.data(); }
+    } catch(e){}
+    
+    // Also try localStorage
+    if(!d){
+      try {
+        d = JSON.parse(localStorage.getItem(getSK(ath.id)));
+      } catch(e){}
+    }
+    
+    if(!d){ d = {logs:[], records:[]}; }
+    
+    const logs = d.logs || [];
+    const myLogs = logs.filter(l => l.athleteName === ath.name);
+    
+    // Last 7 days
+    const last7 = getLast(7);
+    const cutoff = last7[0];
+    const recentLogs = myLogs.filter(l => l.date >= cutoff);
+    
+    // Training days this week
+    const trainingDates = new Set(recentLogs.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo').map(l=>l.date));
+    
+    // Latest condition
+    const condLogs = myLogs.filter(l=>l.type==='condition').sort((a,b)=>b.date.localeCompare(a.date));
+    const latestCond = condLogs[0];
+    
+    // Avg condition last 7 days
+    const recentCond = condLogs.filter(l=>l.date>=cutoff);
+    const avgFatigue = recentCond.length ? (recentCond.reduce((s,l)=>s+(l.fatigue||5),0)/recentCond.length).toFixed(1) : '—';
+    const avgSleep = recentCond.length ? (recentCond.reduce((s,l)=>s+(l.sleepQuality||5),0)/recentCond.length).toFixed(1) : '—';
+    const avgMood = recentCond.length ? (recentCond.reduce((s,l)=>s+(l.mood||5),0)/recentCond.length).toFixed(1) : '—';
+    
+    const fatigueColor = avgFatigue==='—'?'var(--muted)':avgFatigue>=7?'var(--red)':avgFatigue>=5?'var(--orange)':'var(--green)';
+    const moodColor = avgMood==='—'?'var(--muted)':avgMood>=7?'var(--green)':avgMood>=5?'var(--orange)':'var(--red)';
+    
+    html += `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div style="font-size:36px">👤</div>
+        <div>
+          <div style="font-size:20px;font-weight:800">${ath.name}</div>
+          <div style="font-size:12px;color:var(--muted)">최근 7일 훈련: ${trainingDates.size}일 / 7일</div>
+        </div>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:var(--input);border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">피로도 평균</div>
+          <div style="font-size:22px;font-weight:800;color:${fatigueColor}">${avgFatigue}</div>
+        </div>
+        <div style="background:var(--input);border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">수면 평균</div>
+          <div style="font-size:22px;font-weight:800;color:var(--blue)">${avgSleep}</div>
+        </div>
+        <div style="background:var(--input);border-radius:12px;padding:12px;text-align:center">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">기분 평균</div>
+          <div style="font-size:22px;font-weight:800;color:${moodColor}">${avgMood}</div>
+        </div>
+      </div>
+      
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">최근 7일 훈련</div>
+      <div style="display:flex;gap:6px">
+        \${last7.map(ds=>{
+          const dayLogs = recentLogs.filter(l=>l.date===ds&&(l.type==='weight'||l.type==='sprint'||l.type==='plyo'));
+          const hasCond = recentLogs.some(l=>l.date===ds&&l.type==='condition');
+          const types = [...new Set(dayLogs.map(l=>l.type))];
+          const color = types.includes('sprint')?'var(--green)':types.length>0?'var(--blue)':hasCond?'rgba(201,168,76,0.4)':'var(--border)';
+          const label = ds.slice(5); // MM-DD
+          return \`<div style="flex:1;text-align:center">
+            <div style="height:28px;background:\${color};border-radius:6px;margin-bottom:3px"></div>
+            <div style="font-size:9px;color:var(--muted)">\${label}</div>
+          </div>\`;
+        }).join('')}
+      </div>
+      \${latestCond ? \`<div style="margin-top:12px;font-size:12px;color:var(--muted)">마지막 컨디션 로그: \${latestCond.date}\${latestCond.notes?\` — \${latestCond.notes.slice(0,40)}\`:''}</div>\` : '<div style="margin-top:12px;font-size:12px;color:var(--muted)">컨디션 로그 없음</div>'}
+    </div>\`;
+  }
+  
+  wrap.innerHTML = html || '<div class="empty">데이터 없음</div>';
+}
 </script>
 </body>
 </html>
