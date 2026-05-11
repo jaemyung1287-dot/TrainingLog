@@ -714,13 +714,7 @@ if ('serviceWorker' in navigator) {
     <div class="chart-title">😩 Fatigue · 😊 Mood · 😴 Sleep Quality</div>
     <canvas id="chart-my-condition"></canvas>
   </div>
-  <div class="sec-ttl" style="margin-top:20px">🏆 Team Ranking</div>
-  <div style="display:flex;gap:8px;margin-bottom:12px">
-    <button class="period-btn on" id="ts-week" onclick="setTeamPeriod('week',this)">Weekly</button>
-    <button class="period-btn" id="ts-month" onclick="setTeamPeriod('month',this)">Monthly</button>
-    <button class="period-btn" id="ts-year" onclick="setTeamPeriod('year',this)">Yearly</button>
-  </div>
-  <div id="team-anon-stats"></div>
+  
   <div class="sec-ttl" style="margin-top:20px">🏅 My Records</div>
   <div id="my-records-list"></div>
 </div>
@@ -3168,8 +3162,7 @@ function renderAthStats(){
     {label:'Sleep Q',data:slp,borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
   ],labels);
   renderMyRecords();
-  ST._teamPeriod=ST._teamPeriod||'week';
-  renderTeamRanking(d,ST._teamPeriod);
+
 }
 
 // ════════════════════════════════════════════════
@@ -3198,44 +3191,7 @@ function checkPin(){
   else{ document.getElementById('pin-error').textContent='Incorrect PIN'; ST.pinBuf=''; updatePinDots(); }
 }
 
-// ── Team Ranking ──
-function setTeamPeriod(p,btn){
-  ST._teamPeriod=p;
-  document.querySelectorAll('#ts-week,#ts-month,#ts-year').forEach(b=>b.classList.remove('on'));
-  if(btn) btn.classList.add('on');
-  renderTeamRanking(getData(),p);
-}
-function renderTeamRanking(d,period){
-  const days=period==='week'?7:period==='month'?30:365;
-  const dates=getLast(days);
-  const wrap=document.getElementById('team-anon-stats'); if(!wrap) return;
-  // Per-athlete volume & sprint
-  const athVol={}; const athSpr={};
-  d.athletes.forEach(a=>{ athVol[a.name]=0; athSpr[a.name]=0; });
-  d.logs.filter(l=>dates.includes(l.date)).forEach(l=>{
-    if(l.type==='weight') athVol[l.athleteName]=(athVol[l.athleteName]||0)+l.totalVolume;
-    if(l.type==='sprint') athSpr[l.athleteName]=(athSpr[l.athleteName]||0)+l.totalDistance;
-  });
-  const volRank=Object.entries(athVol).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  const sprRank=Object.entries(athSpr).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  const rankRow=(arr,unit,color)=>arr.map(([name,val],i)=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="width:22px;text-align:center;font-size:${i===0?'18':'13'}px">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</div>
-      <div style="flex:1;font-size:14px;font-weight:${i===0?'800':'500'};color:${i===0?color:'var(--text)'}">${name}</div>
-      <div style="font-size:14px;font-weight:700;color:${color}">${val.toLocaleString()}<span style="font-size:11px;color:var(--muted);font-weight:400"> ${unit}</span></div>
-    </div>`).join('');
-  wrap.innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">🏋️ Volume (kg)</div>
-        ${volRank.length?rankRow(volRank,'kg','var(--blue)'):'<div style="color:var(--muted);font-size:13px">데이터 없음</div>'}
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">⚡ 스프린트 (m)</div>
-        ${sprRank.length?rankRow(sprRank,'m','var(--green)'):'<div style="color:var(--muted);font-size:13px">데이터 없음</div>'}
-      </div>
-    </div>`;
-}
+
 
 // ── Athlete PIN ──
 ST.athPinBuf='';
