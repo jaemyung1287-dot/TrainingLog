@@ -266,7 +266,7 @@ if ('serviceWorker' in navigator) {
 <div id="app-root">
 
 <!-- HOME -->
-<div id="s-home" class="screen active" style="padding:0;overflow:hidden;position:relative;height:100vh;height:100dvh;background:#03100c">
+<div id="s-home" class="screen active" style="padding:0;overflow:hidden;position:relative;height:100vh;height:100dvh;min-height:0;max-height:100dvh;background:#03100c">
 
   <!-- Premium splash artwork: UI text/cards are part of the background image. -->
   <div class="home-art-wrap">
@@ -282,12 +282,13 @@ if ('serviceWorker' in navigator) {
 /* Home splash override */
 #s-home.screen.active{display:block}
 .home-art-wrap{
-  position:relative;
+  position:fixed;
+  top:0;left:0;
   width:100%;
-  height:100vh;
-  height:100dvh;
+  height:100%;
   background:#03100c;
   overflow:hidden;
+  z-index:0;
 }
 .home-art{
   display:block;
