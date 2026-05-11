@@ -2241,17 +2241,8 @@ function _renderAthRecentLogs(targetId){
     return html;
   }).join('');
 }
-function showDashboard(){
-  ST.pinBuf=''; updatePinDots(); document.getElementById('pin-error').textContent=''; showScreen('s-coach-login');
-  // Keyboard support for Mac/desktop
-  document.addEventListener('keydown',_coachPinKey);
-}
-function _coachPinKey(e){
-  if(!document.getElementById('s-coach-login').classList.contains('active')){ document.removeEventListener('keydown',_coachPinKey); return; }
-  if(e.key>='0'&&e.key<='9') handlePin(e.key);
-  else if(e.key==='Backspace') handlePin('⌫');
-  else if(e.key==='Enter'&&ST.pinBuf.length===4) checkPin();
-}
+
+
 function goCoachDashboard(){ showScreen('s-coach'); document.getElementById('coach-tabbar').classList.add('show'); switchTab('today',document.getElementById('tb-today')); startCloudSync(); }
 function backToCoach(){ showScreen('s-coach'); document.getElementById('coach-tabbar').classList.add('show'); }
 
