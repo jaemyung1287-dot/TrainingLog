@@ -1650,7 +1650,9 @@ function _toggleProgDay(ds){
   if(chev) chev.style.transform=isOpen?'rotate(0deg)':'rotate(180deg)';
 }
 function goTypeSelect(){
-  document.getElementById('type-greeting').textContent=`${_nick(ST.athlete.name)}, 오늘 잘 쳤어?`;
+  const nick=_nick(ST.athlete.name);
+  const hasNick=nick!==ST.athlete.name;
+  document.getElementById('type-greeting').textContent=hasNick?`${nick}, 오늘 잘 쳤어?`:nick;
   showScreen('s-type-select');
 }
 // ── Session accordion toggle ──
@@ -1898,7 +1900,7 @@ function goLogTraining(){
     }
     wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_recentLogsSection();
   } else {
-    title.textContent=`${_nick(ST.athlete.name)}, 오늘 잘 쳤어?`;
+    const _n=_nick(ST.athlete.name); title.textContent=_n!==ST.athlete.name?`${_n}, 오늘 잘 쳤어?`:_n;
     sub.textContent='';
     wrap.innerHTML=`
       <div class="type-grid">
