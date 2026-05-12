@@ -521,20 +521,15 @@ if ('serviceWorker' in navigator) {
     <button class="back" onclick="showScreen('s-athlete-menu')">← 뒤로</button>
     <span class="logo">🇰🇷 Road to 2030</span>
   </div>
-  <div class="ttl" id="type-greeting">What did you do?</div>
-  <div class="sub">Select training type</div>
+  <div class="ttl" id="type-greeting"></div>
   <div class="type-grid" id="type-grid-wrap">
     <div class="type-card" id="tc-weight" onclick="selectType('weight')">
       <span class="ico">🏋️</span>
       <div class="lbl">웨이트 트레이닝</div>
-      <div class="desc" style="color:var(--gold)">웨이트 트레이닝</div>
-      <div class="desc">Volume · Sets · Load</div>
     </div>
     <div class="type-card" id="tc-sprint" onclick="selectType('sprint')">
       <span class="ico">⚡</span>
       <div class="lbl">스프린트 트레이닝</div>
-      <div class="desc" style="color:var(--gold)">스프린트 트레이닝</div>
-      <div class="desc">Distance · Sets · Intensity</div>
     </div>
   </div>
 </div>
@@ -1655,7 +1650,7 @@ function _toggleProgDay(ds){
   if(chev) chev.style.transform=isOpen?'rotate(0deg)':'rotate(180deg)';
 }
 function goTypeSelect(){
-  document.getElementById('type-greeting').textContent=`${_nick(ST.athlete.name)}, 오늘 뭐 했어?`;
+  document.getElementById('type-greeting').textContent=_nick(ST.athlete.name);
   showScreen('s-type-select');
 }
 // ── Session accordion toggle ──
@@ -1903,19 +1898,17 @@ function goLogTraining(){
     }
     wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_recentLogsSection();
   } else {
-    title.textContent=`${_nick(ST.athlete.name)}, 오늘 뭐 했어?`;
-    sub.textContent='오늘 세션을 선택해줘';
+    title.textContent=_nick(ST.athlete.name);
+    sub.textContent='';
     wrap.innerHTML=`
       <div class="type-grid">
         <div class="type-card" onclick="selectType('weight')">
           <span class="ico">🏋️</span>
           <div class="lbl">웨이트 트레이닝</div>
-          <div class="desc" style="color:var(--gold)">웨이트 트레이닝</div>
         </div>
         <div class="type-card" onclick="selectType('sprint')">
           <span class="ico">⚡</span>
           <div class="lbl">스프린트 트레이닝</div>
-          <div class="desc" style="color:var(--gold)">스프린트 트레이닝</div>
         </div>
       </div>`+_recentLogsSection();
   }
