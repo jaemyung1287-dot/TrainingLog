@@ -323,6 +323,23 @@ if ('serviceWorker' in navigator) {
 }
 </style>
 
+<!-- EXERCISE PICKER MODAL -->
+<div id="ex-picker-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px)" onclick="if(event.target===this)_closeExPicker()">
+  <div id="ex-picker-sheet" style="position:absolute;bottom:0;left:0;right:0;max-height:88vh;background:var(--bg);border-radius:20px 20px 0 0;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,0,.67,0)">
+    <!-- 헤더 -->
+    <div style="padding:16px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:16px;font-weight:800;flex:1">운동 선택</span>
+        <button onclick="_closeExPicker()" style="background:var(--input);border:none;color:var(--fg);border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer">✕</button>
+      </div>
+      <input id="ex-picker-search" type="text" placeholder="🔍 운동명 검색..." oninput="_filterExPicker(this.value)"
+        style="width:100%;background:var(--input);border:1px solid var(--border);border-radius:12px;color:var(--fg);padding:10px 14px;font-size:14px;box-sizing:border-box">
+    </div>
+    <!-- 카테고리 리스트 -->
+    <div id="ex-picker-body" style="overflow-y:auto;padding:12px 16px 32px;flex:1"></div>
+  </div>
+</div>
+
 <!-- LOG EDIT MODAL -->
 <div id="log-edit-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px)" onclick="if(event.target===this)_closeEditLog()">
   <div id="log-edit-sheet" style="position:absolute;bottom:0;left:0;right:0;max-height:90vh;background:var(--bg);border-radius:20px 20px 0 0;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,0,.67,0)">
@@ -454,17 +471,17 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div class="fg">
-    <label class="fl">근육통 — 해당 부위 선택</label>
+    <label class="fl" style="color:var(--red);font-weight:800;font-size:12px;letter-spacing:0.5px">🩹 근육통 — 해당 부위 선택</label>
     <div class="part-section">
-      <div class="part-section-ttl">상체 — 목 · 어깨 · 가슴 · 등 · 팔</div>
+      <div class="part-section-ttl">상체</div>
       <div class="part-chips" id="parts-upper"></div>
     </div>
     <div class="part-section">
-      <div class="part-section-ttl">하체 — 고관절 · 대퇴사두 · 둔근 · 햄스트링 · 내전근 · 종아리 · 발목 · 발</div>
+      <div class="part-section-ttl">하체</div>
       <div class="part-chips" id="parts-lower"></div>
     </div>
     <div class="part-section">
-      <div class="part-section-ttl">코어 — 허리 · 복부 · 옆구리</div>
+      <div class="part-section-ttl">코어</div>
       <div class="part-chips" id="parts-core"></div>
     </div>
     <div id="soreness-sliders"></div>
@@ -541,8 +558,8 @@ if ('serviceWorker' in navigator) {
   </div>
   <div id="w-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.25);font-size:12px;color:var(--gold)"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-    <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="w-phase" placeholder="예: GPP1" readonly></div>
-    <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="w-week" placeholder="e.g. 3" readonly></div>
+    <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="w-phase" placeholder="예: GPP1"></div>
+    <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="w-week" placeholder="예: 3"></div>
   </div>
   <div id="w-warmup-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(247,169,79,.07);border:1px solid rgba(247,169,79,.25)">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 워밍업</div>
@@ -2454,8 +2471,12 @@ function renderExList(){
     const headerHtml=fromPlan
       ? `<span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;flex:1;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
          <span style="font-size:10px;color:var(--muted)">📋</span>`
-      : `<input class="ex-name" placeholder="Exercise name" value="${ex.name}" oninput="ST.exercises[${i}].name=this.value">
-         <button class="del-btn" onclick="removeEx(${i})">×</button>`;
+      : `<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+           <button onclick="_openExPicker(${i})" style="flex:1;text-align:left;background:var(--input);border:1px solid var(--border);border-radius:10px;color:${ex.name?'var(--fg)':'var(--muted)'};padding:10px 14px;font-size:14px;font-weight:${ex.name?'700':'400'};cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+             ${ex.name||'운동명 선택 / 검색 ▾'}
+           </button>
+           <button class="del-btn" onclick="removeEx(${i})">×</button>
+         </div>`;
 
     // Parameter rows based on type
     let paramsHtml='';
@@ -3175,6 +3196,114 @@ function _sessionDetailHtml(l){
     return `<div style="font-size:13px;color:var(--muted);padding:6px 0;line-height:1.8">${rows.join(' · ')}</div>${sorenessRow}`;
   }
   return '';
+}
+
+// ════════════════════════════════════════════════
+//  EXERCISE PICKER
+// ════════════════════════════════════════════════
+const _EX_DB = {
+  '⚡ 파워 개발': {
+    trainingType: 'Power Development',
+    exercises: [
+      '클린','파워 클린','행 클린','행 파워 클린',
+      '스내치','파워 스내치','행 스내치','행 파워 스내치',
+      '클린 & 저크','클린 풀','스내치 풀',
+      '푸시 프레스','저크','스플릿 저크',
+      '스내치 그립 데드리프트','하이 풀'
+    ]
+  },
+  '🦵 하체': {
+    trainingType: 'Resistance Training',
+    exercises: [
+      '백 스쿼트','프론트 스쿼트','박스 스쿼트','점프 스쿼트',
+      '불가리안 스플릿 스쿼트','런지','스텝업','스플릿 스쿼트',
+      '데드리프트','루마니안 데드리프트 (RDL)','스티프 레그 데드리프트',
+      '힙 쓰러스트','글루트 햄 레이즈 (GHR)','노르딕 컬',
+      '레그 프레스','레그 컬','레그 익스텐션','카프 레이즈',
+      '굿 모닝','백 익스텐션'
+    ]
+  },
+  '💪 상체': {
+    trainingType: 'Resistance Training',
+    exercises: [
+      '벤치 프레스','인클라인 벤치 프레스','덤벨 플라이',
+      '오버헤드 프레스 (OHP)','덤벨 숄더 프레스','아놀드 프레스',
+      '풀업','친업','랫 풀다운',
+      '바벨 로우','덤벨 로우','케이블 로우','시티드 로우',
+      '페이스 풀','밴드 풀 어파트',
+      '바벨 컬','덤벨 컬',
+      '트라이셉스 딥','스컬 크러셔','트라이셉스 푸시다운',
+      '슈러그'
+    ]
+  },
+  '🔧 코어': {
+    trainingType: 'Resistance Training',
+    exercises: [
+      '플랭크','사이드 플랭크','RKC 플랭크',
+      '데드버그','버드독',
+      '팔로프 프레스','케이블 우드찹',
+      '크런치','리버스 크런치','레그 레이즈',
+      'V-업','AB 롤아웃'
+    ]
+  }
+};
+
+let _exPickerIdx = null;
+
+function _openExPicker(i){
+  _exPickerIdx = i;
+  _renderExPickerBody('');
+  document.getElementById('ex-picker-search').value='';
+  const modal=document.getElementById('ex-picker-modal');
+  const sheet=document.getElementById('ex-picker-sheet');
+  modal.style.display='block';
+  requestAnimationFrame(()=>{ sheet.style.transform='translateY(0)'; });
+  setTimeout(()=>document.getElementById('ex-picker-search').focus(),350);
+}
+
+function _closeExPicker(){
+  const sheet=document.getElementById('ex-picker-sheet');
+  sheet.style.transform='translateY(100%)';
+  setTimeout(()=>{ document.getElementById('ex-picker-modal').style.display='none'; _exPickerIdx=null; },300);
+}
+
+function _renderExPickerBody(query){
+  const body=document.getElementById('ex-picker-body');
+  const q=(query||'').trim().toLowerCase();
+  let html='';
+  Object.entries(_EX_DB).forEach(([cat,data])=>{
+    const filtered=q ? data.exercises.filter(e=>e.toLowerCase().includes(q)) : data.exercises;
+    if(!filtered.length) return;
+    html+=`<div style="font-size:12px;font-weight:800;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:14px 0 8px">${cat}</div>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:7px">`;
+    filtered.forEach(name=>{
+      const isSelected=_exPickerIdx!=null&&ST.exercises[_exPickerIdx]&&ST.exercises[_exPickerIdx].name===name;
+      html+=`<button onclick="_selectExercise('${name.replace(/'/g,"\\'")}','${data.trainingType}')"
+        style="padding:8px 14px;border-radius:20px;border:1.5px solid ${isSelected?'var(--primary)':'var(--border)'};background:${isSelected?'rgba(var(--primary-rgb,62,207,142),.15)':'var(--input)'};color:${isSelected?'var(--primary)':'var(--fg)'};font-size:13px;font-weight:${isSelected?'800':'500'};cursor:pointer">${name}</button>`;
+    });
+    html+='</div>';
+  });
+  // 커스텀 입력 옵션
+  if(q && !Object.values(_EX_DB).some(d=>d.exercises.some(e=>e.toLowerCase()===q))){
+    const display=query.trim();
+    html+=`<div style="margin-top:16px;padding:12px;background:var(--input);border-radius:12px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;color:var(--muted)">"${display}" 직접 입력</span>
+      <button onclick="_selectExercise('${display.replace(/'/g,"\\'")}',null)" style="background:var(--primary);color:#0d1117;border:none;border-radius:10px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer">추가</button>
+    </div>`;
+  }
+  body.innerHTML=html||'<div style="color:var(--muted);text-align:center;padding:32px 0">검색 결과 없음</div>';
+}
+
+function _filterExPicker(val){
+  _renderExPickerBody(val);
+}
+
+function _selectExercise(name, trainingType){
+  if(_exPickerIdx==null) return;
+  ST.exercises[_exPickerIdx].name=name;
+  if(trainingType) ST.exercises[_exPickerIdx].trainingType=trainingType;
+  _closeExPicker();
+  setTimeout(()=>renderExList(),310);
 }
 
 function _toggleLogDetail(id){
