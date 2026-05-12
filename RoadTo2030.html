@@ -607,9 +607,9 @@ if ('serviceWorker' in navigator) {
     <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="sp-week" placeholder="예: 5월 10일~5월 15일"></div>
   </div>
   <div id="sprint-sets-list"></div>
-  <button class="btn btn-s" id="sp-add-btn" onclick="addSprintSet()" style="border-style:dashed;margin-bottom:16px">+ Add Set Group</button>
+  <button class="btn btn-s" id="sp-add-btn" onclick="addSprintSet()" style="border-style:dashed;margin-bottom:16px">+ 세트 그룹 추가</button>
   <div class="fg">
-    <label class="fl">Session RPE (1–10)</label>
+    <label class="fl">세션 RPE (1–10)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="7" id="sl-srpe" oninput="updateSlider('sl-srpe','sv-srpe','high-bad')">
       <span class="sv mid" id="sv-srpe">7</span>
@@ -2856,7 +2856,7 @@ function renderSprintSets(){
     const pct=parseFloat(s.intensity||s.planIntensity)||null;
     const targetT=(pb&&pct&&pct>0)?(pb/(pct/100)).toFixed(2):null;
     const calcHtml=`<div id="sp-calc-${i}" style="margin:8px 0 2px;padding:8px 12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2);border-radius:8px;font-size:12px;display:${targetT?'flex':'none'};justify-content:space-between;align-items:center">
-      ${targetT?`<span style="color:var(--muted)">🎯 Target @ ${pct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${targetT}s</span><span style="color:var(--muted);font-size:11px">PB ${pb}s</span>`:''}
+      ${targetT?`<span style="color:var(--muted)">🎯 목표 @ ${pct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${targetT}초</span><span style="color:var(--muted);font-size:11px">PB ${pb}초</span>`:''}
     </div>`;
 
     // Effort buttons
@@ -2879,7 +2879,7 @@ function renderSprintSets(){
            <span class="_ex-name-done" style="font-size:14px;font-weight:700;color:#D4D0E8;${s.done?'text-decoration:line-through;opacity:.5':''}">${spDonePrefix}${s.name||''}</span>
          </div>
          <span style="font-size:10px;color:var(--muted)">📋</span>`
-      : `<span style="font-size:14px;font-weight:700;color:var(--muted)">Set Group ${i+1}</span>
+      : `<span style="font-size:14px;font-weight:700;color:var(--muted)">세트 그룹 ${i+1}</span>
          <button class="del-btn" onclick="removeSprintSet(${i})">×</button>`;
 
     const _spPlanParts=[];
@@ -2902,11 +2902,11 @@ function renderSprintSets(){
     const targetDisplay=targetT
       ? `<div id="sp-calc-${i}" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
            <div style="font-size:18px;font-weight:800;color:#3ecf8e">${targetT}s</div>
-           <div class="mini-lbl" style="color:#3ecf8e">🎯 Target (s)</div>
+           <div class="mini-lbl" style="color:#3ecf8e">🎯 목표 기록 (초)</div>
          </div>`
       : `<div id="sp-calc-${i}" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
            <div style="font-size:18px;font-weight:800;color:var(--muted)">—</div>
-           <div class="mini-lbl">🎯 Target (s)</div>
+           <div class="mini-lbl">🎯 목표 기록 (초)</div>
          </div>`;
 
     const div=document.createElement('div'); div.className='ex-row';
@@ -2917,31 +2917,31 @@ function renderSprintSets(){
         <div class="mini-wrap">
           <input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${s.distance||''}"
             oninput="ST.sprintSets[${i}].distance=this.value;ST.sprintSets[${i}].pb='';renderSprintSets()">
-          <div class="mini-lbl">Distance (m)${distEdited?' ✎':''}</div>
+          <div class="mini-lbl">거리 (m)${distEdited?' ✎':''}</div>
         </div>
         <div class="mini-wrap">
           <input class="mini-in" type="number" step="0.001" placeholder="3.58" value="${s.pb||''}"
             oninput="ST.sprintSets[${i}].pb=this.value;_updateSprintCalc(${i})"
             style="color:#3ecf8e">
-          <div class="mini-lbl" style="color:#3ecf8e">My PB (s)</div>
+          <div class="mini-lbl" style="color:#3ecf8e">내 PB (초)</div>
         </div>
       </div>
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in sp-int-input${intEdited?' plan-edited':''}" type="number" placeholder="%" value="${s.intensity||''}"
             oninput="ST.sprintSets[${i}].intensity=this.value;_updateSprintCalc(${i})">
-          <div class="mini-lbl">Intensity %${intEdited?' ✎':''}</div>
+          <div class="mini-lbl">강도 %${intEdited?' ✎':''}</div>
         </div>
         ${targetDisplay}
       </div>
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in${setsEdited?' plan-edited':''}" type="number" placeholder="0" value="${s.sets||''}" oninput="ST.sprintSets[${i}].sets=this.value">
-          <div class="mini-lbl">Sets${setsEdited?' ✎':''}</div>
+          <div class="mini-lbl">세트${setsEdited?' ✎':''}</div>
         </div>
         <div class="mini-wrap">
           <input class="mini-in${repsEdited?' plan-edited':''}" type="number" placeholder="0" value="${s.reps||''}" oninput="ST.sprintSets[${i}].reps=this.value">
-          <div class="mini-lbl">Reps${repsEdited?' ✎':''}</div>
+          <div class="mini-lbl">횟수${repsEdited?' ✎':''}</div>
         </div>
       </div>
       ${spPlanSummary}
