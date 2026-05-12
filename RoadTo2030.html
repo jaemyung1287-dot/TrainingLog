@@ -873,7 +873,7 @@ if ('serviceWorker' in navigator) {
     </div>
     <div class="sec-ttl" style="margin-top:24px">Data</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-g btn-sm" onclick="exportExcel()">📊 Export Excel (.xlsx)</button>
+      <button class="btn btn-g btn-sm" onclick="exportExcel()">📊 데이터 내보내기 (.xlsx)</button>
       <button class="btn btn-s btn-sm" onclick="clearAllData()">🗑️ Clear All Data</button>
     </div>
   </div>
@@ -1265,7 +1265,7 @@ function stopCloudSync(){
 
 const SK_BASE='road2030_v1';
 // 선수 닉네임 (표시용 — 데이터 저장 이름과 별개)
-const _NICK={'여찬혁':'딸잽이'};
+const _NICK={'여찬혁':'좆잽이'};
 function _nick(name){ return _NICK[name]||name; }
 function getSK(athId){ return SK_BASE+'_'+(athId||'shared'); } // Road to 2030 전용 데이터 공간
 const BODY_PARTS={
@@ -1660,7 +1660,7 @@ function _toggleProgDay(ds){
 function goTypeSelect(){
   const nick=_nick(ST.athlete.name);
   const hasNick=nick!==ST.athlete.name;
-  document.getElementById('type-greeting').textContent=hasNick?`${nick}, 오늘 잘 쳤어?`:nick;
+  document.getElementById('type-greeting').textContent=hasNick?`${nick}, 오늘 잘 짰어?`:nick;
   showScreen('s-type-select');
 }
 // ── Session accordion toggle ──
@@ -1908,7 +1908,7 @@ function goLogTraining(){
     }
     wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_recentLogsSection();
   } else {
-    const _n=_nick(ST.athlete.name); title.textContent=_n!==ST.athlete.name?`${_n}, 오늘 잘 쳤어?`:_n;
+    const _n=_nick(ST.athlete.name); title.textContent=_n!==ST.athlete.name?`${_n}, 오늘 잘 짰어?`:_n;
     sub.textContent='';
     wrap.innerHTML=`
       <div class="type-grid">
@@ -4512,8 +4512,26 @@ function exportCSV(){
   a.download='trainlog_export.csv'; a.click();
 }
 function exportExcel(){
-  if(!window.XLSX){ showToast('Excel library not loaded yet — try again'); return; }
-  const d=getData();
+  if(!window.XLSX){ showToast('Excel 라이브러리 로딩 중 — 잠시 후 다시 시도하세요'); return; }
+
+  // ── 모든 선수 + shared 데이터를 합산 ──
+  const _ATHLETE_IDS=['a1','a2'];
+  const _allAthleteData=[];
+  _ATHLETE_IDS.forEach(aid=>{
+    try{ const raw=localStorage.getItem(getSK(aid)); if(raw){ _allAthleteData.push(JSON.parse(raw)); } }catch(e){}
+  });
+  // shared도 포함 (코치 직접 입력 데이터)
+  const _sharedData=getData();
+  _allAthleteData.push(_sharedData);
+
+  // 중복 없이 로그 합산 (id 기준)
+  const _seenIds=new Set();
+  const _allLogs=[];
+  _allAthleteData.forEach(d=>{ (d.logs||[]).forEach(l=>{ if(!_seenIds.has(l.id)){ _seenIds.add(l.id); _allLogs.push(l); } }); });
+  _allLogs.sort((a,b)=>a.date.localeCompare(b.date));
+
+  // shared의 나머지 데이터(선수목록 등)는 첫 번째 유효 데이터 사용
+  const d={..._sharedData, logs:_allLogs};
   const wb=XLSX.utils.book_new();
 
   // Helper: identify bulk-entry logs (source flag OR legacy notes marker)
@@ -4644,7 +4662,7 @@ function exportExcel(){
   // ── Sheet 5: Condition ───────────────────────────
   // Focus: wellness & readiness variables + individual body-part soreness columns
   const _ALL_PARTS=[...BODY_PARTS.upper,...BODY_PARTS.lower,...BODY_PARTS.core];
-  const condHdr=['Date','Athlete','Group','Fatigue (1-10)','Mood (1-10)','Sleep (hrs)','Sleep Quality (1-10)',..._ALL_PARTS.map(p=>`Soreness: ${p}`),'Notes'];
+  const condHdr=['날짜','선수','그룹','피로도 (1-10)','기분 (1-10)','수면 시간 (시간)','수면 질 (1-10)',..._ALL_PARTS.map(p=>`근육통: ${p}`),'메모'];
   const condRows=[condHdr];
   d.logs.filter(l=>l.type==='condition').forEach(l=>{
     const sMap={};
@@ -4683,7 +4701,7 @@ function exportExcel(){
     'Vertical Power':'Power (Vertical)','Horizontal Power':'Power (Horizontal)',
     'Reactive / Elastic':'Reactive / Elastic','Circuit':'Circuit'
   };
-  const wloadHdr=['Date','Athlete','Group','Phase','Week','Body Region','Category','Exercise','Sets','Reps','Load (kg)','Tonnage (kg)','Intensity (%)','Rest Time','Rest Unit','Rest Type'];
+  const wloadHdr=['날짜','선수','그룹','훈련 단계','주','훈련 유형','신체 부위','카테고리','운동명','세트','횟수','중량 (kg)','총 볼륨 (kg)','강도 (%)','RPE','메모'];
   const wloadRows=[wloadHdr];
   d.logs.filter(l=>l.type==='weight'&&!_isBulk(l)).forEach(l=>{
     (l.exercises||[]).forEach(e=>{
@@ -4691,11 +4709,12 @@ function exportExcel(){
       const sub=e.subCategory||'';
       wloadRows.push([
         l.date, l.athleteName, l.group||'', l.phase||'', l.week||'',
+        e.trainingType||'',
         _bodyRegion(sub),
         SUB_LABEL[sub]||sub||'–',
         e.name||'', e.sets||'', e.reps||'',
         e.weight||'', tonnage||'', e.intensity||'',
-        e.planRestTime||'', e.planRestUnit||'', (e.planRestType||[]).join('+')
+        l.rpe||'', l.notes||''
       ]);
     });
   });
@@ -4707,11 +4726,11 @@ function exportExcel(){
     if(dateCmp!==0) return dateCmp;
     const athCmp=String(a[1]).localeCompare(String(b[1]));
     if(athCmp!==0) return athCmp;
-    return (regionOrder[a[5]]??9)-(regionOrder[b[5]]??9);
+    return (regionOrder[a[6]]??9)-(regionOrder[b[6]]??9);
   });
   wloadRows.unshift(wlHdr);
   const wsWL=XLSX.utils.aoa_to_sheet(wloadRows);
-  wsWL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:16},{wch:22},{wch:28},{wch:6},{wch:6},{wch:10},{wch:14},{wch:12},{wch:10},{wch:10},{wch:14}];
+  wsWL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:22},{wch:16},{wch:22},{wch:28},{wch:6},{wch:6},{wch:10},{wch:14},{wch:12},{wch:8},{wch:30}];
   XLSX.utils.book_append_sheet(wb,wsWL,'Weight Load');
 
   // ── Sheet 7: Sprint Load ─────────────────────────
@@ -4725,20 +4744,22 @@ function exportExcel(){
     'Resistance Sprinting':'Resistance Sprinting',
     '스프린트 트레이닝':'스프린트 트레이닝'
   };
-  const sloadHdr=['Date','Athlete','Group','Phase','Week','Sprint Category','Sprint Name','Distance (m)','Sets','Reps','Total Distance (m)','Intensity (%)','Rest Time','Rest Unit','Rest Type'];
+  const sloadHdr=['날짜','선수','그룹','훈련 단계','주','카테고리','스프린트 종목','거리 (m)','세트','횟수','총 거리 (m)','강도 (%)','목표 기록 (초)','실제 기록 (초)','휴식 (분)','Effort','RPE','메모'];
   const sloadRows=[sloadHdr];
-  // ── Proper sprint logs ──
+  // ── 스프린트 로그 ──
   d.logs.filter(l=>l.type==='sprint'&&!_isBulk(l)).forEach(l=>{
     (l.sets||[]).forEach(s=>{
-      const cat=s.subCategory||l.sprintType||'스프린트 트레이닝';
+      const cat=l.sprintType||s.subCategory||'스프린트 트레이닝';
       const totalDist=(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1);
       sloadRows.push([
         l.date, l.athleteName, l.group||'', l.phase||'', l.week||'',
-        SPRINT_CAT_LABEL[cat]||cat,
+        cat,
         s.name||l.sprintType||'–',
         s.distance||'', s.sets||'', s.reps||'',
         totalDist||'', s.intensity||'',
-        s.planRestTime||'', s.planRestUnit||'', (s.planRestType||[]).join('+')
+        s.targetTime||'', s.actualTime||'',
+        s.restMin||'',
+        s.effort||'', l.rpe||'', l.notes||''
       ]);
     });
   });
@@ -4753,7 +4774,8 @@ function exportExcel(){
         e.name||'–',
         e.distance||'', e.sets||'', e.reps||'',
         totalDist||'', e.intensity||'',
-        e.planRestTime||'', e.planRestUnit||'', (e.planRestType||[]).join('+')
+        '','','',
+        '', l.rpe||'', l.notes||''
       ]);
     });
   });
@@ -4769,12 +4791,12 @@ function exportExcel(){
   });
   sloadRows.unshift(slHdr);
   const wsSL=XLSX.utils.aoa_to_sheet(sloadRows);
-  wsSL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:28},{wch:20},{wch:12},{wch:6},{wch:6},{wch:16},{wch:12},{wch:10},{wch:10},{wch:14}];
+  wsSL['!cols']=[{wch:12},{wch:18},{wch:8},{wch:10},{wch:6},{wch:22},{wch:20},{wch:12},{wch:6},{wch:6},{wch:16},{wch:12},{wch:14},{wch:14},{wch:10},{wch:8},{wch:8},{wch:30}];
   XLSX.utils.book_append_sheet(wb,wsSL,'Sprint Load');
 
   // ── Download ─────────────────────────────────────
   XLSX.writeFile(wb,`TrainLog_${todayStr()}.xlsx`);
-  showToast('Excel exported ✓  (7 sheets: Sprint Times · Weight PVF · Tabata · Circuit · Condition · Weight Load · Sprint Load)');
+  showToast('✅ Excel 내보내기 완료 (7 시트: 스프린트 타임 · 웨이트 PVF · 타바타 · 서킷 · 컨디션 · 웨이트 부하 · 스프린트 부하)');
 }
 
 function clearAllData(){
