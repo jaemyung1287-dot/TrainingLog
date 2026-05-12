@@ -326,7 +326,7 @@ if ('serviceWorker' in navigator) {
 <!-- COACH DASHBOARD -->
 <div id="s-coach-dashboard" class="screen">
   <div class="hdr">
-    <button class="back" onclick="goHome()">← 홈</button>
+    <button class="back" onclick="window._currentAthleteId?showScreen('s-athlete-menu'):goHome()">← 뒤로</button>
     <span class="logo">📊 데이터 대시보드</span>
   </div>
   <div class="ttl">선수 현황</div>
@@ -7179,17 +7179,28 @@ async function renderCoachDashboard(){
   
   for(const ath of athletes){
     let d = null;
+    let localD = null, cloudD = null;
+
+    // localStorage 먼저 읽기 (같은 기기에서는 항상 최신)
+    try {
+      localD = JSON.parse(localStorage.getItem(getSK(ath.id)));
+    } catch(e){}
+
+    // Firebase도 시도
     try {
       const snap = await getCloudDoc(ath.id).get();
-      if(snap.exists){ d = snap.data(); }
+      if(snap.exists){ cloudD = snap.data(); }
     } catch(e){}
-    
-    if(!d){
-      try {
-        d = JSON.parse(localStorage.getItem(getSK(ath.id)));
-      } catch(e){}
+
+    // logs 수가 더 많은 쪽 사용 (최신 데이터 우선)
+    if(localD && cloudD){
+      const lc = (localD.logs||[]).length;
+      const cc = (cloudD.logs||[]).length;
+      d = lc >= cc ? localD : cloudD;
+    } else {
+      d = localD || cloudD;
     }
-    
+
     if(!d){ d = {logs:[], records:[]}; }
     
     const logs = d.logs || [];
