@@ -462,7 +462,7 @@ if ('serviceWorker' in navigator) {
 <div id="s-program" class="screen">
   <div class="hdr">
     <button class="back" onclick="showScreen('s-athlete-menu')">← 뒤로</button>
-    <span class="logo">📅 Weekly Plan</span>
+    <span class="logo">📅 주간 계획</span>
   </div>
   <div class="ttl" id="prog-title">이번 주</div>
   <div class="sub" id="prog-sub" style="margin-bottom:16px"></div>
@@ -475,7 +475,7 @@ if ('serviceWorker' in navigator) {
     <button class="back" onclick="showScreen('s-athlete-menu')">← 뒤로</button>
     <span class="logo">📝 훈련 기록</span>
   </div>
-  <div class="ttl" id="log-sess-title">Today's Training</div>
+  <div class="ttl" id="log-sess-title">오늘의 훈련</div>
   <div class="sub" id="log-sess-sub"></div>
   <div id="log-sess-area" style="margin-top:8px"></div>
 </div>
@@ -511,7 +511,7 @@ if ('serviceWorker' in navigator) {
     <span class="logo" id="w-screen-logo">🏋️ 웨이트</span>
   </div>
   <div class="ttl" id="w-screen-title">웨이트 트레이닝</div>
-  <div id="w-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ Editing · Bearbeitung — saving will update this log</div>
+  <div id="w-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ 수정 중 — 저장하면 기록이 업데이트돼요</div>
   <div id="w-progress-bar" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
       <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Progress · Fortschritt</span>
@@ -523,17 +523,17 @@ if ('serviceWorker' in navigator) {
   </div>
   <div id="w-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.25);font-size:12px;color:var(--gold)"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-    <div class="fg" style="margin:0"><label class="fl">Phase</label><input class="fi" id="w-phase" placeholder="e.g. GPP1" readonly></div>
+    <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="w-phase" placeholder="예: GPP1" readonly></div>
     <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="w-week" placeholder="e.g. 3" readonly></div>
   </div>
   <div id="w-warmup-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(247,169,79,.07);border:1px solid rgba(247,169,79,.25)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 Warm-up</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 워밍업</div>
     <div id="w-warmup-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
   </div>
   <div id="exercise-list"></div>
-  <div id="w-add-ex-btn" style="display:none"><button class="btn btn-s" onclick="addExercise()" style="border-style:dashed;margin-bottom:16px">+ Add Exercise</button></div>
+  <div id="w-add-ex-btn" style="display:none"><button class="btn btn-s" onclick="addExercise()" style="border-style:dashed;margin-bottom:16px">+ 운동 추가</button></div>
   <div id="w-conditioning-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(224,123,57,.07);border:1px solid rgba(224,123,57,.25)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🌀 Conditioning</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🌀 컨디셔닝</div>
     <div id="w-conditioning-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
   </div>
   <div id="w-cooldown-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.25)">
@@ -549,9 +549,9 @@ if ('serviceWorker' in navigator) {
   </div>
   <div class="fg">
     <label class="fl">메모 (선택사항)</label>
-    <textarea class="fi" id="weight-notes" placeholder="Any remarks..."></textarea>
+    <textarea class="fi" id="weight-notes" placeholder="메모..."></textarea>
   </div>
-  <button class="btn btn-g" onclick="saveWeight()">Save →</button>
+  <button class="btn btn-g" onclick="saveWeight()">저장 →</button>
 </div>
 
 <!-- SPRINT FORM -->
@@ -561,7 +561,7 @@ if ('serviceWorker' in navigator) {
     <span class="logo">⚡ 스프린트</span>
   </div>
   <div class="ttl">스프린트 트레이닝</div>
-  <div id="sp-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ Editing · Bearbeitung — saving will update this log</div>
+  <div id="sp-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:12px;color:#e94560;font-weight:700">✏️ 수정 중 — 저장하면 기록이 업데이트돼요</div>
   <div id="sp-progress-bar" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
       <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Progress · Fortschritt</span>
@@ -573,7 +573,7 @@ if ('serviceWorker' in navigator) {
   </div>
   <div id="sp-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.25);font-size:12px;color:#3ecf8e"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-    <div class="fg" style="margin:0"><label class="fl">Phase</label><input class="fi" id="sp-phase" placeholder="e.g. Mesocycle 1"></div>
+    <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="sp-phase" placeholder="예: Mesocycle 1"></div>
     <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="sp-week" placeholder="e.g. 5.11~5.15"></div>
   </div>
   <div id="sprint-sets-list"></div>
@@ -589,7 +589,7 @@ if ('serviceWorker' in navigator) {
     <label class="fl">메모 (선택사항)</label>
     <textarea class="fi" id="sprint-notes" placeholder="How did it feel?"></textarea>
   </div>
-  <button class="btn btn-g" onclick="saveSprint()">Save →</button>
+  <button class="btn btn-g" onclick="saveSprint()">저장 →</button>
 </div>
 
 <!-- RECORD FORM (Coach enters for athlete) -->
@@ -598,7 +598,7 @@ if ('serviceWorker' in navigator) {
     <button class="back" onclick="backFromRecord()">← 뒤로</button>
     <span class="logo">🏅 Record</span>
   </div>
-  <div class="ttl">Add Record <span style="font-size:18px;color:var(--muted)">· Bestzeit</span></div>
+  <div class="ttl">기록 추가</div>
   <div class="sub" id="rec-athlete-sub" style="color:var(--gold);font-weight:700">For: —</div>
 
   <!-- Type selection -->
@@ -689,44 +689,44 @@ if ('serviceWorker' in navigator) {
 <div id="s-athlete-stats" class="screen">
   <div class="hdr">
     <button class="back" onclick="showScreen('s-athlete-menu')">← 뒤로</button>
-    <span class="logo">📈 My Data</span>
+    <span class="logo">📈 내 데이터</span>
   </div>
-  <div class="ttl" id="astats-name">My Stats</div>
-  <div class="sub">Last 14 days</div>
+  <div class="ttl" id="astats-name">내 통계</div>
+  <div class="sub">최근 14일</div>
   <!-- vol-split-summary removed -->
   <div class="chart-box">
-    <div class="chart-title">🏋️ Power Development Volume (kg)</div>
+    <div class="chart-title">🏋️ 파워 개발 볼륨 (kg)</div>
     <canvas id="chart-my-upper"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">💪 Resistance Training Volume (kg)</div>
+    <div class="chart-title">💪 웨이트 트레이닝 볼륨 (kg)</div>
     <canvas id="chart-my-lower"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">⚡ 스프린트 Distance (m)</div>
+    <div class="chart-title">⚡ 스프린트 거리 (m)</div>
     <canvas id="chart-my-sprint"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">🦘 Plyometric Volume (reps + contacts)</div>
+    <div class="chart-title">🦘 플라이오 볼륨</div>
     <canvas id="chart-my-plyo"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">😩 Fatigue · 😊 Mood · 😴 Sleep Quality</div>
+    <div class="chart-title">😩 피로도 · 😊 기분 · 😴 수면 질</div>
     <canvas id="chart-my-condition"></canvas>
   </div>
   
   <div class="sec-ttl" style="margin-top:20px">🔴 근육통 기록</div>
   <div id="my-soreness-list"></div>
 
-  <div class="sec-ttl" style="margin-top:20px">🏅 My Records</div>
+  <div class="sec-ttl" style="margin-top:20px">🏅 내 기록</div>
   <div id="my-records-list"></div>
 </div>
 
 <!-- COACH DASHBOARD -->
 <div id="s-coach" class="screen" style="padding-bottom:90px">
   <div class="hdr">
-    <button class="back" onclick="goHome()">← Home</button>
-    <span class="logo">📊 Coach</span>
+    <button class="back" onclick="goHome()">← 홈</button>
+    <span class="logo">📊 코치</span>
   </div>
 
   <!-- TODAY -->
@@ -734,7 +734,7 @@ if ('serviceWorker' in navigator) {
     <div class="ttl" style="font-size:22px" id="coach-date-ttl"></div>
     <div class="sub">Team overview</div>
     <div class="stats-grid" id="today-stats-grid"></div>
-    <div class="sec-ttl">Team Condition Today</div>
+    <div class="sec-ttl">오늘 팀 컨디션</div>
     <div id="today-condition-bars"></div>
     <div class="sec-ttl">컨디션 기록 완료</div>
     <div id="today-cond-list"></div>
@@ -761,13 +761,13 @@ if ('serviceWorker' in navigator) {
       <button class="period-btn" onclick="setPeriod('month',this)">30 Days</button>
       <button class="period-btn" onclick="setPeriod('year',this)">1 Year</button>
     </div>
-    <div class="chart-box"><div class="chart-title">🏋️ Power Development Volume (kg)</div><canvas id="chart-load-power"></canvas></div>
-    <div class="chart-box"><div class="chart-title">💪 Resistance Training Volume (kg)</div><canvas id="chart-load-resistance"></canvas></div>
-    <div class="chart-box"><div class="chart-title">⚡ 스프린트 Distance (m)</div><canvas id="chart-load-sprint"></canvas></div>
-    <div class="chart-box"><div class="chart-title">🦘 Plyometric Volume (reps + contacts)</div><canvas id="chart-load-plyo"></canvas></div>
+    <div class="chart-box"><div class="chart-title">🏋️ 파워 개발 볼륨 (kg)</div><canvas id="chart-load-power"></canvas></div>
+    <div class="chart-box"><div class="chart-title">💪 웨이트 트레이닝 볼륨 (kg)</div><canvas id="chart-load-resistance"></canvas></div>
+    <div class="chart-box"><div class="chart-title">⚡ 스프린트 거리 (m)</div><canvas id="chart-load-sprint"></canvas></div>
+    <div class="chart-box"><div class="chart-title">🦘 플라이오 볼륨</div><canvas id="chart-load-plyo"></canvas></div>
     <!-- Condition: single athlete → combined 3-line chart -->
     <div id="load-cond-single" class="chart-box" style="display:none">
-      <div class="chart-title">😩 Fatigue · 😊 Mood · 😴 Sleep Quality</div>
+      <div class="chart-title">😩 피로도 · 😊 기분 · 😴 수면 질</div>
       <canvas id="chart-load-condition"></canvas>
     </div>
     <!-- Condition: all athletes → 3 separate dot charts -->
@@ -794,18 +794,18 @@ if ('serviceWorker' in navigator) {
       <button class="toggle-btn" id="prog-grp-b" onclick="switchProgGroup('B')">B그룹</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="fg" style="margin:0"><label class="fl">Phase</label><input class="fi" id="prog-phase-input" placeholder="e.g. Mesocycle 1" oninput="saveProgramMeta()"></div>
+      <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="prog-phase-input" placeholder="예: Mesocycle 1" oninput="saveProgramMeta()"></div>
       <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="prog-week-input" placeholder="e.g. 5.11~5.15" oninput="saveProgramMeta()"></div>
     </div>
-    <div class="sec-ttl">Plan Images · Trainingsbilder</div>
+    <div class="sec-ttl">훈련 계획 이미지</div>
     <div class="prog-img-tabs" id="prog-img-tab-row">
-      <button class="prog-img-tab on" onclick="switchProgImgTab('micro',this)">Microcycle</button>
-      <button class="prog-img-tab" onclick="switchProgImgTab('meso',this)">Mesocycle</button>
-      <button class="prog-img-tab" onclick="switchProgImgTab('macro',this)">Macrocycle</button>
+      <button class="prog-img-tab on" onclick="switchProgImgTab('micro',this)">마이크로</button>
+      <button class="prog-img-tab" onclick="switchProgImgTab('meso',this)">메조</button>
+      <button class="prog-img-tab" onclick="switchProgImgTab('macro',this)">매크로</button>
     </div>
     <div id="prog-img-mgmt"></div>
     <input type="file" id="prog-img-file" accept="image/*" style="display:none" onchange="handleProgImg(this)">
-    <div class="sec-ttl">Weekly Schedule · Wochenplan</div>
+    <div class="sec-ttl">주간 스케줄</div>
     <div id="prog-days-mgmt"></div>
   </div>
 
@@ -894,7 +894,7 @@ if ('serviceWorker' in navigator) {
   <!-- Date + Phase/Week -->
   <div class="fg" style="margin:0 0 10px"><label class="fl">날짜</label><input class="fi" id="bulk-date" type="date"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-    <div class="fg" style="margin:0"><label class="fl">Phase</label><input class="fi" id="bulk-phase" placeholder="e.g. GPP"></div>
+    <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="bulk-phase" placeholder="예: GPP"></div>
     <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="bulk-week" placeholder="e.g. 3"></div>
   </div>
 
@@ -1025,7 +1025,7 @@ if ('serviceWorker' in navigator) {
 
   <!-- Phase / Week -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-    <div class="fg" style="margin:0"><label class="fl">Phase</label><input class="fi" id="sp-plan-phase" placeholder="e.g. GPP1"></div>
+    <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="sp-plan-phase" placeholder="예: GPP1"></div>
     <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="sp-plan-week" placeholder="e.g. 3"></div>
   </div>
 
@@ -1052,7 +1052,7 @@ if ('serviceWorker' in navigator) {
   <button class="tb" id="tb-bulk" onclick="goBulkEntry()"><span class="ti">⚡</span>Bulk</button>
   <button class="tb" id="tb-phv" onclick="goPHV()"><span class="ti">📏</span>PHV</button>
   <button class="tb" id="tb-athletes" onclick="switchTab('athletes',this)"><span class="ti">👥</span>Athletes</button>
-  <button class="tb" id="tb-settings" onclick="switchTab('settings',this)"><span class="ti">⚙️</span>Settings</button>
+  <button class="tb" id="tb-settings" onclick="switchTab('settings',this)"><span class="ti">⚙️</span>설정</button>
 </div><!-- /coach-tabbar -->
 
 <!-- TABATA SCREEN -->
@@ -1663,7 +1663,7 @@ function _applyDoneStyle(card, done){
     doneBtn.style.border=`1.5px solid ${done?'#3ecf8e':'rgba(255,255,255,.15)'}`;
     doneBtn.style.background=done?'rgba(62,207,142,.12)':'transparent';
     doneBtn.style.color=done?'#3ecf8e':'var(--muted)';
-    doneBtn.textContent=done?'✅ Done':'○ Mark as Done';
+    doneBtn.textContent=done?'✅ 완료':'○ 완료 표시';
   }
   const nameEl=card.querySelector('._ex-name-done');
   if(nameEl){ nameEl.style.textDecoration=done?'line-through':''; nameEl.style.opacity=done?'.5':'1'; }
@@ -1742,7 +1742,7 @@ function goLogTraining(){
   const title=document.getElementById('log-sess-title');
   const sub=document.getElementById('log-sess-sub');
   if(hasPlan){
-    title.textContent='Today\'s Sessions';
+    title.textContent='오늘의 세션';
     sub.textContent=plan?.phase?`${plan.phase}${plan.week?' · Week '+plan.week:''}`:'';
     function _condCard(sess,condText){
       if(!condText) return '';
@@ -1752,7 +1752,7 @@ function goLogTraining(){
           <span style="font-size:22px">🌀</span>
           <div style="flex:1">
             <div style="font-size:13px;color:var(--muted);margin-bottom:2px">${label}</div>
-            <div style="font-size:15px;font-weight:700;color:#E07B39">Conditioning Session</div>
+            <div style="font-size:15px;font-weight:700;color:#E07B39">컨디셔닝 세션</div>
           </div>
         </div>
         <div style="padding:0 16px 14px;font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.5">${condText}</div>
@@ -2130,6 +2130,7 @@ function _renderAthRecentLogs(targetId){
   const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s'};
   const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡'};
   const typeLabel={weight:'웨이트 트레이닝',plyo:'플라이오 트레이닝',sprint:'스프린트 트레이닝'};
+  const typeKo={weight:'웨이트',plyo:'플라이오',sprint:'스프린트',condition:'컨디션'};
   const grp=ST.athlete.group;
   const today=todayStr();
   const last14=getLast(14);
@@ -2204,14 +2205,14 @@ function _renderAthRecentLogs(targetId){
       }
       html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
         <div class="detail-row">
-          <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span>
+          <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· 오늘</span>':''}</span>
           <div style="display:flex;align-items:center;gap:6px">
-            <span class="badge ${typeBadge[l.type]}">${l.type}</span>
-            <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
-            <button onclick="_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete</button>
+            <span class="badge ${typeBadge[l.type]}">${typeKo[l.type]||l.type}</span>
+            <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ 수정</button>
+            <button onclick="_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 삭제</button>
           </div>
         </div>
-        <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
+        <div class="detail-row"><span class="detail-key">결과</span><span class="detail-val">${stat}</span></div>
         ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
       </div>`;
     });
@@ -2222,10 +2223,10 @@ function _renderAthRecentLogs(targetId){
         if(!loggedTypes.has(t)){
           html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(247,169,79,.5)">
             <div class="detail-row">
-              <span style="font-size:12px;color:var(--muted)">${ds} <span style="color:#f7a94f;font-weight:700">· Today</span></span>
-              <span style="font-size:11px;font-weight:700;color:#f7a94f;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.3);padding:3px 8px;border-radius:6px">⏳ Not yet</span>
+              <span style="font-size:12px;color:var(--muted)">${ds} <span style="color:#f7a94f;font-weight:700">· 오늘</span></span>
+              <span style="font-size:11px;font-weight:700;color:#f7a94f;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.3);padding:3px 8px;border-radius:6px">⏳ 미완료</span>
             </div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px">${typeEmoji[t]} ${typeLabel[t]} not logged yet · Noch nicht eingetragen</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">${typeEmoji[t]} ${typeLabel[t]} 아직 기록 없음</div>
           </div>`;
         }
       });
@@ -2606,7 +2607,7 @@ function renderExList(){
     const doneHtml=`<div style="display:flex;justify-content:flex-end;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
       <button class="_ex-done-btn" onclick="_toggleExDone(${i})"
         style="padding:7px 16px;border-radius:10px;border:1.5px solid ${ex.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${ex.done?'rgba(62,207,142,.12)':'transparent'};color:${ex.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-        ${ex.done?'✅ Done':'○ Mark as Done'}
+        ${ex.done?'✅ 완료':'○ 완료 표시'}
       </button>
     </div>`;
     div.innerHTML=`<div class="ex-top">${headerHtml}</div>${paramsHtml}${vbtHtml}${effortHtml}${doneHtml}`;
@@ -2633,7 +2634,7 @@ function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exer
 
 function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 'confirmed'
   const allExs=ST.exercises.filter(e=>e.name&&e.name.trim());
-  if(!allExs.length){ showToast('Add at least one exercise'); return; }
+  if(!allExs.length){ showToast('운동을 하나 이상 추가하세요'); return; }
 
   // Pre-save confirmation (first call only, not in edit mode)
   if(!dupMode && !ST.editingLogId){
@@ -2910,7 +2911,7 @@ function renderSprintSets(){
       <div style="display:flex;justify-content:flex-end;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
         <button class="_ex-done-btn" onclick="_toggleSprintDone(${i})"
           style="padding:7px 16px;border-radius:10px;border:1.5px solid ${s.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${s.done?'rgba(62,207,142,.12)':'transparent'};color:${s.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${s.done?'✅ Done':'○ Mark as Done'}
+          ${s.done?'✅ 완료':'○ 완료 표시'}
         </button>
       </div>`;
     wrap.appendChild(div);
@@ -2932,7 +2933,7 @@ function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length
 
 function saveSprint(dupMode){
   const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0);
-  if(!sets.length){ showToast('Enter at least one distance'); return; }
+  if(!sets.length){ showToast('거리를 하나 이상 입력하세요'); return; }
   const totalDist=sets.reduce((sum,s)=>sum+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
 
   // Pre-save confirmation (first call only, not in edit mode)
@@ -2981,7 +2982,7 @@ function saveSprint(dupMode){
     notes:document.getElementById('sprint-notes').value
   };
   d.logs.push(log); saveData(d);
-  document.getElementById('success-msg').textContent=`스프린트 트레이닝 saved! Total: ${Math.round(totalDist).toLocaleString()} m ⚡`;
+  document.getElementById('success-msg').textContent=`스프린트 트레이닝 저장! 총 거리: ${Math.round(totalDist).toLocaleString()} m ⚡`;
   _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
 }
@@ -2998,12 +2999,12 @@ function renderProgram(){
   const monday=new Date(now); monday.setDate(now.getDate()-(dow===0?6:dow-1));
   const sunday=new Date(monday); sunday.setDate(monday.getDate()+6);
   const fmtShort=dt=>`${dt.toLocaleString('en',{month:'short'})} ${dt.getDate()}`;
-  document.getElementById('prog-title').textContent='Weekly Plan · Wochenplan';
+  document.getElementById('prog-title').textContent='주간 계획';
   document.getElementById('prog-sub').textContent=`${fmtShort(monday)} – ${fmtShort(sunday)}, ${sunday.getFullYear()}`;
 
   const wrap=document.getElementById('prog-content'); wrap.innerHTML='';
-  const dayNamesEN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const dayNamesDE_W=['Mo','Di','Mi','Do','Fr','Sa','So'];
+  const dayNamesEN=['월','화','수','목','금','토','일'];
+  const dayNamesDE_W=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
   // Helper: get exercises from a session block (with backward compat)
   function _wExs(gd,s){
@@ -3082,23 +3083,23 @@ function renderProgram(){
     card.innerHTML=`
     <div onclick="_toggleProgDay('${ds}')" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
       <div style="display:flex;align-items:baseline;gap:8px;flex:1;min-width:0">
-        <span style="font-size:14px;font-weight:800;color:${isToday?'var(--blue)':'var(--text)'}">${dayNamesDE_W[i]} · ${dayNamesEN[i]}</span>
+        <span style="font-size:14px;font-weight:800;color:${isToday?'var(--blue)':'var(--text)'}">${dayNamesEN[i]} · ${dayNamesDE_W[i]}</span>
         <span style="font-size:12px;color:var(--muted)">${day.getDate()}.${day.getMonth()+1}.</span>
-        ${isToday?'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(79,142,247,.2);color:var(--blue);letter-spacing:.5px">TODAY</span>':''}
+        ${isToday?'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(79,142,247,.2);color:var(--blue);letter-spacing:.5px">오늘</span>':''}
         ${!isOpen&&hasPlan?`<span style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${summaryText}</span>`:''}
       </div>
       <span id="prog-chev-${ds}" style="color:var(--muted);font-size:13px;transition:transform .25s ease;flex-shrink:0;margin-left:8px;transform:${isOpen?'rotate(180deg)':'rotate(0deg)'}">▾</span>
     </div>
     <div id="prog-body-${ds}" style="overflow:hidden;transition:max-height .28s ease;max-height:${isOpen?'2000px':'0px'}">
       ${!hasPlan
-        ?`<div style="padding:6px 14px 12px;font-size:13px;color:rgba(255,255,255,.2)">Rest Day · Ruhetag</div>`
+        ?`<div style="padding:6px 14px 12px;font-size:13px;color:rgba(255,255,255,.2)">휴식일</div>`
         :_sessBlock(amExs,amSd,'🌅 AM','#f7a94f')+_sessBlock(pmExs,pmSd,'🌇 PM','#a78bfa')
       }
     </div>`;
     wrap.appendChild(card);
   }
   if(!hasAnyPlan){
-    wrap.innerHTML='<div class="empty"><div class="ei">📅</div>No plan for this week yet.<br><span style="color:var(--muted);font-size:13px">Kein Wochenplan vorhanden</span></div>';
+    wrap.innerHTML='<div class="empty"><div class="ei">📅</div>이번 주 계획이 없어요.<br><span style="color:var(--muted);font-size:13px">코치에게 문의하세요</span></div>';
   }
 }
 
@@ -3117,11 +3118,11 @@ function _exVolSplit(logs){
       total+=vol;
     });
   });
-  // Aggregate by main category: Power Development vs Resistance Training
+  // Aggregate by main category: Power Development vs everything else (Resistance + uncategorized)
   let liftingVol=0, weightVol=0;
   Object.entries(byType).forEach(([k,v])=>{
     if(k.startsWith('Power Development')) liftingVol+=v;
-    else if(k.startsWith('Resistance Training')) weightVol+=v;
+    else weightVol+=v; // Resistance Training + 미분류 운동 모두 포함
   });
   return {lifting:Math.round(liftingVol), weight:Math.round(weightVol), total:Math.round(total), byType};
 }
@@ -3147,14 +3148,14 @@ function renderAthStats(){
   const mood=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].mood:null; });
   const slp=dates.map(dt=>{ const c=myLogs.filter(l=>l.type==='condition'&&l.date===dt); return c.length?c[c.length-1].sleepQuality:null; });
 
-  mkChart('chart-my-upper',[{label:'Power Development (kg)',data:liftingVol,type:'bar',backgroundColor:'rgba(255,179,71,.75)'}],labels);
-  mkChart('chart-my-lower',[{label:'Resistance Training (kg)',data:weightVol,type:'bar',backgroundColor:'rgba(74,158,255,.75)'}],labels);
-  mkChart('chart-my-sprint',[{label:'Distance (m)',data:sDist,type:'bar',backgroundColor:'rgba(62,207,142,.7)'}],labels);
-  mkChart('chart-my-plyo',[{label:'Reps + Contacts',data:plyoVol,type:'bar',backgroundColor:'rgba(167,139,250,.75)'}],labels);
+  mkChart('chart-my-upper',[{label:'파워 개발 (kg)',data:liftingVol,type:'bar',backgroundColor:'rgba(255,179,71,.75)'}],labels);
+  mkChart('chart-my-lower',[{label:'웨이트 트레이닝 (kg)',data:weightVol,type:'bar',backgroundColor:'rgba(74,158,255,.75)'}],labels);
+  mkChart('chart-my-sprint',[{label:'거리 (m)',data:sDist,type:'bar',backgroundColor:'rgba(62,207,142,.7)'}],labels);
+  mkChart('chart-my-plyo',[{label:'횟수 + 접촉',data:plyoVol,type:'bar',backgroundColor:'rgba(167,139,250,.75)'}],labels);
   mkChart('chart-my-condition',[
-    {label:'Fatigue',data:fat,borderColor:'#e94560',backgroundColor:'#e94560',tension:.4,pointRadius:5,pointStyle:'circle'},
-    {label:'Mood',data:mood,borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'},
-    {label:'Sleep Q',data:slp,borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
+    {label:'피로도',data:fat,borderColor:'#e94560',backgroundColor:'#e94560',tension:.4,pointRadius:5,pointStyle:'circle'},
+    {label:'기분',data:mood,borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'},
+    {label:'수면 질',data:slp,borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
   ],labels);
   renderMyRecords();
 
@@ -3203,7 +3204,7 @@ function handlePin(k){
 function updatePinDots(){ for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<ST.pinBuf.length); }
 function checkPin(){
   if(ST.pinBuf===(getData().settings.pin||'1234')) goCoachDashboard();
-  else{ document.getElementById('pin-error').textContent='Incorrect PIN'; ST.pinBuf=''; updatePinDots(); }
+  else{ document.getElementById('pin-error').textContent='PIN이 올바르지 않습니다'; ST.pinBuf=''; updatePinDots(); }
 }
 
 
@@ -3230,7 +3231,7 @@ function handleAthPin(k){
 function updateAthPinDots(){ for(let i=0;i<4;i++) document.getElementById('apd'+i).classList.toggle('filled',i<ST.athPinBuf.length); }
 function checkAthPin(){
   if(ST.athPinBuf===ST.athlete.pin){ ST.athPinBuf=''; _enterAthleteMenu(); }
-  else{ document.getElementById('ath-pin-error').textContent='Incorrect PIN'; ST.athPinBuf=''; updateAthPinDots(); }
+  else{ document.getElementById('ath-pin-error').textContent='PIN이 올바르지 않습니다'; ST.athPinBuf=''; updateAthPinDots(); }
 }
 
 // ════════════════════════════════════════════════
@@ -3308,7 +3309,7 @@ function renderToday(){
   };
   const _logCard=(l)=>{
     const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':'b-w';
-    const badgeText=l.type==='sprint'?'sprint':l.type==='plyo'?'plyo':'weight';
+    const badgeText=l.type==='sprint'?'스프린트':l.type==='plyo'?'플라이오':'웨이트';
     let statsHtml='';
     if(l.type==='sprint'){
       statsHtml=`<div class="detail-row"><span class="detail-key">거리</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`;
@@ -3336,7 +3337,7 @@ function renderToday(){
       ${_effortRow(l)}
     </div>`;
   };
-  tlw.innerHTML=tr.length?tr.map(_logCard).join(''):'<div class="empty" style="padding:12px 0">No training logged today</div>';
+  tlw.innerHTML=tr.length?tr.map(_logCard).join(''):'<div class="empty" style="padding:12px 0">오늘 훈련 기록 없음</div>';
 
   // ── Not logged today ──
   const trainedNames=new Set(tr.map(l=>l.athleteName));
@@ -3380,11 +3381,11 @@ function renderToday(){
 
   const clw=document.getElementById('today-cond-list');
   clw.innerHTML=cl.length?cl.map(l=>`<div class="detail-card">
-    <div class="detail-row"><span class="detail-key" style="font-weight:700">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge b-c">Condition</span>${_delBtn(l.id,'today')}</div></div>
+    <div class="detail-row"><span class="detail-key" style="font-weight:700">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge b-c">컨디션</span>${_delBtn(l.id,'today')}</div></div>
     <div class="detail-row"><span class="detail-key">수면</span><span class="detail-val">${l.sleepHours}h · Q:${l.sleepQuality}</span></div>
-    <div class="detail-row"><span class="detail-key">Fatigue / Mood</span><span class="detail-val">${l.fatigue} / ${l.mood}</span></div>
+    <div class="detail-row"><span class="detail-key">피로도 / 기분</span><span class="detail-val">${l.fatigue} / ${l.mood}</span></div>
     ${l.soreness&&l.soreness.length?`<div class="detail-row"><span class="detail-key">근육통</span><span class="detail-val" style="font-size:11px;text-align:right">${l.soreness.map(s=>s.part+'('+s.intensity+')').join(', ')}</span></div>`:''}
-  </div>`).join(''):'<div class="empty" style="padding:12px 0">No morning check yet</div>';
+  </div>`).join(''):'<div class="empty" style="padding:12px 0">오늘 컨디션 기록 없음</div>';
 }
 function cBar(lbl,val,max,color){
   const pct=Math.round(val/max*100);
@@ -3551,7 +3552,7 @@ function openAthDetail(name){
       <div class="ath-detail-meta" style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px">
         <span>Group ${ath.group}</span>${age?`<span style="color:var(--border)">·</span><span>${age}y</span>`:''}${genderStr?`<span style="color:var(--border)">·</span><span>${genderStr}</span>`:''}${ath.dob?`<span style="color:var(--border)">·</span><span style="font-size:11px">${ath.dob}</span>`:''}${phvBadge}
       </div>
-      <button onclick="goCoachRecord()" style="margin-top:14px;padding:10px 22px;border-radius:var(--r);border:none;background:linear-gradient(135deg,var(--gold),#8a7040);color:#0d1117;font-size:13px;font-weight:800;cursor:pointer">＋ Add Record · Bestzeit</button>
+      <button onclick="goCoachRecord()" style="margin-top:14px;padding:10px 22px;border-radius:var(--r);border:none;background:linear-gradient(135deg,var(--gold),#8a7040);color:#0d1117;font-size:13px;font-weight:800;cursor:pointer">＋ 기록 추가</button>
     </div>`;
 
   // ── Performance section ──
@@ -3563,12 +3564,13 @@ function openAthDetail(name){
   const recent=d.logs.filter(l=>l.athleteName===name).slice(-20).reverse();
   const _dBtn=(id)=>`<button onclick="deleteLog('${id}','detail')" style="padding:3px 8px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
   const _eBtn=(id)=>{const l=d.logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="_editLog('${id}')" style="padding:3px 8px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';}
+  const _typeKo={weight:'웨이트',sprint:'스프린트',plyo:'플라이오',condition:'컨디션',tabata:'타바타',circuit:'서킷'};
   document.getElementById('detail-logs').innerHTML=recent.length?recent.map(l=>`<div class="detail-card">
-    <div class="detail-row"><span class="detail-key">${l.date}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':'b-c'}">${l.type}</span>${_eBtn(l.id)}${_dBtn(l.id)}</div></div>
-    ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">볼륨</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">Exercises</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>e.name).join(', ')}</span></div>`:''}
-    ${l.type==='sprint'?`<div class="detail-row"><span class="detail-key">Type</span><span class="detail-val">${l.sprintType||''}</span></div><div class="detail-row"><span class="detail-key">Total Dist</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`:''}
-    ${l.type==='tabata'?`<div class="detail-row"><span class="detail-key">Completed</span><span class="detail-val">${l.completedRounds??'—'}/8 rounds</span></div>`:''}
-    ${l.type==='condition'?`<div class="detail-row"><span class="detail-key">수면</span><span class="detail-val">${l.sleepHours}h · Q:${l.sleepQuality}</span></div><div class="detail-row"><span class="detail-key">Fatigue/Mood</span><span class="detail-val">${l.fatigue}/${l.mood}</span></div>`:''}
+    <div class="detail-row"><span class="detail-key">${l.date}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':'b-c'}">${_typeKo[l.type]||l.type}</span>${_eBtn(l.id)}${_dBtn(l.id)}</div></div>
+    ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">볼륨</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">운동</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>e.name).join(', ')}</span></div>`:''}
+    ${l.type==='sprint'?`<div class="detail-row"><span class="detail-key">유형</span><span class="detail-val">${l.sprintType||''}</span></div><div class="detail-row"><span class="detail-key">총 거리</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`:''}
+    ${l.type==='tabata'?`<div class="detail-row"><span class="detail-key">완료</span><span class="detail-val">${l.completedRounds??'—'}/8 라운드</span></div>`:''}
+    ${l.type==='condition'?`<div class="detail-row"><span class="detail-key">수면</span><span class="detail-val">${l.sleepHours}h · Q:${l.sleepQuality}</span></div><div class="detail-row"><span class="detail-key">피로도/기분</span><span class="detail-val">${l.fatigue}/${l.mood}</span></div>`:''}
     ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
   </div>`).join(''):'<div class="empty">아직 기록이 없어요</div>';
 
@@ -4342,7 +4344,7 @@ function _editLog(logId){
     document.getElementById('w-conditioning-box').style.display='none';
     document.getElementById('w-add-ex-btn').style.display='none';
     document.getElementById('w-edit-banner').style.display='block';
-    document.getElementById('w-screen-title').textContent='Edit Log · Eintrag bearbeiten';
+    document.getElementById('w-screen-title').textContent='기록 수정';
     document.getElementById('w-screen-logo').textContent='✏️ Edit';
     renderExList();
     showScreen('s-weight');
@@ -4395,13 +4397,13 @@ function _deleteAthLog(id){
   const el=document.createElement('div');
   el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
   el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;border-top:1px solid var(--border)">
-    <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">Delete this log?</div>
+    <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">이 로그를 삭제할까요?</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:6px">${log.date} · <b style="color:var(--text)">${label}</b></div>
-    ${stat?`<div style="font-size:13px;color:var(--muted);margin-bottom:20px">Result: <b style="color:var(--text)">${stat}</b></div>`:'<div style="margin-bottom:20px"></div>'}
-    <div style="font-size:12px;color:#f7a94f;margin-bottom:20px;padding:10px 12px;background:rgba(247,169,79,.08);border:1px solid rgba(247,169,79,.25);border-radius:10px">⚠️ This will also remove it from the coach view.</div>
+    ${stat?`<div style="font-size:13px;color:var(--muted);margin-bottom:20px">결과: <b style="color:var(--text)">${stat}</b></div>`:'<div style="margin-bottom:20px"></div>'}
+    <div style="font-size:12px;color:#f7a94f;margin-bottom:20px;padding:10px 12px;background:rgba(247,169,79,.08);border:1px solid rgba(247,169,79,.25);border-radius:10px">⚠️ 코치 화면에서도 함께 삭제됩니다.</div>
     <div style="display:flex;flex-direction:column;gap:9px">
-      <button id="_del-confirm" style="padding:14px;border-radius:12px;background:#e94560;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Delete · Löschen</button>
-      <button id="_del-cancel" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Cancel · Abbrechen</button>
+      <button id="_del-confirm" style="padding:14px;border-radius:12px;background:#e94560;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑 삭제</button>
+      <button id="_del-cancel" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">취소</button>
     </div>
   </div>`;
   document.body.appendChild(el);
@@ -4561,14 +4563,14 @@ function renderMyRecords(){
   const d=getData();
   const recs=(d.records||[]).filter(r=>r.athleteName===ST.athlete.name).sort((a,b)=>b.date.localeCompare(a.date));
   const wrap=document.getElementById('my-records-list');
-  if(!recs.length){ wrap.innerHTML='<div class="empty"><div class="ei">🏅</div>아직 기록이 없어요<br><span style="font-size:12px">Coach will add your sprint & strength records!</span></div>'; return; }
+  if(!recs.length){ wrap.innerHTML='<div class="empty"><div class="ei">🏅</div>아직 기록이 없어요<br><span style="font-size:12px">코치가 스프린트 & 웨이트 기록을 추가해줄 거예요!</span></div>'; return; }
   wrap.innerHTML=_timedRecHtml(recs,5)+_strengthRecHtml(recs,5);
 }
 
 function renderAthRecords(name){
   const d=getData();
   const recs=(d.records||[]).filter(r=>r.athleteName===name).sort((a,b)=>b.date.localeCompare(a.date));
-  if(!recs.length) return '<div class="empty" style="padding:12px 0">아직 기록이 없어요 · ＋ Add Record above</div>';
+  if(!recs.length) return '<div class="empty" style="padding:12px 0">아직 기록이 없어요</div>';
   return _timedRecHtml(recs,3)+_strengthRecHtml(recs,3);
 }
 
@@ -4589,18 +4591,18 @@ function renderProgImgMgmt(){
   const imgs=(d.programs[ST.progGroup].images||{});
   const img=imgs[progImgTab];
   const wrap=document.getElementById('prog-img-mgmt'); if(!wrap) return;
-  const tabLabel={micro:'Microcycle',meso:'Mesocycle',macro:'Macrocycle'};
+  const tabLabel={micro:'마이크로사이클',meso:'메조사이클',macro:'매크로사이클'};
   if(img){
     wrap.innerHTML=`<img class="prog-img-thumb" src="${img}" alt="${progImgTab}" onclick="window.open(this.src,'_blank')" style="cursor:zoom-in">
       <div style="display:flex;gap:8px;margin-bottom:16px">
-        <button class="btn btn-s btn-sm" onclick="document.getElementById('prog-img-file').click()">Replace Image</button>
+        <button class="btn btn-s btn-sm" onclick="document.getElementById('prog-img-file').click()">이미지 교체</button>
         <button class="btn btn-sm" style="background:rgba(233,69,96,.15);color:var(--accent);width:auto;padding:9px 18px;border:none;border-radius:var(--r);cursor:pointer;font-family:inherit;font-size:13px;font-weight:700" onclick="deleteProgImg()">Remove</button>
       </div>`;
   } else {
     wrap.innerHTML=`<div class="prog-img-upload-box" onclick="document.getElementById('prog-img-file').click()">
       <div style="font-size:48px;margin-bottom:12px">📷</div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Upload ${tabLabel[progImgTab]} Plan</div>
-      <div style="font-size:12px;color:var(--muted)">Tap to select photo or screenshot</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">${tabLabel[progImgTab]} 계획 업로드</div>
+      <div style="font-size:12px;color:var(--muted)">탭해서 사진 또는 스크린샷 선택</div>
     </div>`;
   }
 }
@@ -4623,7 +4625,7 @@ function handleProgImg(input){
       d.programs[ST.progGroup].images[progImgTab]=b64;
       saveData(d);
       renderProgImgMgmt();
-      showToast('Image uploaded ✓');
+      showToast('이미지 업로드 완료 ✓');
     };
     img.src=e.target.result;
   };
@@ -4632,7 +4634,7 @@ function handleProgImg(input){
 }
 
 function deleteProgImg(){
-  if(!confirm('Remove this image?')) return;
+  if(!confirm('이미지를 삭제할까요?')) return;
   const d=getData();
   if(d.programs[ST.progGroup].images) d.programs[ST.progGroup].images[progImgTab]=null;
   saveData(d);
@@ -5068,7 +5070,7 @@ function renderPlanAccordion(){
       html+=`<button onclick="_startPlanSelect()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(79,142,247,.4);background:rgba(79,142,247,.1);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer">↕ Reorder</button>
       <button onclick="clearPlanSession()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(233,69,96,.4);background:rgba(233,69,96,.1);color:#e94560;font-size:12px;font-weight:700;cursor:pointer">🗑 All</button>`;
     } else {
-      html+=`<button onclick="_cancelPlanSelect()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(62,207,142,.4);background:rgba(62,207,142,.1);color:#3ecf8e;font-size:12px;font-weight:700;cursor:pointer">✓ Done</button>`;
+      html+=`<button onclick="_cancelPlanSelect()" style="padding:6px 12px;border-radius:9px;border:1px solid rgba(62,207,142,.4);background:rgba(62,207,142,.1);color:#3ecf8e;font-size:12px;font-weight:700;cursor:pointer">✓ 완료</button>`;
     }
     html+='</div>';
 
@@ -6845,7 +6847,7 @@ function saveTabata(){
     notes:document.getElementById('tabata-notes').value
   };
   const d=getData(); d.logs.push(log); saveData(d);
-  document.getElementById('success-msg').textContent=`Tabata saved! ${ST._tabataSets.filter(s=>s.completed).length} sets · 🔥`;
+  document.getElementById('success-msg').textContent=`타바타 저장! ${ST._tabataSets.filter(s=>s.completed).length} 세트 · 🔥`;
   showScreen('s-success');
 }
 
@@ -6939,7 +6941,7 @@ function saveCircuit(){
     notes:document.getElementById('circuit-notes').value
   };
   const d=getData(); d.logs.push(log); saveData(d);
-  document.getElementById('success-msg').textContent=`Circuit Training saved! ${m}m ${s}s 🔄`;
+  document.getElementById('success-msg').textContent=`서킷 트레이닝 저장! ${m}m ${s}s 🔄`;
   showScreen('s-success');
 }
 
