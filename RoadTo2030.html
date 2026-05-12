@@ -715,6 +715,9 @@ if ('serviceWorker' in navigator) {
     <canvas id="chart-my-condition"></canvas>
   </div>
   
+  <div class="sec-ttl" style="margin-top:20px">🔴 근육통 기록</div>
+  <div id="my-soreness-list"></div>
+
   <div class="sec-ttl" style="margin-top:20px">🏅 My Records</div>
   <div id="my-records-list"></div>
 </div>
@@ -1508,15 +1511,16 @@ function selectAthleteHome(id){
   window._currentAthleteId = id;
   stopCloudSync();
 
-  // 선수별 Firebase 데이터 로드 (새 기기/브라우저 대응)
-  _loadAthleteCloud(id).then(()=>{
-    const d=getData();
-    const ath=d.athletes.find(a=>a.id===id);
-    if(!ath){ showToast('선수를 찾을 수 없어요'); return; }
-    ST.athlete=ath;
-    if(ath.pin){ showScreen('s-athlete-pin'); renderPinDots(); return; }
-    _enterAthleteMenu();
-  });
+  // 로컬 데이터로 즉시 진입 (Firebase 응답 대기 없음 → 터치 즉시 반응)
+  const d=getData();
+  const ath=d.athletes.find(a=>a.id===id);
+  if(!ath){ showToast('선수를 찾을 수 없어요'); return; }
+  ST.athlete=ath;
+  if(ath.pin){ showScreen('s-athlete-pin'); renderPinDots(); return; }
+  _enterAthleteMenu();
+
+  // Firebase 동기화는 백그라운드 처리 (다음 저장 시 최신 데이터 반영)
+  _loadAthleteCloud(id);
 }
 
 // 선수별 Firestore 문서를 로드해서 로컬스토리지에 병합
@@ -3154,6 +3158,26 @@ function renderAthStats(){
   ],labels);
   renderMyRecords();
 
+  // 근육통 기록 렌더링
+  const condWithSoreness = myLogs
+    .filter(l=>l.type==='condition' && l.soreness && l.soreness.length)
+    .sort((a,b)=>b.date.localeCompare(a.date))
+    .slice(0,7);
+  const sorenessEl = document.getElementById('my-soreness-list');
+  if(sorenessEl){
+    if(condWithSoreness.length){
+      sorenessEl.innerHTML = condWithSoreness.map(l=>{
+        const chips = l.soreness.map(s=>{
+          const col = s.intensity>=8?'#e94560':s.intensity>=5?'#f7a94f':'#3ecf8e';
+          return `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.06);border:1px solid ${col};border-radius:20px;padding:3px 10px;font-size:12px;color:${col};font-weight:700">${s.part} <span style="opacity:0.6">${s.intensity}</span></span>`;
+        }).join(' ');
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px"><div style="font-size:11px;color:var(--muted);margin-bottom:6px">${l.date}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div></div>`;
+      }).join('');
+    } else {
+      sorenessEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">근육통 기록 없음</div>';
+    }
+  }
+
 }
 
 // ════════════════════════════════════════════════
@@ -3231,7 +3255,26 @@ function switchTab(id,btn){
 
 // ── TODAY ──
 function renderToday(){
-  const d=getData(); const today=todayStr();
+  // 모든 선수 데이터를 통합 (각 선수 개별 저장 구조 대응)
+  const ATHLETE_IDS = ['a1','a2'];
+  const baseData = getData(); // athletes, sessionPlans 등 구조용
+  const allLogs = [];
+  ATHLETE_IDS.forEach(function(aid){
+    try{
+      const raw = localStorage.getItem(getSK(aid));
+      if(raw){
+        const d2 = JSON.parse(raw);
+        if(d2 && d2.logs) allLogs.push(...d2.logs);
+      }
+    }catch(e){}
+  });
+  // shared 키에도 남은 데이터가 있을 경우 병합
+  if(baseData.logs && baseData.logs.length){
+    const existIds = new Set(allLogs.map(function(l){ return l.id; }));
+    baseData.logs.forEach(function(l){ if(!existIds.has(l.id)) allLogs.push(l); });
+  }
+  const d = Object.assign({}, baseData, {logs: allLogs});
+  const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
   const cl=tl.filter(l=>l.type==='condition');
   const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo');
@@ -7182,7 +7225,20 @@ async function renderCoachDashboard(){
     
     let condRow = '';
     if(latestCond){
-      condRow = '<div style="margin-top:12px;font-size:12px;color:var(--muted)">마지막 컨디션 로그: '+latestCond.date+(latestCond.notes?' — '+latestCond.notes.slice(0,40):'')+'</div>';
+      // 근육통 chips
+      let sorenessHtml = '';
+      if(latestCond.soreness && latestCond.soreness.length){
+        const chips = latestCond.soreness.map(function(s){
+          const intensity = s.intensity || 5;
+          const col = intensity >= 8 ? 'var(--red)' : intensity >= 5 ? 'var(--orange)' : 'var(--green)';
+          return '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.06);border:1px solid '+col+';border-radius:20px;padding:3px 10px;font-size:11px;color:'+col+';font-weight:700">'
+            + s.part + ' <span style="opacity:0.7">'+intensity+'</span></span>';
+        }).join(' ');
+        sorenessHtml = '<div style="margin-top:8px"><span style="font-size:11px;color:var(--muted);font-weight:600">근육통: </span>'
+          + chips + '</div>';
+      }
+      condRow = '<div style="margin-top:12px;font-size:12px;color:var(--muted)">마지막 컨디션 로그: '+latestCond.date+(latestCond.notes?' — '+latestCond.notes.slice(0,40):'')+'</div>'
+        + sorenessHtml;
     } else {
       condRow = '<div style="margin-top:12px;font-size:12px;color:var(--muted)">컨디션 로그 없음</div>';
     }
@@ -7201,7 +7257,7 @@ async function renderCoachDashboard(){
       + '<div style="font-size:22px;font-weight:800;color:'+fatigueColor+'">'+avgFatigue+'</div>'
       + '</div>'
       + '<div style="background:var(--input);border-radius:12px;padding:12px;text-align:center">'
-      + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">수면 평균</div>'
+      + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">수면 질 평균</div>'
       + '<div style="font-size:22px;font-weight:800;color:var(--blue)">'+avgSleep+'</div>'
       + '</div>'
       + '<div style="background:var(--input);border-radius:12px;padding:12px;text-align:center">'
