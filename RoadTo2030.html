@@ -718,6 +718,9 @@ if ('serviceWorker' in navigator) {
   <div class="sec-ttl" style="margin-top:20px">🔴 근육통 기록</div>
   <div id="my-soreness-list"></div>
 
+  <div class="sec-ttl" style="margin-top:20px">📋 최근 세션 로그</div>
+  <div id="my-session-logs"></div>
+
   <div class="sec-ttl" style="margin-top:20px">🏅 내 기록</div>
   <div id="my-records-list"></div>
 </div>
@@ -3106,6 +3109,63 @@ function renderProgram(){
 // ════════════════════════════════════════════════
 //  ATHLETE STATS
 // ════════════════════════════════════════════════
+// ════════════════════════════════════════════════
+//  세션 상세 뷰 헬퍼
+// ════════════════════════════════════════════════
+function _sessionDetailHtml(l){
+  if(l.type==='weight'||l.type==='plyo'){
+    if(!(l.exercises&&l.exercises.length)) return '<div style="font-size:12px;color:var(--muted);padding:6px 0">운동 데이터 없음</div>';
+    return l.exercises.map(e=>{
+      const isBW=e.isBodyweight||false;
+      const w=isBW?`체중${e.extraKg?'+'+e.extraKg+'kg':''}`:(e.weight!=null&&e.weight!==''?e.weight+'kg':'—');
+      const setsReps=`${e.sets||'?'}세트 × ${e.reps||'?'}회`;
+      const cat=e.trainingType?`<span style="font-size:10px;color:var(--muted);margin-left:4px">${e.trainingType}</span>`:'';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="flex:1;min-width:0"><span style="font-size:13px;color:var(--text);font-weight:600">${e.name||'—'}</span>${cat}</div>
+        <div style="white-space:nowrap;margin-left:10px;text-align:right">
+          <span style="font-size:13px;color:#4f8ef7;font-weight:700">${w}</span>
+          <span style="font-size:12px;color:var(--muted);margin-left:6px">${setsReps}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  if(l.type==='sprint'){
+    if(!(l.sets&&l.sets.length)) return '<div style="font-size:12px;color:var(--muted);padding:6px 0">스프린트 데이터 없음</div>';
+    return l.sets.map((s,i)=>{
+      const dist=s.distance?s.distance+'m':'—';
+      const vol=`${s.sets||1}세트 × ${s.reps||1}회`;
+      const intens=s.intensity?`${s.intensity}%`:'';
+      const time=s.actualTime?`⏱ ${s.actualTime}s`:'';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="flex:1"><span style="font-size:13px;color:#3ecf8e;font-weight:700">${dist}</span> <span style="font-size:12px;color:var(--muted)">${vol}</span></div>
+        <div style="font-size:12px;color:var(--muted);white-space:nowrap;margin-left:8px">${intens}${intens&&time?' · ':''}${time}</div>
+      </div>`;
+    }).join('');
+  }
+  if(l.type==='condition'){
+    const rows=[
+      `수면 ${l.sleepHours||'—'}h`,
+      `수면 질 ${l.sleepQuality||'—'}`,
+      `피로도 ${l.fatigue||'—'}`,
+      `기분 ${l.mood||'—'}`
+    ];
+    const sorenessRow=l.soreness&&l.soreness.length
+      ?`<div style="margin-top:6px;font-size:12px;color:var(--muted)">근육통: ${l.soreness.map(s=>s.part+'('+s.intensity+')').join(', ')}</div>`:'';
+    return `<div style="font-size:13px;color:var(--muted);padding:6px 0;line-height:1.8">${rows.join(' · ')}</div>${sorenessRow}`;
+  }
+  return '';
+}
+
+function _toggleLogDetail(id){
+  const el=document.getElementById('logdetail-'+id);
+  if(!el) return;
+  const isOpen=el.style.maxHeight&&el.style.maxHeight!=='0px';
+  el.style.maxHeight=isOpen?'0px':'800px';
+  el.style.opacity=isOpen?'0':'1';
+  const chev=document.getElementById('logchev-'+id);
+  if(chev) chev.style.transform=isOpen?'rotate(0deg)':'rotate(180deg)';
+}
+
 function _exVolSplit(logs){
   // Returns volume by trainingType+subCategory
   const byType={}; // { 'Power Lifting·Power': 1200, ... }
@@ -3158,6 +3218,45 @@ function renderAthStats(){
     {label:'수면 질',data:slp,borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
   ],labels);
   renderMyRecords();
+
+  // 세션 로그 렌더링 (최근 30개, 탭하면 상세 펼쳐짐)
+  const sessionEl = document.getElementById('my-session-logs');
+  if(sessionEl){
+    const trainingLogs = myLogs
+      .filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='condition')
+      .sort((a,b)=>b.date.localeCompare(a.date))
+      .slice(0,30);
+    if(trainingLogs.length){
+      const _typeKoS={weight:'🏋️ 웨이트',sprint:'⚡ 스프린트',plyo:'🦘 플라이오',condition:'🌡️ 컨디션'};
+      const _typeCol={weight:'#4f8ef7',sprint:'#3ecf8e',plyo:'#a78bfa',condition:'#f7a94f'};
+      sessionEl.innerHTML = trainingLogs.map(l=>{
+        const col=_typeCol[l.type]||'var(--muted)';
+        const typeLbl=_typeKoS[l.type]||l.type;
+        const summary=l.type==='weight'?`총 ${(l.totalVolume||0).toLocaleString()} kg`
+          :l.type==='sprint'?`총 ${(l.totalDistance||0).toLocaleString()} m`
+          :l.type==='plyo'?`${(l.exercises||[]).length}개 운동`
+          :l.type==='condition'?`피로도 ${l.fatigue||'—'} · 기분 ${l.mood||'—'}`:'';
+        const detail=_sessionDetailHtml(l);
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden">
+          <div onclick="_toggleLogDetail('${l.id}')" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
+            <div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:3px">${l.date}</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:700;color:${col}">${typeLbl}</span>
+                <span style="font-size:12px;color:var(--muted)">${summary}</span>
+              </div>
+            </div>
+            <span id="logchev-${l.id}" style="color:var(--muted);font-size:14px;transition:transform .22s;flex-shrink:0">▾</span>
+          </div>
+          <div id="logdetail-${l.id}" style="max-height:0;opacity:0;overflow:hidden;transition:max-height .28s ease,opacity .2s ease;padding:0 14px">
+            <div style="padding-bottom:12px;border-top:1px solid rgba(255,255,255,.07);padding-top:8px">${detail}${l.rpe?`<div style="margin-top:6px;font-size:12px;color:var(--muted)">RPE ${l.rpe}/10</div>`:''} ${l.notes?`<div style="margin-top:4px;font-size:12px;color:var(--muted)">📝 ${l.notes}</div>`:''}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      sessionEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">훈련 기록이 없어요</div>';
+    }
+  }
 
   // 근육통 기록 렌더링
   const condWithSoreness = myLogs
@@ -3565,14 +3664,36 @@ function openAthDetail(name){
   const _dBtn=(id)=>`<button onclick="deleteLog('${id}','detail')" style="padding:3px 8px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
   const _eBtn=(id)=>{const l=d.logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="_editLog('${id}')" style="padding:3px 8px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';}
   const _typeKo={weight:'웨이트',sprint:'스프린트',plyo:'플라이오',condition:'컨디션',tabata:'타바타',circuit:'서킷'};
-  document.getElementById('detail-logs').innerHTML=recent.length?recent.map(l=>`<div class="detail-card">
-    <div class="detail-row"><span class="detail-key">${l.date}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':'b-c'}">${_typeKo[l.type]||l.type}</span>${_eBtn(l.id)}${_dBtn(l.id)}</div></div>
-    ${l.type==='weight'?`<div class="detail-row"><span class="detail-key">볼륨</span><span class="detail-val">${l.totalVolume.toLocaleString()} kg</span></div><div class="detail-row"><span class="detail-key">운동</span><span class="detail-val" style="font-size:12px">${(l.exercises||[]).map(e=>e.name).join(', ')}</span></div>`:''}
-    ${l.type==='sprint'?`<div class="detail-row"><span class="detail-key">유형</span><span class="detail-val">${l.sprintType||''}</span></div><div class="detail-row"><span class="detail-key">총 거리</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`:''}
-    ${l.type==='tabata'?`<div class="detail-row"><span class="detail-key">완료</span><span class="detail-val">${l.completedRounds??'—'}/8 라운드</span></div>`:''}
-    ${l.type==='condition'?`<div class="detail-row"><span class="detail-key">수면</span><span class="detail-val">${l.sleepHours}h · Q:${l.sleepQuality}</span></div><div class="detail-row"><span class="detail-key">피로도/기분</span><span class="detail-val">${l.fatigue}/${l.mood}</span></div>`:''}
-    ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
-  </div>`).join(''):'<div class="empty">아직 기록이 없어요</div>';
+  const _typeCol2={weight:'#4f8ef7',sprint:'#3ecf8e',plyo:'#a78bfa',condition:'#f7a94f',tabata:'#e94560',circuit:'#f7a94f'};
+  document.getElementById('detail-logs').innerHTML=recent.length?recent.map(l=>{
+    const col=_typeCol2[l.type]||'var(--muted)';
+    const summary=l.type==='weight'?`총 ${(l.totalVolume||0).toLocaleString()} kg`
+      :l.type==='sprint'?`총 ${(l.totalDistance||0).toLocaleString()} m`
+      :l.type==='tabata'?`${l.completedRounds??'—'}/8 라운드`
+      :l.type==='condition'?`피로도 ${l.fatigue||'—'} · 기분 ${l.mood||'—'}`:'';
+    const detail=_sessionDetailHtml(l);
+    const uid='cd-'+l.id;
+    return `<div class="detail-card" style="padding:0;overflow:hidden">
+      <div onclick="_toggleLogDetail('${uid}')" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span class="badge ${l.type==='weight'?'b-w':l.type==='sprint'?'b-s':'b-c'}">${_typeKo[l.type]||l.type}</span>
+            <span style="font-size:12px;color:var(--muted)">${l.date}</span>
+            <div style="display:flex;gap:4px;margin-left:auto">${_eBtn(l.id)}${_dBtn(l.id)}</div>
+          </div>
+          <div style="font-size:12px;color:${col};font-weight:600">${summary}</div>
+        </div>
+        <span id="logchev-${uid}" style="color:var(--muted);font-size:14px;transition:transform .22s;flex-shrink:0;margin-left:8px">▾</span>
+      </div>
+      <div id="logdetail-${uid}" style="max-height:0;opacity:0;overflow:hidden;transition:max-height .28s ease,opacity .2s ease;padding:0 14px">
+        <div style="padding-bottom:12px;border-top:1px solid rgba(255,255,255,.07);padding-top:8px">
+          ${detail}
+          ${l.rpe?`<div style="margin-top:6px;font-size:12px;color:var(--muted)">RPE ${l.rpe}/10</div>`:''}
+          ${l.notes?`<div style="margin-top:4px;font-size:12px;color:var(--muted)">📝 ${l.notes}</div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join(''):'<div class="empty">아직 기록이 없어요</div>';
 
   document.getElementById('coach-tabbar').classList.remove('show');
   showScreen('s-ath-detail');
