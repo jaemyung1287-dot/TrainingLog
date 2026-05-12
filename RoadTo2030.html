@@ -2946,7 +2946,7 @@ function renderSprintSets(){
           <div class="mini-lbl" style="color:#3ecf8e">🎯 목표 (초)</div>
         </div>
       </div>
-      <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
+      <div class="ex-nums" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in${setsEdited?' plan-edited':''}" type="number" placeholder="0" value="${s.sets||''}" oninput="ST.sprintSets[${i}].sets=this.value">
           <div class="mini-lbl">세트${setsEdited?' ✎':''}</div>
@@ -2954,6 +2954,10 @@ function renderSprintSets(){
         <div class="mini-wrap">
           <input class="mini-in${repsEdited?' plan-edited':''}" type="number" placeholder="0" value="${s.reps||''}" oninput="ST.sprintSets[${i}].reps=this.value">
           <div class="mini-lbl">횟수${repsEdited?' ✎':''}</div>
+        </div>
+        <div class="mini-wrap">
+          <input class="mini-in" type="number" step="0.5" placeholder="—" value="${s.restMin||''}" oninput="ST.sprintSets[${i}].restMin=this.value">
+          <div class="mini-lbl">휴식 (분)</div>
         </div>
       </div>
       ${spPlanSummary}
@@ -2994,8 +2998,8 @@ function setSprintCategory(cat){
     btn.style.color=on?'var(--green)':'var(--muted)';
   });
 }
-function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',targetTime:''}); renderSprintSets(); }
-function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length) ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',targetTime:''}); renderSprintSets(); }
+function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',targetTime:'',restMin:''}); renderSprintSets(); }
+function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length) ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',targetTime:'',restMin:''}); renderSprintSets(); }
 
 function saveSprint(dupMode){
   const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0);
@@ -3042,7 +3046,7 @@ function saveSprint(dupMode){
     phase:document.getElementById('sp-phase').value,
     week:document.getElementById('sp-week').value,
     sprintType:ST.sprintCategory||ST.sprintSets[0]?.subCategory||'스프린트 트레이닝',
-    sets:sets.map(s=>({name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,targetTime:parseFloat(s.targetTime)||null,actualTime:parseFloat(s.actualTime)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]})),
+    sets:sets.map(s=>({name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,targetTime:parseFloat(s.targetTime)||null,actualTime:parseFloat(s.actualTime)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,restMin:parseFloat(s.restMin)||null,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]})),
     totalDistance:Math.round(totalDist),
     rpe:parseInt(document.getElementById('sl-srpe').value),
     notes:document.getElementById('sprint-notes').value
