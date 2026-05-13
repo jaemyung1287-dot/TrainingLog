@@ -7704,9 +7704,10 @@ function _fmtDate(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 function _getDashWeekDates(){
+  const offset = (typeof _dashWeekOffset==='number' && !isNaN(_dashWeekOffset)) ? _dashWeekOffset : 0;
   const today = new Date();
   const endD = new Date(today);
-  endD.setDate(today.getDate() + _dashWeekOffset*7);
+  endD.setDate(today.getDate() + offset*7);
   if(endD > today) endD.setTime(today.getTime());
   const dates = [];
   for(let i=6;i>=0;i--){
@@ -7717,6 +7718,7 @@ function _getDashWeekDates(){
   return { start:dates[0], end:dates[6], dates };
 }
 function _changeWeek(delta){
+  if(typeof _dashWeekOffset!=='number'||isNaN(_dashWeekOffset)) _dashWeekOffset=0;
   _dashWeekOffset += delta;
   if(_dashWeekOffset > 0) _dashWeekOffset = 0;
   renderCoachDashboard();
