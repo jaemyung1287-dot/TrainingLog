@@ -7700,19 +7700,21 @@ const COACH_PIN = '9090'; // 기본 코치 PIN
 let _coachPinBuf = '';
 var _dashWeekOffset = 0; // 0 = 이번 주, -1 = 지난 주, ...
 
-function _addDays(dateStr, n){
-  const d = new Date(dateStr+'T00:00:00');
-  d.setDate(d.getDate()+n);
-  return d.toISOString().slice(0,10);
+function _fmtDate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 function _getDashWeekDates(){
-  const today = todayStr();
-  const rawEnd = _addDays(today, _dashWeekOffset*7);
-  const weekEnd = rawEnd > today ? today : rawEnd;
-  const weekStart = _addDays(weekEnd, -6);
+  const today = new Date();
+  const endD = new Date(today);
+  endD.setDate(today.getDate() + _dashWeekOffset*7);
+  if(endD > today) endD.setTime(today.getTime());
   const dates = [];
-  for(let i=0;i<7;i++) dates.push(_addDays(weekStart,i));
-  return { start:weekStart, end:weekEnd, dates };
+  for(let i=6;i>=0;i--){
+    const d = new Date(endD);
+    d.setDate(endD.getDate()-i);
+    dates.push(_fmtDate(d));
+  }
+  return { start:dates[0], end:dates[6], dates };
 }
 function _changeWeek(delta){
   _dashWeekOffset += delta;
