@@ -3705,8 +3705,8 @@ function renderAthStats(){
       sorenessEl.innerHTML = condWithSoreness.map(l=>{
         const chips = l.soreness.map(s=>{
           const iv = s.intensity||5;
-          const col = iv>=8?'#e94560':iv>=5?'#f7a94f':'#3ecf8e';
-          const bg  = iv>=8?'rgba(233,69,96,0.16)':iv>=5?'rgba(247,169,79,0.16)':'rgba(62,207,142,0.16)';
+          const col = iv>=7?'#e94560':iv>=5?'#f7a94f':'#3ecf8e';
+          const bg  = iv>=7?'rgba(233,69,96,0.16)':iv>=5?'rgba(247,169,79,0.16)':'rgba(62,207,142,0.16)';
           return `<span style="display:inline-flex;align-items:center;gap:3px;background:${bg};border:1px solid ${col};border-radius:20px;padding:4px 11px;font-size:12px;color:${col};font-weight:700">${s.part} <span style="font-weight:800">${iv}</span></span>`;
         }).join(' ');
         return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px">
@@ -7889,15 +7889,15 @@ async function renderCoachDashboard(){
         ];
         function _sCol(v){
           var n=parseFloat(v)||0;
-          return n>=8?'var(--red)':n>=5?'var(--orange)':'var(--green)';
+          return n>=7?'var(--red)':n>=5?'var(--orange)':'var(--green)';
         }
         function _sBg(v){
           var n=parseFloat(v)||0;
-          return n>=8?'rgba(233,69,96,0.12)':n>=5?'rgba(247,169,79,0.12)':'rgba(62,207,142,0.12)';
+          return n>=7?'rgba(233,69,96,0.12)':n>=5?'rgba(247,169,79,0.12)':'rgba(62,207,142,0.12)';
         }
         function _sBorder(v){
           var n=parseFloat(v)||0;
-          return n>=8?'rgba(233,69,96,0.35)':n>=5?'rgba(247,169,79,0.35)':'rgba(62,207,142,0.35)';
+          return n>=7?'rgba(233,69,96,0.35)':n>=5?'rgba(247,169,79,0.35)':'rgba(62,207,142,0.35)';
         }
         const groupCards = GROUPS.map(function(g){
           const active = g.parts.filter(function(p){ return sMap[p]; });
