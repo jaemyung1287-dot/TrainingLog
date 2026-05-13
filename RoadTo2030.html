@@ -7817,7 +7817,6 @@ async function renderCoachDashboard(){
     const cutoff = weekStart;
     const recentLogs = myLogs.filter(function(l){ return l.date >= weekStart && l.date <= weekEnd; });
 
-    const trainingDates = new Set(recentLogs.filter(function(l){ return l.type==='weight'||l.type==='sprint'||l.type==='plyo'; }).map(function(l){ return l.date; }));
 
     const condLogs = myLogs.filter(function(l){ return l.type==='condition'; }).sort(function(a,b){ return b.date.localeCompare(a.date); });
     const latestCond = condLogs[0];
@@ -7838,53 +7837,6 @@ async function renderCoachDashboard(){
     const volWeightStr = weekWeightVol >= 1000 ? (weekWeightVol/1000).toFixed(1)+'t' : weekWeightVol > 0 ? weekWeightVol.toLocaleString()+'kg' : '—';
     const volSprintStr = weekSprintDist > 0 ? weekSprintDist.toLocaleString()+'m' : '—';
 
-    // ② 마지막 훈련 세션 요약
-    const allTrainLogs = myLogs.filter(function(l){ return l.type==='weight'||l.type==='sprint'||l.type==='plyo'; }).sort(function(a,b){ return b.date.localeCompare(a.date); });
-    let lastSessionHtml = '';
-    if(allTrainLogs.length){
-      const last = allTrainLogs[0];
-      let lastDesc = '';
-      if(last.type==='weight'||last.type==='plyo'){
-        lastDesc = (last.exercises||[]).length+'종목 · '+((last.totalVolume||0).toLocaleString())+'kg';
-      } else if(last.type==='sprint'){
-        lastDesc = (last.sets||[]).length+'세트 · '+(last.totalDistance||0)+'m';
-      }
-      const typeLabel = last.type==='sprint'?'🏃 스프린트':last.type==='plyo'?'⚡ 플라이오':'🏋️ 웨이트';
-      lastSessionHtml = '<div style="margin-top:10px;padding:10px 12px;background:var(--input);border-radius:10px;display:flex;align-items:center;gap:8px">'
-        + '<span style="font-size:13px">'+typeLabel+'</span>'
-        + '<span style="font-size:12px;color:var(--muted)">'+last.date+'</span>'
-        + '<span style="font-size:12px;color:var(--fg);margin-left:auto">'+lastDesc+'</span>'
-        + '</div>';
-    } else {
-      lastSessionHtml = '<div style="margin-top:10px;font-size:12px;color:var(--muted)">훈련 기록 없음</div>';
-    }
-
-    // ③ 바 색깔 세분화
-    let dayBars = '';
-    weekDates.forEach(function(ds){
-      const dayLogs = recentLogs.filter(function(l){ return l.date===ds&&(l.type==='weight'||l.type==='sprint'||l.type==='plyo'); });
-      const hasCond = recentLogs.some(function(l){ return l.date===ds&&l.type==='condition'; });
-      const types = new Set(dayLogs.map(function(l){ return l.type; }));
-      const hasSprint = types.has('sprint');
-      const hasWeight = types.has('weight')||types.has('plyo');
-      let barBg;
-      if(hasSprint && hasWeight){
-        barBg = 'linear-gradient(to right, var(--blue) 50%, var(--green) 50%)';
-      } else if(hasSprint){
-        barBg = 'var(--green)';
-      } else if(hasWeight){
-        barBg = 'var(--blue)';
-      } else if(hasCond){
-        barBg = 'rgba(201,168,76,0.45)';
-      } else {
-        barBg = 'var(--border)';
-      }
-      const label = ds.slice(5);
-      dayBars += '<div style="flex:1;text-align:center">'
-        + '<div style="height:28px;background:'+barBg+';border-radius:6px;margin-bottom:3px"></div>'
-        + '<div style="font-size:9px;color:var(--muted)">'+label+'</div>'
-        + '</div>';
-    });
 
     // ④ 근육통 — 옵션 B: 상체/하체/코어 그룹 카드
     const sorenessLog = condLogs.find(function(l){ return l.soreness && l.soreness.length > 0 && l.date >= weekStart && l.date <= weekEnd; })
@@ -7928,23 +7880,16 @@ async function renderCoachDashboard(){
           +'<div style="display:grid;grid-template-columns:repeat('+Math.min(groupCards.length,2)+',1fr);gap:6px">'+groupCards.join('')+'</div>'
           +'</div>';
       }
-      condRow = '<div style="margin-top:12px;font-size:12px;color:var(--muted)">마지막 컨디션: '+latestCond.date+(latestCond.notes?' — '+latestCond.notes.slice(0,40):'')+'</div>'
-        + sorenessHtml;
+      condRow = sorenessHtml;
     } else {
-      condRow = '<div style="margin-top:12px;font-size:12px;color:var(--muted)">컨디션 로그 없음</div>';
+      condRow = '';
     }
 
     const displayName = _nick(ath.name);
 
     html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px">'
       // 헤더
-      + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
-      + '<div style="font-size:36px">👤</div>'
-      + '<div>'
-      + '<div style="font-size:20px;font-weight:800">'+displayName+'</div>'
-      + '<div style="font-size:12px;color:var(--muted)">최근 7일 훈련: '+trainingDates.size+'일 / 7일</div>'
-      + '</div>'
-      + '</div>'
+      + '<div style="font-size:20px;font-weight:800;margin-bottom:14px">'+displayName+'</div>'
       // 주간 볼륨 카드
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
       + '<div style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.25);border-radius:12px;padding:10px;text-align:center">'
@@ -7957,7 +7902,7 @@ async function renderCoachDashboard(){
       + '</div>'
       + '</div>'
       // 컨디션 스탯
-      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
       + '<div style="background:var(--input);border-radius:12px;padding:10px;text-align:center">'
       + '<div style="font-size:10px;color:var(--muted);margin-bottom:3px">피로도</div>'
       + '<div style="font-size:20px;font-weight:800;color:'+fatigueColor+'">'+avgFatigue+'</div>'
@@ -7971,15 +7916,6 @@ async function renderCoachDashboard(){
       + '<div style="font-size:20px;font-weight:800;color:'+moodColor+'">'+avgMood+'</div>'
       + '</div>'
       + '</div>'
-      // 바 범례
-      + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
-      + '<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px">최근 7일 훈련</span>'
-      + '<span style="display:flex;align-items:center;gap:4px;margin-left:auto"><span style="width:8px;height:8px;border-radius:2px;background:var(--blue);display:inline-block"></span><span style="font-size:9px;color:var(--muted)">웨이트</span></span>'
-      + '<span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:var(--green);display:inline-block"></span><span style="font-size:9px;color:var(--muted)">스프린트</span></span>'
-      + '</div>'
-      + '<div style="display:flex;gap:6px">'+dayBars+'</div>'
-      // 마지막 세션
-      + lastSessionHtml
       // 근육통
       + condRow
       + '</div>';
