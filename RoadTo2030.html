@@ -3705,8 +3705,8 @@ function renderAthStats(){
       sorenessEl.innerHTML = condWithSoreness.map(l=>{
         const chips = l.soreness.map(s=>{
           const iv = s.intensity||5;
-          const col = iv>=7?'#e94560':iv>=5?'#f7a94f':'#3ecf8e';
-          const bg  = iv>=7?'rgba(233,69,96,0.16)':iv>=5?'rgba(247,169,79,0.16)':'rgba(62,207,142,0.16)';
+          const col = iv>=7?'#e94560':iv>=4?'#f7a94f':'#3ecf8e';
+          const bg  = iv>=7?'rgba(233,69,96,0.16)':iv>=4?'rgba(247,169,79,0.16)':'rgba(62,207,142,0.16)';
           return `<span style="display:inline-flex;align-items:center;gap:3px;background:${bg};border:1px solid ${col};border-radius:20px;padding:4px 11px;font-size:12px;color:${col};font-weight:700">${s.part} <span style="font-weight:800">${iv}</span></span>`;
         }).join(' ');
         return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px">
@@ -7846,17 +7846,17 @@ async function renderCoachDashboard(){
     const avgMood = recentCond.length ? (recentCond.reduce(function(s,l){ return s+(l.mood||5); },0)/recentCond.length).toFixed(1) : '—';
 
     // 피로도: 낮을수록 좋음 (역방향)
-    const fatigueColor = avgFatigue==='—'?'var(--muted)':avgFatigue>=7?'var(--red)':avgFatigue>=5?'var(--orange)':'var(--green)';
-    const fatigueBg    = avgFatigue==='—'?'var(--input)':avgFatigue>=7?'rgba(233,69,96,0.12)':avgFatigue>=5?'rgba(247,169,79,0.12)':'rgba(62,207,142,0.12)';
-    const fatigueBd    = avgFatigue==='—'?'var(--border)':avgFatigue>=7?'rgba(233,69,96,0.35)':avgFatigue>=5?'rgba(247,169,79,0.35)':'rgba(62,207,142,0.35)';
+    const fatigueColor = avgFatigue==='—'?'var(--muted)':avgFatigue>=7?'var(--red)':avgFatigue>=4?'var(--orange)':'var(--green)';
+    const fatigueBg    = avgFatigue==='—'?'var(--input)':avgFatigue>=7?'rgba(233,69,96,0.12)':avgFatigue>=4?'rgba(247,169,79,0.12)':'rgba(62,207,142,0.12)';
+    const fatigueBd    = avgFatigue==='—'?'var(--border)':avgFatigue>=7?'rgba(233,69,96,0.35)':avgFatigue>=4?'rgba(247,169,79,0.35)':'rgba(62,207,142,0.35)';
     // 수면 질: 높을수록 좋음
-    const sleepColor   = avgSleep==='—'?'var(--muted)':avgSleep>=7?'var(--green)':avgSleep>=5?'var(--orange)':'var(--red)';
-    const sleepBg      = avgSleep==='—'?'var(--input)':avgSleep>=7?'rgba(62,207,142,0.12)':avgSleep>=5?'rgba(247,169,79,0.12)':'rgba(233,69,96,0.12)';
-    const sleepBd      = avgSleep==='—'?'var(--border)':avgSleep>=7?'rgba(62,207,142,0.35)':avgSleep>=5?'rgba(247,169,79,0.35)':'rgba(233,69,96,0.35)';
+    const sleepColor   = avgSleep==='—'?'var(--muted)':avgSleep>=7?'var(--green)':avgSleep>=4?'var(--orange)':'var(--red)';
+    const sleepBg      = avgSleep==='—'?'var(--input)':avgSleep>=7?'rgba(62,207,142,0.12)':avgSleep>=4?'rgba(247,169,79,0.12)':'rgba(233,69,96,0.12)';
+    const sleepBd      = avgSleep==='—'?'var(--border)':avgSleep>=7?'rgba(62,207,142,0.35)':avgSleep>=4?'rgba(247,169,79,0.35)':'rgba(233,69,96,0.35)';
     // 기분: 높을수록 좋음
-    const moodColor    = avgMood==='—'?'var(--muted)':avgMood>=7?'var(--green)':avgMood>=5?'var(--orange)':'var(--red)';
-    const moodBg       = avgMood==='—'?'var(--input)':avgMood>=7?'rgba(62,207,142,0.12)':avgMood>=5?'rgba(247,169,79,0.12)':'rgba(233,69,96,0.12)';
-    const moodBd       = avgMood==='—'?'var(--border)':avgMood>=7?'rgba(62,207,142,0.35)':avgMood>=5?'rgba(247,169,79,0.35)':'rgba(233,69,96,0.35)';
+    const moodColor    = avgMood==='—'?'var(--muted)':avgMood>=7?'var(--green)':avgMood>=4?'var(--orange)':'var(--red)';
+    const moodBg       = avgMood==='—'?'var(--input)':avgMood>=7?'rgba(62,207,142,0.12)':avgMood>=4?'rgba(247,169,79,0.12)':'rgba(233,69,96,0.12)';
+    const moodBd       = avgMood==='—'?'var(--border)':avgMood>=7?'rgba(62,207,142,0.35)':avgMood>=4?'rgba(247,169,79,0.35)':'rgba(233,69,96,0.35)';
 
     // ① 주간 볼륨 계산
     const weekWeightLogs = recentLogs.filter(function(l){ return l.type==='weight'||l.type==='plyo'; });
@@ -7870,7 +7870,7 @@ async function renderCoachDashboard(){
     const sprintRpeLogs = weekSprintLogs.filter(function(l){ return l.rpe; });
     const avgWeightRpe = weightRpeLogs.length ? (weightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/weightRpeLogs.length).toFixed(1) : null;
     const avgSprintRpe = sprintRpeLogs.length ? (sprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/sprintRpeLogs.length).toFixed(1) : null;
-    function _rpeCol(v){ var n=parseFloat(v); return n>=7?'var(--red)':n>=5?'var(--orange)':'var(--green)'; }
+    function _rpeCol(v){ var n=parseFloat(v); return n>=7?'var(--red)':n>=4?'var(--orange)':'var(--green)'; }
 
 
     // ④ 근육통 — 옵션 B: 상체/하체/코어 그룹 카드
@@ -7889,15 +7889,15 @@ async function renderCoachDashboard(){
         ];
         function _sCol(v){
           var n=parseFloat(v)||0;
-          return n>=7?'var(--red)':n>=5?'var(--orange)':'var(--green)';
+          return n>=7?'var(--red)':n>=4?'var(--orange)':'var(--green)';
         }
         function _sBg(v){
           var n=parseFloat(v)||0;
-          return n>=7?'rgba(233,69,96,0.12)':n>=5?'rgba(247,169,79,0.12)':'rgba(62,207,142,0.12)';
+          return n>=7?'rgba(233,69,96,0.12)':n>=4?'rgba(247,169,79,0.12)':'rgba(62,207,142,0.12)';
         }
         function _sBorder(v){
           var n=parseFloat(v)||0;
-          return n>=7?'rgba(233,69,96,0.35)':n>=5?'rgba(247,169,79,0.35)':'rgba(62,207,142,0.35)';
+          return n>=7?'rgba(233,69,96,0.35)':n>=4?'rgba(247,169,79,0.35)':'rgba(62,207,142,0.35)';
         }
         const groupCards = GROUPS.map(function(g){
           const active = g.parts.filter(function(p){ return sMap[p]; });
