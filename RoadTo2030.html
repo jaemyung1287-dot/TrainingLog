@@ -7845,6 +7845,23 @@ async function renderCoachDashboard(){
     const avgSleep = recentCond.length ? (recentCond.reduce(function(s,l){ return s+(l.sleepQuality||5); },0)/recentCond.length).toFixed(1) : '—';
     const avgMood = recentCond.length ? (recentCond.reduce(function(s,l){ return s+(l.mood||5); },0)/recentCond.length).toFixed(1) : '—';
 
+    // ── Baseline: 현재 주 이전 4주 평균
+    const blStart = (function(){ var d=new Date(weekStart); d.setDate(d.getDate()-28); return d.toISOString().slice(0,10); })();
+    const blCond = condLogs.filter(function(l){ return l.date>=blStart && l.date<weekStart; });
+    const blFatigue = blCond.length>=3 ? blCond.reduce(function(s,l){ return s+(l.fatigue||5); },0)/blCond.length : null;
+    const blSleep   = blCond.length>=3 ? blCond.reduce(function(s,l){ return s+(l.sleepQuality||5); },0)/blCond.length : null;
+    const blMood    = blCond.length>=3 ? blCond.reduce(function(s,l){ return s+(l.mood||5); },0)/blCond.length : null;
+    // arrow: higherIsBetter=true이면 올라가는 게 좋음 (수면/기분), false면 내려가는 게 좋음 (피로/RPE)
+    function _arrowHtml(current, baseline, higherIsBetter){
+      if(baseline===null||current==='—') return '';
+      var delta=parseFloat(current)-baseline;
+      if(Math.abs(delta)<0.5) return '';
+      var isBetter = higherIsBetter ? delta>0 : delta<0;
+      var col = isBetter?'var(--green)':'var(--red)';
+      var sign = delta>0?'+':'';
+      return '<div style="font-size:10px;font-weight:800;color:'+col+';margin-top:1px">'+(delta>0?'↑':'↓')+' '+sign+delta.toFixed(1)+'</div>';
+    }
+
     // 피로도: 낮을수록 좋음 (역방향)
     const fatigueColor = avgFatigue==='—'?'var(--muted)':avgFatigue>=7?'var(--red)':avgFatigue>=4?'var(--orange)':'var(--green)';
     const fatigueBg    = avgFatigue==='—'?'var(--input)':avgFatigue>=7?'rgba(233,69,96,0.12)':avgFatigue>=4?'rgba(247,169,79,0.12)':'rgba(62,207,142,0.12)';
@@ -7871,6 +7888,11 @@ async function renderCoachDashboard(){
     const avgWeightRpe = weightRpeLogs.length ? (weightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/weightRpeLogs.length).toFixed(1) : null;
     const avgSprintRpe = sprintRpeLogs.length ? (sprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/sprintRpeLogs.length).toFixed(1) : null;
     function _rpeCol(v){ var n=parseFloat(v); return n>=7?'var(--red)':n>=4?'var(--orange)':'var(--green)'; }
+    // RPE baseline
+    const blWeightRpeLogs = myLogs.filter(function(l){ return (l.type==='weight'||l.type==='plyo')&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
+    const blSprintRpeLogs = myLogs.filter(function(l){ return l.type==='sprint'&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
+    const blWeightRpe = blWeightRpeLogs.length>=2 ? blWeightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blWeightRpeLogs.length : null;
+    const blSprintRpe = blSprintRpeLogs.length>=2 ? blSprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blSprintRpeLogs.length : null;
 
 
     // ④ 근육통 — 옵션 B: 상체/하체/코어 그룹 카드
@@ -7942,12 +7964,16 @@ async function renderCoachDashboard(){
       + '<div style="background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3);border-radius:12px;padding:12px;text-align:center">'
       + '<div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:4px">🏋️ 웨이트</div>'
       + '<div style="font-size:22px;font-weight:800;color:var(--blue)">'+volWeightStr+'</div>'
-      + (avgWeightRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgWeightRpe)+';font-weight:700;margin-top:4px">RPE '+avgWeightRpe+'</div>' : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
+      + (avgWeightRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgWeightRpe)+';font-weight:700;margin-top:4px">RPE '+avgWeightRpe+'</div>'
+          + _arrowHtml(avgWeightRpe, blWeightRpe, false)
+        : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
       + '</div>'
       + '<div style="background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);border-radius:12px;padding:12px;text-align:center">'
       + '<div style="font-size:10px;color:var(--green);font-weight:700;margin-bottom:4px">🏃 스프린트</div>'
       + '<div style="font-size:22px;font-weight:800;color:var(--green)">'+volSprintStr+'</div>'
-      + (avgSprintRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgSprintRpe)+';font-weight:700;margin-top:4px">RPE '+avgSprintRpe+'</div>' : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
+      + (avgSprintRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgSprintRpe)+';font-weight:700;margin-top:4px">RPE '+avgSprintRpe+'</div>'
+          + _arrowHtml(avgSprintRpe, blSprintRpe, false)
+        : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
       + '</div>'
       + '</div>'
       // ── 주간 컨디션
@@ -7956,14 +7982,17 @@ async function renderCoachDashboard(){
       + '<div style="background:'+fatigueBg+';border:1px solid '+fatigueBd+';border-radius:12px;padding:12px;text-align:center">'
       + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">피로도</div>'
       + '<div style="font-size:22px;font-weight:800;color:'+fatigueColor+'">'+avgFatigue+'</div>'
+      + _arrowHtml(avgFatigue, blFatigue, false)
       + '</div>'
       + '<div style="background:'+sleepBg+';border:1px solid '+sleepBd+';border-radius:12px;padding:12px;text-align:center">'
       + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">수면 질</div>'
       + '<div style="font-size:22px;font-weight:800;color:'+sleepColor+'">'+avgSleep+'</div>'
+      + _arrowHtml(avgSleep, blSleep, true)
       + '</div>'
       + '<div style="background:'+moodBg+';border:1px solid '+moodBd+';border-radius:12px;padding:12px;text-align:center">'
       + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">기분</div>'
       + '<div style="font-size:22px;font-weight:800;color:'+moodColor+'">'+avgMood+'</div>'
+      + _arrowHtml(avgMood, blMood, true)
       + '</div>'
       + '</div>'
       // ── 주간 누적 근육통
