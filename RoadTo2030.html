@@ -7865,6 +7865,12 @@ async function renderCoachDashboard(){
     const weekSprintDist = weekSprintLogs.reduce(function(s,l){ return s+(l.totalDistance||0); },0);
     const volWeightStr = weekWeightVol >= 1000 ? (weekWeightVol/1000).toFixed(1)+'t' : weekWeightVol > 0 ? weekWeightVol.toLocaleString()+'kg' : '—';
     const volSprintStr = weekSprintDist > 0 ? weekSprintDist.toLocaleString()+'m' : '—';
+    // RPE 평균
+    const weightRpeLogs = weekWeightLogs.filter(function(l){ return l.rpe; });
+    const sprintRpeLogs = weekSprintLogs.filter(function(l){ return l.rpe; });
+    const avgWeightRpe = weightRpeLogs.length ? (weightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/weightRpeLogs.length).toFixed(1) : null;
+    const avgSprintRpe = sprintRpeLogs.length ? (sprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/sprintRpeLogs.length).toFixed(1) : null;
+    function _rpeCol(v){ var n=parseFloat(v); return n>=8?'var(--red)':n>=6?'var(--orange)':'var(--green)'; }
 
 
     // ④ 근육통 — 옵션 B: 상체/하체/코어 그룹 카드
@@ -7936,10 +7942,12 @@ async function renderCoachDashboard(){
       + '<div style="background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3);border-radius:12px;padding:12px;text-align:center">'
       + '<div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:4px">🏋️ 웨이트</div>'
       + '<div style="font-size:22px;font-weight:800;color:var(--blue)">'+volWeightStr+'</div>'
+      + (avgWeightRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgWeightRpe)+';font-weight:700;margin-top:4px">RPE '+avgWeightRpe+'</div>' : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
       + '</div>'
       + '<div style="background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);border-radius:12px;padding:12px;text-align:center">'
       + '<div style="font-size:10px;color:var(--green);font-weight:700;margin-bottom:4px">🏃 스프린트</div>'
       + '<div style="font-size:22px;font-weight:800;color:var(--green)">'+volSprintStr+'</div>'
+      + (avgSprintRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgSprintRpe)+';font-weight:700;margin-top:4px">RPE '+avgSprintRpe+'</div>' : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
       + '</div>'
       + '</div>'
       // ── 주간 컨디션
