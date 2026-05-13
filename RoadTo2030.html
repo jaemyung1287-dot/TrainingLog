@@ -445,6 +445,10 @@ if ('serviceWorker' in navigator) {
   </div>
   <div class="ttl">모닝 체크</div>
   <div class="sub">오늘 컨디션은 어때?</div>
+  <div class="fg" style="margin-bottom:14px">
+    <label class="fl">📅 기록 날짜</label>
+    <input type="date" class="fi" id="condition-date" style="color-scheme:dark">
+  </div>
   <div class="fg">
     <label class="fl">수면 시간 (시간)</label>
     <div class="slider-row">
@@ -555,6 +559,10 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div id="w-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.25);font-size:12px;color:var(--gold)"></div>
+  <div class="fg" style="margin-bottom:12px">
+    <label class="fl">📅 기록 날짜</label>
+    <input type="date" class="fi" id="weight-date" style="color-scheme:dark">
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="w-phase" placeholder="예: GPP1"></div>
     <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="w-week" placeholder="예: 5월10일~5월15일"></div>
@@ -605,6 +613,10 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div id="sp-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.25);font-size:12px;color:#3ecf8e"></div>
+  <div class="fg" style="margin-bottom:12px">
+    <label class="fl">📅 기록 날짜</label>
+    <input type="date" class="fi" id="sprint-date" style="color-scheme:dark">
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <div class="fg" style="margin:0"><label class="fl">훈련 단계</label><input class="fi" id="sp-phase" placeholder="예: Mesocycle 1"></div>
     <div class="fg" style="margin:0"><label class="fl">주</label><input class="fi" id="sp-week" placeholder="예: 5월 10일~5월 15일"></div>
@@ -1650,7 +1662,7 @@ function goTodayPlan(){
   if(weightExs.length>0) selectType('weight');
   else selectType('sprint');
 }
-function goCondition(){ ST.selectedParts={}; renderBodyParts(); showScreen('s-condition'); }
+function goCondition(){ ST.selectedParts={}; renderBodyParts(); document.getElementById('condition-date').value=todayStr(); showScreen('s-condition'); }
 function goProgram(){ renderProgram(); showScreen('s-program'); }
 function _toggleProgDay(ds){
   const body=document.getElementById('prog-body-'+ds);
@@ -2084,6 +2096,7 @@ function selectType(t){
       document.getElementById('w-screen-logo').textContent='🏋️ 웨이트';
     }
     renderExList();
+    if(!ST.editingLogId) document.getElementById('weight-date').value=todayStr();
     showScreen('s-weight');
   } else if(t==='sprint'){
     const today=todayStr();
@@ -2167,6 +2180,7 @@ function selectType(t){
       b.style.borderColor='var(--border)'; b.style.background='var(--input)'; b.style.color='var(--muted)';
     });
     renderSprintSets();
+    if(!ST.editingLogId) document.getElementById('sprint-date').value=todayStr();
     showScreen('s-sprint');
   } else if(t==='tabata'){
     selectTabata();
@@ -2444,7 +2458,7 @@ function renderSorenessSliders(){
 // ════════════════════════════════════════════════
 function saveCondition(){
   const log={
-    id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'condition',
+    id:genId(),date:document.getElementById('condition-date').value||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'condition',
     sleepHours:parseFloat(document.getElementById('sl-sleep').value),
     sleepQuality:parseInt(document.getElementById('sl-squality').value),
     fatigue:parseInt(document.getElementById('sl-fatigue').value),
@@ -2706,11 +2720,11 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
 
   // ── Duplicate detection (runs after confirmation, before actual save) ──
   if(!ST.editingLogId && dupMode==='confirmed'){
-    const d0=getData(); const today=todayStr(); const athName=ST.athlete.name;
+    const d0=getData(); const logDate=document.getElementById('weight-date').value||todayStr(); const athName=ST.athlete.name;
     const dups=[];
-    if(liftingExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='weight')) dups.push({lbl:'Weight',type:'weight'});
-    if(plyoExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='plyo')) dups.push({lbl:'Plyo',type:'plyo'});
-    if(sprintExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint')) dups.push({lbl:'Sprint',type:'sprint'});
+    if(liftingExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===logDate&&l.type==='weight')) dups.push({lbl:'Weight',type:'weight'});
+    if(plyoExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===logDate&&l.type==='plyo')) dups.push({lbl:'Plyo',type:'plyo'});
+    if(sprintExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===logDate&&l.type==='sprint')) dups.push({lbl:'Sprint',type:'sprint'});
     if(dups.length){
       _showDupModal(dups.map(d=>d.lbl).join(' + '),
         ()=>saveWeight('replace'),
@@ -2755,7 +2769,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       return s+w*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
     },0);
     d.logs.push({
-      id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',
+      id:genId(),date:document.getElementById('weight-date').value||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',
       phase,week,
       exercises:liftingExs.map(e=>{
         const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
@@ -2783,7 +2797,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const totalReps=plyoExs.filter(e=>(e.planRepType||'reps')!=='contacts').reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
     const totalContacts=plyoExs.filter(e=>(e.planRepType||'reps')==='contacts').reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
     d.logs.push({
-      id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'plyo',
+      id:genId(),date:document.getElementById('weight-date').value||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'plyo',
       phase,week,
       exercises:plyoExs.map(e=>({
         name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
@@ -2806,7 +2820,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const totalDist=Math.round(sprintExs.reduce((s,e)=>
       s+(parseFloat(e.distance)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0));
     d.logs.push({
-      id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
+      id:genId(),date:document.getElementById('weight-date').value||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
       phase,week,
       sprintType:sprintExs[0]?.subCategory||'스프린트 트레이닝',
       sets:sprintExs.map(e=>({
@@ -3017,8 +3031,8 @@ function saveSprint(dupMode){
 
   // ── Duplicate detection (runs after confirmation) ──
   if(!ST.editingLogId && dupMode==='confirmed'){
-    const d0=getData(); const today=todayStr(); const athName=ST.athlete.name;
-    if(d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint')){
+    const d0=getData(); const sprintLogDate=document.getElementById('sprint-date').value||todayStr(); const athName=ST.athlete.name;
+    if(d0.logs.some(l=>l.athleteName===athName&&l.date===sprintLogDate&&l.type==='sprint')){
       _showDupModal('Sprint',
         ()=>saveSprint('replace'),
         ()=>saveSprint('add')
@@ -3039,13 +3053,14 @@ function saveSprint(dupMode){
   }
 
   // ── Replace mode: delete today's duplicate ──
+  const sprintLogDate=document.getElementById('sprint-date').value||todayStr();
   if(dupMode==='replace'){
-    const today=todayStr(); const athName=ST.athlete.name;
-    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='sprint'));
+    const athName=ST.athlete.name;
+    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===sprintLogDate&&l.type==='sprint'));
   }
 
   const log={
-    id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
+    id:genId(),date:sprintLogDate,athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
     phase:document.getElementById('sp-phase').value,
     week:document.getElementById('sp-week').value,
     sprintType:ST.sprintCategory||ST.sprintSets[0]?.subCategory||'스프린트 트레이닝',
