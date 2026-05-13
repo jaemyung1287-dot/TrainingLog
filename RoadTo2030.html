@@ -7766,9 +7766,10 @@ async function renderCoachDashboard(){
   const wrap = document.getElementById('coach-athlete-cards');
   if(!wrap) return;
   wrap.innerHTML = '<div class="empty"><div class="ei">⏳</div>데이터 로딩 중...</div>';
-
+  try {
   const today = todayStr();
-  const {start:weekStart, end:weekEnd, dates:weekDates} = _getDashWeekDates();
+  const _wk = _getDashWeekDates();
+  const weekStart = _wk.start, weekEnd = _wk.end, weekDates = _wk.dates;
   const isCurrentWeek = _dashWeekOffset === 0;
   const weekLabel = isCurrentWeek ? '이번 주' : weekStart.slice(5)+' ~ '+weekEnd.slice(5);
   document.getElementById('coach-dash-date').textContent = weekStart+' ~ '+weekEnd;
@@ -7990,6 +7991,9 @@ async function renderCoachDashboard(){
     +'</div>';
 
   wrap.innerHTML = weekNavHtml + (html || '<div class="empty">데이터 없음</div>');
+  } catch(err) {
+    wrap.innerHTML = '<div class="empty" style="color:var(--red)">오류: '+err.message+'</div>';
+  }
 }
 
 </script>
