@@ -7698,7 +7698,7 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
 // ════════════════════════════════════════════════
 const COACH_PIN = '9090'; // 기본 코치 PIN
 let _coachPinBuf = '';
-let _dashWeekOffset = 0; // 0 = 이번 주, -1 = 지난 주, ...
+var _dashWeekOffset = 0; // 0 = 이번 주, -1 = 지난 주, ...
 
 function _addDays(dateStr, n){
   const d = new Date(dateStr+'T00:00:00');
