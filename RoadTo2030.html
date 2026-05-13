@@ -7870,7 +7870,7 @@ async function renderCoachDashboard(){
     const sprintRpeLogs = weekSprintLogs.filter(function(l){ return l.rpe; });
     const avgWeightRpe = weightRpeLogs.length ? (weightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/weightRpeLogs.length).toFixed(1) : null;
     const avgSprintRpe = sprintRpeLogs.length ? (sprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/sprintRpeLogs.length).toFixed(1) : null;
-    function _rpeCol(v){ var n=parseFloat(v); return n>=8?'var(--red)':n>=6?'var(--orange)':'var(--green)'; }
+    function _rpeCol(v){ var n=parseFloat(v); return n>=7?'var(--red)':n>=5?'var(--orange)':'var(--green)'; }
 
 
     // ④ 근육통 — 옵션 B: 상체/하체/코어 그룹 카드
