@@ -342,10 +342,13 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
         <b>aistudio.google.com</b> 접속 → <b>Get API key</b> 클릭 → 복사<br>
         <span style="opacity:.8">하루 1,500장까지 무료 · 결제 정보 불필요</span>
       </div>
-      <label>Gemini API 키 입력</label>
-      <input id="api-key" type="password" class="inp" placeholder="AIza..." style="margin-bottom:10px;font-family:monospace;font-size:13px">
-      <button class="btn btn-p" onclick="saveKey()">저장</button>
-      <div id="key-status" style="margin-top:8px;font-size:12px;text-align:center"></div>
+      <div id="key-input-section">
+        <label>Gemini API 키 입력</label>
+        <input id="api-key" type="password" class="inp" placeholder="AIza..." style="margin-bottom:10px;font-family:monospace;font-size:13px">
+        <button class="btn btn-p" onclick="saveKey()">저장</button>
+        <div id="key-status" style="margin-top:8px;font-size:12px;text-align:center"></div>
+      </div>
+      <button id="key-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('key-input-section').style.display='block';this.style.display='none'">🔑 API 키 변경</button>
     </div>
     <div class="card">
       <div class="ct">데이터 관리</div>
@@ -729,6 +732,11 @@ function updateApiNotice() {
   }
   const kn = document.getElementById('key-notice');
   if (kn) { kn.className = k ? 'notice n-ok' : 'notice n-warn'; kn.innerHTML = k ? '✅ Gemini 키가 연결되어 있어요. 무료로 사용 중!' : '구글 계정만 있으면 <b>완전 무료</b>예요.<br><b>aistudio.google.com</b> 접속 → <b>Get API key</b> 클릭 → 복사<br><span style="opacity:.8">하루 1,500장까지 무료 · 결제 정보 불필요</span>'; }
+  // API 키 입력 영역: 저장됐으면 접어두기
+  const keySection = document.getElementById('key-input-section');
+  if (keySection) keySection.style.display = k ? 'none' : 'block';
+  const keyChangeBtn = document.getElementById('key-change-btn');
+  if (keyChangeBtn) keyChangeBtn.style.display = k ? 'inline-block' : 'none';
 }
 
 function saveKey() {
