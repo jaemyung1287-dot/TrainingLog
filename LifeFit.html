@@ -304,6 +304,10 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
       </div>
     </div>
     <div class="card">
+      <div class="ct">식사 시간대 패턴</div>
+      <div id="meal-timing-chart" style="font-size:13px;color:var(--sub);text-align:center;padding:10px 0">기록이 쌓이면 패턴이 보여요 🍽️</div>
+    </div>
+    <div class="card">
       <div class="ct">수면에 좋은 식사 타이밍</div>
       <div style="font-size:13px;line-height:1.8;color:var(--sub)">
         <div class="chip">🕕 저녁 식사 취침 3시간 전</div>
@@ -547,6 +551,15 @@ function onFoodFile(input) {
   r.readAsDataURL(f);
 }
 
+function getMealTimeLabel() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 10)  return { label: '아침', emoji: '🌅', warn: false };
+  if (h >= 10 && h < 14) return { label: '점심', emoji: '☀️', warn: false };
+  if (h >= 14 && h < 18) return { label: '오후 간식', emoji: '🍵', warn: false };
+  if (h >= 18 && h < 21) return { label: '저녁', emoji: '🌇', warn: false };
+  return { label: '야식', emoji: '🌙', warn: true };
+}
+
 async function analyzeFood() {
   const key = get('apiKey');
   const res = document.getElementById('food-result');
@@ -561,7 +574,10 @@ async function analyzeFood() {
   }
 
   try {
-    const prompt = SYS + '\n\n이 식사 사진을 분석해줘.';
+    const mt = getMealTimeLabel();
+    const now = new Date();
+    const timeStr = `${now.getHours()}시 ${now.getMinutes()}분 (${mt.label})`;
+    const prompt = SYS + `\n\n현재 시각: ${timeStr}${mt.warn ? ' — 야식 시간대임에 주의해서 분석해줘.' : ''}\n\n이 식사 사진을 분석해줘.`;
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
       {
@@ -591,7 +607,8 @@ async function analyzeFood() {
 function saveMeal() {
   const memo = document.getElementById('food-memo').value;
   const logs = get('meals') || [];
-  logs.push({ ts: Date.now(), photo: _photo, ai: _analysis, memo });
+  const mt = getMealTimeLabel();
+  logs.push({ ts: Date.now(), photo: _photo, ai: _analysis, memo, mealTime: mt.label, mealEmoji: mt.emoji, mealWarn: mt.warn });
   set('meals', logs);
   toast('식사 기록 저장됐어요 ✅');
   // Reset
@@ -616,10 +633,11 @@ function renderFoodLog() {
   c.innerHTML = td.map(m => {
     const t = new Date(m.ts);
     const tm = `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+    const mealBadge = m.mealTime ? `<span class="b ${m.mealWarn ? 'b-warn' : 'b-info'}" style="font-size:10px;margin-left:4px">${m.mealEmoji} ${m.mealTime}</span>` : '';
     const preview = (m.ai || m.memo || '기록됨').slice(0,70) + ((m.ai||m.memo||'').length>70?'…':'');
     return `<div class="li">
       ${m.photo ? `<img src="${m.photo}" class="lthumb" style="width:54px;height:54px;object-fit:cover;border-radius:10px">` : '<div class="lthumb">🍽️</div>'}
-      <div><div style="font-size:11px;color:var(--sub);margin-bottom:3px">${tm}</div><div style="font-size:13px;line-height:1.55">${preview}</div></div>
+      <div><div style="font-size:11px;color:var(--sub);margin-bottom:3px">${tm}${mealBadge}</div><div style="font-size:13px;line-height:1.55">${preview}</div></div>
     </div>`;
   }).join('');
 }
@@ -710,11 +728,48 @@ function renderHomeSummary() {
   </div>`;
 }
 
+function renderMealTimingChart() {
+  const c = document.getElementById('meal-timing-chart');
+  if (!c) return;
+  const all = get('meals') || [];
+  if (all.length < 2) return;
+  const counts = { '아침':0, '점심':0, '오후 간식':0, '저녁':0, '야식':0 };
+  const emojis = { '아침':'🌅', '점심':'☀️', '오후 간식':'🍵', '저녁':'🌇', '야식':'🌙' };
+  all.forEach(m => {
+    const mt = m.mealTime || (() => {
+      const h = new Date(m.ts).getHours();
+      if (h>=5&&h<10) return '아침';
+      if (h>=10&&h<14) return '점심';
+      if (h>=14&&h<18) return '오후 간식';
+      if (h>=18&&h<21) return '저녁';
+      return '야식';
+    })();
+    if (counts[mt] !== undefined) counts[mt]++;
+  });
+  const total = Object.values(counts).reduce((a,b)=>a+b,0);
+  if (!total) return;
+  const max = Math.max(...Object.values(counts));
+  c.innerHTML = Object.entries(counts).map(([label, cnt]) => {
+    if (!cnt) return '';
+    const pct = Math.round(cnt/total*100);
+    const barW = Math.round(cnt/max*100);
+    const warn = label === '야식';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="width:72px;font-size:12px;text-align:right;color:var(--sub)">${emojis[label]} ${label}</div>
+      <div style="flex:1;background:var(--border);border-radius:4px;height:14px;overflow:hidden">
+        <div style="width:${barW}%;height:100%;background:${warn?'var(--amber)':'var(--accent)'};border-radius:4px;transition:width .4s"></div>
+      </div>
+      <div style="width:42px;font-size:12px;color:${warn?'var(--amber)':'var(--text)'}"><b>${cnt}회</b> ${pct}%</div>
+    </div>`;
+  }).join('') + `<div style="margin-top:8px;font-size:11px;color:var(--sub);text-align:center">총 ${total}회 기록 기준</div>`;
+}
+
 function refreshAll() {
   renderFoodLog();
   renderSleepLog();
   renderSleepChart();
   renderHomeSummary();
+  renderMealTimingChart();
   updateApiNotice();
 }
 
