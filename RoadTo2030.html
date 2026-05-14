@@ -7922,15 +7922,21 @@ async function renderCoachDashboard(){
     const blSprintRpe = blSprintRpeLogs.length>=2 ? blSprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blSprintRpeLogs.length : null;
 
 
-    // ④ 근육통 — 옵션 B: 상체/하체/코어 그룹 카드
-    const sorenessLog = condLogs.find(function(l){ return l.soreness && l.soreness.length > 0 && l.date >= weekStart && l.date <= weekEnd; })
-      || condLogs.find(function(l){ return l.soreness && l.soreness.length > 0; });
+    // ④ 근육통 — 이번 주 모든 컨디션 로그에서 부위별 최고 강도 합산
+    const weekSorenessLogs = condLogs.filter(function(l){ return l.soreness && l.soreness.length > 0 && l.date >= weekStart && l.date <= weekEnd; });
+    const fallbackSorenessLog = weekSorenessLogs.length ? null : condLogs.find(function(l){ return l.soreness && l.soreness.length > 0; });
+    const hasSoreness = weekSorenessLogs.length > 0 || !!fallbackSorenessLog;
     let condRow = '';
     if(latestCond){
       let sorenessHtml = '';
-      if(sorenessLog && sorenessLog.soreness.length){
+      if(hasSoreness){
         const sMap = {};
-        sorenessLog.soreness.forEach(function(s){ sMap[s.part] = s.intensity||5; });
+        // 이번 주 모든 로그 합산 (부위별 최고 강도)
+        const logsToMerge = weekSorenessLogs.length ? weekSorenessLogs : [fallbackSorenessLog];
+        logsToMerge.forEach(function(l){
+          (l.soreness||[]).forEach(function(s){ sMap[s.part] = Math.max(sMap[s.part]||0, s.intensity||5); });
+        });
+        const sorenessLog = {soreness: Object.entries(sMap).map(function(e){return {part:e[0],intensity:e[1]};})};
         const GROUPS = [
           {name:'상체', parts: BODY_PARTS.upper},
           {name:'하체', parts: BODY_PARTS.lower},
@@ -7954,7 +7960,11 @@ async function renderCoachDashboard(){
           const avg = (active.reduce(function(s,p){ return s+(sMap[p]||0); },0)/active.length).toFixed(1);
           const maxVal = Math.max.apply(null, active.map(function(p){ return sMap[p]||0; }));
           const maxPart = active.find(function(p){ return sMap[p]===maxVal; })||'';
-          return '<div style="background:'+_sBg(avg)+';border:1px solid '+_sBorder(avg)+';border-radius:12px;padding:12px;text-align:center">'
+          // 툴팁: 부위별 강도 목록
+          const detailTip = active.map(function(p){ return p+'('+sMap[p]+')'; }).join(', ');
+          return '<div style="background:'+_sBg(avg)+';border:1px solid '+_sBorder(avg)+';border-radius:12px;padding:12px;text-align:center;cursor:pointer;position:relative" '
+            +'title="'+detailTip+'" '
+            +'onclick="(function(el){var t=el.querySelector(\'.sor-tip\');if(t){t.remove();}else{var d=document.createElement(\'div\');d.className=\'sor-tip\';d.style=\'position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);background:#1a2e25;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--text);white-space:nowrap;z-index:99;pointer-events:none\';d.textContent=\''+detailTip+'\';el.appendChild(d);setTimeout(function(){d.remove();},2500);}})(this)">'
             +'<div style="font-size:10px;color:var(--muted);margin-bottom:4px">'+g.name+'</div>'
             +'<div style="font-size:22px;font-weight:800;color:'+_sCol(avg)+'">'+avg+'</div>'
             +'<div style="font-size:10px;color:var(--muted);margin-top:3px">최고 '+maxPart+' '+maxVal+'</div>'
@@ -7962,14 +7972,13 @@ async function renderCoachDashboard(){
         }).filter(Boolean);
         const allVals = sorenessLog.soreness.map(function(s){ return s.intensity||5; });
         const totalAvg = (allVals.reduce(function(a,b){ return a+b; },0)/allVals.length).toFixed(1);
-        const totalMax = Math.max.apply(null, allVals);
-        groupCards.push('<div style="background:'+_sBg(totalAvg)+';border:1px solid '+_sBorder(totalAvg)+';border-radius:12px;padding:12px;text-align:center">'
+        const allParts = sorenessLog.soreness.map(function(s){ return s.part+'('+s.intensity+')'; }).join(', ');
+        groupCards.push('<div style="background:'+_sBg(totalAvg)+';border:1px solid '+_sBorder(totalAvg)+';border-radius:12px;padding:12px;text-align:center;cursor:pointer;position:relative" '
+          +'onclick="(function(el){var t=el.querySelector(\'.sor-tip\');if(t){t.remove();}else{var d=document.createElement(\'div\');d.className=\'sor-tip\';d.style=\'position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);background:#1a2e25;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--text);white-space:nowrap;z-index:99;pointer-events:none\';d.textContent=\''+allParts+'\';el.appendChild(d);setTimeout(function(){d.remove();},2500);}})(this)">'
           +'<div style="font-size:10px;color:var(--muted);margin-bottom:4px">전체 평균</div>'
           +'<div style="font-size:22px;font-weight:800;color:'+_sCol(totalAvg)+'">'+totalAvg+'</div>'
           +'<div style="font-size:10px;color:var(--muted);margin-top:3px">'+allVals.length+'개 부위</div>'
           +'</div>');
-        const sorenessDateLabel = sorenessLog.date!==latestCond.date
-          ? ' <span style="font-weight:400;font-size:10px;opacity:0.5">'+sorenessLog.date+'</span>' : '';
         sorenessHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+groupCards.join('')+'</div>';
       }
       condRow = sorenessHtml;
