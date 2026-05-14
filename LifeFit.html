@@ -355,6 +355,21 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
       <button id="key-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('key-input-section').style.display='block';this.style.display='none'">🔑 API 키 변경</button>
     </div>
     <div class="card">
+      <div class="ct">☁️ 클라우드 동기화 (기기 간 공유)</div>
+      <div class="notice n-warn" id="sync-notice" style="font-size:12px">
+        <b>JSONBin.io</b> 무료 가입 후 API 키 입력하면<br>폰 ↔ 컴퓨터 자동 동기화돼요.<br>
+        <span style="opacity:.8">jsonbin.io → 가입 → API Keys 메뉴 → Master Key 복사</span>
+      </div>
+      <div id="sync-input-section">
+        <label>JSONBin Master Key</label>
+        <input id="sync-key" type="password" class="inp" placeholder="$2a$10$..." style="margin-bottom:10px;font-family:monospace;font-size:13px">
+        <button class="btn btn-p" onclick="saveSyncKey()">저장 및 동기화 시작</button>
+        <div id="sync-status" style="margin-top:8px;font-size:12px;text-align:center"></div>
+      </div>
+      <button id="sync-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('sync-input-section').style.display='block';this.style.display='none'">🔑 동기화 키 변경</button>
+      <button class="btn btn-s" style="margin-top:8px;font-size:13px" onclick="manualSync()">🔄 지금 동기화</button>
+    </div>
+    <div class="card">
       <div class="ct">데이터 관리</div>
       <button class="btn btn-s" style="margin-bottom:8px" onclick="exportJSON()">📥 전체 데이터 내보내기 (JSON)</button>
       <button class="btn btn-d" onclick="clearAll()">🗑 전체 기록 초기화</button>
@@ -453,7 +468,9 @@ window.addEventListener('DOMContentLoaded', () => {
   if (k) document.getElementById('api-key').value = k;
 
   refreshAll();
+  updateSyncNotice();
   checkUrlParams();
+  pullSync();
 });
 
 // ── Apple Watch via Shortcuts ────────────────────────────────────
@@ -622,6 +639,7 @@ function saveMeal() {
   _photo = null; _b64 = null; _analysis = '';
   renderFoodLog();
   renderHomeSummary();
+  pushSync();
 }
 
 function renderFoodLog() {
@@ -656,6 +674,7 @@ function saveSleep() {
   toast('수면 기록 저장됐어요 ✅');
   renderSleepLog();
   renderHomeSummary();
+  pushSync();
 }
 
 function renderSleepLog() {
@@ -792,6 +811,94 @@ function updateApiNotice() {
   if (keySection) keySection.style.display = k ? 'none' : 'block';
   const keyChangeBtn = document.getElementById('key-change-btn');
   if (keyChangeBtn) keyChangeBtn.style.display = k ? 'inline-block' : 'none';
+}
+
+// ── Cloud Sync (JSONBin.io) ───────────────────────────────────────
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
+
+async function saveSyncKey() {
+  const v = document.getElementById('sync-key').value.trim();
+  const s = document.getElementById('sync-status');
+  if (!v) { s.textContent = '❌ 키를 입력해주세요.'; s.style.color = 'var(--red)'; return; }
+  s.textContent = '⏳ 연결 중...'; s.style.color = 'var(--sub)';
+  set('syncKey', v);
+  // Create bin if not exists
+  let binId = get('syncBinId');
+  if (!binId) {
+    try {
+      const r = await fetch(JSONBIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': v, 'X-Bin-Name': 'LifeFit', 'X-Bin-Private': 'true' },
+        body: JSON.stringify({ meals: [], sleeps: [], v: 1 })
+      });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      binId = d.metadata.id;
+      set('syncBinId', binId);
+    } catch(e) { s.textContent = '❌ 키가 올바르지 않아요. Master Key를 확인해주세요.'; s.style.color = 'var(--red)'; return; }
+  }
+  await pushSync();
+  s.textContent = '✅ 동기화 연결됐어요!'; s.style.color = 'var(--green)';
+  updateSyncNotice();
+}
+
+async function pushSync() {
+  const key = get('syncKey'); const binId = get('syncBinId');
+  if (!key || !binId) return;
+  const meals = (get('meals')||[]).map(m => ({...m, photo: null})); // 사진 제외 (용량)
+  const sleeps = get('sleeps') || [];
+  try {
+    await fetch(`${JSONBIN_URL}/${binId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': key },
+      body: JSON.stringify({ meals, sleeps, updated: Date.now() })
+    });
+  } catch(e) {}
+}
+
+async function pullSync() {
+  const key = get('syncKey'); const binId = get('syncBinId');
+  if (!key || !binId) return;
+  try {
+    const r = await fetch(`${JSONBIN_URL}/${binId}/latest`, { headers: { 'X-Master-Key': key } });
+    if (!r.ok) return;
+    const d = await r.json();
+    const remote = d.record;
+    // Merge: keep local photos, update text data
+    const local = get('meals') || [];
+    const remoteMap = {};
+    (remote.meals||[]).forEach(m => remoteMap[m.ts] = m);
+    local.forEach(m => { if (remoteMap[m.ts]) remoteMap[m.ts].photo = m.photo; });
+    const merged = Object.values(remoteMap);
+    local.forEach(m => { if (!remoteMap[m.ts]) merged.push(m); });
+    merged.sort((a,b) => a.ts - b.ts);
+    set('meals', merged);
+    if (remote.sleeps && remote.sleeps.length >= (get('sleeps')||[]).length) {
+      set('sleeps', remote.sleeps);
+    }
+    refreshAll();
+  } catch(e) {}
+}
+
+async function manualSync() {
+  const s = document.getElementById('sync-status');
+  const key = get('syncKey');
+  if (!key) { toast('먼저 JSONBin 키를 입력해주세요'); return; }
+  if (s) { s.textContent = '🔄 동기화 중...'; s.style.color = 'var(--sub)'; }
+  await pushSync();
+  await pullSync();
+  if (s) { s.textContent = '✅ 동기화 완료!'; s.style.color = 'var(--green)'; }
+  toast('동기화 완료 ✅');
+}
+
+function updateSyncNotice() {
+  const key = get('syncKey');
+  const n = document.getElementById('sync-notice');
+  const sec = document.getElementById('sync-input-section');
+  const btn = document.getElementById('sync-change-btn');
+  if (n) { n.className = key ? 'notice n-ok' : 'notice n-warn'; n.innerHTML = key ? '✅ 클라우드 동기화 연결됨 — 폰/컴퓨터 자동 공유 중' : '<b>JSONBin.io</b> 무료 가입 후 API 키 입력하면<br>폰 ↔ 컴퓨터 자동 동기화돼요.<br><span style="opacity:.8">jsonbin.io → 가입 → API Keys → Master Key 복사</span>'; }
+  if (sec) sec.style.display = key ? 'none' : 'block';
+  if (btn) btn.style.display = key ? 'inline-block' : 'none';
 }
 
 function saveKey() {
