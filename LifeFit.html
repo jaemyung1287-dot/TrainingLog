@@ -197,7 +197,7 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
   <div class="sec">
     <div class="card">
       <div id="api-notice" class="notice n-warn">⚠️ AI 분석을 쓰려면 <b>설정</b> 탭에서 무료 Gemini 키를 입력해주세요.</div>
-      <input type="file" id="food-file" accept="image/*" capture="environment" style="display:none" onchange="onFoodFile(this)">
+      <input type="file" id="food-file" accept="image/*" style="display:none" onchange="onFoodFile(this)">
       <div class="upz" id="upz" onclick="document.getElementById('food-file').click()">
         <div style="font-size:40px;margin-bottom:8px">📷</div>
         <div style="font-size:15px;font-weight:600;margin-bottom:3px">사진 찍기 or 업로드</div>
@@ -446,7 +446,53 @@ window.addEventListener('DOMContentLoaded', () => {
   if (k) document.getElementById('api-key').value = k;
 
   refreshAll();
+  checkUrlParams();
 });
+
+// ── Apple Watch via Shortcuts ────────────────────────────────────
+function checkUrlParams() {
+  const p = new URLSearchParams(window.location.search);
+  if (!p.has('steps') && !p.has('sleep') && !p.has('hr')) return;
+
+  const steps = p.get('steps');
+  const sleep = parseFloat(p.get('sleep') || 0);
+  const hr = p.get('hr');
+  const hrv = p.get('hrv');
+  const calories = p.get('calories');
+  const sleepQlt = p.get('sleep_qlt');
+
+  // Auto-save watch data
+  if (sleep > 0) {
+    const logs = get('sleeps') || [];
+    const today = new Date().toDateString();
+    const exists = logs.find(l => new Date(l.ts).toDateString() === today);
+    if (!exists) {
+      logs.push({
+        ts: Date.now(),
+        hrs: sleep,
+        qlt: sleepQlt ? parseInt(sleepQlt) : 6,
+        cond: 5,
+        note: `⌚ 워치 자동 기록${hr ? ' · 심박 '+hr+'bpm' : ''}${hrv ? ' · HRV '+hrv : ''}${steps ? ' · 걸음 '+parseInt(steps).toLocaleString() : ''}${calories ? ' · 칼로리 '+calories+'kcal' : ''}`
+      });
+      set('sleeps', logs);
+    }
+  }
+
+  // Show summary
+  const parts = [];
+  if (sleep) parts.push(`수면 ${sleep}시간`);
+  if (steps) parts.push(`걸음수 ${parseInt(steps).toLocaleString()}보`);
+  if (hr) parts.push(`심박 ${hr}bpm`);
+  if (hrv) parts.push(`HRV ${hrv}`);
+  if (calories) parts.push(`칼로리 ${calories}kcal`);
+
+  if (parts.length) {
+    setTimeout(() => toast('⌚ 워치 데이터 저장됨: ' + parts.join(' · ')), 500);
+    refreshAll();
+    // Clean URL
+    history.replaceState({}, '', window.location.pathname);
+  }
+}
 
 // ── Navigation ───────────────────────────────────────────────────
 function go(id) {
