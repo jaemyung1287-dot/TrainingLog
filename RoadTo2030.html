@@ -7986,6 +7986,25 @@ async function renderCoachDashboard(){
       condRow = '';
     }
 
+    // ── 이번 주 코멘트 수집 (notes 필드가 있는 로그만)
+    const weekNotes = recentLogs
+      .filter(function(l){ return l.notes && l.notes.trim(); })
+      .sort(function(a,b){ return a.date.localeCompare(b.date); })
+      .map(function(l){
+        var typeLabel = l.type==='weight'?'🏋️ 웨이트':l.type==='sprint'?'🏃 스프린트':'💭 컨디션';
+        var mmdd = l.date ? l.date.slice(5) : '';
+        return '<div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--input);border-radius:10px;border-left:3px solid var(--border)">'
+          +'<div style="display:flex;align-items:center;gap:6px">'
+          +'<span style="font-size:10px;font-weight:700;color:var(--muted)">'+mmdd+'</span>'
+          +'<span style="font-size:10px;color:var(--muted)">'+typeLabel+'</span>'
+          +'</div>'
+          +'<div style="font-size:13px;color:var(--text);line-height:1.45">'+l.notes.trim()+'</div>'
+          +'</div>';
+      });
+    const notesHtml = weekNotes.length
+      ? _sl('이번 주 코멘트') + '<div style="display:flex;flex-direction:column;gap:6px">'+weekNotes.join('')+'</div>'
+      : '';
+
     const displayName = _nick(ath.name);
 
     const _sl = (label) =>
@@ -8033,6 +8052,7 @@ async function renderCoachDashboard(){
       + '</div>'
       // ── 주간 누적 근육통
       + (condRow ? _sl('주간 누적 근육통') + condRow : '')
+      + notesHtml
       + '</div>';
   }
 
