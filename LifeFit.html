@@ -186,6 +186,10 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
       </div>
     </div>
     <div class="card">
+      <div class="ct">오늘 운동</div>
+      <div id="home-workout" style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">오늘 운동 기록이 없어요 🏃</div>
+    </div>
+    <div class="card">
       <div class="ct">이번 주 수면</div>
       <div id="home-sleep-chart" style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">수면 기록 없음</div>
     </div>
@@ -506,7 +510,9 @@ function parseSleepHours(raw) {
 
 function checkUrlParams() {
   const p = new URLSearchParams(window.location.search);
-  if (!p.has('steps') && !p.has('sleep') && !p.has('hr')) return;
+  const hasWatch = p.has('steps') || p.has('sleep') || p.has('hr');
+  const hasWorkout = p.has('wtype') || p.has('wmin') || p.has('wcal');
+  if (!hasWatch && !hasWorkout) return;
 
   const steps = p.get('steps');
   const sleep = parseSleepHours(p.get('sleep'));
@@ -515,7 +521,7 @@ function checkUrlParams() {
   const calories = p.get('calories');
   const sleepQlt = p.get('sleep_qlt');
 
-  // Auto-save watch data
+  // Auto-save sleep/steps data
   if (sleep > 0) {
     const logs = get('sleeps') || [];
     const today = new Date().toDateString();
@@ -532,18 +538,32 @@ function checkUrlParams() {
     }
   }
 
+  // Auto-save workout data
+  if (hasWorkout) {
+    const wtype = decodeURIComponent(p.get('wtype') || '운동');
+    const wmin  = parseFloat(p.get('wmin')  || 0);
+    const wcal  = parseFloat(p.get('wcal')  || 0);
+    const wkm   = parseFloat(p.get('wkm')   || 0);
+    const whr   = parseFloat(p.get('whr')   || 0);
+    const workouts = get('workouts') || [];
+    workouts.push({ ts: Date.now(), type: wtype, min: wmin, cal: wcal, km: wkm, hr: whr });
+    set('workouts', workouts);
+  }
+
   // Show summary
   const parts = [];
   if (sleep) parts.push(`수면 ${sleep}시간`);
-  if (steps) parts.push(`걸음수 ${parseInt(steps).toLocaleString()}보`);
+  if (steps) parts.push(`걸음 ${parseInt(steps).toLocaleString()}보`);
   if (hr) parts.push(`심박 ${hr}bpm`);
-  if (hrv) parts.push(`HRV ${hrv}`);
-  if (calories) parts.push(`칼로리 ${calories}kcal`);
+  if (hasWorkout) {
+    const wtype = decodeURIComponent(p.get('wtype') || '운동');
+    const wmin = p.get('wmin');
+    parts.push(`${wtype}${wmin ? ' '+wmin+'분' : ''}`);
+  }
 
   if (parts.length) {
     setTimeout(() => toast('⌚ 워치 데이터 저장됨: ' + parts.join(' · ')), 500);
     refreshAll();
-    // Clean URL
     history.replaceState({}, '', window.location.pathname);
   }
 }
@@ -787,11 +807,39 @@ function renderMealTimingChart() {
   }).join('') + `<div style="margin-top:8px;font-size:11px;color:var(--sub);text-align:center">총 ${total}회 기록 기준</div>`;
 }
 
+function renderWorkoutSummary() {
+  const c = document.getElementById('home-workout');
+  if (!c) return;
+  const workouts = get('workouts') || [];
+  const today = new Date().toDateString();
+  const tw = workouts.filter(w => new Date(w.ts).toDateString() === today);
+  if (!tw.length) { c.innerHTML = '<div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">오늘 운동 기록이 없어요 🏃</div>'; return; }
+  const typeEmoji = { '달리기':'🏃', '걷기':'🚶', '사이클':'🚴', '수영':'🏊', '헬스':'💪', '요가':'🧘', '등산':'🧗', '축구':'⚽', '농구':'🏀', '테니스':'🎾' };
+  c.innerHTML = tw.map(w => {
+    const em = typeEmoji[w.type] || '🏋️';
+    const t = new Date(w.ts);
+    const tm = `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+    return `<div class="li" style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div class="lthumb" style="font-size:26px;background:var(--green-bg)">${em}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">${w.type} <span style="font-size:11px;color:var(--sub);font-weight:400">${tm}</span></div>
+        <div style="font-size:12px;color:var(--sub);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">
+          ${w.min ? `⏱️ ${w.min}분` : ''}
+          ${w.cal ? `🔥 ${w.cal}kcal` : ''}
+          ${w.km  ? `📍 ${w.km}km` : ''}
+          ${w.hr  ? `💓 ${w.hr}bpm` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function refreshAll() {
   renderFoodLog();
   renderSleepLog();
   renderSleepChart();
   renderHomeSummary();
+  renderWorkoutSummary();
   renderMealTimingChart();
   updateApiNotice();
 }
