@@ -450,12 +450,38 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Apple Watch via Shortcuts ────────────────────────────────────
+function parseSleepHours(raw) {
+  if (!raw) return 0;
+  const s = String(raw).trim();
+  // ISO 8601 duration: PT7H30M or PT27000S
+  if (s.toUpperCase().startsWith('PT')) {
+    let h = 0, m = 0, sec = 0;
+    const hm = s.match(/(\d+(?:\.\d+)?)H/i);
+    const mm = s.match(/(\d+(?:\.\d+)?)M/i);
+    const sm = s.match(/(\d+(?:\.\d+)?)S/i);
+    if (hm) h = parseFloat(hm[1]);
+    if (mm) m = parseFloat(mm[1]);
+    if (sm) sec = parseFloat(sm[1]);
+    return h + m/60 + sec/3600;
+  }
+  // Plain number — if > 24, assume seconds
+  const n = parseFloat(s);
+  if (!isNaN(n)) return n > 24 ? +(n/3600).toFixed(2) : n;
+  // "7 hr. 30 min." or "7 hours 30 minutes" style
+  let h = 0, m = 0;
+  const hMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:hr|hour)/i);
+  const mMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:min|minute)/i);
+  if (hMatch) h = parseFloat(hMatch[1]);
+  if (mMatch) m = parseFloat(mMatch[1]);
+  return h + m/60;
+}
+
 function checkUrlParams() {
   const p = new URLSearchParams(window.location.search);
   if (!p.has('steps') && !p.has('sleep') && !p.has('hr')) return;
 
   const steps = p.get('steps');
-  const sleep = parseFloat(p.get('sleep') || 0);
+  const sleep = parseSleepHours(p.get('sleep'));
   const hr = p.get('hr');
   const hrv = p.get('hrv');
   const calories = p.get('calories');
