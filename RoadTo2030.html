@@ -7986,7 +7986,12 @@ async function renderCoachDashboard(){
       condRow = '';
     }
 
-    // ── 이번 주 코멘트 수집 (notes 필드가 있는 로그만)
+    const displayName = _nick(ath.name);
+
+    const _sl = (label) =>
+      '<div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin:14px 0 8px">'+label+'</div>';
+
+    // ── 이번 주 코멘트 수집 (notes 필드가 있는 로그만) — _sl 정의 이후에 위치
     const weekNotes = recentLogs
       .filter(function(l){ return l.notes && l.notes.trim(); })
       .sort(function(a,b){ return a.date.localeCompare(b.date); })
@@ -8004,11 +8009,6 @@ async function renderCoachDashboard(){
     const notesHtml = weekNotes.length
       ? _sl('이번 주 코멘트') + '<div style="display:flex;flex-direction:column;gap:6px">'+weekNotes.join('')+'</div>'
       : '';
-
-    const displayName = _nick(ath.name);
-
-    const _sl = (label) =>
-      '<div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin:14px 0 8px">'+label+'</div>';
 
     html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px">'
       // 헤더
