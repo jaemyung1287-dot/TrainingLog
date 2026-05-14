@@ -133,6 +133,8 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
 /* Tip chip */
 .chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 10px;font-size:12px;color:var(--sub);margin:3px 3px 0 0}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -357,16 +359,16 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
     <div class="card">
       <div class="ct">☁️ 클라우드 동기화 (기기 간 공유)</div>
       <div class="notice n-warn" id="sync-notice" style="font-size:12px">
-        <b>JSONBin.io</b> 무료 가입 후 API 키 입력하면<br>폰 ↔ 컴퓨터 자동 동기화돼요.<br>
-        <span style="opacity:.8">jsonbin.io → 가입 → API Keys 메뉴 → Master Key 복사</span>
+        나만의 동기화 코드를 입력하면<br>폰 ↔ 컴퓨터 자동 동기화돼요.<br>
+        <span style="opacity:.8">모든 기기에서 같은 코드를 쓰면 돼요</span>
       </div>
       <div id="sync-input-section">
-        <label>JSONBin Master Key</label>
-        <input id="sync-key" type="password" class="inp" placeholder="$2a$10$..." style="margin-bottom:10px;font-family:monospace;font-size:13px">
+        <label>동기화 코드 (나만 아는 코드)</label>
+        <input id="sync-key" type="text" class="inp" placeholder="예: jaemyung123" style="margin-bottom:10px">
         <button class="btn btn-p" onclick="saveSyncKey()">저장 및 동기화 시작</button>
         <div id="sync-status" style="margin-top:8px;font-size:12px;text-align:center"></div>
       </div>
-      <button id="sync-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('sync-input-section').style.display='block';this.style.display='none'">🔑 동기화 키 변경</button>
+      <button id="sync-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('sync-input-section').style.display='block';this.style.display='none'">✏️ 동기화 코드 변경</button>
       <button class="btn btn-s" style="margin-top:8px;font-size:13px" onclick="manualSync()">🔄 지금 동기화</button>
     </div>
     <div class="card">
@@ -813,58 +815,47 @@ function updateApiNotice() {
   if (keyChangeBtn) keyChangeBtn.style.display = k ? 'inline-block' : 'none';
 }
 
-// ── Cloud Sync (JSONBin.io) ───────────────────────────────────────
-const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
+// ── Firebase Init ────────────────────────────────────────────────
+const _firebaseConfig = {
+  apiKey: "AIzaSyCFm3LjTbJgLTmMSiuuZA8_fUwBtfxUVQE",
+  authDomain: "lifefit-493f4.firebaseapp.com",
+  projectId: "lifefit-493f4",
+  storageBucket: "lifefit-493f4.firebasestorage.app",
+  messagingSenderId: "847247894142",
+  appId: "1:847247894142:web:4131084dd972eb5d57da2f"
+};
+firebase.initializeApp(_firebaseConfig);
+const _db = firebase.firestore();
 
+// ── Cloud Sync (Firebase Firestore) ──────────────────────────────
 async function saveSyncKey() {
   const v = document.getElementById('sync-key').value.trim();
   const s = document.getElementById('sync-status');
-  if (!v) { s.textContent = '❌ 키를 입력해주세요.'; s.style.color = 'var(--red)'; return; }
+  if (!v || v.length < 4) { s.textContent = '❌ 4자 이상 입력해주세요.'; s.style.color = 'var(--red)'; return; }
   s.textContent = '⏳ 연결 중...'; s.style.color = 'var(--sub)';
   set('syncKey', v);
-  // Create bin if not exists
-  let binId = get('syncBinId');
-  if (!binId) {
-    try {
-      const r = await fetch(JSONBIN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Master-Key': v, 'X-Bin-Name': 'LifeFit', 'X-Bin-Private': 'true' },
-        body: JSON.stringify({ meals: [], sleeps: [], v: 1 })
-      });
-      if (!r.ok) throw new Error(r.status);
-      const d = await r.json();
-      binId = d.metadata.id;
-      set('syncBinId', binId);
-    } catch(e) { s.textContent = '❌ 키가 올바르지 않아요. Master Key를 확인해주세요.'; s.style.color = 'var(--red)'; return; }
-  }
   await pushSync();
   s.textContent = '✅ 동기화 연결됐어요!'; s.style.color = 'var(--green)';
   updateSyncNotice();
 }
 
 async function pushSync() {
-  const key = get('syncKey'); const binId = get('syncBinId');
-  if (!key || !binId) return;
-  const meals = (get('meals')||[]).map(m => ({...m, photo: null})); // 사진 제외 (용량)
+  const key = get('syncKey');
+  if (!key) return;
+  const meals = (get('meals')||[]).map(m => ({...m, photo: null}));
   const sleeps = get('sleeps') || [];
   try {
-    await fetch(`${JSONBIN_URL}/${binId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': key },
-      body: JSON.stringify({ meals, sleeps, updated: Date.now() })
-    });
-  } catch(e) {}
+    await _db.collection('lifefit').doc(key).set({ meals, sleeps, updated: Date.now() });
+  } catch(e) { console.error('pushSync:', e); }
 }
 
 async function pullSync() {
-  const key = get('syncKey'); const binId = get('syncBinId');
-  if (!key || !binId) return;
+  const key = get('syncKey');
+  if (!key) return;
   try {
-    const r = await fetch(`${JSONBIN_URL}/${binId}/latest`, { headers: { 'X-Master-Key': key } });
-    if (!r.ok) return;
-    const d = await r.json();
-    const remote = d.record;
-    // Merge: keep local photos, update text data
+    const snap = await _db.collection('lifefit').doc(key).get();
+    if (!snap.exists) return;
+    const remote = snap.data();
     const local = get('meals') || [];
     const remoteMap = {};
     (remote.meals||[]).forEach(m => remoteMap[m.ts] = m);
@@ -877,13 +868,13 @@ async function pullSync() {
       set('sleeps', remote.sleeps);
     }
     refreshAll();
-  } catch(e) {}
+  } catch(e) { console.error('pullSync:', e); }
 }
 
 async function manualSync() {
   const s = document.getElementById('sync-status');
   const key = get('syncKey');
-  if (!key) { toast('먼저 JSONBin 키를 입력해주세요'); return; }
+  if (!key) { toast('먼저 동기화 코드를 입력해주세요'); return; }
   if (s) { s.textContent = '🔄 동기화 중...'; s.style.color = 'var(--sub)'; }
   await pushSync();
   await pullSync();
@@ -896,7 +887,7 @@ function updateSyncNotice() {
   const n = document.getElementById('sync-notice');
   const sec = document.getElementById('sync-input-section');
   const btn = document.getElementById('sync-change-btn');
-  if (n) { n.className = key ? 'notice n-ok' : 'notice n-warn'; n.innerHTML = key ? '✅ 클라우드 동기화 연결됨 — 폰/컴퓨터 자동 공유 중' : '<b>JSONBin.io</b> 무료 가입 후 API 키 입력하면<br>폰 ↔ 컴퓨터 자동 동기화돼요.<br><span style="opacity:.8">jsonbin.io → 가입 → API Keys → Master Key 복사</span>'; }
+  if (n) { n.className = key ? 'notice n-ok' : 'notice n-warn'; n.innerHTML = key ? '✅ 동기화 연결됨 — 폰/컴퓨터 자동 공유 중' : '나만의 동기화 코드를 입력하면<br>폰 ↔ 컴퓨터 자동 동기화돼요.<br><span style="opacity:.8">모든 기기에서 같은 코드를 쓰면 돼요</span>'; }
   if (sec) sec.style.display = key ? 'none' : 'block';
   if (btn) btn.style.display = key ? 'inline-block' : 'none';
 }
