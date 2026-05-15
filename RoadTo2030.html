@@ -7201,7 +7201,7 @@ function renderBulkAthletes(){
 // ════════════════════════════════════════════════
 //  TABATA SESSION — NMT Treadmill (20s/10s × 8)
 // ════════════════════════════════════════════════
-const TABATA_SMAX={F:15.475,M:15.9125}; // km/h average Smax by gender
+var TABATA_SMAX={F:15.475,M:15.9125}; // km/h average Smax by gender
 
 ST._tabataTimer=null;
 ST._tabataRunning=false;
@@ -7221,7 +7221,6 @@ function _tabataCalcPace(pct){
 }
 
 function selectTabata(){
-  try {
   clearInterval(ST._tabataTimer);
   ST._tabataRunning=false;
   ST._tabataPhase='work';
@@ -7232,8 +7231,8 @@ function selectTabata(){
 
   const d=getData();
   const today=todayStr();
-  const plan=d.sessionPlans?.[today];
-  const grp=ST.athlete?.group||'A';
+  const plan=d.sessionPlans[today];
+  const grp=ST.athlete.group;
   const grpPlan=plan?(plan[grp]||plan['all']):null;
   const banner=document.getElementById('tabata-plan-banner');
 
@@ -7245,20 +7244,17 @@ function selectTabata(){
       pace:_tabataCalcPace(s.intensity||100),
       hrAvg:'',hrMax:'',rpe:'',completed:false
     }));
-    if(banner){ banner.style.display='block';
+    banner.style.display='block';
     banner.innerHTML=`📋 Coach plan: <strong>${planSets.length} set${planSets.length>1?'s':''}</strong> · `+
-      planSets.map((s,i)=>`Set ${i+1}: <strong>${s.intensity}%</strong> → ${_tabataCalcPace(s.intensity)} km/h`).join(' &nbsp;|&nbsp; '); }
+      planSets.map((s,i)=>`Set ${i+1}: <strong>${s.intensity}%</strong> → ${_tabataCalcPace(s.intensity)} km/h`).join(' &nbsp;|&nbsp; ');
   } else {
-    const gender=ST.athlete?.gender||'M';
-    const smax=(gender==='F'?15.475:15.9125);
-    ST._tabataSets=[{intensity:100,pace:smax.toFixed(1),hrAvg:'',hrMax:'',rpe:'',completed:false}];
-    if(banner) banner.style.display='none';
+    ST._tabataSets=[{intensity:100,pace:_tabataCalcPaceInit(),hrAvg:'',hrMax:'',rpe:'',completed:false}];
+    banner.style.display='none';
   }
 
   _renderTabataSetCard();
   _renderTabataCompletedSets();
   showScreen('s-tabata');
-  } catch(e){ showToast('오류: '+e.message); }
 }
 
 function _tabataCalcPaceInit(){
