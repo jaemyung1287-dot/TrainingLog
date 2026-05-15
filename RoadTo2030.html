@@ -3302,6 +3302,16 @@ function _sessionDetailHtml(l){
       ?`<div style="margin-top:6px;font-size:12px;color:var(--muted)">근육통: ${l.soreness.map(s=>s.part+'('+s.intensity+')').join(', ')}</div>`:'';
     return `<div style="font-size:13px;color:var(--muted);padding:6px 0;line-height:1.8">${rows.join(' · ')}</div>${sorenessRow}`;
   }
+  if(l.type==='tabata'){
+    const results=l.roundResults||[];
+    const cr=l.completedRounds??results.filter(r=>r===true).length;
+    const fr=results.filter(r=>r===false).length;
+    const roundsHtml=results.length>0
+      ?results.map((r,i)=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;font-size:11px;font-weight:700;background:${r===true?'rgba(62,207,142,0.18)':r===false?'rgba(233,69,96,0.18)':'rgba(255,255,255,0.06)'};color:${r===true?'#3ecf8e':r===false?'#e94560':'var(--muted)'}">${r===true?'✓':r===false?'✗':'—'}</span>`).join('')
+      :'—';
+    return `<div style="font-size:13px;color:var(--muted);padding:4px 0;line-height:1.8">${cr}/8 라운드 성공${fr>0?' · '+fr+'실패':''}${l.intensity?' · 강도 '+l.intensity+'%':''}${l.pace?' · '+l.pace+' km/h':''}</div>`
+      +`<div style="display:flex;gap:3px;flex-wrap:wrap;padding:4px 0">${roundsHtml}</div>`;
+  }
   return '';
 }
 
@@ -3754,19 +3764,20 @@ function renderAthStats(){
   const sessionEl = document.getElementById('my-session-logs');
   if(sessionEl){
     const trainingLogs = myLogs
-      .filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='condition')
+      .filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='condition'||l.type==='tabata')
       .sort((a,b)=>b.date.localeCompare(a.date))
       .slice(0,30);
     if(trainingLogs.length){
-      const _typeKoS={weight:'🏋️ 웨이트',sprint:'⚡ 스프린트',plyo:'🦘 플라이오',condition:'🌡️ 컨디션'};
-      const _typeCol={weight:'#4f8ef7',sprint:'#3ecf8e',plyo:'#a78bfa',condition:'#f7a94f'};
+      const _typeKoS={weight:'🏋️ 웨이트',sprint:'⚡ 스프린트',plyo:'🦘 플라이오',condition:'🌡️ 컨디션',tabata:'🔥 타바타'};
+      const _typeCol={weight:'#4f8ef7',sprint:'#3ecf8e',plyo:'#a78bfa',condition:'#f7a94f',tabata:'#e94560'};
       sessionEl.innerHTML = trainingLogs.map(l=>{
         const col=_typeCol[l.type]||'var(--muted)';
         const typeLbl=_typeKoS[l.type]||l.type;
         const summary=l.type==='weight'?`총 ${(l.totalVolume||0).toLocaleString()} kg`
           :l.type==='sprint'?`총 ${(l.totalDistance||0).toLocaleString()} m`
           :l.type==='plyo'?`${(l.exercises||[]).length}개 운동`
-          :l.type==='condition'?`피로도 ${l.fatigue||'—'} · 기분 ${l.mood||'—'}`:'';
+          :l.type==='condition'?`피로도 ${l.fatigue||'—'} · 기분 ${l.mood||'—'}`
+          :l.type==='tabata'?`${l.completedRounds??'—'}/8 라운드${l.intensity?' · '+l.intensity+'%':''}`:'';
         const detail=_sessionDetailHtml(l);
         return `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden">
           <div onclick="_toggleLogDetail('${l.id}')" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
@@ -8049,19 +8060,26 @@ async function renderCoachDashboard(){
     // ① 주간 볼륨 계산
     const weekWeightLogs = recentLogs.filter(function(l){ return l.type==='weight'||l.type==='plyo'; });
     const weekSprintLogs = recentLogs.filter(function(l){ return l.type==='sprint'; });
+    const weekTabataLogs = recentLogs.filter(function(l){ return l.type==='tabata'; });
     const weekWeightVol = weekWeightLogs.reduce(function(s,l){ return s+(l.totalVolume||0); },0);
     const weekSprintDist = weekSprintLogs.reduce(function(s,l){ return s+(l.totalDistance||0); },0);
+    const weekTabataRounds = weekTabataLogs.reduce(function(s,l){ return s+(l.completedRounds||0); },0);
     const volWeightStr = weekWeightVol >= 1000 ? (weekWeightVol/1000).toFixed(1)+'t' : weekWeightVol > 0 ? weekWeightVol.toLocaleString()+'kg' : '—';
     const volSprintStr = weekSprintDist > 0 ? weekSprintDist.toLocaleString()+'m' : '—';
+    const volTabataStr = weekTabataLogs.length > 0 ? weekTabataRounds+'라운드 ('+weekTabataLogs.length+'세션)' : '—';
     // RPE 평균
     const weightRpeLogs = weekWeightLogs.filter(function(l){ return l.rpe; });
     const sprintRpeLogs = weekSprintLogs.filter(function(l){ return l.rpe; });
+    const tabataRpeLogs = weekTabataLogs.filter(function(l){ return l.rpe; });
     const avgWeightRpe = weightRpeLogs.length ? (weightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/weightRpeLogs.length).toFixed(1) : null;
     const avgSprintRpe = sprintRpeLogs.length ? (sprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/sprintRpeLogs.length).toFixed(1) : null;
+    const avgTabataRpe = tabataRpeLogs.length ? (tabataRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/tabataRpeLogs.length).toFixed(1) : null;
     function _rpeCol(v){ var n=parseFloat(v); return n>=7?'var(--red)':n>=4?'var(--orange)':'var(--green)'; }
     // RPE baseline
     const blWeightRpeLogs = myLogs.filter(function(l){ return (l.type==='weight'||l.type==='plyo')&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
     const blSprintRpeLogs = myLogs.filter(function(l){ return l.type==='sprint'&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
+    const blTabataRpeLogs = myLogs.filter(function(l){ return l.type==='tabata'&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
+    const blTabataRpe = blTabataRpeLogs.length>=2 ? blTabataRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blTabataRpeLogs.length : null;
     const blWeightRpe = blWeightRpeLogs.length>=2 ? blWeightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blWeightRpeLogs.length : null;
     const blSprintRpe = blSprintRpeLogs.length>=2 ? blSprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blSprintRpeLogs.length : null;
     // 주간 전체 평균 RPE (웨이트+플라이오+스프린트 통합)
@@ -8148,7 +8166,7 @@ async function renderCoachDashboard(){
       .filter(function(l){ return l.notes && l.notes.trim(); })
       .sort(function(a,b){ return a.date.localeCompare(b.date); })
       .map(function(l){
-        var typeLabel = l.type==='weight'?'🏋️ 웨이트':l.type==='sprint'?'🏃 스프린트':'💭 컨디션';
+        var typeLabel = l.type==='weight'?'🏋️ 웨이트':l.type==='sprint'?'🏃 스프린트':l.type==='tabata'?'🔥 타바타':'💭 컨디션';
         var mmdd = l.date ? l.date.slice(5) : '';
         return '<div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:var(--input);border-radius:10px;border-left:3px solid var(--border)">'
           +'<div style="display:flex;align-items:center;gap:6px">'
@@ -8182,6 +8200,15 @@ async function renderCoachDashboard(){
           + _arrowHtml(avgSprintRpe, blSprintRpe, false)
         : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
       + '</div>'
+      + (weekTabataLogs.length > 0
+        ? '<div style="background:rgba(233,69,96,0.12);border:1px solid rgba(233,69,96,0.3);border-radius:12px;padding:12px;text-align:center;grid-column:1/-1">'
+          + '<div style="font-size:10px;color:#e94560;font-weight:700;margin-bottom:4px">🔥 타바타</div>'
+          + '<div style="font-size:18px;font-weight:800;color:#e94560">'+volTabataStr+'</div>'
+          + (avgTabataRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgTabataRpe)+';font-weight:700;margin-top:4px">RPE '+avgTabataRpe+'</div>'
+              + _arrowHtml(avgTabataRpe, blTabataRpe, false)
+            : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
+          + '</div>'
+        : '')
       + '</div>'
       // ── 주간 컨디션
       + _sl('주간 컨디션')
