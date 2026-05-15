@@ -228,7 +228,7 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
             <button onclick="selectMealType('저녁','🌇',false)" class="mtb" id="mt-저녁">🌇 저녁</button>
             <button onclick="selectMealType('야식','🌙',true)" class="mtb" id="mt-야식">🌙 야식</button>
           </div>
-          <input type="time" id="meal-time-input" class="inp" style="margin-bottom:0;font-size:14px;width:130px">
+          <input type="time" id="meal-time-input" class="inp" style="margin-bottom:0;font-size:14px">
         </div>
         <textarea id="food-memo" class="inp" rows="2" placeholder="메모 (선택사항)" style="resize:none;margin-bottom:8px"></textarea>
         <button class="btn btn-p" onclick="saveMeal()">기록 저장</button>
@@ -625,10 +625,12 @@ function selectMealType(label, emoji, warn) {
 }
 
 function initMealTimePicker() {
+  // 현재 시간 기본값
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
-  document.getElementById('meal-time-input').value = hh + ':' + mm;
+  document.getElementById('meal-time-input').value = `${hh}:${mm}`;
+  // 현재 시간 기준으로 식사 유형 자동 선택
   const mt = getMealTimeLabel();
   selectMealType(mt.label, mt.emoji, mt.warn);
 }
@@ -636,12 +638,13 @@ function initMealTimePicker() {
 function getSelectedMealTime() {
   const timeVal = document.getElementById('meal-time-input').value;
   const mt = _selectedMealType || getMealTimeLabel();
+  // 선택된 시간으로 timestamp 생성
   const now = new Date();
   if (timeVal) {
-    const parts = timeVal.split(':').map(Number);
-    now.setHours(parts[0], parts[1], 0, 0);
+    const [h, m] = timeVal.split(':').map(Number);
+    now.setHours(h, m, 0, 0);
   }
-  return Object.assign({}, mt, { ts: now.getTime(), timeStr: timeVal });
+  return { ...mt, ts: now.getTime(), timeStr: timeVal || `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}` };
 }
 
 async function analyzeFood() {
@@ -693,8 +696,8 @@ function saveMeal() {
   const logs = get('meals') || [];
   const mt = getSelectedMealTime();
   logs.push({ ts: mt.ts, photo: _photo, ai: _analysis, memo, mealTime: mt.label, mealEmoji: mt.emoji, mealWarn: mt.warn });
-  _selectedMealType = null;
   set('meals', logs);
+  _selectedMealType = null;
   toast('식사 기록 저장됐어요 ✅');
   // Reset
   document.getElementById('food-file').value = '';
