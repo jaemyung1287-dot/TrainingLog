@@ -7939,7 +7939,15 @@ async function renderCoachDashboard(){
     const blSprintRpeLogs = myLogs.filter(function(l){ return l.type==='sprint'&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
     const blWeightRpe = blWeightRpeLogs.length>=2 ? blWeightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blWeightRpeLogs.length : null;
     const blSprintRpe = blSprintRpeLogs.length>=2 ? blSprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blSprintRpeLogs.length : null;
-
+    // 주간 전체 평균 RPE (웨이트+플라이오+스프린트 통합)
+    const allTrainRpeLogs = recentLogs.filter(function(l){ return (l.type==='weight'||l.type==='plyo'||l.type==='sprint')&&l.rpe; });
+    const avgAllRpe = allTrainRpeLogs.length ? (allTrainRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/allTrainRpeLogs.length).toFixed(1) : null;
+    const blAllRpeLogs = myLogs.filter(function(l){ return (l.type==='weight'||l.type==='plyo'||l.type==='sprint')&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
+    const blAllRpe = blAllRpeLogs.length>=2 ? blAllRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blAllRpeLogs.length : null;
+    const rpeAllVal = avgAllRpe!==null ? avgAllRpe : '—';
+    const rpeAllColor = avgAllRpe===null?'var(--muted)':parseFloat(avgAllRpe)>=7?'var(--red)':parseFloat(avgAllRpe)>=4?'var(--orange)':'var(--green)';
+    const rpeAllBg    = avgAllRpe===null?'var(--input)':parseFloat(avgAllRpe)>=7?'rgba(233,69,96,0.12)':parseFloat(avgAllRpe)>=4?'rgba(247,169,79,0.12)':'rgba(62,207,142,0.12)';
+    const rpeAllBd    = avgAllRpe===null?'var(--border)':parseFloat(avgAllRpe)>=7?'rgba(233,69,96,0.35)':parseFloat(avgAllRpe)>=4?'rgba(247,169,79,0.35)':'rgba(62,207,142,0.35)';
 
     // ④ 근육통 — 이번 주 모든 컨디션 로그에서 부위별 최고 강도 합산
     const weekSorenessLogs = condLogs.filter(function(l){ return l.soreness && l.soreness.length > 0 && l.date >= weekStart && l.date <= weekEnd; });
@@ -8052,7 +8060,7 @@ async function renderCoachDashboard(){
       + '</div>'
       // ── 주간 컨디션
       + _sl('주간 컨디션')
-      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
       + '<div style="background:'+fatigueBg+';border:1px solid '+fatigueBd+';border-radius:12px;padding:12px;text-align:center">'
       + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">피로도</div>'
       + '<div style="font-size:22px;font-weight:800;color:'+fatigueColor+'">'+avgFatigue+'</div>'
@@ -8067,6 +8075,11 @@ async function renderCoachDashboard(){
       + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">기분</div>'
       + '<div style="font-size:22px;font-weight:800;color:'+moodColor+'">'+avgMood+'</div>'
       + _arrowHtml(avgMood, blMood, true)
+      + '</div>'
+      + '<div style="background:'+rpeAllBg+';border:1px solid '+rpeAllBd+';border-radius:12px;padding:12px;text-align:center">'
+      + '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">RPE</div>'
+      + '<div style="font-size:22px;font-weight:800;color:'+rpeAllColor+'">'+rpeAllVal+'</div>'
+      + _arrowHtml(avgAllRpe, blAllRpe, false)
       + '</div>'
       + '</div>'
       // ── 주간 누적 근육통
