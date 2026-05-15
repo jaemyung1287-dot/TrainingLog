@@ -2254,10 +2254,10 @@ function goAthleteStats(){ document.getElementById('astats-name').textContent=_n
 function _renderAthRecentLogs(targetId){
   const wrap=document.getElementById(targetId); if(!wrap||!ST.athlete) return;
   const d=getData();
-  const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s'};
-  const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡'};
-  const typeLabel={weight:'웨이트 트레이닝',plyo:'플라이오 트레이닝',sprint:'스프린트 트레이닝'};
-  const typeKo={weight:'웨이트',plyo:'플라이오',sprint:'스프린트',condition:'컨디션'};
+  const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s',tabata:'b-t'};
+  const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡',tabata:'🫀'};
+  const typeLabel={weight:'웨이트 트레이닝',plyo:'플라이오 트레이닝',sprint:'스프린트 트레이닝',tabata:'타바타'};
+  const typeKo={weight:'웨이트',plyo:'플라이오',sprint:'스프린트',condition:'컨디션',tabata:'타바타'};
   const grp=ST.athlete.group;
   const today=todayStr();
   const last14=getLast(14);
@@ -2288,7 +2288,7 @@ function _renderAthRecentLogs(targetId){
   // Get recent logs (last 14 days)
   const myLogs=d.logs.filter(l=>
     l.athleteName===ST.athlete.name&&
-    (l.type==='weight'||l.type==='plyo'||l.type==='sprint')&&
+    (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='tabata')&&
     l.date>=cutoff
   );
   const logsByDate={};
@@ -2329,6 +2329,9 @@ function _renderAthRecentLogs(targetId){
         if((l.totalReps||0)>0) pts.push(`${l.totalReps} reps`);
         if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
         stat=pts.join(' · ')||'—';
+      } else if(l.type==='tabata'){
+        const cr=l.completedRounds??(l.roundResults||[]).filter(r=>r===true).length;
+        stat=`${cr}/8 라운드 성공${l.intensity?' · '+l.intensity+'%':''}`;
       }
       html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
         <div class="detail-row">
@@ -3726,7 +3729,7 @@ function renderAthStats(){
     {label:'수면 질',data:slp,borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
   ],labels);
 
-  // RPE 추이: 날짜별 웨이트/스프린트 평균 RPE
+  // RPE 추이: 날짜별 평균 RPE
   const rpeWeight=dates.map(dt=>{
     const ls=myLogs.filter(l=>(l.type==='weight'||l.type==='plyo')&&l.date===dt&&l.rpe);
     return ls.length?Math.round(ls.reduce((s,l)=>s+l.rpe,0)/ls.length*10)/10:null;
@@ -3735,9 +3738,14 @@ function renderAthStats(){
     const ls=myLogs.filter(l=>l.type==='sprint'&&l.date===dt&&l.rpe);
     return ls.length?Math.round(ls.reduce((s,l)=>s+l.rpe,0)/ls.length*10)/10:null;
   });
+  const rpeTabata=dates.map(dt=>{
+    const ls=myLogs.filter(l=>l.type==='tabata'&&l.date===dt&&l.rpe);
+    return ls.length?Math.round(ls.reduce((s,l)=>s+l.rpe,0)/ls.length*10)/10:null;
+  });
   mkChart('chart-my-rpe',[
     {label:'웨이트/플라이오 RPE',data:rpeWeight,borderColor:'#f7a94f',backgroundColor:'#f7a94f',tension:.4,pointRadius:5,pointStyle:'circle'},
-    {label:'스프린트 RPE',data:rpeSprint,borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'}
+    {label:'스프린트 RPE',data:rpeSprint,borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'},
+    {label:'타바타 RPE',data:rpeTabata,borderColor:'#e94560',backgroundColor:'#e94560',tension:.4,pointRadius:5,pointStyle:'triangle'}
   ],labels,{min:1,yMax:10});
 
   renderMyRecords();
@@ -8057,9 +8065,9 @@ async function renderCoachDashboard(){
     const blWeightRpe = blWeightRpeLogs.length>=2 ? blWeightRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blWeightRpeLogs.length : null;
     const blSprintRpe = blSprintRpeLogs.length>=2 ? blSprintRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blSprintRpeLogs.length : null;
     // 주간 전체 평균 RPE (웨이트+플라이오+스프린트 통합)
-    const allTrainRpeLogs = recentLogs.filter(function(l){ return (l.type==='weight'||l.type==='plyo'||l.type==='sprint')&&l.rpe; });
+    const allTrainRpeLogs = recentLogs.filter(function(l){ return (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='tabata')&&l.rpe; });
     const avgAllRpe = allTrainRpeLogs.length ? (allTrainRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/allTrainRpeLogs.length).toFixed(1) : null;
-    const blAllRpeLogs = myLogs.filter(function(l){ return (l.type==='weight'||l.type==='plyo'||l.type==='sprint')&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
+    const blAllRpeLogs = myLogs.filter(function(l){ return (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='tabata')&&l.rpe&&l.date>=blStart&&l.date<weekStart; });
     const blAllRpe = blAllRpeLogs.length>=2 ? blAllRpeLogs.reduce(function(s,l){ return s+l.rpe; },0)/blAllRpeLogs.length : null;
     const rpeAllVal = avgAllRpe!==null ? avgAllRpe : '—';
     const rpeAllColor = avgAllRpe===null?'var(--muted)':parseFloat(avgAllRpe)>=7?'var(--red)':parseFloat(avgAllRpe)>=4?'var(--orange)':'var(--green)';
