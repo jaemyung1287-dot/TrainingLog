@@ -1142,18 +1142,18 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
 
-  <!-- 완료 라운드 -->
+  <!-- 라운드별 성공/실패 -->
   <div class="fg">
-    <label class="fl">완료 라운드 (/ 8)</label>
-    <div id="tabata-round-btns" style="display:flex;gap:6px;flex-wrap:wrap">
-      <button id="tb-round-btn-1" onclick="_tabataSelectRound(1)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">1</button>
-      <button id="tb-round-btn-2" onclick="_tabataSelectRound(2)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">2</button>
-      <button id="tb-round-btn-3" onclick="_tabataSelectRound(3)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">3</button>
-      <button id="tb-round-btn-4" onclick="_tabataSelectRound(4)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">4</button>
-      <button id="tb-round-btn-5" onclick="_tabataSelectRound(5)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">5</button>
-      <button id="tb-round-btn-6" onclick="_tabataSelectRound(6)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">6</button>
-      <button id="tb-round-btn-7" onclick="_tabataSelectRound(7)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">7</button>
-      <button id="tb-round-btn-8" onclick="_tabataSelectRound(8)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">8</button>
+    <label class="fl">라운드별 결과 <span style="font-size:11px;font-weight:400;color:var(--muted)">탭 → ✓성공 → ✗실패</span></label>
+    <div id="tabata-round-btns" style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px">
+      <button id="tb-round-btn-1" onclick="_tabataToggleRound(1)" style="padding:8px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:10px;font-weight:600;opacity:0.55">R1</span><span id="tb-round-ico-1" style="font-size:14px;font-weight:700">—</span></button>
+      <button id="tb-round-btn-2" onclick="_tabataToggleRound(2)" style="padding:8px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:10px;font-weight:600;opacity:0.55">R2</span><span id="tb-round-ico-2" style="font-size:14px;font-weight:700">—</span></button>
+      <button id="tb-round-btn-3" onclick="_tabataToggleRound(3)" style="padding:8px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:10px;font-weight:600;opacity:0.55">R3</span><span id="tb-round-ico-3" style="font-size:14px;font-weight:700">—</span></button>
+      <button id="tb-round-btn-4" onclick="_tabataToggleRound(4)" style="padding:8px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:10px;font-weight:600;opacity:0.55">R4</span><span id="tb-round-ico-4" style="font-size:14px;font-weight:700">—</span></button>
+      <button id="tb-round-btn-5" onclick="_tabataToggleRound(5)" style="padding:8px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:10px;font-weight:600;opacity:0.55">R5</span><span id="tb-round-ico-5" style="font-size:14px;font-weight:700">—</span></button>
+      <button id="tb-round-btn-6" onclick="_tabataToggleRound(6)" style="padding:8px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:10px;font-weight:600;opacity:0.55">R6</span><span id="tb-round-ico-6" style="font-size:14px;font-weight:700">—</span></button>
+      <button id="tb-round-btn-7" onclick="_tabataToggleRound(7)" style="padding:8px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:10px;font-weight:600;opacity:0.55">R7</span><span id="tb-round-ico-7" style="font-size:14px;font-weight:700">—</span></button>
+      <button id="tb-round-btn-8" onclick="_tabataToggleRound(8)" style="padding:8px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:10px;font-weight:600;opacity:0.55">R8</span><span id="tb-round-ico-8" style="font-size:14px;font-weight:700">—</span></button>
     </div>
   </div>
 
@@ -7262,7 +7262,7 @@ function _tabataCalcPace(pct){
 }
 
 function selectTabata(){
-  ST._tabataRounds=null;
+  ST._tabataRoundResults=new Array(8).fill(null);
   ST._tabataRpe=null;
   // 날짜 초기화
   const dateEl=document.getElementById('tabata-date');
@@ -7272,12 +7272,40 @@ function selectTabata(){
   if(intEl) intEl.value='';
   const paceEl=document.getElementById('tabata-pace-input');
   if(paceEl) paceEl.value='';
-  // 라운드/RPE 버튼 초기화
-  [1,2,3,4,5,6,7,8].forEach(n=>{ const b=document.getElementById('tb-round-btn-'+n); if(b){ b.style.background='var(--input)'; b.style.color='var(--muted)'; b.style.borderColor='var(--border)'; } });
+  // 라운드 버튼 초기화
+  _tabataUpdateRoundBtns();
+  // RPE 버튼 초기화
   [1,2,3,4,5,6,7,8,9,10].forEach(n=>{ const b=document.getElementById('tb-rpe-btn-'+n); if(b){ b.style.background='var(--input)'; b.style.color='var(--muted)'; b.style.borderColor='var(--border)'; } });
   const notesEl=document.getElementById('tabata-notes');
   if(notesEl) notesEl.value='';
   showScreen('s-tabata');
+}
+
+function _tabataToggleRound(n){
+  if(!ST._tabataRoundResults) ST._tabataRoundResults=new Array(8).fill(null);
+  const idx=n-1;
+  const cur=ST._tabataRoundResults[idx];
+  ST._tabataRoundResults[idx]= cur===null ? true : cur===true ? false : null;
+  _tabataUpdateRoundBtns();
+}
+
+function _tabataUpdateRoundBtns(){
+  for(let i=1;i<=8;i++){
+    const b=document.getElementById('tb-round-btn-'+i);
+    const ico=document.getElementById('tb-round-ico-'+i);
+    if(!b||!ico) continue;
+    const state=ST._tabataRoundResults ? ST._tabataRoundResults[i-1] : null;
+    if(state===true){
+      b.style.background='rgba(62,207,142,0.18)'; b.style.color='#3ecf8e'; b.style.borderColor='#3ecf8e';
+      ico.textContent='✓';
+    } else if(state===false){
+      b.style.background='rgba(233,69,96,0.18)'; b.style.color='#e94560'; b.style.borderColor='#e94560';
+      ico.textContent='✗';
+    } else {
+      b.style.background='var(--input)'; b.style.color='var(--muted)'; b.style.borderColor='var(--border)';
+      ico.textContent='—';
+    }
+  }
 }
 
 function _tabataCalcPaceInit(){
@@ -7517,17 +7545,6 @@ function _tabataUpdatePace(){
   paceEl.textContent=pace;
   if(valEl) valEl.textContent=pct+'%';
 }
-function _tabataSelectRound(n){
-  ST._tabataRounds=n;
-  [1,2,3,4,5,6,7,8].forEach(i=>{
-    const b=document.getElementById('tb-round-btn-'+i);
-    if(!b) return;
-    const sel=i===n;
-    b.style.background=sel?'rgba(62,207,142,0.2)':'var(--input)';
-    b.style.color=sel?'#3ecf8e':'var(--muted)';
-    b.style.borderColor=sel?'rgba(62,207,142,0.5)':'var(--border)';
-  });
-}
 function _tabataSelectRpe(n){
   ST._tabataRpe=n;
   [1,2,3,4,5,6,7,8,9,10].forEach(i=>{
@@ -7545,19 +7562,23 @@ function saveTabata(){
   const date=document.getElementById('tabata-date')?.value||todayStr();
   const intensity=parseFloat(document.getElementById('tabata-intensity')?.value)||null;
   const pace=parseFloat(document.getElementById('tabata-pace-input')?.value)||null;
-  if(!ST._tabataRounds){ showToast('완료 라운드를 선택해줘'); return; }
+  const results=ST._tabataRoundResults||new Array(8).fill(null);
+  const hasAnySet=results.some(r=>r!==null);
+  if(!hasAnySet){ showToast('라운드 결과를 입력해줘'); return; }
   if(!ST._tabataRpe){ showToast('RPE를 선택해줘'); return; }
+  const completedRounds=results.filter(r=>r===true).length;
   const log={
     id:genId(), date, athleteName:ST.athlete.name, group:ST.athlete.group,
     type:'tabata',
     intensity, pace,
-    completedRounds:ST._tabataRounds,
+    roundResults:results,
+    completedRounds,
     rpe:ST._tabataRpe,
     protocol:{workSec:20,restSec:10,rounds:8},
     notes:document.getElementById('tabata-notes')?.value||''
   };
   const d=getData(); d.logs.push(log); saveData(d);
-  document.getElementById('success-msg').textContent=`타바타 저장! ${ST._tabataRounds}/8 라운드 · RPE ${ST._tabataRpe} 🫀`;
+  document.getElementById('success-msg').textContent=`타바타 저장! ${completedRounds}/8 라운드 성공 · RPE ${ST._tabataRpe} 🫀`;
   showScreen('s-success');
 }
 
