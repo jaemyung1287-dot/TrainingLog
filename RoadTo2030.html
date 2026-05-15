@@ -6987,7 +6987,7 @@ function _setBulkField(aid,entryIdx,field,val){
   ST._bulkData[aid].entries[entryIdx][field]=val;
 }
 function _tabataBulkPace(pct,gender){
-  const smax=TABATA_SMAX[gender]||15.9125;
+  const smax=(gender==='F'?15.475:15.9125);
   return (smax*(pct/100)).toFixed(1);
 }
 function _updateTabataBulkPace(aid,ei,pct,gender){
@@ -7201,8 +7201,6 @@ function renderBulkAthletes(){
 // ════════════════════════════════════════════════
 //  TABATA SESSION — NMT Treadmill (20s/10s × 8)
 // ════════════════════════════════════════════════
-var TABATA_SMAX={F:15.475,M:15.9125}; // km/h average Smax by gender
-
 ST._tabataTimer=null;
 ST._tabataRunning=false;
 ST._tabataPhase='work';
@@ -7216,7 +7214,7 @@ ST._circuitEffort='';
 
 function _tabataCalcPace(pct){
   const gender=ST.athlete?.gender||'M';
-  const smax=TABATA_SMAX[gender]||15.9125;
+  const smax=(gender==='F'?15.475:15.9125);
   return (smax*(pct/100)).toFixed(1);
 }
 
@@ -7259,7 +7257,7 @@ function selectTabata(){
 
 function _tabataCalcPaceInit(){
   const gender=ST.athlete?.gender||'M';
-  const smax=TABATA_SMAX[gender]||15.9125;
+  const smax=(gender==='F'?15.475:15.9125);
   return smax.toFixed(1);
 }
 
