@@ -1117,13 +1117,6 @@ if ('serviceWorker' in navigator) {
   </div>
   <div class="ttl">타바타 로그</div>
 
-  <!-- Protocol badges -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
-    <span style="padding:4px 10px;border-radius:20px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);font-size:11px;font-weight:700;color:#e94560">20s WORK</span>
-    <span style="padding:4px 10px;border-radius:20px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);font-size:11px;font-weight:700;color:#4f8ef7">10s REST</span>
-    <span style="padding:4px 10px;border-radius:20px;background:rgba(62,207,142,.12);border:1px solid rgba(62,207,142,.25);font-size:11px;font-weight:700;color:#3ecf8e">× 8 ROUNDS</span>
-  </div>
-
   <!-- 날짜 -->
   <div class="fg">
     <label class="fl">📅 날짜</label>
@@ -1153,18 +1146,32 @@ if ('serviceWorker' in navigator) {
   <!-- 완료 라운드 -->
   <div class="fg">
     <label class="fl">완료 라운드 (/ 8)</label>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${[1,2,3,4,5,6,7,8].map(n=>`<button id="tb-round-btn-${n}" onclick="_tabataSelectRound(${n})"
-        style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">${n}</button>`).join('')}
+    <div id="tabata-round-btns" style="display:flex;gap:6px;flex-wrap:wrap">
+      <button id="tb-round-btn-1" onclick="_tabataSelectRound(1)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">1</button>
+      <button id="tb-round-btn-2" onclick="_tabataSelectRound(2)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">2</button>
+      <button id="tb-round-btn-3" onclick="_tabataSelectRound(3)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">3</button>
+      <button id="tb-round-btn-4" onclick="_tabataSelectRound(4)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">4</button>
+      <button id="tb-round-btn-5" onclick="_tabataSelectRound(5)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">5</button>
+      <button id="tb-round-btn-6" onclick="_tabataSelectRound(6)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">6</button>
+      <button id="tb-round-btn-7" onclick="_tabataSelectRound(7)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">7</button>
+      <button id="tb-round-btn-8" onclick="_tabataSelectRound(8)" style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">8</button>
     </div>
   </div>
 
   <!-- RPE -->
   <div class="fg">
     <label class="fl">RPE (1–10)</label>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button id="tb-rpe-btn-${n}" onclick="_tabataSelectRpe(${n})"
-        style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">${n}</button>`).join('')}
+    <div id="tabata-rpe-btns" style="display:flex;gap:6px;flex-wrap:wrap">
+      <button id="tb-rpe-btn-1" onclick="_tabataSelectRpe(1)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">1</button>
+      <button id="tb-rpe-btn-2" onclick="_tabataSelectRpe(2)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">2</button>
+      <button id="tb-rpe-btn-3" onclick="_tabataSelectRpe(3)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">3</button>
+      <button id="tb-rpe-btn-4" onclick="_tabataSelectRpe(4)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">4</button>
+      <button id="tb-rpe-btn-5" onclick="_tabataSelectRpe(5)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">5</button>
+      <button id="tb-rpe-btn-6" onclick="_tabataSelectRpe(6)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">6</button>
+      <button id="tb-rpe-btn-7" onclick="_tabataSelectRpe(7)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">7</button>
+      <button id="tb-rpe-btn-8" onclick="_tabataSelectRpe(8)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">8</button>
+      <button id="tb-rpe-btn-9" onclick="_tabataSelectRpe(9)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">9</button>
+      <button id="tb-rpe-btn-10" onclick="_tabataSelectRpe(10)" style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">10</button>
     </div>
   </div>
 
