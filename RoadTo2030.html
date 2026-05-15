@@ -1113,31 +1113,68 @@ if ('serviceWorker' in navigator) {
 <div id="s-tabata" class="screen">
   <div class="hdr">
     <button class="back" onclick="showScreen('s-log-session')">← 뒤로</button>
-    <span class="logo">🔥 Tabata</span>
+    <span class="logo">🫀 타바타</span>
   </div>
-  <div class="ttl">Tabata Training</div>
+  <div class="ttl">타바타 로그</div>
 
-  <!-- Fixed protocol badge -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+  <!-- Protocol badges -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
     <span style="padding:4px 10px;border-radius:20px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);font-size:11px;font-weight:700;color:#e94560">20s WORK</span>
     <span style="padding:4px 10px;border-radius:20px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);font-size:11px;font-weight:700;color:#4f8ef7">10s REST</span>
     <span style="padding:4px 10px;border-radius:20px;background:rgba(62,207,142,.12);border:1px solid rgba(62,207,142,.25);font-size:11px;font-weight:700;color:#3ecf8e">× 8 ROUNDS</span>
-    <span style="padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:11px;color:var(--muted)">🏃 NMT Only</span>
   </div>
 
-  <div id="tabata-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.25);font-size:12px;color:var(--accent)"></div>
-
-  <!-- Active set card injected here -->
-  <div id="tabata-set-card"></div>
-
-  <!-- Completed sets summary -->
-  <div id="tabata-completed-sets"></div>
-
-  <div class="fg" style="margin-top:8px">
-    <label class="fl">Session Notes</label>
-    <textarea class="fi" id="tabata-notes" placeholder="Overall session notes..."></textarea>
+  <!-- 날짜 -->
+  <div class="fg">
+    <label class="fl">📅 날짜</label>
+    <input type="date" class="fi" id="tabata-date" style="color-scheme:dark">
   </div>
-  <button class="btn btn-g" onclick="saveTabata()">Save Session →</button>
+
+  <!-- 강도 슬라이더 -->
+  <div class="fg">
+    <label class="fl">강도</label>
+    <div style="display:flex;align-items:center;gap:12px">
+      <input type="range" min="100" max="150" step="5" value="100" id="tabata-intensity"
+        oninput="_tabataUpdatePace()" style="flex:1;accent-color:#e94560;height:6px">
+      <span id="tabata-intensity-val" style="font-size:22px;font-weight:900;color:#e94560;min-width:52px;text-align:right">100%</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px">
+      <span>100%</span><span>110%</span><span>120%</span><span>130%</span><span>140%</span><span>150%</span>
+    </div>
+  </div>
+
+  <!-- 타겟 페이스 표시 -->
+  <div style="text-align:center;padding:16px;background:rgba(62,207,142,.06);border:1px solid rgba(62,207,142,.2);border-radius:14px;margin-bottom:18px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#3ecf8e88;margin-bottom:4px">Target Pace</div>
+    <div id="tabata-pace-display" style="font-size:48px;font-weight:900;color:#3ecf8e;line-height:1">15.9</div>
+    <div id="tabata-pace-sub" style="font-size:12px;color:#3ecf8e88;margin-top:2px">km/h</div>
+  </div>
+
+  <!-- 완료 라운드 -->
+  <div class="fg">
+    <label class="fl">완료 라운드 (/ 8)</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${[1,2,3,4,5,6,7,8].map(n=>`<button id="tb-round-btn-${n}" onclick="_tabataSelectRound(${n})"
+        style="flex:1;min-width:36px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">${n}</button>`).join('')}
+    </div>
+  </div>
+
+  <!-- RPE -->
+  <div class="fg">
+    <label class="fl">RPE (1–10)</label>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button id="tb-rpe-btn-${n}" onclick="_tabataSelectRpe(${n})"
+        style="flex:1;min-width:28px;padding:10px 2px;border-radius:10px;border:1px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">${n}</button>`).join('')}
+    </div>
+  </div>
+
+  <!-- 세션 노트 -->
+  <div class="fg">
+    <label class="fl">세션 노트</label>
+    <textarea class="fi" id="tabata-notes" placeholder="오늘 타바타 어땠어?" rows="3"></textarea>
+  </div>
+
+  <button class="btn btn-g" onclick="saveTabata()">저장 →</button>
 </div>
 
 <!-- CIRCUIT TRAINING SCREEN (B그룹) -->
@@ -7219,39 +7256,20 @@ function _tabataCalcPace(pct){
 }
 
 function selectTabata(){
-  clearInterval(ST._tabataTimer);
-  ST._tabataRunning=false;
-  ST._tabataPhase='work';
-  ST._tabataRound=1;
-  ST._tabataSeconds=20;
-  ST._tabataSetComplete=false;
-  ST._tabataCurrentSet=0;
-
-  const d=getData();
-  const today=todayStr();
-  const plan=d.sessionPlans[today];
-  const grp=ST.athlete.group;
-  const grpPlan=plan?(plan[grp]||plan['all']):null;
-  const banner=document.getElementById('tabata-plan-banner');
-
-  // Load sets from coach plan (tabataSets)
-  const planSets=grpPlan?.tabataSets||[];
-  if(planSets.length){
-    ST._tabataSets=planSets.map(s=>({
-      intensity:s.intensity||100,
-      pace:_tabataCalcPace(s.intensity||100),
-      hrAvg:'',hrMax:'',rpe:'',completed:false
-    }));
-    banner.style.display='block';
-    banner.innerHTML=`📋 Coach plan: <strong>${planSets.length} set${planSets.length>1?'s':''}</strong> · `+
-      planSets.map((s,i)=>`Set ${i+1}: <strong>${s.intensity}%</strong> → ${_tabataCalcPace(s.intensity)} km/h`).join(' &nbsp;|&nbsp; ');
-  } else {
-    ST._tabataSets=[{intensity:100,pace:_tabataCalcPaceInit(),hrAvg:'',hrMax:'',rpe:'',completed:false}];
-    banner.style.display='none';
-  }
-
-  _renderTabataSetCard();
-  _renderTabataCompletedSets();
+  ST._tabataRounds=null;
+  ST._tabataRpe=null;
+  // 날짜 초기화
+  const dateEl=document.getElementById('tabata-date');
+  if(dateEl) dateEl.value=todayStr();
+  // 강도 초기화
+  const intEl=document.getElementById('tabata-intensity');
+  if(intEl){ intEl.value=100; }
+  // 라운드/RPE 버튼 초기화
+  [1,2,3,4,5,6,7,8].forEach(n=>{ const b=document.getElementById('tb-round-btn-'+n); if(b){ b.style.background='var(--input)'; b.style.color='var(--muted)'; b.style.borderColor='var(--border)'; } });
+  [1,2,3,4,5,6,7,8,9,10].forEach(n=>{ const b=document.getElementById('tb-rpe-btn-'+n); if(b){ b.style.background='var(--input)'; b.style.color='var(--muted)'; b.style.borderColor='var(--border)'; } });
+  const notesEl=document.getElementById('tabata-notes');
+  if(notesEl) notesEl.value='';
+  _tabataUpdatePace();
   showScreen('s-tabata');
 }
 
@@ -7480,20 +7498,62 @@ function _addTabataSet(){
   setTimeout(()=>document.getElementById('tabata-set-card')?.scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
 
+function _tabataUpdatePace(){
+  const intEl=document.getElementById('tabata-intensity');
+  const paceEl=document.getElementById('tabata-pace-display');
+  const valEl=document.getElementById('tabata-intensity-val');
+  if(!intEl||!paceEl) return;
+  const pct=parseInt(intEl.value)||100;
+  const gender=ST.athlete?.gender||'M';
+  const smax=(gender==='F'?15.475:15.9125);
+  const pace=(smax*(pct/100)).toFixed(1);
+  paceEl.textContent=pace;
+  if(valEl) valEl.textContent=pct+'%';
+}
+function _tabataSelectRound(n){
+  ST._tabataRounds=n;
+  [1,2,3,4,5,6,7,8].forEach(i=>{
+    const b=document.getElementById('tb-round-btn-'+i);
+    if(!b) return;
+    const sel=i===n;
+    b.style.background=sel?'rgba(62,207,142,0.2)':'var(--input)';
+    b.style.color=sel?'#3ecf8e':'var(--muted)';
+    b.style.borderColor=sel?'rgba(62,207,142,0.5)':'var(--border)';
+  });
+}
+function _tabataSelectRpe(n){
+  ST._tabataRpe=n;
+  [1,2,3,4,5,6,7,8,9,10].forEach(i=>{
+    const b=document.getElementById('tb-rpe-btn-'+i);
+    if(!b) return;
+    const sel=i===n;
+    const col=n>=7?'#e94560':n>=4?'#f7a94f':'#3ecf8e';
+    const bg=n>=7?'rgba(233,69,96,0.2)':n>=4?'rgba(247,169,79,0.2)':'rgba(62,207,142,0.2)';
+    b.style.background=sel?bg:'var(--input)';
+    b.style.color=sel?col:'var(--muted)';
+    b.style.borderColor=sel?col:'var(--border)';
+  });
+}
 function saveTabata(){
-  if(!ST._tabataSets.some(s=>s.completed||s.hrAvg||s.rpe)){
-    showToast('Complete at least one set first');return;
-  }
+  const dateEl=document.getElementById('tabata-date');
+  const intEl=document.getElementById('tabata-intensity');
+  const paceEl=document.getElementById('tabata-pace-display');
+  const date=dateEl?.value||todayStr();
+  const intensity=parseInt(intEl?.value)||100;
+  const pace=paceEl?.textContent||'—';
+  if(!ST._tabataRounds){ showToast('완료 라운드를 선택해줘'); return; }
+  if(!ST._tabataRpe){ showToast('RPE를 선택해줘'); return; }
   const log={
-    id:genId(),date:todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,
+    id:genId(), date, athleteName:ST.athlete.name, group:ST.athlete.group,
     type:'tabata',
-    sets:ST._tabataSets,
-    protocol:{workSec:20,restSec:10,rounds:8,equipment:'NMT'},
-    gender:ST.athlete.gender,
-    notes:document.getElementById('tabata-notes').value
+    intensity, pace: parseFloat(pace),
+    completedRounds:ST._tabataRounds,
+    rpe:ST._tabataRpe,
+    protocol:{workSec:20,restSec:10,rounds:8},
+    notes:document.getElementById('tabata-notes')?.value||''
   };
   const d=getData(); d.logs.push(log); saveData(d);
-  document.getElementById('success-msg').textContent=`타바타 저장! ${ST._tabataSets.filter(s=>s.completed).length} 세트 · 🔥`;
+  document.getElementById('success-msg').textContent=`타바타 저장! ${ST._tabataRounds}/8 라운드 · RPE ${ST._tabataRpe} 🫀`;
   showScreen('s-success');
 }
 
