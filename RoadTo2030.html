@@ -99,6 +99,7 @@ tr:last-child td{border-bottom:none}
 .b-w{background:rgba(79,142,247,.2);color:var(--blue)}
 .b-s{background:rgba(62,207,142,.2);color:var(--green)}
 .b-c{background:rgba(247,169,79,.2);color:var(--orange)}
+.b-t{background:rgba(233,69,96,.2);color:#e94560}
 .b-r{background:rgba(233,69,96,.2);color:var(--red)}
 .sec-ttl{font-size:17px;font-weight:800;margin:16px 0 10px}
 .fbar{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:none}
@@ -3922,7 +3923,7 @@ function renderToday(){
   const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
   const cl=tl.filter(l=>l.type==='condition');
-  const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo');
+  const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='tabata');
   const dw=new Date();
   document.getElementById('coach-date-ttl').textContent=`${DAYS[dw.getDay()]}, ${dw.toLocaleString('en',{month:'long'})} ${dw.getDate()}`;
   const tvol=tr.filter(l=>l.type==='weight').reduce((s,l)=>s+l.totalVolume,0);
@@ -3952,10 +3953,20 @@ function renderToday(){
     return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)">${items}</div>`;
   };
   const _logCard=(l)=>{
-    const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':'b-w';
-    const badgeText=l.type==='sprint'?'스프린트':l.type==='plyo'?'플라이오':'웨이트';
+    const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':l.type==='tabata'?'b-t':'b-w';
+    const badgeText=l.type==='sprint'?'스프린트':l.type==='plyo'?'플라이오':l.type==='tabata'?'타바타':'웨이트';
     let statsHtml='';
-    if(l.type==='sprint'){
+    if(l.type==='tabata'){
+      const results=l.roundResults||[];
+      const successCount=l.completedRounds??results.filter(r=>r===true).length;
+      const failCount=results.filter(r=>r===false).length;
+      const roundsHtml=results.length>0
+        ?results.map((r,i)=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;font-size:11px;font-weight:700;background:${r===true?'rgba(62,207,142,0.18)':r===false?'rgba(233,69,96,0.18)':'rgba(255,255,255,0.06)'};color:${r===true?'#3ecf8e':r===false?'#e94560':'var(--muted)'}">${r===true?'✓':r===false?'✗':'—'}</span>`).join('')
+        :'—';
+      statsHtml=`<div class="detail-row"><span class="detail-key">라운드</span><span class="detail-val">${successCount}/8 성공${failCount>0?' · '+failCount+'실패':''}</span></div>
+      <div class="detail-row" style="align-items:center"><span class="detail-key">결과</span><span style="display:flex;gap:3px;flex-wrap:wrap">${roundsHtml}</span></div>
+      ${l.intensity?`<div class="detail-row"><span class="detail-key">강도</span><span class="detail-val">${l.intensity}%${l.pace?' · '+l.pace+' km/h':''}</span></div>`:''}`;
+    } else if(l.type==='sprint'){
       statsHtml=`<div class="detail-row"><span class="detail-key">거리</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`;
     } else if(l.type==='plyo'){
       // Derive contacts/reps — handles both new format (totalContacts defined) and old format (all in totalReps)
