@@ -1123,24 +1123,18 @@ if ('serviceWorker' in navigator) {
     <input type="date" class="fi" id="tabata-date" style="color-scheme:dark">
   </div>
 
-  <!-- 강도 슬라이더 -->
-  <div class="fg">
-    <label class="fl">강도</label>
-    <div style="display:flex;align-items:center;gap:12px">
-      <input type="range" min="100" max="150" step="5" value="100" id="tabata-intensity"
-        oninput="_tabataUpdatePace()" style="flex:1;accent-color:#e94560;height:6px">
-      <span id="tabata-intensity-val" style="font-size:22px;font-weight:900;color:#e94560;min-width:52px;text-align:right">100%</span>
+  <!-- 강도 & 페이스 직접 입력 -->
+  <div style="display:flex;gap:12px;margin-bottom:4px">
+    <div class="fg" style="flex:1;margin-bottom:0">
+      <label class="fl">강도 (%)</label>
+      <input type="number" class="fi" id="tabata-intensity" placeholder="예: 110" min="50" max="200"
+        style="font-size:22px;font-weight:900;color:#e94560;text-align:center">
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px">
-      <span>100%</span><span>110%</span><span>120%</span><span>130%</span><span>140%</span><span>150%</span>
+    <div class="fg" style="flex:1;margin-bottom:0">
+      <label class="fl">타겟 페이스 (km/h)</label>
+      <input type="number" class="fi" id="tabata-pace-input" placeholder="예: 17.5" min="1" max="40" step="0.1"
+        style="font-size:22px;font-weight:900;color:#3ecf8e;text-align:center">
     </div>
-  </div>
-
-  <!-- 타겟 페이스 표시 -->
-  <div style="text-align:center;padding:16px;background:rgba(62,207,142,.06);border:1px solid rgba(62,207,142,.2);border-radius:14px;margin-bottom:18px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#3ecf8e88;margin-bottom:4px">Target Pace</div>
-    <div id="tabata-pace-display" style="font-size:48px;font-weight:900;color:#3ecf8e;line-height:1">15.9</div>
-    <div id="tabata-pace-sub" style="font-size:12px;color:#3ecf8e88;margin-top:2px">km/h</div>
   </div>
 
   <!-- 완료 라운드 -->
@@ -7268,15 +7262,16 @@ function selectTabata(){
   // 날짜 초기화
   const dateEl=document.getElementById('tabata-date');
   if(dateEl) dateEl.value=todayStr();
-  // 강도 초기화
+  // 강도/페이스 초기화
   const intEl=document.getElementById('tabata-intensity');
-  if(intEl){ intEl.value=100; }
+  if(intEl) intEl.value='';
+  const paceEl=document.getElementById('tabata-pace-input');
+  if(paceEl) paceEl.value='';
   // 라운드/RPE 버튼 초기화
   [1,2,3,4,5,6,7,8].forEach(n=>{ const b=document.getElementById('tb-round-btn-'+n); if(b){ b.style.background='var(--input)'; b.style.color='var(--muted)'; b.style.borderColor='var(--border)'; } });
   [1,2,3,4,5,6,7,8,9,10].forEach(n=>{ const b=document.getElementById('tb-rpe-btn-'+n); if(b){ b.style.background='var(--input)'; b.style.color='var(--muted)'; b.style.borderColor='var(--border)'; } });
   const notesEl=document.getElementById('tabata-notes');
   if(notesEl) notesEl.value='';
-  _tabataUpdatePace();
   showScreen('s-tabata');
 }
 
@@ -7542,18 +7537,15 @@ function _tabataSelectRpe(n){
   });
 }
 function saveTabata(){
-  const dateEl=document.getElementById('tabata-date');
-  const intEl=document.getElementById('tabata-intensity');
-  const paceEl=document.getElementById('tabata-pace-display');
-  const date=dateEl?.value||todayStr();
-  const intensity=parseInt(intEl?.value)||100;
-  const pace=paceEl?.textContent||'—';
+  const date=document.getElementById('tabata-date')?.value||todayStr();
+  const intensity=parseFloat(document.getElementById('tabata-intensity')?.value)||null;
+  const pace=parseFloat(document.getElementById('tabata-pace-input')?.value)||null;
   if(!ST._tabataRounds){ showToast('완료 라운드를 선택해줘'); return; }
   if(!ST._tabataRpe){ showToast('RPE를 선택해줘'); return; }
   const log={
     id:genId(), date, athleteName:ST.athlete.name, group:ST.athlete.group,
     type:'tabata',
-    intensity, pace: parseFloat(pace),
+    intensity, pace,
     completedRounds:ST._tabataRounds,
     rpe:ST._tabataRpe,
     protocol:{workSec:20,restSec:10,rounds:8},
