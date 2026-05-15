@@ -134,6 +134,10 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
 /* Weekly dot */
 .wdot{width:9px;height:9px;border-radius:50%;display:inline-block;margin:0 1px}
 
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-sheet{background:var(--card);border-radius:20px 20px 0 0;padding:20px 16px env(safe-area-inset-bottom,20px);width:100%;max-width:430px;max-height:82vh;overflow-y:auto}
+
 /* Tip chip */
 .chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 10px;font-size:12px;color:var(--sub);margin:3px 3px 0 0}
 </style>
@@ -421,6 +425,28 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
     설정
   </button>
 </nav>
+
+<!-- Edit Modal -->
+<div id="edit-modal" class="modal-overlay" style="display:none" onclick="closeEditModal(event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div style="font-size:17px;font-weight:700;margin-bottom:16px">기록 수정 ✏️</div>
+    <div style="font-size:12px;color:var(--sub);font-weight:600;margin-bottom:6px">언제 드셨나요?</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="edit-meal-btns">
+      <button onclick="selectEditType('아침','🌅',false)" class="mtb" id="emt-아침">🌅 아침</button>
+      <button onclick="selectEditType('점심','☀️',false)" class="mtb" id="emt-점심">☀️ 점심</button>
+      <button onclick="selectEditType('오후 간식','🍵',false)" class="mtb" id="emt-오후 간식">🍵 간식</button>
+      <button onclick="selectEditType('저녁','🌇',false)" class="mtb" id="emt-저녁">🌇 저녁</button>
+      <button onclick="selectEditType('야식','🌙',true)" class="mtb" id="emt-야식">🌙 야식</button>
+    </div>
+    <input type="time" id="edit-time-input" class="inp" style="margin-bottom:12px;font-size:14px;width:130px">
+    <label>메모</label>
+    <textarea id="edit-memo" class="inp" rows="3" placeholder="메모 (선택사항)" style="resize:none;margin-bottom:14px"></textarea>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-s" style="flex:1" onclick="closeEditModal()">취소</button>
+      <button class="btn btn-p" style="flex:2" onclick="saveEditMeal()">저장</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -724,9 +750,16 @@ function renderFoodLog() {
     const tm = `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
     const mealBadge = m.mealTime ? `<span class="b ${m.mealWarn ? 'b-warn' : 'b-info'}" style="font-size:10px;margin-left:4px">${m.mealEmoji} ${m.mealTime}</span>` : '';
     const preview = (m.ai || m.memo || '기록됨').slice(0,70) + ((m.ai||m.memo||'').length>70?'…':'');
-    return `<div class="li">
-      ${m.photo ? `<img src="${m.photo}" class="lthumb" style="width:54px;height:54px;object-fit:cover;border-radius:10px">` : '<div class="lthumb">🍽️</div>'}
-      <div><div style="font-size:11px;color:var(--sub);margin-bottom:3px">${tm}${mealBadge}</div><div style="font-size:13px;line-height:1.55">${preview}</div></div>
+    return `<div class="li" style="align-items:center">
+      ${m.photo ? `<img src="${m.photo}" class="lthumb" style="width:54px;height:54px;object-fit:cover;border-radius:10px;flex-shrink:0">` : '<div class="lthumb" style="flex-shrink:0">🍽️</div>'}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:3px">${tm}${mealBadge}</div>
+        <div style="font-size:13px;line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0;margin-left:8px">
+        <button onclick="editMeal(${m.ts})" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 8px;font-size:13px;cursor:pointer;line-height:1" title="수정">✏️</button>
+        <button onclick="deleteMeal(${m.ts})" style="background:var(--red-bg);border:1px solid #fca5a5;border-radius:8px;padding:5px 8px;font-size:13px;cursor:pointer;line-height:1" title="삭제">🗑</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1014,6 +1047,70 @@ function clearAll() {
   if (!confirm('모든 기록을 삭제할까요? 되돌릴 수 없어요.')) return;
   localStorage.removeItem('meals'); localStorage.removeItem('sleeps');
   refreshAll(); toast('초기화됐어요');
+}
+
+// ── Meal Edit / Delete ───────────────────────────────────────────
+let _editTs = null, _editMealType = null;
+
+function editMeal(ts) {
+  const logs = get('meals') || [];
+  const m = logs.find(m => m.ts === ts);
+  if (!m) return;
+  _editTs = ts;
+  _editMealType = m.mealTime ? { label: m.mealTime, emoji: m.mealEmoji || '', warn: !!m.mealWarn } : getMealTimeLabel();
+  // 시간 세팅
+  const d = new Date(m.ts);
+  document.getElementById('edit-time-input').value = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  // 메모 세팅
+  document.getElementById('edit-memo').value = m.memo || '';
+  // 식사 유형 버튼
+  document.querySelectorAll('#edit-meal-btns .mtb').forEach(b => b.classList.remove('on'));
+  const btn = document.getElementById('emt-' + _editMealType.label);
+  if (btn) btn.classList.add('on');
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function selectEditType(label, emoji, warn) {
+  _editMealType = { label, emoji, warn };
+  document.querySelectorAll('#edit-meal-btns .mtb').forEach(b => b.classList.remove('on'));
+  const btn = document.getElementById('emt-' + label);
+  if (btn) btn.classList.add('on');
+}
+
+function closeEditModal(e) {
+  if (e && e.target !== document.getElementById('edit-modal')) return;
+  document.getElementById('edit-modal').style.display = 'none';
+  _editTs = null; _editMealType = null;
+}
+
+function saveEditMeal() {
+  if (!_editTs) return;
+  const logs = get('meals') || [];
+  const idx = logs.findIndex(m => m.ts === _editTs);
+  if (idx === -1) return;
+  const timeVal = document.getElementById('edit-time-input').value;
+  const memo = document.getElementById('edit-memo').value;
+  const mt = _editMealType || getMealTimeLabel();
+  // 시간 업데이트
+  const d = new Date(logs[idx].ts);
+  if (timeVal) {
+    const [h, min] = timeVal.split(':').map(Number);
+    d.setHours(h, min, 0, 0);
+  }
+  logs[idx] = { ...logs[idx], ts: d.getTime(), memo, mealTime: mt.label, mealEmoji: mt.emoji, mealWarn: mt.warn };
+  set('meals', logs);
+  document.getElementById('edit-modal').style.display = 'none';
+  _editTs = null; _editMealType = null;
+  renderFoodLog(); renderHomeSummary(); pushSync();
+  toast('수정됐어요 ✅');
+}
+
+function deleteMeal(ts) {
+  if (!confirm('이 기록을 삭제할까요?')) return;
+  const logs = (get('meals') || []).filter(m => m.ts !== ts);
+  set('meals', logs);
+  renderFoodLog(); renderHomeSummary(); pushSync();
+  toast('삭제됐어요 🗑');
 }
 
 function toast(msg) {
