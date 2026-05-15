@@ -3939,7 +3939,7 @@ function renderToday(){
   } else cbw.innerHTML='<div class="empty" style="padding:16px 0"><div class="ei">😴</div>No condition data yet</div>';
   const tlw=document.getElementById('today-log-list');
   const _delBtn=(id,ctx)=>`<button onclick="deleteLog('${id}','${ctx}')" style="padding:3px 8px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
-  const _editBtn=(id)=>(()=>{const l=getData().logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="_editLog('${id}')" style="padding:3px 8px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';})()
+  const _editBtn=(id)=>(()=>{const l=getData().logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='tabata'))?`<button onclick="_editLog('${id}')" style="padding:3px 8px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';})()
   const _effortDot=(ef)=>{
     if(!ef) return '';
     const c=ef==='High'?'#e94560':ef==='Medium'?'#f7a94f':'#3ecf8e';
@@ -4218,7 +4218,7 @@ function openAthDetail(name){
   // ── Recent logs ──
   const recent=d.logs.filter(l=>l.athleteName===name).slice(-20).reverse();
   const _dBtn=(id)=>`<button onclick="deleteLog('${id}','detail')" style="padding:3px 8px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
-  const _eBtn=(id)=>{const l=d.logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="_editLog('${id}')" style="padding:3px 8px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';}
+  const _eBtn=(id)=>{const l=d.logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='tabata'))?`<button onclick="_editLog('${id}')" style="padding:3px 8px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';}
   const _typeKo={weight:'웨이트',sprint:'스프린트',plyo:'플라이오',condition:'컨디션',tabata:'타바타',circuit:'서킷'};
   const _typeCol2={weight:'#4f8ef7',sprint:'#3ecf8e',plyo:'#a78bfa',condition:'#f7a94f',tabata:'#e94560',circuit:'#f7a94f'};
   document.getElementById('detail-logs').innerHTML=recent.length?recent.map(l=>{
@@ -5069,6 +5069,18 @@ function _editLog(logId){
     document.getElementById('sp-edit-banner').style.display='block';
     renderSprintSets();
     showScreen('s-sprint');
+  } else if(log.type==='tabata'){
+    // 타바타 수정: 폼 값 복원 후 화면 이동
+    ST._tabataRoundResults=(log.roundResults||new Array(8).fill(null)).slice();
+    ST._tabataRpe=log.rpe||null;
+    ST.editingLogId=logId;
+    const dateEl=document.getElementById('tabata-date'); if(dateEl) dateEl.value=log.date||todayStr();
+    const intEl=document.getElementById('tabata-intensity'); if(intEl) intEl.value=log.intensity||'';
+    const paceEl=document.getElementById('tabata-pace-input'); if(paceEl) paceEl.value=log.pace||'';
+    const ntEl=document.getElementById('tabata-notes'); if(ntEl) ntEl.value=log.notes||'';
+    _tabataUpdateRoundBtns();
+    _tabataSelectRpe(ST._tabataRpe);
+    showScreen('s-tabata');
   }
 }
 
@@ -7575,18 +7587,28 @@ function saveTabata(){
   if(!hasAnySet){ showToast('라운드 결과를 입력해줘'); return; }
   if(!ST._tabataRpe){ showToast('RPE를 선택해줘'); return; }
   const completedRounds=results.filter(r=>r===true).length;
-  const log={
-    id:genId(), date, athleteName:ST.athlete.name, group:ST.athlete.group,
-    type:'tabata',
-    intensity, pace,
-    roundResults:results,
-    completedRounds,
-    rpe:ST._tabataRpe,
-    protocol:{workSec:20,restSec:10,rounds:8},
-    notes:document.getElementById('tabata-notes')?.value||''
-  };
-  const d=getData(); d.logs.push(log); saveData(d);
-  document.getElementById('success-msg').textContent=`타바타 저장! ${completedRounds}/8 라운드 성공 · RPE ${ST._tabataRpe} 🫀`;
+  const d=getData();
+  if(ST.editingLogId){
+    // 수정 모드: 기존 로그 덮어쓰기
+    const idx=d.logs.findIndex(l=>l.id===ST.editingLogId);
+    if(idx!==-1){
+      d.logs[idx]=Object.assign(d.logs[idx],{date,intensity,pace,roundResults:results,completedRounds,rpe:ST._tabataRpe,notes:document.getElementById('tabata-notes')?.value||''});
+    }
+    ST.editingLogId=null;
+    saveData(d);
+    document.getElementById('success-msg').textContent=`타바타 수정 완료! ${completedRounds}/8 라운드 성공 · RPE ${ST._tabataRpe} 🫀`;
+  } else {
+    const log={
+      id:genId(), date, athleteName:ST.athlete.name, group:ST.athlete.group,
+      type:'tabata', intensity, pace,
+      roundResults:results, completedRounds, rpe:ST._tabataRpe,
+      protocol:{workSec:20,restSec:10,rounds:8},
+      notes:document.getElementById('tabata-notes')?.value||''
+    };
+    d.logs.push(log);
+    saveData(d);
+    document.getElementById('success-msg').textContent=`타바타 저장! ${completedRounds}/8 라운드 성공 · RPE ${ST._tabataRpe} 🫀`;
+  }
   showScreen('s-success');
 }
 
