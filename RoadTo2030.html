@@ -761,7 +761,11 @@ if ('serviceWorker' in navigator) {
     <div class="chart-title">😩 피로도 · 😊 기분 · 😴 수면 질</div>
     <canvas id="chart-my-condition"></canvas>
   </div>
-  
+  <div class="chart-box">
+    <div class="chart-title">💢 세션 RPE 추이</div>
+    <canvas id="chart-my-rpe"></canvas>
+  </div>
+
   <div class="sec-ttl" style="margin-top:20px">🔴 근육통 기록</div>
   <div id="my-soreness-list"></div>
 
@@ -3676,6 +3680,21 @@ function renderAthStats(){
     {label:'기분',data:mood,borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'},
     {label:'수면 질',data:slp,borderColor:'#4f8ef7',backgroundColor:'#4f8ef7',tension:.4,pointRadius:5,pointStyle:'rectRot'}
   ],labels);
+
+  // RPE 추이: 날짜별 웨이트/스프린트 평균 RPE
+  const rpeWeight=dates.map(dt=>{
+    const ls=myLogs.filter(l=>(l.type==='weight'||l.type==='plyo')&&l.date===dt&&l.rpe);
+    return ls.length?Math.round(ls.reduce((s,l)=>s+l.rpe,0)/ls.length*10)/10:null;
+  });
+  const rpeSprint=dates.map(dt=>{
+    const ls=myLogs.filter(l=>l.type==='sprint'&&l.date===dt&&l.rpe);
+    return ls.length?Math.round(ls.reduce((s,l)=>s+l.rpe,0)/ls.length*10)/10:null;
+  });
+  mkChart('chart-my-rpe',[
+    {label:'웨이트/플라이오 RPE',data:rpeWeight,borderColor:'#f7a94f',backgroundColor:'#f7a94f',tension:.4,pointRadius:5,pointStyle:'circle'},
+    {label:'스프린트 RPE',data:rpeSprint,borderColor:'#3ecf8e',backgroundColor:'#3ecf8e',tension:.4,pointRadius:5,pointStyle:'rect'}
+  ],labels,{min:1,yMax:10});
+
   renderMyRecords();
 
   // 세션 로그 렌더링 (최근 30개, 탭하면 상세 펼쳐짐)
@@ -4458,7 +4477,7 @@ function _athColor(i){ return ATH_PALETTE[i%ATH_PALETTE.length]; }
 function mkChart(id,datasets,labels,opts={}){
   if(ST.charts[id]){ ST.charts[id].destroy(); }
   const ctx=document.getElementById(id); if(!ctx)return;
-  const yAxis={ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'},min:0};
+  const yAxis={ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'},min:opts.min!=null?opts.min:0};
   if(opts.yMax!=null) yAxis.max=opts.yMax;
   ST.charts[id]=new Chart(ctx,{
     type:'line',
