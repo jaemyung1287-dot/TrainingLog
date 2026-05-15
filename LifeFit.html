@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>LifeFit â ì¬ëªëì ê±´ê° íí¸ë</title>
+<title>PlateMood — 재명님의 건강 파트너</title>
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <style>
@@ -143,55 +143,55 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
 <!-- HOME -->
 <div id="s-home" class="screen active">
   <div class="hd">
-    <div class="hd-title" id="greeting">ìëíì¸ì, ì¬ëªë ð</div>
+    <div class="hd-title" id="greeting">안녕하세요, 재명님 👋</div>
     <div class="hd-sub" id="today-date"></div>
   </div>
   <div class="sec">
     <div class="card" style="background:linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%);border-color:#c7d2fe">
-      <div style="font-size:12px;color:#4338ca;font-weight:700;margin-bottom:5px">ð¡ ì¤ëì í¬ì¸í¸</div>
+      <div style="font-size:12px;color:#4338ca;font-weight:700;margin-bottom:5px">💡 오늘의 포인트</div>
       <div style="font-size:13px;color:#374151;line-height:1.65" id="daily-tip"></div>
     </div>
     <div class="card">
-      <div class="ct">ë´ ê±´ê° ìì¹ (2025.07.30 ê²ì§)</div>
+      <div class="ct">내 건강 수치 (2025.07.30 검진)</div>
       <div class="mg">
         <div class="mc">
-          <div class="ml">ì¤ì±ì§ë°©</div>
+          <div class="ml">중성지방</div>
           <div class="mv" style="color:var(--amber)">135</div>
-          <div class="mn"><span class="b b-warn">â ê´ë¦¬ íì</span></div>
+          <div class="mn"><span class="b b-warn">↑ 관리 필요</span></div>
         </div>
         <div class="mc">
-          <div class="ml">HDL (ì¢ì ì½)</div>
+          <div class="ml">HDL (좋은 콜)</div>
           <div class="mv" style="color:var(--red)">43</div>
-          <div class="mn"><span class="b b-err">â ë®ì</span></div>
+          <div class="mn"><span class="b b-err">↓ 낮음</span></div>
         </div>
         <div class="mc">
-          <div class="ml">LDL (ëì ì½)</div>
+          <div class="ml">LDL (나쁜 콜)</div>
           <div class="mv" style="color:var(--amber)">118</div>
-          <div class="mn"><span class="b b-warn">ê²½ê³</span></div>
+          <div class="mn"><span class="b b-warn">경계</span></div>
         </div>
         <div class="mc">
           <div class="ml">BMI</div>
           <div class="mv" style="color:var(--amber)">28.0</div>
-          <div class="mn"><span class="b b-warn">ê³¼ì²´ì¤</span></div>
+          <div class="mn"><span class="b b-warn">과체중</span></div>
         </div>
       </div>
       <div style="margin-top:10px;padding:10px;background:var(--red-bg);border-radius:10px;font-size:12px;color:var(--red);line-height:1.55">
-        â ï¸ <b>ì¬ì ë Cë±ê¸</b> â 1ë ë°©ì¤ì°¨ë¨. ê³ ê°ë ì´ë ì£¼ì, ì ê¸° ì¶ì  íì.
+        ⚠️ <b>심전도 C등급</b> — 1도 방실차단. 고강도 운동 주의, 정기 추적 필요.
       </div>
     </div>
     <div class="card">
-      <div class="ct">ì¤ë ê¸°ë¡</div>
+      <div class="ct">오늘 기록</div>
       <div id="home-summary" style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">
-        ìì§ ì¤ë ê¸°ë¡ì´ ìì´ì.<br>ìë ìì¬ í­ìì ì¬ì§ì ì¬ë ¤ë³´ì¸ì ð·
+        아직 오늘 기록이 없어요.<br>아래 식사 탭에서 사진을 올려보세요 📷
       </div>
     </div>
     <div class="card">
-      <div class="ct">ì¤ë ì´ë</div>
-      <div id="home-workout" style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">ì¤ë ì´ë ê¸°ë¡ì´ ìì´ì ð</div>
+      <div class="ct">오늘 운동</div>
+      <div id="home-workout" style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">오늘 운동 기록이 없어요 🏃</div>
     </div>
     <div class="card">
-      <div class="ct">ì´ë² ì£¼ ìë©´</div>
-      <div id="home-sleep-chart" style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">ìë©´ ê¸°ë¡ ìì</div>
+      <div class="ct">이번 주 수면</div>
+      <div id="home-sleep-chart" style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">수면 기록 없음</div>
     </div>
   </div>
 </div>
@@ -199,30 +199,30 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
 <!-- FOOD -->
 <div id="s-food" class="screen">
   <div class="hd">
-    <div class="hd-title">ìì¬ ê¸°ë¡</div>
-    <div class="hd-sub">ì¬ì§ ì°ì¼ë©´ AIê° ë´ ìì¹ ê¸°ì¤ì¼ë¡ ë¶ìí´ì¤ì</div>
+    <div class="hd-title">식사 기록</div>
+    <div class="hd-sub">사진 찍으면 AI가 내 수치 기준으로 분석해줘요</div>
   </div>
   <div class="sec">
     <div class="card">
-      <div id="api-notice" class="notice n-warn">â ï¸ AI ë¶ìì ì°ë ¤ë©´ <b>ì¤ì </b> í­ìì ë¬´ë£ Gemini í¤ë¥¼ ìë ¥í´ì£¼ì¸ì.</div>
+      <div id="api-notice" class="notice n-warn">⚠️ AI 분석을 쓰려면 <b>설정</b> 탭에서 무료 Gemini 키를 입력해주세요.</div>
       <input type="file" id="food-file" accept="image/*" style="display:none" onchange="onFoodFile(this)">
       <div class="upz" id="upz" onclick="document.getElementById('food-file').click()">
-        <div style="font-size:40px;margin-bottom:8px">ð·</div>
-        <div style="font-size:15px;font-weight:600;margin-bottom:3px">ì¬ì§ ì°ê¸° or ìë¡ë</div>
-        <div style="font-size:12px;color:var(--sub)">ìì¬ ì¬ì§ì ì¬ë¦¬ë©´ AIê° ì¬ëªë ìì¹ ê¸°ì¤ì¼ë¡ ë¶ìí´ëë ¤ì</div>
+        <div style="font-size:40px;margin-bottom:8px">📷</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:3px">사진 찍기 or 업로드</div>
+        <div style="font-size:12px;color:var(--sub)">식사 사진을 올리면 AI가 재명님 수치 기준으로 분석해드려요</div>
       </div>
       <div id="food-loading" class="ld" style="display:none">
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-        <span style="font-size:13px;color:var(--sub)">AIê° ë¶ì ì¤ì´ìì...</span>
+        <span style="font-size:13px;color:var(--sub)">AI가 분석 중이에요...</span>
       </div>
       <div id="food-result"></div>
       <div id="food-save" style="display:none;margin-top:10px">
-        <textarea id="food-memo" class="inp" rows="2" placeholder="ë©ëª¨ (ì íì¬í­)" style="resize:none;margin-bottom:8px"></textarea>
-        <button class="btn btn-p" onclick="saveMeal()">ê¸°ë¡ ì ì¥</button>
+        <textarea id="food-memo" class="inp" rows="2" placeholder="메모 (선택사항)" style="resize:none;margin-bottom:8px"></textarea>
+        <button class="btn btn-p" onclick="saveMeal()">기록 저장</button>
       </div>
     </div>
     <div class="card">
-      <div class="ct">ì¤ë ìì¬ ê¸°ë¡</div>
+      <div class="ct">오늘 식사 기록</div>
       <div id="food-log"></div>
     </div>
   </div>
@@ -231,37 +231,37 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
 <!-- SLEEP -->
 <div id="s-sleep" class="screen">
   <div class="hd">
-    <div class="hd-title">ìë©´ & ì»¨ëì</div>
-    <div class="hd-sub">ë§¤ì¼ ê¸°ë¡íë©´ ìì-ìë©´ í¨í´ì ì°¾ìëë ¤ì</div>
+    <div class="hd-title">수면 & 컨디션</div>
+    <div class="hd-sub">매일 기록하면 음식-수면 패턴을 찾아드려요</div>
   </div>
   <div class="sec">
     <div class="card">
-      <div class="ct">ì´ì ¯ë°¤ ìë©´</div>
+      <div class="ct">어젯밤 수면</div>
       <div class="sl-row">
-        <div class="sl-hd"><span>ìë©´ ìê°</span><span class="sl-val" id="v-hrs">7ìê°</span></div>
-        <input type="range" min="3" max="12" step="0.5" value="7" oninput="document.getElementById('v-hrs').textContent=this.value+'ìê°'">
+        <div class="sl-hd"><span>수면 시간</span><span class="sl-val" id="v-hrs">7시간</span></div>
+        <input type="range" min="3" max="12" step="0.5" value="7" oninput="document.getElementById('v-hrs').textContent=this.value+'시간'">
       </div>
       <div class="sl-row">
-        <div class="sl-hd"><span>ìë©´ ì§</span><span class="sl-val" id="v-qlt">5ì </span></div>
-        <input type="range" min="1" max="10" value="5" id="s-quality" oninput="document.getElementById('v-qlt').textContent=this.value+'ì '">
+        <div class="sl-hd"><span>수면 질</span><span class="sl-val" id="v-qlt">5점</span></div>
+        <input type="range" min="1" max="10" value="5" id="s-quality" oninput="document.getElementById('v-qlt').textContent=this.value+'점'">
       </div>
     </div>
     <div class="card">
-      <div class="ct">ì¤ë ì»¨ëì</div>
+      <div class="ct">오늘 컨디션</div>
       <div class="sl-row">
-        <div class="sl-hd"><span>ì ë°ì  ì»¨ëì</span><span class="sl-val" id="v-cond">5ì </span></div>
-        <input type="range" min="1" max="10" value="5" id="s-cond" oninput="document.getElementById('v-cond').textContent=this.value+'ì '">
+        <div class="sl-hd"><span>전반적 컨디션</span><span class="sl-val" id="v-cond">5점</span></div>
+        <input type="range" min="1" max="10" value="5" id="s-cond" oninput="document.getElementById('v-cond').textContent=this.value+'점'">
       </div>
       <div class="sl-row">
-        <div class="sl-hd"><span>ìëì§ ë ë²¨</span><span class="sl-val" id="v-eng">5ì </span></div>
-        <input type="range" min="1" max="10" value="5" oninput="document.getElementById('v-eng').textContent=this.value+'ì '">
+        <div class="sl-hd"><span>에너지 레벨</span><span class="sl-val" id="v-eng">5점</span></div>
+        <input type="range" min="1" max="10" value="5" oninput="document.getElementById('v-eng').textContent=this.value+'점'">
       </div>
-      <label style="margin-top:4px">í¹ì´ì¬í­</label>
-      <textarea id="s-note" class="inp" rows="2" placeholder="ì: ìë²½ì ê¹¼ì, ëíµ, ëª¸ì´ ë¬´ê±°ì..." style="resize:none;margin-bottom:12px"></textarea>
-      <button class="btn btn-p" onclick="saveSleep()">ì ì¥</button>
+      <label style="margin-top:4px">특이사항</label>
+      <textarea id="s-note" class="inp" rows="2" placeholder="예: 새벽에 깼음, 두통, 몸이 무거움..." style="resize:none;margin-bottom:12px"></textarea>
+      <button class="btn btn-p" onclick="saveSleep()">저장</button>
     </div>
     <div class="card">
-      <div class="ct">ìµê·¼ ìë©´ ê¸°ë¡</div>
+      <div class="ct">최근 수면 기록</div>
       <div id="sleep-log"></div>
     </div>
   </div>
@@ -270,59 +270,59 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
 <!-- INSIGHT -->
 <div id="s-insight" class="screen">
   <div class="hd">
-    <div class="hd-title">ì¸ì¬ì´í¸</div>
-    <div class="hd-sub">ììÂ·ìë©´Â·ì»¨ëì í¨í´ ë¶ì</div>
+    <div class="hd-title">인사이트</div>
+    <div class="hd-sub">음식·수면·컨디션 패턴 분석</div>
   </div>
   <div class="sec">
     <div class="card" id="insight-ai-box">
-      <div class="ct">AI ì£¼ê° ë¶ì</div>
-      <div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">3ì¼ ì´ì ê¸°ë¡íë©´ í¨í´ ë¶ìì´ ììë¼ì ð</div>
+      <div class="ct">AI 주간 분석</div>
+      <div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">3일 이상 기록하면 패턴 분석이 시작돼요 🔍</div>
     </div>
     <div class="card">
-      <div class="ct">ìë©´ ì§ ì¶ì´</div>
+      <div class="ct">수면 질 추이</div>
       <div id="sleep-chart-full"></div>
     </div>
     <div class="card">
-      <div class="ct" style="color:var(--amber)">ì¤ì±ì§ë°© ê´ë¦¬ (íì¬ 135)</div>
+      <div class="ct" style="color:var(--amber)">중성지방 관리 (현재 135)</div>
       <div style="font-size:13px;line-height:1.8">
-        <div style="margin-bottom:6px"><span class="b b-err">í¼íê¸°</span></div>
-        <div style="color:var(--sub);margin-bottom:10px">ì Â·ë§¥ì£¼, ê³¼ì¼ì£¼ì¤Â·ë¨ ìë£, í°ìë°¥ ê³¼ë¤, íê¹Â·í¨ì¤í¸í¸ë, ë¼ë©´</div>
-        <div style="margin-bottom:6px"><span class="b b-ok">ì ê·¹ ì­ì·¨</span></div>
-        <div style="color:var(--sub)">ê³ ë±ì´Â·ì¼ì¹Â·ì°ì´(ì£¼ 3í), ê²¬ê³¼ë¥ í ì¤, ì¡ê³¡ë°¥, ë¸ë¡ì½ë¦¬Â·ìë°°ì¶, ì¬ë¦¬ë¸ì¤ì¼</div>
+        <div style="margin-bottom:6px"><span class="b b-err">피하기</span></div>
+        <div style="color:var(--sub);margin-bottom:10px">술·맥주, 과일주스·단 음료, 흰쌀밥 과다, 튀김·패스트푸드, 라면</div>
+        <div style="margin-bottom:6px"><span class="b b-ok">적극 섭취</span></div>
+        <div style="color:var(--sub)">고등어·삼치·연어(주 3회), 견과류 한 줌, 잡곡밥, 브로콜리·양배추, 올리브오일</div>
       </div>
     </div>
     <div class="card">
-      <div class="ct" style="color:var(--red)">HDL ì¬ë¦¬ê¸° (íì¬ 43 â ëª©í 55+)</div>
+      <div class="ct" style="color:var(--red)">HDL 올리기 (현재 43 → 목표 55+)</div>
       <div style="font-size:13px;line-height:1.8">
-        <div style="margin-bottom:6px"><span class="b b-ok">ê°ì¥ í¨ê³¼ì </span></div>
-        <div style="color:var(--sub);margin-bottom:10px">ì ì°ì ì´ë ì£¼ 4í ì´ì (ê±·ê¸°Â·ìì ê±°Â·ìì), ê¸ì°, ì²´ì¤ ê°ë</div>
-        <div style="margin-bottom:6px"><span class="b b-info">ìí</span></div>
-        <div style="color:var(--sub)">ì¬ë¦¬ë¸ì¤ì¼, ìë³´ì¹´ë, ê²¬ê³¼ë¥, ì¤ë©ê°3 ìì </div>
+        <div style="margin-bottom:6px"><span class="b b-ok">가장 효과적</span></div>
+        <div style="color:var(--sub);margin-bottom:10px">유산소 운동 주 4회 이상 (걷기·자전거·수영), 금연, 체중 감량</div>
+        <div style="margin-bottom:6px"><span class="b b-info">식품</span></div>
+        <div style="color:var(--sub)">올리브오일, 아보카도, 견과류, 오메가3 생선</div>
       </div>
     </div>
     <div class="card">
-      <div class="ct" style="color:var(--purple)">ì¬ì ë Cë±ê¸ â ì´ë ê°ì´ë</div>
+      <div class="ct" style="color:var(--purple)">심전도 C등급 — 운동 가이드</div>
       <div style="font-size:13px;line-height:1.8">
-        <div style="margin-bottom:6px"><span class="b b-ok">ì¶ì²</span></div>
-        <div style="color:var(--sub);margin-bottom:10px">ë¹ ë¥¸ ê±·ê¸° 30ë¶, ê°ë²¼ì´ ìì, ìì ê±°, ìê°Â·ì¤í¸ë ì¹­</div>
-        <div style="margin-bottom:6px"><span class="b b-warn">ì£¼ì</span></div>
-        <div style="color:var(--sub);margin-bottom:10px">ì¤ê°ë ì¨ì´í¸ (ë¬´ë¦¬ ì íë ì ìì ê°ë¥, ì¨ì°¨ë©´ ì¬ê¸°)</div>
-        <div style="margin-bottom:6px"><span class="b b-err">í¼íê¸°</span></div>
-        <div style="color:var(--sub)">HIITÂ·íë°í, íê³ ì¨ì´í¸, ê¸ê²©í ì¬ë°ì ë³í</div>
+        <div style="margin-bottom:6px"><span class="b b-ok">추천</span></div>
+        <div style="color:var(--sub);margin-bottom:10px">빠른 걷기 30분, 가벼운 수영, 자전거, 요가·스트레칭</div>
+        <div style="margin-bottom:6px"><span class="b b-warn">주의</span></div>
+        <div style="color:var(--sub);margin-bottom:10px">중강도 웨이트 (무리 안 하는 선에서 가능, 숨차면 쉬기)</div>
+        <div style="margin-bottom:6px"><span class="b b-err">피하기</span></div>
+        <div style="color:var(--sub)">HIIT·타바타, 한계 웨이트, 급격한 심박수 변화</div>
       </div>
     </div>
     <div class="card">
-      <div class="ct">ìì¬ ìê°ë í¨í´</div>
-      <div id="meal-timing-chart" style="font-size:13px;color:var(--sub);text-align:center;padding:10px 0">ê¸°ë¡ì´ ìì´ë©´ í¨í´ì´ ë³´ì¬ì ð½ï¸</div>
+      <div class="ct">식사 시간대 패턴</div>
+      <div id="meal-timing-chart" style="font-size:13px;color:var(--sub);text-align:center;padding:10px 0">기록이 쌓이면 패턴이 보여요 🍽️</div>
     </div>
     <div class="card">
-      <div class="ct">ìë©´ì ì¢ì ìì¬ íì´ë°</div>
+      <div class="ct">수면에 좋은 식사 타이밍</div>
       <div style="font-size:13px;line-height:1.8;color:var(--sub)">
-        <div class="chip">ð ì ë ìì¬ ì·¨ì¹¨ 3ìê° ì </div>
-        <div class="chip">â ì¹´íì¸ ì¤í 2ì ì´í â</div>
-        <div class="chip">ð¥ í¸ë¦½í í (ì°ì Â·ë°ëë) ì·¨ì¹¨ 1ìê° ì  â</div>
-        <div class="chip">ðº ìì£¼ ë¤ìë  ìë©´ ì§ â ì£¼ì</div>
-        <div class="chip">ð¥ ë§ê·¸ë¤ì (ëë¬¼Â·ê²¬ê³¼) ìë©´ ëì</div>
+        <div class="chip">🕕 저녁 식사 취침 3시간 전</div>
+        <div class="chip">☕ 카페인 오후 2시 이후 ❌</div>
+        <div class="chip">🥛 트립토판 (우유·바나나) 취침 1시간 전 ✅</div>
+        <div class="chip">🍺 음주 다음날 수면 질 ↓ 주의</div>
+        <div class="chip">🥗 마그네슘 (나물·견과) 수면 도움</div>
       </div>
     </div>
   </div>
@@ -331,56 +331,56 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
 <!-- SETTINGS -->
 <div id="s-settings" class="screen">
   <div class="hd">
-    <div class="hd-title">ì¤ì </div>
-    <div class="hd-sub">íë¡í & API í¤</div>
+    <div class="hd-title">설정</div>
+    <div class="hd-sub">프로필 & API 키</div>
   </div>
   <div class="sec">
     <div class="card">
-      <div class="ct">ë´ ê±´ê° íë¡í</div>
-      <div class="pr"><span class="pr-k">ì´ë¦</span><span class="pr-v">ê¹ì¬ëª</span></div>
-      <div class="pr"><span class="pr-k">ì ì²´</span><span class="pr-v">184.9cm / 95.7kg / BMI 28</span></div>
-      <div class="pr"><span class="pr-k">ê²ì§ì¼</span><span class="pr-v">2025.07.30 (KMIìì)</span></div>
-      <div class="pr"><span class="pr-k">ì¬ì ë</span><span class="pr-v" style="color:var(--red)">1ë ë°©ì¤ì°¨ë¨ Cë±ê¸</span></div>
-      <div class="pr"><span class="pr-k">ì¤ì±ì§ë°©</span><span class="pr-v" style="color:var(--amber)">135 mg/dL â</span></div>
-      <div class="pr"><span class="pr-k">HDL</span><span class="pr-v" style="color:var(--red)">43 mg/dL â</span></div>
+      <div class="ct">내 건강 프로필</div>
+      <div class="pr"><span class="pr-k">이름</span><span class="pr-v">김재명</span></div>
+      <div class="pr"><span class="pr-k">신체</span><span class="pr-v">184.9cm / 95.7kg / BMI 28</span></div>
+      <div class="pr"><span class="pr-k">검진일</span><span class="pr-v">2025.07.30 (KMI수원)</span></div>
+      <div class="pr"><span class="pr-k">심전도</span><span class="pr-v" style="color:var(--red)">1도 방실차단 C등급</span></div>
+      <div class="pr"><span class="pr-k">중성지방</span><span class="pr-v" style="color:var(--amber)">135 mg/dL ↑</span></div>
+      <div class="pr"><span class="pr-k">HDL</span><span class="pr-v" style="color:var(--red)">43 mg/dL ↓</span></div>
       <div class="pr"><span class="pr-k">LDL</span><span class="pr-v" style="color:var(--amber)">118 mg/dL</span></div>
-      <div class="pr"><span class="pr-k">ê³µë³µíë¹ / HbA1c</span><span class="pr-v" style="color:var(--green)">97 / 5.2 ì ì</span></div>
-      <div class="pr"><span class="pr-k">íì Â· ê°ìì  Â· ê°</span><span class="pr-v" style="color:var(--green)">ëª¨ë ì ì</span></div>
+      <div class="pr"><span class="pr-k">공복혈당 / HbA1c</span><span class="pr-v" style="color:var(--green)">97 / 5.2 정상</span></div>
+      <div class="pr"><span class="pr-k">혈압 · 갑상선 · 간</span><span class="pr-v" style="color:var(--green)">모두 정상</span></div>
     </div>
     <div class="card">
-      <div class="ct">Gemini API í¤ (ë¬´ë£)</div>
+      <div class="ct">Gemini API 키 (무료)</div>
       <div class="notice n-warn" id="key-notice" style="font-size:12px">
-        êµ¬ê¸ ê³ì ë§ ìì¼ë©´ <b>ìì  ë¬´ë£</b>ìì.<br>
-        <b>aistudio.google.com</b> ì ì â <b>Get API key</b> í´ë¦­ â ë³µì¬<br>
-        <span style="opacity:.8">íë£¨ 1,500ì¥ê¹ì§ ë¬´ë£ Â· ê²°ì  ì ë³´ ë¶íì</span>
+        구글 계정만 있으면 <b>완전 무료</b>예요.<br>
+        <b>aistudio.google.com</b> 접속 → <b>Get API key</b> 클릭 → 복사<br>
+        <span style="opacity:.8">하루 1,500장까지 무료 · 결제 정보 불필요</span>
       </div>
       <div id="key-input-section">
-        <label>Gemini API í¤ ìë ¥</label>
+        <label>Gemini API 키 입력</label>
         <input id="api-key" type="password" class="inp" placeholder="AIza..." style="margin-bottom:10px;font-family:monospace;font-size:13px">
-        <button class="btn btn-p" onclick="saveKey()">ì ì¥</button>
+        <button class="btn btn-p" onclick="saveKey()">저장</button>
         <div id="key-status" style="margin-top:8px;font-size:12px;text-align:center"></div>
       </div>
-      <button id="key-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('key-input-section').style.display='block';this.style.display='none'">ð API í¤ ë³ê²½</button>
+      <button id="key-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('key-input-section').style.display='block';this.style.display='none'">🔑 API 키 변경</button>
     </div>
     <div class="card">
-      <div class="ct">âï¸ í´ë¼ì°ë ëê¸°í (ê¸°ê¸° ê° ê³µì )</div>
+      <div class="ct">☁️ 클라우드 동기화 (기기 간 공유)</div>
       <div class="notice n-warn" id="sync-notice" style="font-size:12px">
-        ëë§ì ëê¸°í ì½ëë¥¼ ìë ¥íë©´<br>í° â ì»´í¨í° ìë ëê¸°íë¼ì.<br>
-        <span style="opacity:.8">ëª¨ë  ê¸°ê¸°ìì ê°ì ì½ëë¥¼ ì°ë©´ ë¼ì</span>
+        나만의 동기화 코드를 입력하면<br>폰 ↔ 컴퓨터 자동 동기화돼요.<br>
+        <span style="opacity:.8">모든 기기에서 같은 코드를 쓰면 돼요</span>
       </div>
       <div id="sync-input-section">
-        <label>ëê¸°í ì½ë (ëë§ ìë ì½ë)</label>
-        <input id="sync-key" type="text" class="inp" placeholder="ì: jaemyung123" style="margin-bottom:10px">
-        <button class="btn btn-p" onclick="saveSyncKey()">ì ì¥ ë° ëê¸°í ìì</button>
+        <label>동기화 코드 (나만 아는 코드)</label>
+        <input id="sync-key" type="text" class="inp" placeholder="예: jaemyung123" style="margin-bottom:10px">
+        <button class="btn btn-p" onclick="saveSyncKey()">저장 및 동기화 시작</button>
         <div id="sync-status" style="margin-top:8px;font-size:12px;text-align:center"></div>
       </div>
-      <button id="sync-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('sync-input-section').style.display='block';this.style.display='none'">âï¸ ëê¸°í ì½ë ë³ê²½</button>
-      <button class="btn btn-s" style="margin-top:8px;font-size:13px" onclick="manualSync()">ð ì§ê¸ ëê¸°í</button>
+      <button id="sync-change-btn" class="btn btn-s" style="display:none;margin-top:8px;font-size:13px" onclick="document.getElementById('sync-input-section').style.display='block';this.style.display='none'">✏️ 동기화 코드 변경</button>
+      <button class="btn btn-s" style="margin-top:8px;font-size:13px" onclick="manualSync()">🔄 지금 동기화</button>
     </div>
     <div class="card">
-      <div class="ct">ë°ì´í° ê´ë¦¬</div>
-      <button class="btn btn-s" style="margin-bottom:8px" onclick="exportJSON()">ð¥ ì ì²´ ë°ì´í° ë´ë³´ë´ê¸° (JSON)</button>
-      <button class="btn btn-d" onclick="clearAll()">ð ì ì²´ ê¸°ë¡ ì´ê¸°í</button>
+      <div class="ct">데이터 관리</div>
+      <button class="btn btn-s" style="margin-bottom:8px" onclick="exportJSON()">📥 전체 데이터 내보내기 (JSON)</button>
+      <button class="btn btn-d" onclick="clearAll()">🗑 전체 기록 초기화</button>
     </div>
   </div>
 </div>
@@ -389,85 +389,85 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
 <nav class="nav">
   <button class="nv on" id="n-home" onclick="go('home')">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-    í
+    홈
   </button>
   <button class="nv" id="n-food" onclick="go('food')">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-    ìì¬
+    식사
   </button>
   <button class="nv" id="n-sleep" onclick="go('sleep')">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-    ìë©´
+    수면
   </button>
   <button class="nv" id="n-insight" onclick="go('insight')">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-    ì¸ì¬ì´í¸
+    인사이트
   </button>
   <button class="nv" id="n-settings" onclick="go('settings')">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="1.8"/></svg>
-    ì¤ì 
+    설정
   </button>
 </nav>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ââ Health profile ââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Health profile ──────────────────────────────────────────────
 const HP = {
   tg:135, hdl:43, ldl:118, bmi:28, glucose:97,
-  hba1c:5.2, ecg:'1ë ë°©ì¤ì°¨ë¨(Cë±ê¸)'
+  hba1c:5.2, ecg:'1도 방실차단(C등급)'
 };
 
-const SYS = `ë¹ì ì ê±´ê° ì½ì¹ AIìëë¤. ìëë ì¬ì©ì(ê¹ì¬ëª, ë¨ì± 184.9cm/95.7kg)ì ìµê·¼ ê±´ê°ê²ì§ ê²°ê³¼ìëë¤.
+const SYS = `당신은 건강 코치 AI입니다. 아래는 사용자(김재명, 남성 184.9cm/95.7kg)의 최근 건강검진 결과입니다.
 
-[ìì¹]
-- ì¤ì±ì§ë°©: 135 mg/dL (ì ë 55ìì í¬ê² ìì¹, ê´ë¦¬ íì)
-- HDL(ì¢ì ì½ë ì¤íë¡¤): 43 mg/dL (ë®ì, ì ë 49ìì ê°ì)
-- LDL(ëì ì½ë ì¤íë¡¤): 118 mg/dL (ê²½ê³)
-- BMI: 28 (ê³¼ì²´ì¤), íë¦¬ëë  89.2cm
-- ì¬ì ë: 1ë ë°©ì¤ì°¨ë¨(Cë±ê¸) â ê³ ê°ë ì´ë ì£¼ì
-- ê³µë³µíë¹ 97, HbA1c 5.2 (ì ì)
-- íìÂ·ê°ìì Â·ê° ìì¹ ëª¨ë ì ì
+[수치]
+- 중성지방: 135 mg/dL (전년 55에서 크게 상승, 관리 필요)
+- HDL(좋은 콜레스테롤): 43 mg/dL (낮음, 전년 49에서 감소)
+- LDL(나쁜 콜레스테롤): 118 mg/dL (경계)
+- BMI: 28 (과체중), 허리둘레 89.2cm
+- 심전도: 1도 방실차단(C등급) — 고강도 운동 주의
+- 공복혈당 97, HbA1c 5.2 (정상)
+- 혈압·갑상선·간 수치 모두 정상
 
-ì¬ì©ìê° ìì¬ ì¬ì§ì ë³´ë´ë©´, ì´ ìì¹ì ê¸°ë°í´ ì¤ì©ì ì¸ í¼ëë°±ì ì¤.
+사용자가 식사 사진을 보내면, 이 수치에 기반해 실용적인 피드백을 줘.
 
-[íì â ë°ëì ì§í¬ ê²]
-â  ìì ìì½ (1ì¤)
-â¡ ë´ ìì¹ì ë¯¸ì¹ë ìí¥ (ì¤ì±ì§ë°©/HDL/LDL ì¤ í´ë¹ëë ê², 1-2ì¤)
-â¢ ì¤ì© ì ì 1ê°ì§
-â£ ìë©´ ìí¥ (ì´ ìì¬ê° ì¤ë ë°¤ ìë©´ì ì´ë¤ ìí¥ì ì¤ ì ìëì§, 1ì¤)
+[형식 — 반드시 지킬 것]
+① 음식 요약 (1줄)
+② 내 수치에 미치는 영향 (중성지방/HDL/LDL 중 해당되는 것, 1-2줄)
+③ 실용 제안 1가지
+④ 수면 영향 (이 식사가 오늘 밤 수면에 어떤 영향을 줄 수 있는지, 1줄)
 
-ì ì²´ 200ì ì´ë´, ì¹ê·¼í ë§í¬ë¡. ë§¤ë² ë¤ë¥¸ ë´ì©ì¼ë¡.`;
+전체 200자 이내, 친근한 말투로. 매번 다른 내용으로.`;
 
-// ââ Storage âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Storage ─────────────────────────────────────────────────────
 const get = k => { try { return JSON.parse(localStorage.getItem(k)) } catch { return null } };
 const set = (k,v) => localStorage.setItem(k, JSON.stringify(v));
 
-// ââ State ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── State ────────────────────────────────────────────────────────
 let _photo = null, _b64 = null, _analysis = '';
 
-// ââ Init âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Init ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   // Date & greeting
   const now = new Date();
-  const DAY = ['ì¼','ì','í','ì','ëª©','ê¸','í '];
+  const DAY = ['일','월','화','수','목','금','토'];
   const h = now.getHours();
   document.getElementById('greeting').textContent =
-    (h<6?'ìë²½ìë ê±´ê° ì±ê¸°ë':h<12?'ì¢ì ìì¹¨ì´ìì':h<18?'ìëíì¸ì':h<21?'ìê³ íì¨ì´ì':'ì¤ëë ìê³ íì¨ì´ì, ') +
-    (h<6?' ì¬ëªë ð':'') +
-    (h>=6?' ì¬ëªë ð':'');
+    (h<6?'새벽에도 건강 챙기는':h<12?'좋은 아침이에요':h<18?'안녕하세요':h<21?'수고하셨어요':'오늘도 수고하셨어요, ') +
+    (h<6?' 재명님 🌙':'') +
+    (h>=6?' 재명님 👋':'');
   document.getElementById('today-date').textContent =
-    `${now.getFullYear()}ë ${now.getMonth()+1}ì ${now.getDate()}ì¼ (${DAY[now.getDay()]})`;
+    `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${DAY[now.getDay()]})`;
 
   // Tips
   const TIPS = [
-    'ì¤ì±ì§ë°© 135 â ì¤ë íìíë¬¼ê³¼ ì ì ì¤ì´ê³  ê³ ë±ì´ í í ë§ ì±ê²¨ë³´ì¸ì.',
-    'HDL 43ì¼ë¡ ë®ìì. ì¤ë ìí 20ë¶ ì´ì ê±·ê¸°ê° HDL ì¬ë¦¬ë ë° ì§ì  ëìë¼ì.',
-    'íë¦¬ëë  89cm, ë³µë¶ì§ë°©ì´ ëê³  ìì´ì. ì ë ìì¬ í ì°ì± í ë² ì´ë¨ê¹ì?',
-    'ì¬ì ë ì´ì ìì¼ë ì´ëì ì¤ê°ë ì´íë¡. ê¾¸ì¤í¨ì´ ê°ëë³´ë¤ ì¤ìí´ì.',
-    'ìë©´ ì§ ê¸°ë¡í´ë³´ì¸ì. ì´ë¤ ììì´ ì ì ìí¥ì ì£¼ëì§ í¨í´ì´ ë³´ì¬ì.',
-    'ì¤ë ë¬¼ 2L ë§ì¨ëì? ìë¶ ë¶ì¡±ì í¼ë¡ì ì¤ì±ì§ë°© ìì¹ì ìí¥ ì¤ì.',
-    'LDL 118 ê²½ê³ì ì´ìì. í¬íì§ë°©(ì¼ê²¹ì´Â·ë²í°)ë³´ë¤ ë¶í¬íì§ë°©(ì°ì´Â·ê²¬ê³¼ë¥)ì ì íí´ë³´ì¸ì.'
+    '중성지방 135 — 오늘 탄수화물과 술을 줄이고 고등어 한 토막 챙겨보세요.',
+    'HDL 43으로 낮아요. 오늘 식후 20분 이상 걷기가 HDL 올리는 데 직접 도움돼요.',
+    '허리둘레 89cm, 복부지방이 늘고 있어요. 저녁 식사 후 산책 한 번 어떨까요?',
+    '심전도 이상 있으니 운동은 중강도 이하로. 꾸준함이 강도보다 중요해요.',
+    '수면 질 기록해보세요. 어떤 음식이 잠에 영향을 주는지 패턴이 보여요.',
+    '오늘 물 2L 마셨나요? 수분 부족은 피로와 중성지방 수치에 영향 줘요.',
+    'LDL 118 경계선이에요. 포화지방(삼겹살·버터)보다 불포화지방(연어·견과류)을 선택해보세요.'
   ];
   document.getElementById('daily-tip').textContent = TIPS[now.getDate() % TIPS.length];
 
@@ -481,7 +481,7 @@ window.addEventListener('DOMContentLoaded', () => {
   pullSync();
 });
 
-// ââ Apple Watch via Shortcuts ââââââââââââââââââââââââââââââââââââ
+// ── Apple Watch via Shortcuts ────────────────────────────────────
 function parseSleepHours(raw) {
   if (!raw) return 0;
   const s = String(raw).trim();
@@ -496,7 +496,7 @@ function parseSleepHours(raw) {
     if (sm) sec = parseFloat(sm[1]);
     return h + m/60 + sec/3600;
   }
-  // Plain number â if > 24, assume seconds
+  // Plain number — if > 24, assume seconds
   const n = parseFloat(s);
   if (!isNaN(n)) return n > 24 ? +(n/3600).toFixed(2) : n;
   // "7 hr. 30 min." or "7 hours 30 minutes" style
@@ -532,7 +532,7 @@ function checkUrlParams() {
         hrs: sleep,
         qlt: sleepQlt ? parseInt(sleepQlt) : 6,
         cond: 5,
-        note: `â ìì¹ ìë ê¸°ë¡${hr ? ' Â· ì¬ë° '+hr+'bpm' : ''}${hrv ? ' Â· HRV '+hrv : ''}${steps ? ' Â· ê±¸ì '+parseInt(steps).toLocaleString() : ''}${calories ? ' Â· ì¹¼ë¡ë¦¬ '+calories+'kcal' : ''}`
+        note: `⌚ 워치 자동 기록${hr ? ' · 심박 '+hr+'bpm' : ''}${hrv ? ' · HRV '+hrv : ''}${steps ? ' · 걸음 '+parseInt(steps).toLocaleString() : ''}${calories ? ' · 칼로리 '+calories+'kcal' : ''}`
       });
       set('sleeps', logs);
     }
@@ -540,7 +540,7 @@ function checkUrlParams() {
 
   // Auto-save workout data
   if (hasWorkout) {
-    const wtype = decodeURIComponent(p.get('wtype') || 'ì´ë');
+    const wtype = decodeURIComponent(p.get('wtype') || '운동');
     const wmin  = parseFloat(p.get('wmin')  || 0);
     const wcal  = parseFloat(p.get('wcal')  || 0);
     const wkm   = parseFloat(p.get('wkm')   || 0);
@@ -552,23 +552,23 @@ function checkUrlParams() {
 
   // Show summary
   const parts = [];
-  if (sleep) parts.push(`ìë©´ ${sleep}ìê°`);
-  if (steps) parts.push(`ê±¸ì ${parseInt(steps).toLocaleString()}ë³´`);
-  if (hr) parts.push(`ì¬ë° ${hr}bpm`);
+  if (sleep) parts.push(`수면 ${sleep}시간`);
+  if (steps) parts.push(`걸음 ${parseInt(steps).toLocaleString()}보`);
+  if (hr) parts.push(`심박 ${hr}bpm`);
   if (hasWorkout) {
-    const wtype = decodeURIComponent(p.get('wtype') || 'ì´ë');
+    const wtype = decodeURIComponent(p.get('wtype') || '운동');
     const wmin = p.get('wmin');
-    parts.push(`${wtype}${wmin ? ' '+wmin+'ë¶' : ''}`);
+    parts.push(`${wtype}${wmin ? ' '+wmin+'분' : ''}`);
   }
 
   if (parts.length) {
-    setTimeout(() => toast('â ìì¹ ë°ì´í° ì ì¥ë¨: ' + parts.join(' Â· ')), 500);
+    setTimeout(() => toast('⌚ 워치 데이터 저장됨: ' + parts.join(' · ')), 500);
     refreshAll();
     history.replaceState({}, '', window.location.pathname);
   }
 }
 
-// ââ Navigation âââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Navigation ───────────────────────────────────────────────────
 function go(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nv').forEach(b => b.classList.remove('on'));
@@ -577,7 +577,7 @@ function go(id) {
   if (id === 'home' || id === 'insight') refreshAll();
 }
 
-// ââ Food photo âââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Food photo ───────────────────────────────────────────────────
 function onFoodFile(input) {
   const f = input.files[0]; if (!f) return;
   const r = new FileReader();
@@ -586,7 +586,7 @@ function onFoodFile(input) {
     _photo = e.target.result;
     const z = document.getElementById('upz');
     z.className = 'upz filled';
-    z.innerHTML = `<img src="${_photo}" alt="ìì¬ ì¬ì§">`;
+    z.innerHTML = `<img src="${_photo}" alt="식사 사진">`;
     analyzeFood();
   };
   r.readAsDataURL(f);
@@ -594,11 +594,11 @@ function onFoodFile(input) {
 
 function getMealTimeLabel() {
   const h = new Date().getHours();
-  if (h >= 5 && h < 10)  return { label: 'ìì¹¨', emoji: 'ð', warn: false };
-  if (h >= 10 && h < 14) return { label: 'ì ì¬', emoji: 'âï¸', warn: false };
-  if (h >= 14 && h < 18) return { label: 'ì¤í ê°ì', emoji: 'ðµ', warn: false };
-  if (h >= 18 && h < 21) return { label: 'ì ë', emoji: 'ð', warn: false };
-  return { label: 'ì¼ì', emoji: 'ð', warn: true };
+  if (h >= 5 && h < 10)  return { label: '아침', emoji: '🌅', warn: false };
+  if (h >= 10 && h < 14) return { label: '점심', emoji: '☀️', warn: false };
+  if (h >= 14 && h < 18) return { label: '오후 간식', emoji: '🍵', warn: false };
+  if (h >= 18 && h < 21) return { label: '저녁', emoji: '🌇', warn: false };
+  return { label: '야식', emoji: '🌙', warn: true };
 }
 
 async function analyzeFood() {
@@ -610,15 +610,15 @@ async function analyzeFood() {
 
   if (!key) {
     ld.style.display = 'none';
-    res.innerHTML = `<div class="ai-box"><div class="ai-lbl">ìë´</div><div class="ai-txt">ì¤ì  í­ìì ë¬´ë£ Gemini í¤ë¥¼ ìë ¥íë©´ AI ë¶ìì ë°ì ì ìì´ì.\nì§ê¸ì ë©ëª¨ë§ ì ì¥í  ì ìì´ì.</div></div>`;
+    res.innerHTML = `<div class="ai-box"><div class="ai-lbl">안내</div><div class="ai-txt">설정 탭에서 무료 Gemini 키를 입력하면 AI 분석을 받을 수 있어요.\n지금은 메모만 저장할 수 있어요.</div></div>`;
     sv.style.display = 'block'; return;
   }
 
   try {
     const mt = getMealTimeLabel();
     const now = new Date();
-    const timeStr = `${now.getHours()}ì ${now.getMinutes()}ë¶ (${mt.label})`;
-    const prompt = SYS + `\n\níì¬ ìê°: ${timeStr}${mt.warn ? ' â ì¼ì ìê°ëìì ì£¼ìí´ì ë¶ìí´ì¤.' : ''}\n\nì´ ìì¬ ì¬ì§ì ë¶ìí´ì¤.`;
+    const timeStr = `${now.getHours()}시 ${now.getMinutes()}분 (${mt.label})`;
+    const prompt = SYS + `\n\n현재 시각: ${timeStr}${mt.warn ? ' — 야식 시간대임에 주의해서 분석해줘.' : ''}\n\n이 식사 사진을 분석해줘.`;
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
       {
@@ -636,10 +636,10 @@ async function analyzeFood() {
     const d = await resp.json();
     if (d.error) throw new Error(d.error.message);
     _analysis = d.candidates[0].content.parts[0].text;
-    res.innerHTML = `<div class="ai-box"><div class="ai-lbl">ð¤ AI ë¶ì â ì¬ëªë ìì¹ ê¸°ì¤</div><div class="ai-txt">${_analysis}</div></div>`;
+    res.innerHTML = `<div class="ai-box"><div class="ai-lbl">🤖 AI 분석 — 재명님 수치 기준</div><div class="ai-txt">${_analysis}</div></div>`;
   } catch(e) {
     _analysis = '';
-    res.innerHTML = `<div class="ai-box"><div class="ai-lbl">ì¤ë¥</div><div class="ai-txt">${e.message}</div></div>`;
+    res.innerHTML = `<div class="ai-box"><div class="ai-lbl">오류</div><div class="ai-txt">${e.message}</div></div>`;
   }
   ld.style.display = 'none';
   sv.style.display = 'block';
@@ -651,12 +651,12 @@ function saveMeal() {
   const mt = getMealTimeLabel();
   logs.push({ ts: Date.now(), photo: _photo, ai: _analysis, memo, mealTime: mt.label, mealEmoji: mt.emoji, mealWarn: mt.warn });
   set('meals', logs);
-  toast('ìì¬ ê¸°ë¡ ì ì¥ëì´ì â');
+  toast('식사 기록 저장됐어요 ✅');
   // Reset
   document.getElementById('food-file').value = '';
   const z = document.getElementById('upz');
   z.className = 'upz';
-  z.innerHTML = '<div style="font-size:40px;margin-bottom:8px">ð·</div><div style="font-size:15px;font-weight:600;margin-bottom:3px">ì¬ì§ ì°ê¸° or ìë¡ë</div><div style="font-size:12px;color:var(--sub)">ìì¬ ì¬ì§ì ì¬ë¦¬ë©´ AIê° ì¬ëªë ìì¹ ê¸°ì¤ì¼ë¡ ë¶ìí´ëë ¤ì</div>';
+  z.innerHTML = '<div style="font-size:40px;margin-bottom:8px">📷</div><div style="font-size:15px;font-weight:600;margin-bottom:3px">사진 찍기 or 업로드</div><div style="font-size:12px;color:var(--sub)">식사 사진을 올리면 AI가 재명님 수치 기준으로 분석해드려요</div>';
   document.getElementById('food-result').innerHTML = '';
   document.getElementById('food-save').style.display = 'none';
   document.getElementById('food-memo').value = '';
@@ -671,20 +671,20 @@ function renderFoodLog() {
   const today = new Date().toDateString();
   const td = all.filter(m => new Date(m.ts).toDateString() === today).reverse();
   const c = document.getElementById('food-log');
-  if (!td.length) { c.innerHTML = '<div style="text-align:center;padding:16px;color:var(--sub);font-size:13px">ìì§ ê¸°ë¡ì´ ìì´ì</div>'; return; }
+  if (!td.length) { c.innerHTML = '<div style="text-align:center;padding:16px;color:var(--sub);font-size:13px">아직 기록이 없어요</div>'; return; }
   c.innerHTML = td.map(m => {
     const t = new Date(m.ts);
     const tm = `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
     const mealBadge = m.mealTime ? `<span class="b ${m.mealWarn ? 'b-warn' : 'b-info'}" style="font-size:10px;margin-left:4px">${m.mealEmoji} ${m.mealTime}</span>` : '';
-    const preview = (m.ai || m.memo || 'ê¸°ë¡ë¨').slice(0,70) + ((m.ai||m.memo||'').length>70?'â¦':'');
+    const preview = (m.ai || m.memo || '기록됨').slice(0,70) + ((m.ai||m.memo||'').length>70?'…':'');
     return `<div class="li">
-      ${m.photo ? `<img src="${m.photo}" class="lthumb" style="width:54px;height:54px;object-fit:cover;border-radius:10px">` : '<div class="lthumb">ð½ï¸</div>'}
+      ${m.photo ? `<img src="${m.photo}" class="lthumb" style="width:54px;height:54px;object-fit:cover;border-radius:10px">` : '<div class="lthumb">🍽️</div>'}
       <div><div style="font-size:11px;color:var(--sub);margin-bottom:3px">${tm}${mealBadge}</div><div style="font-size:13px;line-height:1.55">${preview}</div></div>
     </div>`;
   }).join('');
 }
 
-// ââ Sleep ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Sleep ────────────────────────────────────────────────────────
 function saveSleep() {
   const logs = get('sleeps') || [];
   logs.push({
@@ -695,7 +695,7 @@ function saveSleep() {
     note: document.getElementById('s-note').value
   });
   set('sleeps', logs);
-  toast('ìë©´ ê¸°ë¡ ì ì¥ëì´ì â');
+  toast('수면 기록 저장됐어요 ✅');
   renderSleepLog();
   renderHomeSummary();
   pushSync();
@@ -704,31 +704,31 @@ function saveSleep() {
 function renderSleepLog() {
   const logs = (get('sleeps') || []).slice(-7).reverse();
   const c = document.getElementById('sleep-log');
-  const DAY = ['ì¼','ì','í','ì','ëª©','ê¸','í '];
-  if (!logs.length) { c.innerHTML = '<div style="text-align:center;padding:16px;color:var(--sub);font-size:13px">ìì§ ê¸°ë¡ì´ ìì´ì</div>'; return; }
+  const DAY = ['일','월','화','수','목','금','토'];
+  if (!logs.length) { c.innerHTML = '<div style="text-align:center;padding:16px;color:var(--sub);font-size:13px">아직 기록이 없어요</div>'; return; }
   c.innerHTML = logs.map(l => {
     const d = new Date(l.ts);
     const col = l.cond >= 7 ? 'var(--green)' : l.cond >= 4 ? 'var(--amber)' : 'var(--red)';
     return `<div class="li">
-      <div class="lthumb">ð´</div>
+      <div class="lthumb">😴</div>
       <div>
         <div style="font-size:11px;color:var(--sub)">${d.getMonth()+1}/${d.getDate()} (${DAY[d.getDay()]})</div>
-        <div style="font-size:13px">${l.hrs}ìê° ìë©´ Â· ìë©´ì§ ${l.qlt}/10 Â· ì»¨ëì <span style="color:${col};font-weight:700">${l.cond}/10</span></div>
+        <div style="font-size:13px">${l.hrs}시간 수면 · 수면질 ${l.qlt}/10 · 컨디션 <span style="color:${col};font-weight:700">${l.cond}/10</span></div>
         ${l.note ? `<div style="font-size:12px;color:var(--sub)">${l.note}</div>` : ''}
       </div>
     </div>`;
   }).join('');
 }
 
-// ââ Insights âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Insights ─────────────────────────────────────────────────────
 function renderSleepChart() {
   const logs = (get('sleeps') || []).slice(-7);
   const full = document.getElementById('sleep-chart-full');
   const home = document.getElementById('home-sleep-chart');
-  const DAY = ['ì¼','ì','í','ì','ëª©','ê¸','í '];
+  const DAY = ['일','월','화','수','목','금','토'];
   if (!logs.length) {
-    full.innerHTML = '<div style="text-align:center;padding:16px;color:var(--sub);font-size:13px">ê¸°ë¡ ìì</div>';
-    home.innerHTML = '<div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">ìë©´ ê¸°ë¡ ìì</div>';
+    full.innerHTML = '<div style="text-align:center;padding:16px;color:var(--sub);font-size:13px">기록 없음</div>';
+    home.innerHTML = '<div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">수면 기록 없음</div>';
     return;
   }
   const bars = logs.map(l => {
@@ -749,7 +749,7 @@ function renderSleepChart() {
     return `<span class="wdot" style="background:${col}" title="${l.qlt}/10"></span>`;
   }).join('');
   home.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-    <span style="font-size:12px;color:var(--sub)">ìµê·¼ 7ì¼</span>${dots}
+    <span style="font-size:12px;color:var(--sub)">최근 7일</span>${dots}
     <span style="font-size:13px;font-weight:700;color:${avg>=7?'var(--green)':avg>=4?'var(--amber)':'var(--red)'}">${avg}/10</span>
   </div>`;
 }
@@ -762,12 +762,12 @@ function renderHomeSummary() {
   const ts = sleeps.find(s => new Date(s.ts).toDateString() === today);
   const c = document.getElementById('home-summary');
   if (!tm.length && !ts) {
-    c.innerHTML = '<div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">ìì§ ì¤ë ê¸°ë¡ì´ ìì´ì.<br>ìë ìì¬ í­ìì ì¬ì§ì ì¬ë ¤ë³´ì¸ì ð·</div>';
+    c.innerHTML = '<div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">아직 오늘 기록이 없어요.<br>아래 식사 탭에서 사진을 올려보세요 📷</div>';
     return;
   }
   c.innerHTML = `<div style="font-size:13px;line-height:2.1">
-    ${tm.length ? `ð½ï¸ ìì¬ <b>${tm.length}í</b> ê¸°ë¡` : ''}
-    ${ts ? `<br>ð´ ìë©´ <b>${ts.hrs}ìê°</b> Â· ìë©´ì§ <b>${ts.qlt}/10</b> Â· ì»¨ëì <b style="color:${ts.cond>=7?'var(--green)':ts.cond>=4?'var(--amber)':'var(--red)'}">${ts.cond}/10</b>` : ''}
+    ${tm.length ? `🍽️ 식사 <b>${tm.length}회</b> 기록` : ''}
+    ${ts ? `<br>😴 수면 <b>${ts.hrs}시간</b> · 수면질 <b>${ts.qlt}/10</b> · 컨디션 <b style="color:${ts.cond>=7?'var(--green)':ts.cond>=4?'var(--amber)':'var(--red)'}">${ts.cond}/10</b>` : ''}
   </div>`;
 }
 
@@ -776,16 +776,16 @@ function renderMealTimingChart() {
   if (!c) return;
   const all = get('meals') || [];
   if (all.length < 2) return;
-  const counts = { 'ìì¹¨':0, 'ì ì¬':0, 'ì¤í ê°ì':0, 'ì ë':0, 'ì¼ì':0 };
-  const emojis = { 'ìì¹¨':'ð', 'ì ì¬':'âï¸', 'ì¤í ê°ì':'ðµ', 'ì ë':'ð', 'ì¼ì':'ð' };
+  const counts = { '아침':0, '점심':0, '오후 간식':0, '저녁':0, '야식':0 };
+  const emojis = { '아침':'🌅', '점심':'☀️', '오후 간식':'🍵', '저녁':'🌇', '야식':'🌙' };
   all.forEach(m => {
     const mt = m.mealTime || (() => {
       const h = new Date(m.ts).getHours();
-      if (h>=5&&h<10) return 'ìì¹¨';
-      if (h>=10&&h<14) return 'ì ì¬';
-      if (h>=14&&h<18) return 'ì¤í ê°ì';
-      if (h>=18&&h<21) return 'ì ë';
-      return 'ì¼ì';
+      if (h>=5&&h<10) return '아침';
+      if (h>=10&&h<14) return '점심';
+      if (h>=14&&h<18) return '오후 간식';
+      if (h>=18&&h<21) return '저녁';
+      return '야식';
     })();
     if (counts[mt] !== undefined) counts[mt]++;
   });
@@ -796,15 +796,15 @@ function renderMealTimingChart() {
     if (!cnt) return '';
     const pct = Math.round(cnt/total*100);
     const barW = Math.round(cnt/max*100);
-    const warn = label === 'ì¼ì';
+    const warn = label === '야식';
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       <div style="width:72px;font-size:12px;text-align:right;color:var(--sub)">${emojis[label]} ${label}</div>
       <div style="flex:1;background:var(--border);border-radius:4px;height:14px;overflow:hidden">
         <div style="width:${barW}%;height:100%;background:${warn?'var(--amber)':'var(--accent)'};border-radius:4px;transition:width .4s"></div>
       </div>
-      <div style="width:42px;font-size:12px;color:${warn?'var(--amber)':'var(--text)'}"><b>${cnt}í</b> ${pct}%</div>
+      <div style="width:42px;font-size:12px;color:${warn?'var(--amber)':'var(--text)'}"><b>${cnt}회</b> ${pct}%</div>
     </div>`;
-  }).join('') + `<div style="margin-top:8px;font-size:11px;color:var(--sub);text-align:center">ì´ ${total}í ê¸°ë¡ ê¸°ì¤</div>`;
+  }).join('') + `<div style="margin-top:8px;font-size:11px;color:var(--sub);text-align:center">총 ${total}회 기록 기준</div>`;
 }
 
 function renderWorkoutSummary() {
@@ -813,10 +813,10 @@ function renderWorkoutSummary() {
   const workouts = get('workouts') || [];
   const today = new Date().toDateString();
   const tw = workouts.filter(w => new Date(w.ts).toDateString() === today);
-  if (!tw.length) { c.innerHTML = '<div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">ì¤ë ì´ë ê¸°ë¡ì´ ìì´ì ð</div>'; return; }
-  const typeEmoji = { 'ë¬ë¦¬ê¸°':'ð', 'ê±·ê¸°':'ð¶', 'ì¬ì´í´':'ð´', 'ìì':'ð', 'í¬ì¤':'ðª', 'ìê°':'ð§', 'ë±ì°':'ð§', 'ì¶êµ¬':'â½', 'ëêµ¬':'ð', 'íëì¤':'ð¾' };
+  if (!tw.length) { c.innerHTML = '<div style="text-align:center;padding:14px 0;color:var(--sub);font-size:13px">오늘 운동 기록이 없어요 🏃</div>'; return; }
+  const typeEmoji = { '달리기':'🏃', '걷기':'🚶', '사이클':'🚴', '수영':'🏊', '헬스':'💪', '요가':'🧘', '등산':'🧗', '축구':'⚽', '농구':'🏀', '테니스':'🎾' };
   c.innerHTML = tw.map(w => {
-    const em = typeEmoji[w.type] || 'ðï¸';
+    const em = typeEmoji[w.type] || '🏋️';
     const t = new Date(w.ts);
     const tm = `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
     return `<div class="li" style="padding:10px 0;border-bottom:1px solid var(--border)">
@@ -824,10 +824,10 @@ function renderWorkoutSummary() {
       <div style="flex:1">
         <div style="font-weight:600;font-size:14px">${w.type} <span style="font-size:11px;color:var(--sub);font-weight:400">${tm}</span></div>
         <div style="font-size:12px;color:var(--sub);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">
-          ${w.min ? `â±ï¸ ${w.min}ë¶` : ''}
-          ${w.cal ? `ð¥ ${w.cal}kcal` : ''}
-          ${w.km  ? `ð ${w.km}km` : ''}
-          ${w.hr  ? `ð ${w.hr}bpm` : ''}
+          ${w.min ? `⏱️ ${w.min}분` : ''}
+          ${w.cal ? `🔥 ${w.cal}kcal` : ''}
+          ${w.km  ? `📍 ${w.km}km` : ''}
+          ${w.hr  ? `💓 ${w.hr}bpm` : ''}
         </div>
       </div>
     </div>`;
@@ -844,28 +844,28 @@ function refreshAll() {
   updateApiNotice();
 }
 
-// ââ Settings âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Settings ─────────────────────────────────────────────────────
 function updateApiNotice() {
   const k = get('apiKey');
   const n = document.getElementById('api-notice');
   if (!n) return;
   if (k) {
     n.className = 'notice n-ok';
-    n.textContent = 'â API í¤ ì°ê²°ë¨ â AI ì¬ì§ ë¶ì ì¬ì© ê°ë¥';
+    n.textContent = '✅ API 키 연결됨 — AI 사진 분석 사용 가능';
   } else {
     n.className = 'notice n-warn';
-    n.innerHTML = 'â ï¸ AI ë¶ìì ì°ë ¤ë©´ <b>ì¤ì </b> í­ìì API í¤ë¥¼ ìë ¥í´ì£¼ì¸ì.';
+    n.innerHTML = '⚠️ AI 분석을 쓰려면 <b>설정</b> 탭에서 API 키를 입력해주세요.';
   }
   const kn = document.getElementById('key-notice');
-  if (kn) { kn.className = k ? 'notice n-ok' : 'notice n-warn'; kn.innerHTML = k ? 'â Gemini í¤ê° ì°ê²°ëì´ ìì´ì. ë¬´ë£ë¡ ì¬ì© ì¤!' : 'êµ¬ê¸ ê³ì ë§ ìì¼ë©´ <b>ìì  ë¬´ë£</b>ìì.<br><b>aistudio.google.com</b> ì ì â <b>Get API key</b> í´ë¦­ â ë³µì¬<br><span style="opacity:.8">íë£¨ 1,500ì¥ê¹ì§ ë¬´ë£ Â· ê²°ì  ì ë³´ ë¶íì</span>'; }
-  // API í¤ ìë ¥ ìì­: ì ì¥ëì¼ë©´ ì ì´ëê¸°
+  if (kn) { kn.className = k ? 'notice n-ok' : 'notice n-warn'; kn.innerHTML = k ? '✅ Gemini 키가 연결되어 있어요. 무료로 사용 중!' : '구글 계정만 있으면 <b>완전 무료</b>예요.<br><b>aistudio.google.com</b> 접속 → <b>Get API key</b> 클릭 → 복사<br><span style="opacity:.8">하루 1,500장까지 무료 · 결제 정보 불필요</span>'; }
+  // API 키 입력 영역: 저장됐으면 접어두기
   const keySection = document.getElementById('key-input-section');
   if (keySection) keySection.style.display = k ? 'none' : 'block';
   const keyChangeBtn = document.getElementById('key-change-btn');
   if (keyChangeBtn) keyChangeBtn.style.display = k ? 'inline-block' : 'none';
 }
 
-// ââ Firebase Init ââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Firebase Init ────────────────────────────────────────────────
 const _firebaseConfig = {
   apiKey: "AIzaSyCFm3LjTbJgLTmMSiuuZA8_fUwBtfxUVQE",
   authDomain: "lifefit-493f4.firebaseapp.com",
@@ -877,15 +877,15 @@ const _firebaseConfig = {
 firebase.initializeApp(_firebaseConfig);
 const _db = firebase.firestore();
 
-// ââ Cloud Sync (Firebase Firestore) ââââââââââââââââââââââââââââââ
+// ── Cloud Sync (Firebase Firestore) ──────────────────────────────
 async function saveSyncKey() {
   const v = document.getElementById('sync-key').value.trim();
   const s = document.getElementById('sync-status');
-  if (!v || v.length < 4) { s.textContent = 'â 4ì ì´ì ìë ¥í´ì£¼ì¸ì.'; s.style.color = 'var(--red)'; return; }
-  s.textContent = 'â³ ì°ê²° ì¤...'; s.style.color = 'var(--sub)';
+  if (!v || v.length < 4) { s.textContent = '❌ 4자 이상 입력해주세요.'; s.style.color = 'var(--red)'; return; }
+  s.textContent = '⏳ 연결 중...'; s.style.color = 'var(--sub)';
   set('syncKey', v);
   await pushSync();
-  s.textContent = 'â ëê¸°í ì°ê²°ëì´ì!'; s.style.color = 'var(--green)';
+  s.textContent = '✅ 동기화 연결됐어요!'; s.style.color = 'var(--green)';
   updateSyncNotice();
 }
 
@@ -924,12 +924,12 @@ async function pullSync() {
 async function manualSync() {
   const s = document.getElementById('sync-status');
   const key = get('syncKey');
-  if (!key) { toast('ë¨¼ì  ëê¸°í ì½ëë¥¼ ìë ¥í´ì£¼ì¸ì'); return; }
-  if (s) { s.textContent = 'ð ëê¸°í ì¤...'; s.style.color = 'var(--sub)'; }
+  if (!key) { toast('먼저 동기화 코드를 입력해주세요'); return; }
+  if (s) { s.textContent = '🔄 동기화 중...'; s.style.color = 'var(--sub)'; }
   await pushSync();
   await pullSync();
-  if (s) { s.textContent = 'â ëê¸°í ìë£!'; s.style.color = 'var(--green)'; }
-  toast('ëê¸°í ìë£ â');
+  if (s) { s.textContent = '✅ 동기화 완료!'; s.style.color = 'var(--green)'; }
+  toast('동기화 완료 ✅');
 }
 
 function updateSyncNotice() {
@@ -937,7 +937,7 @@ function updateSyncNotice() {
   const n = document.getElementById('sync-notice');
   const sec = document.getElementById('sync-input-section');
   const btn = document.getElementById('sync-change-btn');
-  if (n) { n.className = key ? 'notice n-ok' : 'notice n-warn'; n.innerHTML = key ? 'â ëê¸°í ì°ê²°ë¨ â í°/ì»´í¨í° ìë ê³µì  ì¤' : 'ëë§ì ëê¸°í ì½ëë¥¼ ìë ¥íë©´<br>í° â ì»´í¨í° ìë ëê¸°íë¼ì.<br><span style="opacity:.8">ëª¨ë  ê¸°ê¸°ìì ê°ì ì½ëë¥¼ ì°ë©´ ë¼ì</span>'; }
+  if (n) { n.className = key ? 'notice n-ok' : 'notice n-warn'; n.innerHTML = key ? '✅ 동기화 연결됨 — 폰/컴퓨터 자동 공유 중' : '나만의 동기화 코드를 입력하면<br>폰 ↔ 컴퓨터 자동 동기화돼요.<br><span style="opacity:.8">모든 기기에서 같은 코드를 쓰면 돼요</span>'; }
   if (sec) sec.style.display = key ? 'none' : 'block';
   if (btn) btn.style.display = key ? 'inline-block' : 'none';
 }
@@ -946,13 +946,13 @@ function saveKey() {
   const v = document.getElementById('api-key').value.trim();
   const s = document.getElementById('key-status');
   if (!v.startsWith('AIza')) {
-    s.textContent = 'â AIza ë¡ ììíë Gemini í¤ë¥¼ ìë ¥í´ì£¼ì¸ì.';
+    s.textContent = '❌ AIza 로 시작하는 Gemini 키를 입력해주세요.';
     s.style.color = 'var(--red)'; return;
   }
   set('apiKey', v);
-  s.textContent = 'â ì ì¥ëì´ì!'; s.style.color = 'var(--green)';
+  s.textContent = '✅ 저장됐어요!'; s.style.color = 'var(--green)';
   updateApiNotice();
-  toast('Gemini í¤ ì ì¥ëì´ì â');
+  toast('Gemini 키 저장됐어요 ✅');
 }
 
 function exportJSON() {
@@ -964,9 +964,9 @@ function exportJSON() {
 }
 
 function clearAll() {
-  if (!confirm('ëª¨ë  ê¸°ë¡ì ì­ì í ê¹ì? ëëë¦´ ì ìì´ì.')) return;
+  if (!confirm('모든 기록을 삭제할까요? 되돌릴 수 없어요.')) return;
   localStorage.removeItem('meals'); localStorage.removeItem('sleeps');
-  refreshAll(); toast('ì´ê¸°íëì´ì');
+  refreshAll(); toast('초기화됐어요');
 }
 
 function toast(msg) {
