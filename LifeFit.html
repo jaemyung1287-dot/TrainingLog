@@ -67,6 +67,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* Upload */
 .upz{border:2px dashed var(--border);border-radius:var(--r);padding:30px 16px;text-align:center;cursor:pointer;background:var(--bg);transition:all .15s}
+.mtb{flex:1;min-width:56px;padding:6px 4px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);font-size:12px;cursor:pointer;transition:all .15s;color:var(--text)}
+.mtb.on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);font-weight:600}
 .upz:hover{border-color:var(--accent);background:var(--accent-bg)}
 .upz.filled{border:none;padding:0;overflow:hidden;border-radius:var(--r)}
 .upz.filled img{width:100%;display:block;border-radius:var(--r)}
@@ -217,6 +219,17 @@ label{font-size:13px;color:var(--sub);display:block;margin-bottom:5px;font-weigh
       </div>
       <div id="food-result"></div>
       <div id="food-save" style="display:none;margin-top:10px">
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;color:var(--sub);font-weight:600;margin-bottom:6px">언제 드셨나요?</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="meal-time-btns">
+            <button onclick="selectMealType('아침','🌅',false)" class="mtb" id="mt-아침">🌅 아침</button>
+            <button onclick="selectMealType('점심','☀️',false)" class="mtb" id="mt-점심">☀️ 점심</button>
+            <button onclick="selectMealType('오후 간식','🍵',false)" class="mtb" id="mt-오후 간식">🍵 간식</button>
+            <button onclick="selectMealType('저녁','🌇',false)" class="mtb" id="mt-저녁">🌇 저녁</button>
+            <button onclick="selectMealType('야식','🌙',true)" class="mtb" id="mt-야식">🌙 야식</button>
+          </div>
+          <input type="time" id="meal-time-input" class="inp" style="margin-bottom:0;font-size:14px">
+        </div>
         <textarea id="food-memo" class="inp" rows="2" placeholder="메모 (선택사항)" style="resize:none;margin-bottom:8px"></textarea>
         <button class="btn btn-p" onclick="saveMeal()">기록 저장</button>
       </div>
@@ -587,10 +600,13 @@ function onFoodFile(input) {
     const z = document.getElementById('upz');
     z.className = 'upz filled';
     z.innerHTML = `<img src="${_photo}" alt="식사 사진">`;
+    initMealTimePicker();
     analyzeFood();
   };
   r.readAsDataURL(f);
 }
+
+let _selectedMealType = null;
 
 function getMealTimeLabel() {
   const h = new Date().getHours();
@@ -599,6 +615,33 @@ function getMealTimeLabel() {
   if (h >= 14 && h < 18) return { label: '오후 간식', emoji: '🍵', warn: false };
   if (h >= 18 && h < 21) return { label: '저녁', emoji: '🌇', warn: false };
   return { label: '야식', emoji: '🌙', warn: true };
+}
+
+function selectMealType(label, emoji, warn) {
+  _selectedMealType = { label, emoji, warn };
+  document.querySelectorAll('.mtb').forEach(b => b.classList.remove('on'));
+  const btn = document.getElementById('mt-' + label);
+  if (btn) btn.classList.add('on');
+}
+
+function initMealTimePicker() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('meal-time-input').value = hh + ':' + mm;
+  const mt = getMealTimeLabel();
+  selectMealType(mt.label, mt.emoji, mt.warn);
+}
+
+function getSelectedMealTime() {
+  const timeVal = document.getElementById('meal-time-input').value;
+  const mt = _selectedMealType || getMealTimeLabel();
+  const now = new Date();
+  if (timeVal) {
+    const parts = timeVal.split(':').map(Number);
+    now.setHours(parts[0], parts[1], 0, 0);
+  }
+  return Object.assign({}, mt, { ts: now.getTime(), timeStr: timeVal });
 }
 
 async function analyzeFood() {
@@ -648,8 +691,9 @@ async function analyzeFood() {
 function saveMeal() {
   const memo = document.getElementById('food-memo').value;
   const logs = get('meals') || [];
-  const mt = getMealTimeLabel();
-  logs.push({ ts: Date.now(), photo: _photo, ai: _analysis, memo, mealTime: mt.label, mealEmoji: mt.emoji, mealWarn: mt.warn });
+  const mt = getSelectedMealTime();
+  logs.push({ ts: mt.ts, photo: _photo, ai: _analysis, memo, mealTime: mt.label, mealEmoji: mt.emoji, mealWarn: mt.warn });
+  _selectedMealType = null;
   set('meals', logs);
   toast('식사 기록 저장됐어요 ✅');
   // Reset
