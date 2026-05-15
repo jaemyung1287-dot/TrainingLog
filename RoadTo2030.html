@@ -8064,9 +8064,9 @@ async function renderCoachDashboard(){
     const weekWeightVol = weekWeightLogs.reduce(function(s,l){ return s+(l.totalVolume||0); },0);
     const weekSprintDist = weekSprintLogs.reduce(function(s,l){ return s+(l.totalDistance||0); },0);
     const weekTabataRounds = weekTabataLogs.reduce(function(s,l){ return s+(l.completedRounds||0); },0);
-    const volWeightStr = weekWeightVol >= 1000 ? (weekWeightVol/1000).toFixed(1)+'t' : weekWeightVol > 0 ? weekWeightVol.toLocaleString()+'kg' : '—';
+    const volWeightStr = weekWeightVol > 0 ? weekWeightVol.toLocaleString()+'kg' : '—';
     const volSprintStr = weekSprintDist > 0 ? weekSprintDist.toLocaleString()+'m' : '—';
-    const volTabataStr = weekTabataLogs.length > 0 ? weekTabataRounds+'라운드 ('+weekTabataLogs.length+'세션)' : '—';
+    const volTabataStr = weekTabataLogs.length > 0 ? weekTabataLogs.length+'세션' : '—';
     // RPE 평균
     const weightRpeLogs = weekWeightLogs.filter(function(l){ return l.rpe; });
     const sprintRpeLogs = weekSprintLogs.filter(function(l){ return l.rpe; });
@@ -8185,30 +8185,28 @@ async function renderCoachDashboard(){
       + '<div style="font-size:20px;font-weight:800;padding-bottom:14px;border-bottom:1px solid var(--border)">'+displayName+'</div>'
       // ── 주간 운동부하
       + _sl('주간 운동부하')
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-      + '<div style="background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3);border-radius:12px;padding:12px;text-align:center">'
-      + '<div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:4px">🏋️ 웨이트</div>'
-      + '<div style="font-size:22px;font-weight:800;color:var(--blue)">'+volWeightStr+'</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'
+      + '<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:12px;text-align:center">'
+      + '<div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">🏋️ 웨이트</div>'
+      + '<div style="font-size:18px;font-weight:800;color:var(--text)">'+volWeightStr+'</div>'
       + (avgWeightRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgWeightRpe)+';font-weight:700;margin-top:4px">RPE '+avgWeightRpe+'</div>'
           + _arrowHtml(avgWeightRpe, blWeightRpe, false)
         : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
       + '</div>'
-      + '<div style="background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);border-radius:12px;padding:12px;text-align:center">'
-      + '<div style="font-size:10px;color:var(--green);font-weight:700;margin-bottom:4px">🏃 스프린트</div>'
-      + '<div style="font-size:22px;font-weight:800;color:var(--green)">'+volSprintStr+'</div>'
+      + '<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:12px;text-align:center">'
+      + '<div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">🏃 스프린트</div>'
+      + '<div style="font-size:18px;font-weight:800;color:var(--text)">'+volSprintStr+'</div>'
       + (avgSprintRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgSprintRpe)+';font-weight:700;margin-top:4px">RPE '+avgSprintRpe+'</div>'
           + _arrowHtml(avgSprintRpe, blSprintRpe, false)
         : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
       + '</div>'
-      + (weekTabataLogs.length > 0
-        ? '<div style="background:rgba(233,69,96,0.12);border:1px solid rgba(233,69,96,0.3);border-radius:12px;padding:12px;text-align:center;grid-column:1/-1">'
-          + '<div style="font-size:10px;color:#e94560;font-weight:700;margin-bottom:4px">🔥 타바타</div>'
-          + '<div style="font-size:18px;font-weight:800;color:#e94560">'+volTabataStr+'</div>'
-          + (avgTabataRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgTabataRpe)+';font-weight:700;margin-top:4px">RPE '+avgTabataRpe+'</div>'
-              + _arrowHtml(avgTabataRpe, blTabataRpe, false)
-            : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
-          + '</div>'
-        : '')
+      + '<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:12px;text-align:center">'
+      + '<div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:4px">🔥 타바타</div>'
+      + '<div style="font-size:18px;font-weight:800;color:var(--text)">'+volTabataStr+'</div>'
+      + (avgTabataRpe ? '<div style="font-size:11px;color:'+_rpeCol(avgTabataRpe)+';font-weight:700;margin-top:4px">RPE '+avgTabataRpe+'</div>'
+          + _arrowHtml(avgTabataRpe, blTabataRpe, false)
+        : '<div style="font-size:11px;color:var(--muted);margin-top:4px">RPE —</div>')
+      + '</div>'
       + '</div>'
       // ── 주간 컨디션
       + _sl('주간 컨디션')
