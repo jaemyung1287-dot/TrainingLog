@@ -136,7 +136,7 @@ tr:last-child td{border-bottom:none}
 .empty{text-align:center;color:var(--muted);padding:40px 20px}
 .empty .ei{font-size:48px;margin-bottom:12px}
 .part-section{margin-bottom:14px}
-.part-section-ttl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px}
+.part-section-ttl{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:8px}
 .part-chips{display:flex;flex-wrap:wrap;gap:8px}
 .part-chip{padding:8px 14px;border-radius:30px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;transition:all .2s}
 .part-chip.sel{border-color:var(--orange);background:rgba(247,169,79,.15);color:var(--orange);font-weight:700}
@@ -375,38 +375,38 @@ if ('serviceWorker' in navigator) {
     <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
     <span class="logo">🌡️ Condition</span>
   </div>
-  <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:8px">Morgen-Check</div>
+  <div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-.3px">Morgen-Check</div>
   <div style="color:rgba(255,255,255,.55);font-size:12px;margin-bottom:16px;line-height:1.6">Bewerte deinen heutigen Zustand mit einem Schieberegler. Schlaf und Stimmung: 10 = sehr gut. Erschöpfung: 10 = extrem erschöpft.</div>
   <div class="fg">
-    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Schlafdauer (Stunden)</label>
+    <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600">Schlafdauer (Stunden)</label>
     <div class="slider-row">
       <input type="range" min="3" max="12" value="7" step="0.5" id="sl-sleep" oninput="updateSlider('sl-sleep','sv-sleep','neutral')">
       <span class="sv mid" id="sv-sleep">7.0h</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Schlafqualität (1=schlecht · 10=sehr gut)</label>
+    <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600">Schlafqualität (1=schlecht · 10=sehr gut)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="7" id="sl-squality" oninput="updateSlider('sl-squality','sv-squality','high-good')">
       <span class="sv good" id="sv-squality">7</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Erschöpfung (1=keine · 10=extrem)</label>
+    <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600">Erschöpfung (1=keine · 10=extrem)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="3" id="sl-fatigue" oninput="updateSlider('sl-fatigue','sv-fatigue','high-bad')">
       <span class="sv good" id="sv-fatigue">3</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Stimmung (1=schlecht · 10=sehr gut)</label>
+    <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600">Stimmung (1=schlecht · 10=sehr gut)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="7" id="sl-mood" oninput="updateSlider('sl-mood','sv-mood','high-good')">
       <span class="sv good" id="sv-mood">7</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl" style="color:#fff;font-size:20px;text-transform:none;letter-spacing:0;font-weight:800;margin-bottom:6px">Muskelkater</label>
+    <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600;margin-bottom:6px">Muskelkater</label>
     <div style="color:rgba(255,255,255,.55);font-size:12px;margin-bottom:10px;line-height:1.5">Wähle die betroffenen Körperstellen aus. Danach kannst du den Schweregrad des Muskelkaters mit einer Zahl von 1 (leicht) bis 10 (sehr stark) angeben.</div>
     <div class="part-section">
       <div class="part-section-ttl">Oberkörper</div>
@@ -423,7 +423,7 @@ if ('serviceWorker' in navigator) {
     <div id="soreness-sliders"></div>
   </div>
   <div class="fg">
-    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Anmerkungen (optional)</label>
+    <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600">Anmerkungen (optional)</label>
     <textarea class="fi" id="condition-notes" placeholder="Weitere Bemerkungen..."></textarea>
   </div>
   <button class="btn btn-g" onclick="saveCondition()">Save ✓</button>
