@@ -136,7 +136,7 @@ tr:last-child td{border-bottom:none}
 .empty{text-align:center;color:var(--muted);padding:40px 20px}
 .empty .ei{font-size:48px;margin-bottom:12px}
 .part-section{margin-bottom:14px}
-.part-section-ttl{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#fff;margin-bottom:8px}
+.part-section-ttl{font-size:15px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#fff;margin-bottom:8px}
 .part-chips{display:flex;flex-wrap:wrap;gap:8px}
 .part-chip{padding:8px 14px;border-radius:30px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;transition:all .2s}
 .part-chip.sel{border-color:var(--orange);background:rgba(247,169,79,.15);color:var(--orange);font-weight:700}
@@ -375,8 +375,8 @@ if ('serviceWorker' in navigator) {
     <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
     <span class="logo">🌡️ Condition</span>
   </div>
-  <div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-.3px">Morgen-Check</div>
-  <div style="color:rgba(255,255,255,.55);font-size:12px;margin-bottom:16px;line-height:1.6">Bewerte deinen heutigen Zustand mit einem Schieberegler. Schlaf und Stimmung: 10 = sehr gut. Erschöpfung: 10 = extrem erschöpft.</div>
+  <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:6px">Morgen-Check</div>
+  <div style="color:rgba(255,255,255,.55);font-size:10px;margin-bottom:16px;line-height:1.6">Bewerte deinen heutigen Zustand mit einem Schieberegler. Schlaf und Stimmung: 10 = sehr gut. Erschöpfung: 10 = extrem erschöpft.</div>
   <div class="fg">
     <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600">Schlafdauer (Stunden)</label>
     <div class="slider-row">
@@ -406,8 +406,8 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div class="fg">
-    <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600;margin-bottom:6px">Muskelkater</label>
-    <div style="color:rgba(255,255,255,.55);font-size:12px;margin-bottom:10px;line-height:1.5">Wähle die betroffenen Körperstellen aus. Danach kannst du den Schweregrad des Muskelkaters mit einer Zahl von 1 (leicht) bis 10 (sehr stark) angeben.</div>
+    <label class="fl" style="color:#fff;font-size:20px;text-transform:none;letter-spacing:0;font-weight:800;margin-bottom:6px">Muskelkater</label>
+    <div style="color:rgba(255,255,255,.55);font-size:10px;margin-bottom:10px;line-height:1.5">Wähle die betroffenen Körperstellen aus. Danach kannst du den Schweregrad des Muskelkaters mit einer Zahl von 1 (leicht) bis 10 (sehr stark) angeben.</div>
     <div class="part-section">
       <div class="part-section-ttl">Oberkörper</div>
       <div class="part-chips" id="parts-upper"></div>
