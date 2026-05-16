@@ -375,55 +375,53 @@ if ('serviceWorker' in navigator) {
     <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
     <span class="logo">🌡️ Condition</span>
   </div>
-  <div class="ttl">Morning Check · <span style="font-size:20px;color:var(--muted)">Morgen-Check</span></div>
-  <div class="sub">How are you feeling today? · Wie fühlst du dich?</div>
   <div class="fg">
-    <label class="fl">Sleep Duration (hours)</label>
+    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Schlafdauer (Stunden)</label>
     <div class="slider-row">
       <input type="range" min="3" max="12" value="7" step="0.5" id="sl-sleep" oninput="updateSlider('sl-sleep','sv-sleep','neutral')">
       <span class="sv mid" id="sv-sleep">7.0h</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Sleep Quality (1=poor · 10=great)</label>
+    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Schlafqualität (1=schlecht · 10=sehr gut)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="7" id="sl-squality" oninput="updateSlider('sl-squality','sv-squality','high-good')">
       <span class="sv good" id="sv-squality">7</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Fatigue (1=none · 10=extreme)</label>
+    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Erschöpfung (1=keine · 10=extrem)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="3" id="sl-fatigue" oninput="updateSlider('sl-fatigue','sv-fatigue','high-bad')">
       <span class="sv good" id="sv-fatigue">3</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Mood (1=poor · 10=great)</label>
+    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Stimmung (1=schlecht · 10=sehr gut)</label>
     <div class="slider-row">
       <input type="range" min="1" max="10" value="7" id="sl-mood" oninput="updateSlider('sl-mood','sv-mood','high-good')">
       <span class="sv good" id="sv-mood">7</span>
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Muscle Soreness — Select affected areas</label>
+    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Muskelkater — Betroffene Bereiche auswählen</label>
     <div class="part-section">
-      <div class="part-section-ttl">Upper Body · Oberkörper — Neck · Shoulder · Chest · Back · Arm</div>
+      <div class="part-section-ttl">Oberkörper — Nacken · Schulter · Brust · Rücken · Arm</div>
       <div class="part-chips" id="parts-upper"></div>
     </div>
     <div class="part-section">
-      <div class="part-section-ttl">Lower Body · Unterkörper — Hip · Quad · Glute · Hamstring · Adductor · Calf · Ankle · Foot</div>
+      <div class="part-section-ttl">Unterkörper — Hüfte · Quadrizeps · Gesäß · Hamstring · Adduktor · Wade · Knöchel · Fuß</div>
       <div class="part-chips" id="parts-lower"></div>
     </div>
     <div class="part-section">
-      <div class="part-section-ttl">Core · Rumpf — Lower Back · Abs · Oblique</div>
+      <div class="part-section-ttl">Rumpf — Unterer Rücken · Bauch · Oblique</div>
       <div class="part-chips" id="parts-core"></div>
     </div>
     <div id="soreness-sliders"></div>
   </div>
   <div class="fg">
-    <label class="fl">Notes (optional)</label>
-    <textarea class="fi" id="condition-notes" placeholder="Any additional remarks..."></textarea>
+    <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600">Anmerkungen (optional)</label>
+    <textarea class="fi" id="condition-notes" placeholder="Weitere Bemerkungen..."></textarea>
   </div>
   <button class="btn btn-g" onclick="saveCondition()">Save ✓</button>
 </div>
