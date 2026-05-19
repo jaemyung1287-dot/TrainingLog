@@ -1190,26 +1190,40 @@ function syncToCloud(d){
   });
 }
 
-// Load from Firestore on startup
+// Load from Firestore on startup — always keep the NEWER of local vs cloud
 async function initFirebase(){
   try{
     const snap=await CLOUD_DOC.get();
+    const localRaw=localStorage.getItem(SK);
+    const local=localRaw?JSON.parse(localRaw):null;
+    const localTs=local?._lastUpdated||0;
+
     if(snap.exists){
       const cloudData=_restoreImages(snap.data());
       // backward compat
       if(!cloudData.records) cloudData.records=[];
+      if(!cloudData.sessionPlans) cloudData.sessionPlans={};
       if(cloudData.programs){
         ['A','B'].forEach(g=>{
           if(cloudData.programs[g]&&!cloudData.programs[g].images)
             cloudData.programs[g].images={macro:null,meso:null,micro:null};
         });
       }
-      localStorage.setItem(SK,JSON.stringify(cloudData));
-      console.log('[TrainLog] Loaded from Firebase ✓');
+      const cloudTs=cloudData._lastUpdated||0;
+
+      if(localTs>cloudTs){
+        // Local is newer — push local to cloud to catch it up
+        console.log('[TrainLog] Local is newer than cloud — pushing local up ✓');
+        syncToCloud(local);
+      } else {
+        // Cloud is newer (or equal) — use cloud
+        localStorage.setItem(SK,JSON.stringify(cloudData));
+        console.log('[TrainLog] Loaded from Firebase ✓');
+      }
     } else {
       // First time — push local data to cloud
-      const local=getData();
-      syncToCloud(local);
+      const localData=getData();
+      syncToCloud(localData);
       console.log('[TrainLog] First run — pushed to Firebase ✓');
     }
   } catch(e){
@@ -1496,6 +1510,7 @@ function newData(){
   };
 }
 function saveData(d){
+  d._lastUpdated=Date.now(); // timestamp so initFirebase knows which is newer
   localStorage.setItem(SK,JSON.stringify(d));
   syncToCloud(d); // push to Firebase in background
 }
