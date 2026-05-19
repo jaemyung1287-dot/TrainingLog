@@ -258,7 +258,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260520-5';
+const APP_VERSION = '20260520-6';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1665,18 +1665,6 @@ function _enterAthleteMenu(){
   document.getElementById('menu-date-sub').textContent=_berlinDate;
   // Show today's plan quick-start card if plan exists
   const data=getData(); const today=todayStr();
-  // DEBUG OVERLAY — remove after diagnosis
-  (()=>{
-    const spKeys=Object.keys(data.sessionPlans||{});
-    const planExists=!!data.sessionPlans[today];
-    const planGrp=data.sessionPlans[today];
-    const hasAll=planGrp&&!!planGrp['all'];
-    const hasGrp=planGrp&&!!planGrp[ST.athlete.group];
-    const exCount=hasAll?(((planGrp['all'].am||{}).exercises||[]).length+(((planGrp['all'].pm||{}).exercises||[]).length)):0;
-    let dbg=document.getElementById('_debug_overlay');
-    if(!dbg){dbg=document.createElement('div');dbg.id='_debug_overlay';dbg.style.cssText='background:rgba(255,200,0,.15);border:1px solid gold;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:10px;color:#ffd700;font-family:monospace;line-height:1.6';document.getElementById('menu-date-sub').after(dbg);}
-    dbg.innerHTML=`📡 today=${today}<br>📦 sp keys=[${spKeys.join(',')}]<br>✅ plan=${planExists} | all=${hasAll} | grp=${hasGrp} | exs=${exCount}<br>⏱ _lastUpdated=${data._lastUpdated||0}<br>☁️ fb=${window._fbStatus||'not run'}`;
-  })();
   const plan=data.sessionPlans[today];
   const grp=ST.athlete.group;
   const grpData=plan?(plan[grp]||plan['all']):null;
@@ -2442,8 +2430,8 @@ function backToCoach(){ showScreen('s-coach'); document.getElementById('coach-ta
 
   // Init home date
   const now=new Date();
-  document.getElementById('home-date').textContent=
-    `${now.toLocaleString('en',{month:'short'})} ${now.getDate()} (${DAYS[now.getDay()]})`;
+  const _homeEl2=document.getElementById('home-date');
+  if(_homeEl2) _homeEl2.textContent=`${now.toLocaleString('en',{month:'short'})} ${now.getDate()} (${DAYS[now.getDay()]})`;
 
   console.log('[TrainLog] App ready ✓');
   }catch(iife_err){
