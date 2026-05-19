@@ -379,9 +379,7 @@ if ('serviceWorker' in navigator) {
   <div style="color:rgba(255,255,255,.55);font-size:10px;margin-bottom:12px;line-height:1.6">Bewerte deinen heutigen Zustand mit einem Schieberegler. Schlaf und Stimmung: 10 = sehr gut. Erschöpfung: 10 = extrem erschöpft.</div>
   <div class="fg" style="margin-bottom:16px">
     <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600;margin-bottom:8px">📅 Datum</label>
-    <div id="condition-date-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
-    <input type="date" class="fi" id="condition-date" style="color-scheme:dark;display:none" onchange="initConditionDatePicker()">
-    <button type="button" onclick="toggleConditionDatePicker()" style="background:transparent;border:none;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer;padding:0;text-decoration:underline">📆 Anderes Datum wählen</button>
+    <input type="date" class="fi" id="condition-date" style="color-scheme:dark">
   </div>
   <div class="fg">
     <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600">Schlafdauer (Stunden)</label>
@@ -1586,40 +1584,7 @@ function goTodayPlan(){
   if(weightExs.length>0) selectType('weight');
   else selectType('sprint');
 }
-function initConditionDatePicker(){
-  const wrap=document.getElementById('condition-date-chips');
-  if(!wrap)return;
-  wrap.innerHTML='';
-  const selDate=document.getElementById('condition-date').value||todayStr();
-  const today=new Date();
-  const dayNames=['So','Mo','Di','Mi','Do','Fr','Sa'];
-  for(let i=0;i<7;i++){
-    const d=new Date(today);
-    d.setDate(today.getDate()-i);
-    const ds=d.toISOString().slice(0,10);
-    const dayName=dayNames[d.getDay()];
-    const mmdd=`${d.getDate()}.${d.getMonth()+1}.`;
-    const topLabel=i===0?'Heute':i===1?'Gestern':i===2?'Vorgestern':dayName;
-    const isSel=ds===selDate;
-    const btn=document.createElement('button');
-    btn.type='button';
-    btn.innerHTML=`<span style="display:block;font-size:13px;font-weight:${isSel?'700':'500'}">${topLabel}</span><span style="display:block;font-size:11px;opacity:0.65;margin-top:2px">${mmdd}</span>`;
-    btn.style.cssText=`padding:9px 13px;border-radius:14px;border:2px solid ${isSel?'var(--accent)':'var(--border)'};background:${isSel?'rgba(201,168,76,.15)':'var(--card)'};color:${isSel?'var(--accent)':'#fff'};cursor:pointer;min-width:64px;text-align:center;line-height:1.2;flex-shrink:0;transition:all .15s`;
-    btn.onclick=()=>selectConditionDate(ds);
-    wrap.appendChild(btn);
-  }
-}
-function selectConditionDate(ds){
-  document.getElementById('condition-date').value=ds;
-  document.getElementById('condition-date').style.display='none';
-  initConditionDatePicker();
-}
-function toggleConditionDatePicker(){
-  const inp=document.getElementById('condition-date');
-  inp.style.display=(inp.style.display==='none'||inp.style.display==='')?'block':'none';
-  if(inp.style.display==='block') inp.focus();
-}
-function goCondition(){ ST.selectedParts={}; renderBodyParts(); document.getElementById('condition-date').value=todayStr(); initConditionDatePicker(); showScreen('s-condition'); }
+function goCondition(){ ST.selectedParts={}; renderBodyParts(); document.getElementById('condition-date').value=todayStr(); showScreen('s-condition'); }
 function goProgram(){ renderProgram(); showScreen('s-program'); }
 function _toggleProgDay(ds){
   const body=document.getElementById('prog-body-'+ds);
