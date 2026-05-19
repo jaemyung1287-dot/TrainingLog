@@ -1552,20 +1552,10 @@ function goAthleteMenu(){
   }
   _enterAthleteMenu();
 }
-async function _enterAthleteMenu(){
+function _enterAthleteMenu(){
   document.getElementById('menu-greeting').textContent=`Hey, ${ST.athlete.name}! 👋`;
   const d=new Date();
   document.getElementById('menu-date-sub').textContent=`${DAYS[d.getDay()]}, ${d.toLocaleString('en',{month:'long'})} ${d.getDate()}`;
-  // Always fetch latest data from Firebase before showing menu (so new devices see today's plan)
-  try{
-    const snap=await CLOUD_DOC.get();
-    if(snap.exists){
-      const cloudData=_restoreImages(snap.data());
-      if(!cloudData.records) cloudData.records=[];
-      if(!cloudData.sessionPlans) cloudData.sessionPlans={};
-      localStorage.setItem(SK,JSON.stringify(cloudData));
-    }
-  }catch(e){ console.warn('[TrainLog] Menu Firebase refresh failed, using local:',e); }
   // Show today's plan quick-start card if plan exists
   const data=getData(); const today=todayStr();
   const plan=data.sessionPlans[today];
