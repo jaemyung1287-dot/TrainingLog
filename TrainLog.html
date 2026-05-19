@@ -372,7 +372,7 @@ if ('serviceWorker' in navigator) {
 <!-- CONDITION FORM -->
 <div id="s-condition" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
+    <button class="back" onclick="backToAthleteMenu()">← Back</button>
     <span class="logo">🌡️ Condition</span>
   </div>
   <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:6px">Morgen-Check</div>
@@ -436,7 +436,7 @@ if ('serviceWorker' in navigator) {
 <!-- PROGRAM VIEW -->
 <div id="s-program" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
+    <button class="back" onclick="backToAthleteMenu()">← Back</button>
     <span class="logo">📅 Weekly Plan</span>
   </div>
   <div class="ttl" id="prog-title">This Week</div>
@@ -447,7 +447,7 @@ if ('serviceWorker' in navigator) {
 <!-- LOG SESSION SCREEN -->
 <div id="s-log-session" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
+    <button class="back" onclick="backToAthleteMenu()">← Back</button>
     <span class="logo">📝 Log Training</span>
   </div>
   <div class="ttl" id="log-sess-title">Today's Training</div>
@@ -458,7 +458,7 @@ if ('serviceWorker' in navigator) {
 <!-- TYPE SELECT -->
 <div id="s-type-select" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
+    <button class="back" onclick="backToAthleteMenu()">← Back</button>
     <span class="logo">🏔️ Team Bayern Skeleton</span>
   </div>
   <div class="ttl" id="type-greeting">What did you do?</div>
@@ -663,7 +663,7 @@ if ('serviceWorker' in navigator) {
 <!-- ATHLETE STATS -->
 <div id="s-athlete-stats" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
+    <button class="back" onclick="backToAthleteMenu()">← Back</button>
     <span class="logo">📈 My Data</span>
   </div>
   <div class="ttl" id="astats-name">My Stats</div>
@@ -1178,9 +1178,10 @@ function syncToCloud(d){
     try{ localStorage.setItem('trainlog_last_sync', Date.now().toString()); }catch(e){}
   }).catch(e=>{
     console.warn('[TrainLog] Firestore sync error:',e);
-    // Retry once after 3 seconds
+    // Retry once after 3 seconds — use latest data, not stale closure
     setTimeout(()=>{
-      CLOUD_DOC.set(_stripImages(d)).then(()=>{
+      const latest=getData();
+      CLOUD_DOC.set(_stripImages(latest)).then(()=>{
         try{ localStorage.setItem('trainlog_last_sync', Date.now().toString()); }catch(e2){}
         showToast('☁️ Cloud sync recovered!');
       }).catch(e2=>{
@@ -1228,8 +1229,8 @@ async function initFirebase(){
       const cloudTs=cloudData._lastUpdated||0;
       const cloudScore=_dataScore(cloudData);
 
-      // Use local if: local is newer timestamp OR local has significantly more data
-      if(localTs>cloudTs || localScore>cloudScore+50){
+      // 1순위: 타임스탬프 비교. 타임스탬프가 둘 다 0일 때만 데이터량으로 판단
+      if(localTs>cloudTs || (localTs===0&&cloudTs===0&&localScore>cloudScore+50)){
         console.log(`[TrainLog] Local wins (ts:${localTs}>${cloudTs} score:${localScore}>${cloudScore}) — pushing local to cloud ✓`);
         syncToCloud(local);
       } else {
@@ -1267,7 +1268,7 @@ function startCloudSync(){
       localStorage.setItem(SK,JSON.stringify(cloudData));
       // Refresh coach view if active
       const coachEl=document.getElementById('s-coach');
-      if(coachEl?.classList.contains('active')) renderCoachDash();
+      if(coachEl?.classList.contains('active')) renderToday();
     }
   },e=>console.warn('[TrainLog] Listener error:',e));
   console.log('[TrainLog] Real-time sync started ✓');
@@ -1579,8 +1580,9 @@ function showScreen(id){
   else tb.classList.remove('show');
   window.scrollTo(0,0);
 }
-function goHome(){ stopCloudSync(); showScreen('s-home'); }
+function goHome(){ stopCloudSync(); ST.editingLogId=null; ST._extraEditLogIds=[]; if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;} showScreen('s-home'); }
 function goAthleteMode(){ stopCloudSync(); ST.athlete=null; showScreen('s-athlete-select'); renderAthleteChips(); }
+function backToAthleteMenu(){ ST.editingLogId=null; ST._extraEditLogIds=[]; if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;} showScreen('s-athlete-menu'); }
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('Please select your name'); return; }
   // If athlete has a PIN, show PIN screen first
@@ -4845,15 +4847,17 @@ function setPlanViewMode(mode){
 function clearPlanSession(){
   const sess=ST._planSession||'am';
   const sessLabel=sess==='am'?'AM':'PM';
-  if(!confirm(`Clear all ${sessLabel} session exercises for ${ST._planDay}?\n\nThis will also delete athlete logs for this date.`)) return;
+  const grp=ST._planGroup;
+  if(!confirm(`Clear ${sessLabel} exercises for Group ${grp} on ${ST._planDay}?\n\nThis only removes the session plan (not athlete logs).`)) return;
   const d=getData();
   const plan=d.sessionPlans[ST._planDay];
   if(plan){
-    const grp=ST._planGroup;
     if(plan[grp]&&plan[grp][sess]) plan[grp][sess].exercises=[];
+    // 'all' group 처리
+    if(grp==='all'&&plan['all']&&plan['all'][sess]) plan['all'][sess].exercises=[];
     d.sessionPlans[ST._planDay]=plan;
   }
-  d.logs=d.logs.filter(l=>l.date!==ST._planDay);
+  // 선수 로그는 건드리지 않음 — 플랜만 지우기
   saveData(d);
   ST._planSelecting=false; ST._planSelectedIdxs=new Set();
   renderPlanAccordion();
