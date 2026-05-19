@@ -1230,7 +1230,7 @@ const DAYS_DE=['So','Mo','Di','Mi','Do','Fr','Sa'];
 const TRAINING_STRUCTURE={
   'Resistance Training':{
     icon:'💪',
-    subs:['Knee Dominant','Hip Hinge','Horizontal Push','Vertical Push','Horizontal Pull','Vertical Pull','Unilateral Training','Lower Leg','Core Training'],
+    subs:['Knee Dominant','Hip Hinge','Horizontal Push','Vertical Push','Horizontal Pull','Vertical Pull','Unilateral Training','Lower Leg','Hip Abduction / Adduction','Core Training'],
     color:'#4A6B8A',
     params:'lifting'
   },
@@ -1259,7 +1259,7 @@ const SUB_COLOR={
   // Resistance Training
   'Knee Dominant':'#4A6B8A','Hip Hinge':'#3A5A78','Horizontal Push':'#5A6A7A','Vertical Push':'#4A5A6A',
   'Horizontal Pull':'#3A6A8A','Vertical Pull':'#2A5A7A','Unilateral Training':'#4A7AAA',
-  'Lower Leg':'#2A4A68','Core Training':'#3A5A7A',
+  'Lower Leg':'#2A4A68','Hip Abduction / Adduction':'#5A4A7A','Core Training':'#3A5A7A',
   // Power Development
   'Weightlifting':'#B8944A','Medicine Ball':'#9A7A48','Velocity-Based Training':'#7A6038',
   // Sprint
@@ -1315,6 +1315,11 @@ const EXERCISE_LIBRARY={
     'Heel Walking','Calf Raise','Incline Calf Raise','Tibialis Raise',
     'Seated Calf Raise','Single Leg Calf Raise','Donkey Calf Raise',
     'Eccentric Calf Raise','Toe Raise','Soleus Raise','Ankle Circle'
+  ],
+  'Hip Abduction / Adduction':[
+    'Side-Lying Hip Abduction','Clamshell','Banded Clamshell','Standing Hip Abduction',
+    'Cable Hip Abduction','Machine Hip Abduction','Machine Hip Adduction',
+    'Banded Hip Abduction Walk','Side-Lying Hip Adduction','Copenhagen Adduction'
   ],
   'Core Training':[
     'Crunch / Sit Up','Plank','Side Plank','GHD Sit Up','Leg Raise','Copenhagen Plank',
@@ -4104,7 +4109,7 @@ function exportExcel(){
   // ── Sheet 6: Weight Load ─────────────────────────
   // Focus: volume/tonnage, organised by Body Region → Category
   // Body region classification based on subCategory
-  const LOWER_SUBS=new Set(['Knee Dominant','Hip Hinge','Unilateral Training','Lower Leg']);
+  const LOWER_SUBS=new Set(['Knee Dominant','Hip Hinge','Unilateral Training','Lower Leg','Hip Abduction / Adduction']);
   const UPPER_SUBS=new Set(['Horizontal Push','Vertical Push','Horizontal Pull','Vertical Pull']);
   function _bodyRegion(sub){
     if(!sub) return 'Other';
@@ -4118,7 +4123,7 @@ function exportExcel(){
     'Knee Dominant':'Knee Dominant','Hip Hinge':'Hip Hinge',
     'Horizontal Push':'Push (Horizontal)','Vertical Push':'Push (Vertical)',
     'Horizontal Pull':'Pull (Horizontal)','Vertical Pull':'Pull (Vertical)',
-    'Unilateral Training':'Unilateral','Lower Leg':'Lower Leg',
+    'Unilateral Training':'Unilateral','Lower Leg':'Lower Leg','Hip Abduction / Adduction':'Hip Abd/Add',
     'Core Training':'Core Training','Weightlifting':'Weightlifting',
     'Medicine Ball':'Medicine Ball','Velocity-Based Training':'VBT',
     'Vertical Power':'Power (Vertical)','Horizontal Power':'Power (Horizontal)',
