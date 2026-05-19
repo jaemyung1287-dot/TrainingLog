@@ -835,6 +835,7 @@ if ('serviceWorker' in navigator) {
     <div class="sec-ttl" style="margin-top:24px">Data</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-g btn-sm" onclick="exportExcel()">📊 Export Excel (.xlsx)</button>
+      <button class="btn btn-p btn-sm" onclick="restoreFromBackup()" style="background:rgba(255,180,0,.15);border-color:rgba(255,180,0,.4);color:#ffb400">🔄 Restore Backup</button>
       <button class="btn btn-s btn-sm" onclick="clearAllData()">🗑️ Clear All Data</button>
     </div>
   </div>
@@ -1191,12 +1192,27 @@ function syncToCloud(d){
 }
 
 // Load from Firestore on startup — always keep the NEWER of local vs cloud
+// ── Safety: save local snapshot before any cloud overwrite ──────────────────
+const SK_BACKUP='trainlog_v5_backup';
+function _backupLocal(){
+  try{
+    const raw=localStorage.getItem(SK);
+    if(raw) localStorage.setItem(SK_BACKUP, raw);
+  }catch(e){}
+}
+// How "rich" is a dataset? (higher = more data = safer to keep)
+function _dataScore(d){
+  if(!d) return 0;
+  return (d.athletes?.length||0)*100 + (d.logs?.length||0)*10 + (d.records?.length||0) + Object.keys(d.sessionPlans||{}).length*5;
+}
+
 async function initFirebase(){
   try{
     const snap=await CLOUD_DOC.get();
     const localRaw=localStorage.getItem(SK);
     const local=localRaw?JSON.parse(localRaw):null;
     const localTs=local?._lastUpdated||0;
+    const localScore=_dataScore(local);
 
     if(snap.exists){
       const cloudData=_restoreImages(snap.data());
@@ -1210,13 +1226,15 @@ async function initFirebase(){
         });
       }
       const cloudTs=cloudData._lastUpdated||0;
+      const cloudScore=_dataScore(cloudData);
 
-      if(localTs>cloudTs){
-        // Local is newer — push local to cloud to catch it up
-        console.log('[TrainLog] Local is newer than cloud — pushing local up ✓');
+      // Use local if: local is newer timestamp OR local has significantly more data
+      if(localTs>cloudTs || localScore>cloudScore+50){
+        console.log(`[TrainLog] Local wins (ts:${localTs}>${cloudTs} score:${localScore}>${cloudScore}) — pushing local to cloud ✓`);
         syncToCloud(local);
       } else {
-        // Cloud is newer (or equal) — use cloud
+        // Safe to use cloud — but backup local first
+        _backupLocal();
         localStorage.setItem(SK,JSON.stringify(cloudData));
         console.log('[TrainLog] Loaded from Firebase ✓');
       }
@@ -1238,10 +1256,19 @@ function startCloudSync(){
     if(!snap.exists) return;
     const cloudData=_restoreImages(snap.data());
     if(!cloudData.records) cloudData.records=[];
-    localStorage.setItem(SK,JSON.stringify(cloudData));
-    // Refresh coach view if active
-    const coachEl=document.getElementById('s-coach');
-    if(coachEl?.classList.contains('active')) renderCoachDash();
+    // Only overwrite local if cloud is actually richer/newer
+    const local=JSON.parse(localStorage.getItem(SK)||'null');
+    const localTs=local?._lastUpdated||0;
+    const cloudTs=cloudData._lastUpdated||0;
+    const localScore=_dataScore(local);
+    const cloudScore=_dataScore(cloudData);
+    if(cloudTs>=localTs && cloudScore>=localScore-50){
+      _backupLocal();
+      localStorage.setItem(SK,JSON.stringify(cloudData));
+      // Refresh coach view if active
+      const coachEl=document.getElementById('s-coach');
+      if(coachEl?.classList.contains('active')) renderCoachDash();
+    }
   },e=>console.warn('[TrainLog] Listener error:',e));
   console.log('[TrainLog] Real-time sync started ✓');
 }
@@ -3902,6 +3929,25 @@ async function forceSyncNow(){
     showToast('❌ Sync failed. Check your connection.');
     console.warn('[TrainLog] Force sync failed:',e);
   }
+}
+function restoreFromBackup(){
+  const raw=localStorage.getItem(SK_BACKUP);
+  if(!raw){ showToast('⚠️ No backup found on this device.'); return; }
+  try{
+    const backup=JSON.parse(raw);
+    const backupScore=_dataScore(backup);
+    const currentScore=_dataScore(getData());
+    const backupDate=backup._lastUpdated?new Date(backup._lastUpdated).toLocaleString('en',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'unknown time';
+    if(!confirm(`Restore backup from ${backupDate}?\nBackup has ${backup.athletes?.length||0} athletes, ${backup.logs?.length||0} logs.\nCurrent has ${getData().athletes?.length||0} athletes, ${getData().logs?.length||0} logs.\n\nThis will overwrite current data.`)) return;
+    // backup current before restoring
+    localStorage.setItem(SK_BACKUP+'2', localStorage.getItem(SK)||'');
+    backup._lastUpdated=Date.now();
+    localStorage.setItem(SK,JSON.stringify(backup));
+    syncToCloud(backup);
+    showToast('✅ Backup restored & synced to cloud!');
+    renderSettings();
+    renderAthleteChips();
+  }catch(e){ showToast('❌ Backup restore failed.'); }
 }
 
 // ════════════════════════════════════════════════
