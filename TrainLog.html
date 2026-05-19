@@ -1734,10 +1734,29 @@ function _applyDoneStyle(card, done){
   const nameEl=card.querySelector('._ex-name-done');
   if(nameEl){ nameEl.style.textDecoration=done?'line-through':''; nameEl.style.opacity=done?'.5':'1'; }
 }
-function _toggleExDone(i){
-  ST.exercises[i].done=!ST.exercises[i].done;
+function updateSetRowField(i,j,field,val){
+  if(!ST.exercises[i].setRows) return;
+  ST.exercises[i].setRows[j][field]=val;
+}
+function toggleSetRowDone(i,j){
+  if(!ST.exercises[i].setRows) return;
+  ST.exercises[i].setRows[j].done=!ST.exercises[i].setRows[j].done;
+  // Exercise done = all sets done
+  const allDone=ST.exercises[i].setRows.every(s=>s.done);
+  ST.exercises[i].done=allDone;
   const card=document.querySelectorAll('#exercise-list .ex-row')[i];
-  if(card) _applyDoneStyle(card, ST.exercises[i].done);
+  if(card) _applyDoneStyle(card, allDone);
+  renderExList();
+  _updateExProgress();
+}
+function _toggleExDone(i){
+  // Toggle all set rows together
+  const newDone=!ST.exercises[i].done;
+  ST.exercises[i].done=newDone;
+  if(ST.exercises[i].setRows) ST.exercises[i].setRows.forEach(s=>s.done=newDone);
+  const card=document.querySelectorAll('#exercise-list .ex-row')[i];
+  if(card) _applyDoneStyle(card, newDone);
+  renderExList();
   _updateExProgress();
 }
 function _setExDone(i){ // called from effort auto-check
@@ -2581,20 +2600,31 @@ function renderExList(){
         if(!isBW) gridCols='repeat(4,1fr)';
       }
 
-      paramsHtml=`
-        <div class="ex-nums" style="grid-template-columns:${gridCols}">
-          ${intField}
-          ${weightField}
-          <div class="mini-wrap">
-            <input class="mini-in${setsEdited?' plan-edited':''}" type="number" placeholder="0" value="${ex.sets||''}" oninput="ST.exercises[${i}].sets=this.value" onblur="renderExList()">
-            <div class="mini-lbl">Sets${setsEdited?' ✎':''}</div>
-          </div>
-          <div class="mini-wrap">
-            <input class="mini-in${repsEdited?' plan-edited':''}" type="number" placeholder="0" value="${ex.reps||''}" oninput="ST.exercises[${i}].reps=this.value" onblur="renderExList()">
-            <div class="mini-lbl">Reps${repsEdited?' ✎':''}</div>
-          </div>
-        </div>
-        ${liftPlanSummary}${contractionBadge}`;
+      // ── Per-set rows: initialize if missing ──────────────────────────
+      if(!ex.setRows || !ex.setRows.length){
+        const n=Math.max(1, parseInt(ex.planSets||ex.sets)||1);
+        const r=ex.planReps||ex.reps||'';
+        const kg=isBW?'':(ex.weight||'');
+        ST.exercises[i].setRows=Array.from({length:n},()=>({kg, reps:r, extraKg:ex.extraKg||'', done:false}));
+        if(ex.done) ST.exercises[i].setRows.forEach(s=>s.done=true);
+      }
+      const setRowsHtml=ST.exercises[i].setRows.map((sr,j)=>{
+        const rd=sr.done;
+        const rowStyle=`display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:7px 10px;border-radius:10px;background:${rd?'rgba(62,207,142,.07)':'rgba(255,255,255,.03)'};border:1px solid ${rd?'rgba(62,207,142,.3)':'rgba(255,255,255,.07)'}`;
+        const inStyle='padding:6px 8px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-weight:600;text-align:center;width:64px';
+        const kgField=isBW
+          ?`<span style="font-size:12px;font-weight:700;color:#3ecf8e;min-width:36px;text-align:center">${ex.weight||'BW'}</span>
+             <input type="number" placeholder="+kg" value="${sr.extraKg||''}" oninput="updateSetRowField(${i},${j},'extraKg',this.value)" style="${inStyle};width:56px;color:#f7a94f">`
+          :`<input type="number" placeholder="kg" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
+        return `<div style="${rowStyle}">
+          <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Set ${j+1}</span>
+          ${kgField}
+          <span style="font-size:11px;color:var(--muted)">×</span>
+          <input type="number" placeholder="reps" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">
+          <button onclick="toggleSetRowDone(${i},${j})" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1.5px solid ${rd?'#3ecf8e':'rgba(255,255,255,.15)'};background:${rd?'rgba(62,207,142,.12)':'transparent'};color:${rd?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${rd?'✓':'○'}</button>
+        </div>`;
+      }).join('');
+      paramsHtml=`${liftPlanSummary}${contractionBadge}<div style="margin-top:10px">${setRowsHtml}</div>`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -2719,13 +2749,11 @@ function toggleBW(i){ ST.exercises[i].isBodyweight=!ST.exercises[i].isBodyweight
 function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:''}); renderExList(); }
 function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exercises.push({name:'',intensity:'',weight:'',sets:'',reps:'',effort:''}); renderExList(); }
 function addSetToEx(i){
-  const cur=parseInt(ST.exercises[i].sets)||0;
-  ST.exercises[i].sets=String(cur+1);
-  // Also track that extra sets were added beyond plan
-  const planned=parseInt(ST.exercises[i]._plannedSets)||cur;
-  if(!ST.exercises[i]._plannedSets) ST.exercises[i]._plannedSets=String(cur);
+  if(!ST.exercises[i].setRows) ST.exercises[i].setRows=[];
+  const last=ST.exercises[i].setRows[ST.exercises[i].setRows.length-1]||{};
+  ST.exercises[i].setRows.push({kg:last.kg||'', reps:last.reps||'', extraKg:last.extraKg||'', done:false});
   renderExList();
-  showToast(`Set added → ${ST.exercises[i].sets} sets total`);
+  showToast(`Set ${ST.exercises[i].setRows.length} added`);
 }
 
 function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 'confirmed'
@@ -2791,6 +2819,12 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const totalVol=liftingExs.reduce((s,e)=>{
       const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
       const bwBase=isBW?(parseFloat(e.weight)||0):0;
+      if(e.setRows&&e.setRows.length){
+        return s+e.setRows.reduce((ss,row)=>{
+          const kg=isBW?(bwBase+(parseFloat(row.extraKg)||0)):(parseFloat(row.kg)||0);
+          return ss+kg*(parseFloat(row.reps)||0);
+        },0);
+      }
       const w=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
       return s+w*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
     },0);
@@ -2800,14 +2834,17 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       exercises:liftingExs.map(e=>{
         const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
         const bwBase=isBW?(parseFloat(e.weight)||0):0;
-        const savedW=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
+        const firstSet=e.setRows?.[0];
+        const savedW=isBW?(bwBase+(parseFloat(firstSet?.extraKg)||0)):(parseFloat(firstSet?.kg)||0);
         return {
           name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
           planIntensity:e.planIntensity!==undefined?parseFloat(e.planIntensity)||null:null,
           intensity:e.intensity!==''&&e.intensity!==null&&e.intensity!==undefined?parseFloat(e.intensity):null,
           weight:savedW, bwBase:isBW?bwBase:null,
-          isBodyweight:isBW, extraKg:isBW?parseFloat(e.extraKg)||0:null,
-          sets:parseInt(e.sets)||0, reps:parseInt(e.reps)||0,
+          isBodyweight:isBW, extraKg:isBW?parseFloat(firstSet?.extraKg)||0:null,
+          sets:e.setRows?.length||parseInt(e.sets)||0,
+          reps:parseFloat(firstSet?.reps)||parseInt(e.reps)||0,
+          setRows:e.setRows||null,
           effort:e.effort||null, fromPlan:e.fromPlan||false,
           meanV:e.meanV?parseFloat(e.meanV):null, peakV:e.peakV?parseFloat(e.peakV):null,
           planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null, planRestType:e.planRestType||[]
