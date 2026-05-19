@@ -1242,7 +1242,9 @@ function _dataScore(d){
 
 async function initFirebase(){
   try{
+    window._fbStatus='connecting...';
     const snap=await CLOUD_DOC.get();
+    window._fbStatus='got snap: exists='+snap.exists;
     const localRaw=localStorage.getItem(SK);
     const local=localRaw?JSON.parse(localRaw):null;
     const localTs=local?._lastUpdated||0;
@@ -1292,6 +1294,7 @@ async function initFirebase(){
       console.log('[TrainLog] First run — pushed to Firebase ✓');
     }
   } catch(e){
+    window._fbStatus='ERROR: '+e.message;
     console.warn('[TrainLog] Firebase load failed, using local data:',e);
   }
 }
@@ -1672,7 +1675,7 @@ function _enterAthleteMenu(){
     const exCount=hasAll?(((planGrp['all'].am||{}).exercises||[]).length+(((planGrp['all'].pm||{}).exercises||[]).length)):0;
     let dbg=document.getElementById('_debug_overlay');
     if(!dbg){dbg=document.createElement('div');dbg.id='_debug_overlay';dbg.style.cssText='background:rgba(255,200,0,.15);border:1px solid gold;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:10px;color:#ffd700;font-family:monospace;line-height:1.6';document.getElementById('menu-date-sub').after(dbg);}
-    dbg.innerHTML=`📡 today=${today}<br>📦 sp keys=[${spKeys.join(',')}]<br>✅ plan=${planExists} | all=${hasAll} | grp=${hasGrp} | exs=${exCount}<br>⏱ _lastUpdated=${data._lastUpdated||0}`;
+    dbg.innerHTML=`📡 today=${today}<br>📦 sp keys=[${spKeys.join(',')}]<br>✅ plan=${planExists} | all=${hasAll} | grp=${hasGrp} | exs=${exCount}<br>⏱ _lastUpdated=${data._lastUpdated||0}<br>☁️ fb=${window._fbStatus||'not run'}`;
   })();
   const plan=data.sessionPlans[today];
   const grp=ST.athlete.group;
