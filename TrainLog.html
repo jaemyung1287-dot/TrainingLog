@@ -1745,7 +1745,8 @@ function goLogTraining(){
       </div>`;
     }
     function _sessCard(sess,exs){
-      if(!exs.length) return '';
+      const wu=(grpData?.[sess]?.warmup||'').trim();
+      if(!exs.length&&!wu) return '';
       const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
       const isSprintOnly=exs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
       const chkKey=_chkKey(sess);
@@ -1841,8 +1842,8 @@ function goLogTraining(){
         </div>
         <!-- Expandable body -->
         <div id="_sess_body_${sess}" style="display:${isOpen?'block':'none'};padding:0 16px 16px">
-          <div class="sess-chk-wrap" data-total="${exs.length}" style="margin-bottom:12px">${allLines}</div>
-          <button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log this session →</button>
+          ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.85);padding:8px 10px;background:rgba(247,169,79,.07);border-radius:9px;margin-bottom:10px;line-height:1.7">🔆 <span style="font-weight:700">Warm-up</span><br>${wu.split('\n').filter(l=>l.trim()).map(l=>`<span style="display:block;padding-left:10px">· ${l.trim()}</span>`).join('')}</div>`:''}
+          ${exs.length?`<div class="sess-chk-wrap" data-total="${exs.length}" style="margin-bottom:12px">${allLines}</div><button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log this session →</button>`:''}
         </div>
       </div>`;
     }
@@ -3056,7 +3057,7 @@ function renderProgram(){
     }).join('');
     return `<div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.05)">
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:${color};margin-bottom:8px">${label}</div>
-      ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.5">🔆 ${wu}</div>`:''}
+      ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.6">🔆 Warm-up<br>${wu.split('\n').filter(l=>l.trim()).map(l=>`<span style="display:block;padding-left:10px">· ${l.trim()}</span>`).join('')}</div>`:''}
       ${exHtml}
       ${ct?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.5">🌀 ${ct}</div>`:''}
       ${cd?`<div style="font-size:12px;color:rgba(79,142,247,.8);padding:5px 9px;background:rgba(79,142,247,.07);border-radius:7px;margin-top:4px;line-height:1.5">❄️ ${cd}</div>`:''}
