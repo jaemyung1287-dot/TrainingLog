@@ -450,9 +450,7 @@ if ('serviceWorker' in navigator) {
   <div class="sub">오늘 컨디션은 어때?</div>
   <div class="fg" style="margin-bottom:14px">
     <label class="fl">📅 기록 날짜</label>
-    <div id="condition-date-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 8px"></div>
-    <input type="date" class="fi" id="condition-date" style="color-scheme:dark;display:none" onchange="initConditionDatePicker()">
-    <button type="button" onclick="toggleConditionDatePicker()" style="background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0;text-decoration:underline;display:block;margin-top:2px">📆 다른 날짜 직접 선택</button>
+    <input type="date" class="fi" id="condition-date" style="color-scheme:dark">
   </div>
   <div class="fg">
     <label class="fl">수면 시간 (시간)</label>
@@ -1721,40 +1719,7 @@ function goTodayPlan(){
   if(weightExs.length>0) selectType('weight');
   else selectType('sprint');
 }
-function initConditionDatePicker(){
-  const wrap=document.getElementById('condition-date-chips');
-  if(!wrap)return;
-  wrap.innerHTML='';
-  const selDate=document.getElementById('condition-date').value||todayStr();
-  const today=new Date();
-  const dayNames=['일','월','화','수','목','금','토'];
-  for(let i=0;i<7;i++){
-    const d=new Date(today);
-    d.setDate(today.getDate()-i);
-    const ds=d.toISOString().slice(0,10);
-    const dayName=dayNames[d.getDay()];
-    const mmdd=`${d.getMonth()+1}/${d.getDate()}`;
-    let topLabel=i===0?'오늘':i===1?'어제':i===2?'그저께':dayName+'요일';
-    const isSel=ds===selDate;
-    const btn=document.createElement('button');
-    btn.type='button';
-    btn.innerHTML=`<span style="display:block;font-size:13px;font-weight:${isSel?'700':'500'}">${topLabel}</span><span style="display:block;font-size:11px;opacity:0.7;margin-top:2px">${mmdd}</span>`;
-    btn.style.cssText=`padding:9px 13px;border-radius:14px;border:2px solid ${isSel?'var(--accent)':'var(--border)'};background:${isSel?'rgba(201,168,76,.15)':'var(--card)'};color:${isSel?'var(--accent)':'var(--text)'};cursor:pointer;min-width:62px;text-align:center;line-height:1.2;flex-shrink:0;transition:all .15s`;
-    btn.onclick=()=>selectConditionDate(ds);
-    wrap.appendChild(btn);
-  }
-}
-function selectConditionDate(ds){
-  document.getElementById('condition-date').value=ds;
-  document.getElementById('condition-date').style.display='none';
-  initConditionDatePicker();
-}
-function toggleConditionDatePicker(){
-  const inp=document.getElementById('condition-date');
-  inp.style.display=(inp.style.display==='none'||inp.style.display==='')?'block':'none';
-  if(inp.style.display==='block') inp.focus();
-}
-function goCondition(){ ST.selectedParts={}; renderBodyParts(); document.getElementById('condition-date').value=todayStr(); initConditionDatePicker(); showScreen('s-condition'); }
+function goCondition(){ ST.selectedParts={}; renderBodyParts(); document.getElementById('condition-date').value=todayStr(); showScreen('s-condition'); }
 function goProgram(){ renderProgram(); showScreen('s-program'); }
 function _toggleProgDay(ds){
   const body=document.getElementById('prog-body-'+ds);
