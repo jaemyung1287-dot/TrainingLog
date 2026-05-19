@@ -5314,7 +5314,7 @@ function renderPlanAccordion(){
         item.innerHTML=`
           <div class="plan-ex-name-row" style="margin-bottom:8px">
             <div style="display:flex;align-items:center;flex:1;min-width:0">
-              <span class="plan-ex-name-text" style="flex-shrink:0">${ex.name}</span>
+              <span class="plan-ex-name-text" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1">${ex.name}</span>
               ${_restInline(globalIdx)}
             </div>
             <div style="display:flex;align-items:center;flex-shrink:0">
