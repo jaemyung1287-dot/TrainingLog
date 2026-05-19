@@ -258,7 +258,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260520-4';
+const APP_VERSION = '20260520-5';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -2421,10 +2421,15 @@ function backToCoach(){ showScreen('s-coach'); document.getElementById('coach-ta
 //  APP INIT — load Firebase first, then render
 // ════════════════════════════════════════════════
 (async()=>{
+  try{
+  window._fbStatus='iife-start';
   // Show subtle loading state
-  document.getElementById('home-date').textContent='Connecting...';
+  const homeEl=document.getElementById('home-date');
+  window._fbStatus='home-el:'+(homeEl?'found':'NULL');
+  if(homeEl) homeEl.textContent='Connecting...';
 
   // Load cloud data
+  window._fbStatus='calling-initFirebase';
   await initFirebase();
 
   // Ensure athletes exist
@@ -2441,6 +2446,10 @@ function backToCoach(){ showScreen('s-coach'); document.getElementById('coach-ta
     `${now.toLocaleString('en',{month:'short'})} ${now.getDate()} (${DAYS[now.getDay()]})`;
 
   console.log('[TrainLog] App ready ✓');
+  }catch(iife_err){
+    window._fbStatus='IIFE-ERROR:'+iife_err.message;
+    console.error('[TrainLog] Init IIFE error:',iife_err);
+  }
 })();
 
 // ════════════════════════════════════════════════
