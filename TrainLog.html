@@ -1749,6 +1749,14 @@ function toggleSetRowDone(i,j){
   renderExList();
   _updateExProgress();
 }
+function removeSetRow(i,j){
+  if(!ST.exercises[i].setRows || ST.exercises[i].setRows.length<=1) return;
+  ST.exercises[i].setRows.splice(j,1);
+  // Recalculate done state
+  const allDone=ST.exercises[i].setRows.every(s=>s.done);
+  ST.exercises[i].done=allDone;
+  renderExList();
+}
 function _toggleExDone(i){
   // Toggle all set rows together
   const newDone=!ST.exercises[i].done;
@@ -2622,6 +2630,7 @@ function renderExList(){
           <span style="font-size:11px;color:var(--muted)">×</span>
           <input type="number" placeholder="reps" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">
           <button onclick="toggleSetRowDone(${i},${j})" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1.5px solid ${rd?'#3ecf8e':'rgba(255,255,255,.15)'};background:${rd?'rgba(62,207,142,.12)':'transparent'};color:${rd?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${rd?'✓':'○'}</button>
+          ${ST.exercises[i].setRows.length>1?`<button onclick="removeSetRow(${i},${j})" style="padding:4px 8px;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.07);color:rgba(255,100,100,.8);font-size:13px;font-weight:700;cursor:pointer;line-height:1" title="Delete set">×</button>`:''}
         </div>`;
       }).join('');
       paramsHtml=`${liftPlanSummary}${contractionBadge}<div style="margin-top:10px">${setRowsHtml}</div>`;
