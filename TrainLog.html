@@ -4927,8 +4927,25 @@ function _renderPlanGroupBtns(){
 function _loadPlanForDay(){
   const d=getData();
   const plan=d.sessionPlans[ST._planDay];
-  document.getElementById('sp-plan-phase').value=plan?plan.phase||'':'';
-  document.getElementById('sp-plan-week').value=plan?plan.week||'':'';
+  let phaseVal=plan?plan.phase||'':'';
+  let weekVal=plan?plan.week||'':'';
+  // Auto-fill: if this day has no phase/week, inherit from another day in the same week
+  if(!phaseVal||!weekVal){
+    const start=ST._planWeekStart;
+    for(let i=0;i<7;i++){
+      const day=new Date(start); day.setDate(start.getDate()+i);
+      const ds=_dateStr(day);
+      if(ds===ST._planDay) continue;
+      const op=d.sessionPlans[ds];
+      if(op){
+        if(!weekVal&&op.week) weekVal=op.week;
+        if(!phaseVal&&op.phase) phaseVal=op.phase;
+        if(weekVal&&phaseVal) break;
+      }
+    }
+  }
+  document.getElementById('sp-plan-phase').value=phaseVal;
+  document.getElementById('sp-plan-week').value=weekVal;
   renderPlanAccordion();
 }
 
