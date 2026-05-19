@@ -4944,6 +4944,13 @@ function _loadPlanForDay(){
       }
     }
   }
+  // Auto-fill week with date range if still empty (e.g. "26.05.18 ~ 26.05.24")
+  if(!weekVal){
+    const s=ST._planWeekStart;
+    const e=new Date(s); e.setDate(s.getDate()+6);
+    const f=t=>`${String(t.getFullYear()).slice(2)}.${String(t.getMonth()+1).padStart(2,'0')}.${String(t.getDate()).padStart(2,'0')}`;
+    weekVal=`${f(s)} ~ ${f(e)}`;
+  }
   document.getElementById('sp-plan-phase').value=phaseVal;
   document.getElementById('sp-plan-week').value=weekVal;
   renderPlanAccordion();
