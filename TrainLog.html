@@ -1185,9 +1185,10 @@ function _restoreImages(cloudData){
 
 // Push to Firestore (background, non-blocking)
 function syncToCloud(d){
+  _hideSyncError();
   CLOUD_DOC.set(_stripImages(d)).then(()=>{
-    // Mark last successful sync time
     try{ localStorage.setItem('trainlog_last_sync', Date.now().toString()); }catch(e){}
+    showToast('☁️ Cloud synced ✓');
   }).catch(e=>{
     console.warn('[TrainLog] Firestore sync error:',e);
     // Retry once after 3 seconds — use latest data, not stale closure
@@ -1195,13 +1196,36 @@ function syncToCloud(d){
       const latest=getData();
       CLOUD_DOC.set(_stripImages(latest)).then(()=>{
         try{ localStorage.setItem('trainlog_last_sync', Date.now().toString()); }catch(e2){}
-        showToast('☁️ Cloud sync recovered!');
+        showToast('☁️ Cloud sync recovered ✓');
+        _hideSyncError();
       }).catch(e2=>{
         console.warn('[TrainLog] Firestore retry failed:',e2);
-        showToast('⚠️ Cloud sync failed — tap "Force Sync" in Settings!');
+        _showSyncError(e2?.message||'Unknown error');
       });
     }, 3000);
   });
+}
+function _showSyncError(msg){
+  let b=document.getElementById('sync-error-banner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='sync-error-banner';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#c0392b;color:#fff;font-size:13px;font-weight:700;padding:10px 16px;text-align:center;display:flex;align-items:center;justify-content:space-between;gap:8px';
+    const txt=document.createElement('span');
+    txt.id='sync-error-msg';
+    txt.textContent='⚠️ Firebase 저장 실패 — 인터넷 확인 후 Force Sync 누르세요';
+    const btn=document.createElement('button');
+    btn.textContent='Force Sync';
+    btn.style.cssText='background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;padding:4px 12px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12px';
+    btn.onclick=()=>forceSyncNow();
+    b.appendChild(txt); b.appendChild(btn);
+    document.body.appendChild(b);
+  }
+  document.getElementById('sync-error-msg').textContent=`⚠️ Firebase 저장 실패: ${msg} — Force Sync 누르세요`;
+  b.style.display='flex';
+}
+function _hideSyncError(){
+  const b=document.getElementById('sync-error-banner'); if(b) b.style.display='none';
 }
 
 // Load from Firestore on startup — always keep the NEWER of local vs cloud
