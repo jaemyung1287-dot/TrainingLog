@@ -2673,7 +2673,11 @@ function renderExList(){
         </div>
       </div>`;
 
-    const doneHtml=`<div style="display:flex;justify-content:flex-end;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
+    const doneHtml=`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
+      <button onclick="addSetToEx(${i})"
+        style="padding:7px 14px;border-radius:10px;border:1.5px solid rgba(79,142,247,.4);background:rgba(79,142,247,.1);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+        + Set
+      </button>
       <button class="_ex-done-btn" onclick="_toggleExDone(${i})"
         style="padding:7px 16px;border-radius:10px;border:1.5px solid ${ex.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${ex.done?'rgba(62,207,142,.12)':'transparent'};color:${ex.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
         ${ex.done?'✅ Done':'○ Mark as Done'}
@@ -2700,6 +2704,15 @@ function setExEffort(i,val){
 function toggleBW(i){ ST.exercises[i].isBodyweight=!ST.exercises[i].isBodyweight; if(ST.exercises[i].isBodyweight){ ST.exercises[i].weight=''; } else { ST.exercises[i].extraKg=''; } renderExList(); }
 function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:''}); renderExList(); }
 function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exercises.push({name:'',intensity:'',weight:'',sets:'',reps:'',effort:''}); renderExList(); }
+function addSetToEx(i){
+  const cur=parseInt(ST.exercises[i].sets)||0;
+  ST.exercises[i].sets=String(cur+1);
+  // Also track that extra sets were added beyond plan
+  const planned=parseInt(ST.exercises[i]._plannedSets)||cur;
+  if(!ST.exercises[i]._plannedSets) ST.exercises[i]._plannedSets=String(cur);
+  renderExList();
+  showToast(`Set added → ${ST.exercises[i].sets} sets total`);
+}
 
 function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 'confirmed'
   const allExs=ST.exercises.filter(e=>e.name&&e.name.trim());
