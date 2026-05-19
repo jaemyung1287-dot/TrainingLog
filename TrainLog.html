@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1660,8 +1663,9 @@ function goAthleteMenu(){
 }
 function _enterAthleteMenu(){
   document.getElementById('menu-greeting').textContent=`Hey, ${ST.athlete.name}! 👋`;
-  const d=new Date();
-  document.getElementById('menu-date-sub').textContent=`${DAYS[d.getDay()]}, ${d.toLocaleString('en',{month:'long'})} ${d.getDate()}`;
+  // Always use Europe/Berlin timezone for date display (team is based in Germany)
+  const _berlinDate=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Berlin',weekday:'short',month:'long',day:'numeric'}).format(new Date());
+  document.getElementById('menu-date-sub').textContent=_berlinDate;
   // Show today's plan quick-start card if plan exists
   const data=getData(); const today=todayStr();
   const plan=data.sessionPlans[today];
