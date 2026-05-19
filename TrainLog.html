@@ -827,6 +827,11 @@ if ('serviceWorker' in navigator) {
       <input class="fi" id="new-pin" type="password" placeholder="New 4-digit PIN" maxlength="4" style="flex:1">
       <button class="btn btn-s btn-sm" onclick="changePin()" style="flex:none;margin:0">Save</button>
     </div>
+    <div class="sec-ttl" style="margin-top:24px">Cloud Sync</div>
+    <div id="sync-status-bar" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-p btn-sm" onclick="forceSyncNow()">☁️ Force Sync Now</button>
+    </div>
     <div class="sec-ttl" style="margin-top:24px">Data</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-g btn-sm" onclick="exportExcel()">📊 Export Excel (.xlsx)</button>
@@ -1167,7 +1172,22 @@ function _restoreImages(cloudData){
 
 // Push to Firestore (background, non-blocking)
 function syncToCloud(d){
-  CLOUD_DOC.set(_stripImages(d)).catch(e=>console.warn('[TrainLog] Firestore sync error:',e));
+  CLOUD_DOC.set(_stripImages(d)).then(()=>{
+    // Mark last successful sync time
+    try{ localStorage.setItem('trainlog_last_sync', Date.now().toString()); }catch(e){}
+  }).catch(e=>{
+    console.warn('[TrainLog] Firestore sync error:',e);
+    // Retry once after 3 seconds
+    setTimeout(()=>{
+      CLOUD_DOC.set(_stripImages(d)).then(()=>{
+        try{ localStorage.setItem('trainlog_last_sync', Date.now().toString()); }catch(e2){}
+        showToast('☁️ Cloud sync recovered!');
+      }).catch(e2=>{
+        console.warn('[TrainLog] Firestore retry failed:',e2);
+        showToast('⚠️ Cloud sync failed — tap "Force Sync" in Settings!');
+      });
+    }, 3000);
+  });
 }
 
 // Load from Firestore on startup
@@ -1481,14 +1501,18 @@ function saveData(d){
 }
 function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function todayStr(){
-  const d=new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  // Always use Germany timezone (Europe/Berlin) so coach & athletes use the same date regardless of device locale
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const p={};parts.forEach(x=>p[x.type]=x.value);
+  return `${p.year}-${p.month}-${p.day}`;
 }
 function getLast(n){
+  const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit'});
   const out=[];
   for(let i=n-1;i>=0;i--){
     const d=new Date(); d.setDate(d.getDate()-i);
-    out.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+    const parts=fmt.formatToParts(d); const p={};parts.forEach(x=>p[x.type]=x.value);
+    out.push(`${p.year}-${p.month}-${p.day}`);
   }
   return out;
 }
@@ -3794,6 +3818,13 @@ function updProgSes(dow,si,field,val){ const d=getData(); ensureDay(d,dow).sessi
 // ── SETTINGS ──
 function renderSettings(){
   const d=getData(); const wrap=document.getElementById('settings-ath-list'); wrap.innerHTML='';
+  // Show last sync time
+  const syncBar=document.getElementById('sync-status-bar');
+  if(syncBar){
+    const t=localStorage.getItem('trainlog_last_sync');
+    if(t){ const dt=new Date(parseInt(t)); syncBar.textContent=`Last synced: ${dt.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'})} · Today (Berlin): ${todayStr()}`; }
+    else { syncBar.textContent=`Today (Berlin): ${todayStr()} · Not yet synced this session`; }
+  }
   d.athletes.forEach(a=>{
     const div=document.createElement('div'); div.className='ath-row';
     div.style.cssText='cursor:default;flex-direction:column;align-items:stretch;gap:8px';
@@ -3853,6 +3884,19 @@ function changePin(){
   if(!/^\d{4}$/.test(p)){ showToast('PIN must be 4 digits'); return; }
   const d=getData(); d.settings.pin=p; saveData(d);
   document.getElementById('new-pin').value=''; showToast('PIN updated!');
+}
+async function forceSyncNow(){
+  showToast('☁️ Syncing...');
+  const d=getData();
+  try{
+    await CLOUD_DOC.set(_stripImages(d));
+    localStorage.setItem('trainlog_last_sync', Date.now().toString());
+    showToast('✅ Sync complete! Athletes can now see today\'s plan.');
+    renderSettings();
+  }catch(e){
+    showToast('❌ Sync failed. Check your connection.');
+    console.warn('[TrainLog] Force sync failed:',e);
+  }
 }
 
 // ════════════════════════════════════════════════
