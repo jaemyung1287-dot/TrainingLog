@@ -1267,11 +1267,24 @@ async function initFirebase(){
 
       // 1순위: 타임스탬프 비교. 타임스탬프가 둘 다 0일 때만 데이터량으로 판단
       if(localTs>cloudTs || (localTs===0&&cloudTs===0&&localScore>cloudScore+50)){
-        console.log(`[TrainLog] Local wins (ts:${localTs}>${cloudTs} score:${localScore}>${cloudScore}) — pushing local to cloud ✓`);
-        syncToCloud(local);
+        // Local is newer (athlete saved logs after coach saved plans)
+        // BUT: always pull coach-managed fields from cloud so athletes see latest plans
+        const merged=JSON.parse(JSON.stringify(local));
+        // sessionPlans & athletes are coach-owned — always use cloud version (overlay on local)
+        if(cloudData.sessionPlans) merged.sessionPlans=Object.assign({},local.sessionPlans||{},cloudData.sessionPlans);
+        if(cloudData.athletes?.length) merged.athletes=cloudData.athletes;
+        localStorage.setItem(SK,JSON.stringify(merged));
+        console.log(`[TrainLog] Local wins but merged coach data from cloud ✓`);
+        syncToCloud(merged);
       } else {
-        // Safe to use cloud — but backup local first
+        // Cloud is newer — safe to use, backup local first
         _backupLocal();
+        // Still preserve any local athlete logs not yet in cloud (merge logs arrays)
+        if(local?.logs?.length){
+          const cloudIds=new Set((cloudData.logs||[]).map(l=>l.id));
+          const localOnly=local.logs.filter(l=>!cloudIds.has(l.id));
+          if(localOnly.length) cloudData.logs=[...(cloudData.logs||[]),...localOnly];
+        }
         localStorage.setItem(SK,JSON.stringify(cloudData));
         console.log('[TrainLog] Loaded from Firebase ✓');
       }
@@ -1293,7 +1306,6 @@ function startCloudSync(){
     if(!snap.exists) return;
     const cloudData=_restoreImages(snap.data());
     if(!cloudData.records) cloudData.records=[];
-    // Only overwrite local if cloud is actually richer/newer
     const local=JSON.parse(localStorage.getItem(SK)||'null');
     const localTs=local?._lastUpdated||0;
     const cloudTs=cloudData._lastUpdated||0;
@@ -1301,10 +1313,24 @@ function startCloudSync(){
     const cloudScore=_dataScore(cloudData);
     if(cloudTs>=localTs && cloudScore>=localScore-50){
       _backupLocal();
+      // Merge: preserve local-only logs not yet in cloud
+      if(local?.logs?.length){
+        const cloudIds=new Set((cloudData.logs||[]).map(l=>l.id));
+        const localOnly=local.logs.filter(l=>!cloudIds.has(l.id));
+        if(localOnly.length) cloudData.logs=[...(cloudData.logs||[]),...localOnly];
+      }
       localStorage.setItem(SK,JSON.stringify(cloudData));
       // Refresh coach view if active
       const coachEl=document.getElementById('s-coach');
       if(coachEl?.classList.contains('active')) renderToday();
+    } else {
+      // Local is newer but still merge coach-managed fields from cloud
+      if(local && cloudData.sessionPlans){
+        const merged=JSON.parse(JSON.stringify(local));
+        merged.sessionPlans=Object.assign({},local.sessionPlans||{},cloudData.sessionPlans);
+        if(cloudData.athletes?.length) merged.athletes=cloudData.athletes;
+        localStorage.setItem(SK,JSON.stringify(merged));
+      }
     }
   },e=>console.warn('[TrainLog] Listener error:',e));
   console.log('[TrainLog] Real-time sync started ✓');
