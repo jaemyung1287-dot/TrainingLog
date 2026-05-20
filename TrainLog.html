@@ -3470,7 +3470,7 @@ function renderTeamRanking(d,period){
   const athVol={}; const athSpr={};
   d.athletes.forEach(a=>{ athVol[a.name]=0; athSpr[a.name]=0; });
   d.logs.filter(l=>dates.includes(l.date)).forEach(l=>{
-    if(l.type==='weight') athVol[l.athleteName]=(athVol[l.athleteName]||0)+l.totalVolume;
+    if(l.type==='weight') athVol[l.athleteName]=(athVol[l.athleteName]||0)+_exVolSplit([l]).total;
     if(l.type==='sprint') athSpr[l.athleteName]=(athSpr[l.athleteName]||0)+l.totalDistance;
   });
   const volRank=Object.entries(athVol).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
@@ -3787,7 +3787,7 @@ function renderAthletesTab(){
   const wd=getLast(7);
   d.athletes.forEach(a=>{
     const logs=d.logs.filter(l=>l.athleteName===a.name&&wd.includes(l.date));
-    const wv=logs.filter(l=>l.type==='weight').reduce((s,l)=>s+l.totalVolume,0);
+    const wv=_exVolSplit(logs.filter(l=>l.type==='weight')).total;
     const sd=logs.filter(l=>l.type==='sprint').reduce((s,l)=>s+l.totalDistance,0);
     const cl=logs.filter(l=>l.type==='condition');
     const af=cl.length?Math.round(cl.reduce((s,l)=>s+l.fatigue,0)/cl.length*10)/10:'-';
