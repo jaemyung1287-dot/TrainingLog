@@ -2096,8 +2096,8 @@ function _selectLogSession(sess,type){
 function selectType(t){
   const d=getData(); const prog=d.programs[ST.athlete.group];
   if(t==='weight'){
-    // Load today's session plan for this athlete's group (or 'all'), using AM/PM session
-    const today=todayStr();
+    // Load session plan for the target date (yesterday or today)
+    const today=ST._logDate||todayStr();
     const plan=d.sessionPlans[today];
     const grp=ST.athlete.group;
     const grpData=plan?(plan[grp]||plan['all']):null;
