@@ -2253,7 +2253,7 @@ function selectType(t){
     renderExList();
     showScreen('s-weight');
   } else if(t==='sprint'){
-    const today=todayStr();
+    const today=ST._logDate||todayStr();
     const plan=d.sessionPlans[today];
     const grp=ST.athlete.group;
     const grpData=_planGrpData(plan,ST.athlete);
@@ -2359,7 +2359,7 @@ function _renderAthRecentLogs(targetId){
   // Helper: derive which log-types were planned for a given date
   function _plannedTypesFor(ds){
     const plan=d.sessionPlans[ds]; if(!plan) return new Set();
-    const grpData=plan[grp]||plan['all']; if(!grpData) return new Set();
+    const grpData=_planGrpData(plan,ST.athlete); if(!grpData) return new Set();
     const exs=[..._sessExs(grpData,'am'),..._sessExs(grpData,'pm')];
     const types=new Set();
     exs.forEach(e=>{
@@ -5129,7 +5129,8 @@ function clearPlanSession(){
   const sess=ST._planSession||'am';
   const sessLabel=sess==='am'?'AM':'PM';
   const grp=ST._planGroup;
-  if(!confirm(`Clear ${sessLabel} exercises for Group ${grp} on ${ST._planDay}?\n\nThis only removes the session plan (not athlete logs).`)) return;
+  const _grpLabel=grp.startsWith('ath_')?((getData().athletes||[]).find(a=>'ath_'+a.id===grp)?.name||grp):('Group '+grp);
+  if(!confirm(`Clear ${sessLabel} exercises for ${_grpLabel} on ${ST._planDay}?\n\nThis only removes the session plan (not athlete logs).`)) return;
   const d=getData();
   const plan=d.sessionPlans[ST._planDay];
   if(plan){
@@ -5216,7 +5217,7 @@ function _ovTouchEnd(e,fromIdx){
 function _deleteSinglePlanEx(idx){
   const d=getData();
   const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
-  const grpData=plan[ST._planGroup]||plan['all']; if(!grpData) return;
+  const grpData=plan[ST._planGroup]; if(!grpData) return;
   const sess=ST._planSession||'am';
   const exs=grpData[sess]?.exercises||grpData.exercises;
   if(!exs) return;
@@ -5228,7 +5229,7 @@ function _deleteSinglePlanEx(idx){
 function _ovReorder(fromIdx,toIdx){
   const d=getData();
   const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
-  const grpData=plan[ST._planGroup]||plan['all']; if(!grpData) return;
+  const grpData=plan[ST._planGroup]; if(!grpData) return;
   const sess=ST._planSession||'am';
   const exs=grpData[sess]?.exercises||grpData.exercises;
   if(!exs) return;
@@ -7028,7 +7029,7 @@ function selectTabata(){
   const today=todayStr();
   const plan=d.sessionPlans[today];
   const grp=ST.athlete.group;
-  const grpPlan=plan?(plan[grp]||plan['all']):null;
+  const grpPlan=_planGrpData(plan,ST.athlete);
   const banner=document.getElementById('tabata-plan-banner');
 
   // Load sets from coach plan (tabataSets)
@@ -7307,7 +7308,7 @@ function selectCircuit(){
   const today=todayStr();
   const plan=d.sessionPlans[today];
   const grp=ST.athlete.group;
-  const grpPlan=plan?(plan[grp]||plan['all']):null;
+  const grpPlan=_planGrpData(plan,ST.athlete);
   const banner=document.getElementById('circuit-plan-banner');
   const circuitExs=grpPlan?(grpPlan.exercises||[]).filter(e=>e.subCategory==='Circuit'||e.trainingType==='Circuit'):[];
   ST._circuitRound=1;
