@@ -1904,7 +1904,8 @@ function _updateExProgress(){
 
 function goLogTraining(){
   const d=getData();
-  const today=todayStr();
+  const today=ST._logDate||todayStr();
+  const isYesterday=!!ST._logDate&&ST._logDate!==todayStr();
   const plan=d.sessionPlans[today];
   const grp=ST.athlete.group;
   const grpData=plan?(plan[grp]||plan['all']):null;
@@ -1923,7 +1924,7 @@ function goLogTraining(){
   const title=document.getElementById('log-sess-title');
   const sub=document.getElementById('log-sess-sub');
   if(hasPlan){
-    title.textContent='Today\'s Sessions';
+    title.textContent=isYesterday?'Yesterday\'s Sessions · Gestern':'Today\'s Sessions';
     sub.textContent=plan?.phase?`${plan.phase}${plan.week?' · Week '+plan.week:''}`:'';
     function _condCard(sess,condText){
       if(!condText) return '';
@@ -2045,7 +2046,7 @@ function goLogTraining(){
     wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_recentLogsSection();
   } else {
     title.textContent=`${ST.athlete.name}, what did you do?`;
-    sub.textContent='No session plan for today — select type manually';
+    sub.textContent=isYesterday?`Log for ${today} — select type manually`:'No session plan for today — select type manually';
     wrap.innerHTML=`
       <div class="type-grid">
         <div class="type-card" onclick="selectType('weight')">
