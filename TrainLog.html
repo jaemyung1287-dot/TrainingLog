@@ -3384,11 +3384,11 @@ function _exVolSplit(logs){
       total+=vol;
     });
   });
-  // Aggregate by main category: Power Development vs Resistance Training
+  // Aggregate by main category: Power Development vs Resistance Training (Other → Resistance)
   let liftingVol=0, weightVol=0;
   Object.entries(byType).forEach(([k,v])=>{
     if(k.startsWith('Power Development')) liftingVol+=v;
-    else if(k.startsWith('Resistance Training')) weightVol+=v;
+    else weightVol+=v; // Resistance Training + Core + Stability + Other → all count as Resistance
   });
   return {lifting:Math.round(liftingVol), weight:Math.round(weightVol), total:Math.round(total), byType};
 }
