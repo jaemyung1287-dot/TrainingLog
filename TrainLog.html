@@ -1661,7 +1661,12 @@ function showScreen(id){
 }
 function goHome(){ stopCloudSync(); ST.editingLogId=null; ST._extraEditLogIds=[]; if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;} showScreen('s-home'); }
 function goAthleteMode(){ stopCloudSync(); ST.athlete=null; showScreen('s-athlete-select'); renderAthleteChips(); }
-function backToAthleteMenu(){ ST.editingLogId=null; ST._extraEditLogIds=[]; if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;} showScreen('s-athlete-menu'); }
+function backToAthleteMenu(){
+  ST.editingLogId=null; ST._extraEditLogIds=[]; ST._logDate=null;
+  if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;}
+  if(ST._editFromCoach){ ST._editFromCoach=false; document.getElementById('coach-tabbar').classList.remove('show'); showScreen('s-ath-detail'); return; }
+  showScreen('s-athlete-menu');
+}
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('Please select your name'); return; }
   // If athlete has a PIN, show PIN screen first
@@ -4659,6 +4664,8 @@ function _editLog(logId){
   ST.athlete=ath;
   ST.editingLogId=logId;
   ST._extraEditLogIds=[];
+  ST._logDate=log.date;      // preserve original log date
+  ST._editFromCoach=true;    // back button returns to s-ath-detail
   const prog=d.programs[ath.group]||{};
 
   if(log.type==='weight'||log.type==='plyo'){
