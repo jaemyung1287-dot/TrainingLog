@@ -1739,10 +1739,20 @@ function _enterAthleteMenu(){
     const yTotalExs=_yExs(yGrpData,'am').length+_yExs(yGrpData,'pm').length;
     const yHasCond=(yGrpData?.am?.conditioningText||'').trim().length>0||(yGrpData?.pm?.conditioningText||'').trim().length>0;
     const yHasPlan=yTotalExs>0||yHasCond;
-    const yHasLog=data.logs.some(l=>l.athleteName===ST.athlete.name&&l.date===yesterday);
-    if(yHasPlan&&!yHasLog){
+    const yLogs=data.logs.filter(l=>l.athleteName===ST.athlete.name&&l.date===yesterday);
+    // Check AM and PM sessions separately — banner stays until ALL planned sessions are logged
+    const yAmExs=_yExs(yGrpData,'am'); const yPmExs=_yExs(yGrpData,'pm');
+    const yAmNames=new Set(yAmExs.map(e=>e.name));
+    const yPmNames=new Set(yPmExs.map(e=>e.name));
+    const yAmLogged=yAmExs.length===0||yLogs.some(l=>(l.exercises||[]).some(e=>yAmNames.has(e.name)));
+    const yPmLogged=yPmExs.length===0||yLogs.some(l=>(l.exercises||[]).some(e=>yPmNames.has(e.name)));
+    const yAllLogged=yAmLogged&&yPmLogged;
+    const yUnlogged=[];
+    if(!yAmLogged&&yAmExs.length) yUnlogged.push('AM');
+    if(!yPmLogged&&yPmExs.length) yUnlogged.push('PM');
+    if(yHasPlan&&!yAllLogged){
       missedCard.style.display='block';
-      if(missedSub){ const d=new Date(yesterday+'T12:00:00'); missedSub.textContent=`${d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})} — not logged yet`; }
+      if(missedSub){ const d=new Date(yesterday+'T12:00:00'); missedSub.textContent=`${d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})} — ${yUnlogged.join(' & ')} not logged yet`; }
     } else {
       missedCard.style.display='none';
     }
