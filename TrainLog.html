@@ -2396,7 +2396,7 @@ function _renderAthRecentLogs(targetId){
     // Show all logged entries for this date
     logsForDay.forEach(l=>{
       let stat='';
-      if(l.type==='weight') stat=`${(l.totalVolume||0).toLocaleString()} kg`;
+      if(l.type==='weight') stat=`${_exVolSplit([l]).total.toLocaleString()} kg`;
       else if(l.type==='sprint') stat=`${(l.totalDistance||0).toLocaleString()} m`;
       else if(l.type==='plyo'){
         const pts=[];
@@ -3552,7 +3552,7 @@ function renderToday(){
   const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo');
   const dw=new Date();
   document.getElementById('coach-date-ttl').textContent=`${DAYS[dw.getDay()]}, ${dw.toLocaleString('en',{month:'long'})} ${dw.getDate()}`;
-  const tvol=tr.filter(l=>l.type==='weight').reduce((s,l)=>s+l.totalVolume,0);
+  const tvol=_exVolSplit(tr.filter(l=>l.type==='weight')).total;
   document.getElementById('today-stats-grid').innerHTML=`
     <div class="stat"><div class="stat-lbl">Athletes</div><div class="stat-val c-blue">${d.athletes.length}</div></div>
     <div class="stat"><div class="stat-lbl">Checked In</div><div class="stat-val c-green">${new Set(cl.map(l=>l.athleteName)).size}</div></div>
@@ -3599,7 +3599,7 @@ function renderToday(){
       if(_dispContacts>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${_dispContacts.toLocaleString()}</span></div>`;
       if(!statsHtml) statsHtml=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">—</span></div>`;
     } else {
-      statsHtml=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${(l.totalVolume||0).toLocaleString()} kg</span></div>`;
+      statsHtml=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${_exVolSplit([l]).total.toLocaleString()} kg</span></div>`;
     }
     return `<div class="detail-card">
       <div class="detail-row"><span class="detail-key">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${badgeClass}">${badgeText}</span>${_editBtn(l.id)}${_delBtn(l.id,'today')}</div></div>
@@ -3870,7 +3870,7 @@ function openAthDetail(name){
     if(l.type==='weight'||l.type==='plyo'){
       summaryHtml=`<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:12px;color:var(--muted)">Volume</span>
-        <span style="font-size:13px;font-weight:700;color:var(--text)">${(l.totalVolume||0).toLocaleString()} kg</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${_exVolSplit([l]).total.toLocaleString()} kg</span>
       </div>`+_exChips(l.exercises||[]);
     } else if(l.type==='sprint'){
       summaryHtml=`<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
@@ -4780,7 +4780,7 @@ function _deleteAthLog(id){
   if(!log) return;
   const typeLabel={weight:'Weight Training',plyo:'Plyo Training',sprint:'Sprint Training'};
   const label=typeLabel[log.type]||log.type;
-  const stat=log.type==='weight'?`${(log.totalVolume||0).toLocaleString()} kg`
+  const stat=log.type==='weight'?`${_exVolSplit([log]).total.toLocaleString()} kg`
     :log.type==='sprint'?`${(log.totalDistance||0).toLocaleString()} m`
     :log.type==='plyo'?`${log.totalReps||0} reps / ${log.totalContacts||0} contacts`:'';
 
