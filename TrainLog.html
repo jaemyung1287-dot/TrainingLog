@@ -3379,7 +3379,12 @@ function _exVolSplit(logs){
   logs.filter(l=>l.type==='weight').forEach(log=>{
     (log.exercises||[]).forEach(ex=>{
       if(ex.isBodyweight) return; // bodyweight exercises excluded from volume charts
-      const vol=(ex.weight||0)*(ex.sets||0)*(ex.reps||0);
+      let vol=0;
+      if(ex.setRows&&ex.setRows.length){
+        vol=ex.setRows.reduce((s,row)=>s+(parseFloat(row.kg)||0)*(parseFloat(row.reps)||0),0);
+      } else {
+        vol=(parseFloat(ex.weight)||0)*(parseInt(ex.sets)||0)*(parseInt(ex.reps)||0);
+      }
       const key=ex.trainingType&&ex.subCategory?`${ex.trainingType}·${ex.subCategory}`:'Other';
       byType[key]=(byType[key]||0)+vol;
       total+=vol;
