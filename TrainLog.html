@@ -1057,6 +1057,8 @@ const APP_VERSION = '20260520-6';
     <button class="plan-grp-btn" id="pgrp-A" onclick="setPlanGroup('A')">Group A</button>
     <button class="plan-grp-btn" id="pgrp-B" onclick="setPlanGroup('B')">Group B</button>
   </div>
+  <!-- Individual athlete plan buttons (rendered dynamically) -->
+  <div id="pgrp-athletes-wrap" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
 
   <!-- Phase / Week -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
@@ -1703,7 +1705,7 @@ function _enterAthleteMenu(){
   const data=getData(); const today=todayStr();
   const plan=data.sessionPlans[today];
   const grp=ST.athlete.group;
-  const grpData=plan?(plan[grp]||plan['all']):null;
+  const grpData=_planGrpData(plan,ST.athlete);
   const card=document.getElementById('menu-today-plan-card');
   const summary=document.getElementById('menu-plan-summary');
   // Collect AM and PM exercises (new format) or flat (backward compat)
@@ -1734,7 +1736,7 @@ function _enterAthleteMenu(){
   if(missedCard){
     const yesterday=yesterdayStr();
     const yPlan=data.sessionPlans[yesterday];
-    const yGrpData=yPlan?(yPlan[grp]||yPlan['all']):null;
+    const yGrpData=_planGrpData(yPlan,ST.athlete);
     function _yExs(gd,s){ if(!gd)return []; if(gd[s]&&Array.isArray(gd[s].exercises))return gd[s].exercises; if(s==='am'&&Array.isArray(gd.exercises))return gd.exercises; return []; }
     const yTotalExs=_yExs(yGrpData,'am').length+_yExs(yGrpData,'pm').length;
     const yHasCond=(yGrpData?.am?.conditioningText||'').trim().length>0||(yGrpData?.pm?.conditioningText||'').trim().length>0;
@@ -1764,7 +1766,7 @@ function goTodayPlan(){
   const d=getData(); const today=todayStr();
   const plan=d.sessionPlans[today];
   const grp=ST.athlete.group;
-  const grpData=plan?(plan[grp]||plan['all']):null;
+  const grpData=_planGrpData(plan,ST.athlete);
   if(!grpData) return;
   // Determine preferred session block
   const isAM=new Date().getHours()<12;
@@ -1937,7 +1939,7 @@ function goLogTraining(){
   const isYesterday=!!ST._logDate&&ST._logDate!==todayStr();
   const plan=d.sessionPlans[today];
   const grp=ST.athlete.group;
-  const grpData=plan?(plan[grp]||plan['all']):null;
+  const grpData=_planGrpData(plan,ST.athlete);
   function _sessExs(gd,s){
     if(!gd) return [];
     if(gd[s]&&Array.isArray(gd[s].exercises)) return gd[s].exercises;
@@ -2110,7 +2112,7 @@ function selectType(t){
     const today=ST._logDate||todayStr();
     const plan=d.sessionPlans[today];
     const grp=ST.athlete.group;
-    const grpData=plan?(plan[grp]||plan['all']):null;
+    const grpData=_planGrpData(plan,ST.athlete);
     // Determine which session block to use (set by goTodayPlan, or auto by time)
     const sess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
     ST._todayPlanSession=null; // clear after use
@@ -2254,7 +2256,7 @@ function selectType(t){
     const today=todayStr();
     const plan=d.sessionPlans[today];
     const grp=ST.athlete.group;
-    const grpData=plan?(plan[grp]||plan['all']):null;
+    const grpData=_planGrpData(plan,ST.athlete);
     const sprintBanner=document.getElementById('sp-plan-banner');
     const sprintAddBtn=document.getElementById('sp-add-btn');
     // Use selected AM/PM session (set by _selectLogSession)
@@ -3626,7 +3628,7 @@ function renderToday(){
   const _todayPlan=d.sessionPlans[today];
   function _athleteHasPlanToday(a){
     if(!_todayPlan) return false;
-    const grpData=_todayPlan[a.group]||_todayPlan['all'];
+    const grpData=_todayPlan['ath_'+a.id]||_todayPlan[a.group]||_todayPlan['all'];
     if(!grpData) return false;
     const exs=[
       ...(grpData.am?.exercises||[]),
@@ -5321,6 +5323,12 @@ function _renderPlanWeek(){
   }
 }
 
+function _planGrpData(plan, ath){
+  // Priority: individual athlete plan → group plan → all
+  if(!plan) return null;
+  if(ath){ const ak='ath_'+ath.id; return plan[ak]||plan[ath.group]||plan['all']||null; }
+  return plan['all']||null;
+}
 function setPlanGroup(g){
   ST._planGroup=g; ST._planActiveInput=null; _renderPlanGroupBtns(); _loadPlanForDay();
 }
@@ -5329,6 +5337,15 @@ function _renderPlanGroupBtns(){
     const btn=document.getElementById('pgrp-'+g); if(!btn)return;
     btn.classList.toggle('on', ST._planGroup===g);
   });
+  // Render individual athlete buttons
+  const _athWrap=document.getElementById('pgrp-athletes-wrap');
+  if(!_athWrap) return;
+  const _d=getData();
+  _athWrap.innerHTML=(_d.athletes||[]).map(a=>{
+    const key='ath_'+a.id;
+    const on=ST._planGroup===key?'on':'';
+    return `<button class="plan-grp-btn ${on}" onclick="setPlanGroup('${key}')" style="font-size:12px">${a.name.split(' ')[0]}</button>`;
+  }).join('');
 }
 
 function _loadPlanForDay(){
