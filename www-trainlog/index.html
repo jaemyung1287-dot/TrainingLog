@@ -3373,22 +3373,23 @@ function renderProgram(){
 //  ATHLETE STATS
 // ════════════════════════════════════════════════
 function _exVolSplit(logs){
-  // Returns volume by trainingType+subCategory
+  // Returns volume by trainingType+subCategory (bodyweight exercises excluded — no external load)
   const byType={}; // { 'Power Lifting·Power': 1200, ... }
   let total=0;
   logs.filter(l=>l.type==='weight').forEach(log=>{
     (log.exercises||[]).forEach(ex=>{
+      if(ex.isBodyweight) return; // bodyweight exercises excluded from volume charts
       const vol=(ex.weight||0)*(ex.sets||0)*(ex.reps||0);
       const key=ex.trainingType&&ex.subCategory?`${ex.trainingType}·${ex.subCategory}`:'Other';
       byType[key]=(byType[key]||0)+vol;
       total+=vol;
     });
   });
-  // Aggregate by main category: Power Development vs Resistance Training (Other → Resistance)
+  // Aggregate: Power Development → lifting chart, everything else (Resistance Training + Other) → weight chart
   let liftingVol=0, weightVol=0;
   Object.entries(byType).forEach(([k,v])=>{
     if(k.startsWith('Power Development')) liftingVol+=v;
-    else weightVol+=v; // Resistance Training + Core + Stability + Other → all count as Resistance
+    else weightVol+=v;
   });
   return {lifting:Math.round(liftingVol), weight:Math.round(weightVol), total:Math.round(total), byType};
 }
