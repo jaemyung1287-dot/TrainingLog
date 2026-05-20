@@ -1681,6 +1681,8 @@ function backToAthleteMenu(){
 }
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('Please select your name'); return; }
+  // If coming from coach edit, return to coach athlete detail
+  if(ST._editFromCoach){ ST._editFromCoach=false; ST._logDate=null; document.getElementById('coach-tabbar').classList.remove('show'); showScreen('s-ath-detail'); return; }
   // If athlete has a PIN, show PIN screen first
   if(ST.athlete.pin){
     ST.athPinBuf='';
