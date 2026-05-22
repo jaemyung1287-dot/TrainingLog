@@ -230,23 +230,16 @@ tr:last-child td{border-bottom:none}
 .plan-grp-toggle{display:flex;background:rgba(255,255,255,.06);border-radius:10px;padding:3px;margin-bottom:16px}
 .plan-grp-btn{flex:1;padding:9px;border:none;background:none;color:var(--muted);font-size:13px;font-weight:600;border-radius:8px;cursor:pointer;font-family:inherit;transition:all .2s}
 .plan-grp-btn.on{background:rgba(201,168,76,.18);color:var(--accent)}
-/* Athlete card list (Session Plan) */
-.plan-ath-card{display:flex;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-.plan-ath-card.sel{border-color:var(--accent);background:rgba(201,168,76,.08)}
-.plan-ath-card:active{transform:scale(.98)}
-.plan-ath-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;transition:all .2s}
-.plan-ath-av.av-a{background:rgba(79,142,247,.15);color:var(--blue)}
-.plan-ath-av.av-b{background:rgba(62,207,142,.15);color:var(--green)}
-.plan-ath-av.av-sel{background:rgba(201,168,76,.2);color:var(--accent)}
-.plan-ath-info{flex:1;min-width:0}
-.plan-ath-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.plan-ath-card.sel .plan-ath-name{color:var(--accent);font-weight:700}
-.plan-ath-grp{font-size:10px;color:var(--muted);margin-top:1px}
-.plan-ath-badge{font-size:10px;padding:3px 8px;border-radius:10px;font-weight:600;flex-shrink:0;white-space:nowrap}
-.plan-ath-badge.badge-has{background:rgba(62,207,142,.12);color:var(--green)}
-.plan-ath-badge.badge-no{background:rgba(255,255,255,.05);color:var(--muted)}
-.plan-ath-arrow{font-size:14px;color:var(--border);flex-shrink:0;transition:color .2s}
-.plan-ath-card.sel .plan-ath-arrow{color:var(--accent)}
+/* Athlete avatar bar (Session Plan) */
+.plan-av-bar{display:flex;gap:10px;overflow-x:auto;padding:2px 0 6px;margin-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.plan-av-bar::-webkit-scrollbar{display:none}
+.plan-av-item{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.plan-av-circle{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid transparent;transition:all .2s}
+.plan-av-circle.av-a{background:rgba(79,142,247,.15);color:var(--blue)}
+.plan-av-circle.av-b{background:rgba(62,207,142,.15);color:var(--green)}
+.plan-av-circle.av-sel{background:rgba(201,168,76,.2);color:var(--accent);border-color:var(--accent)}
+.plan-av-name{font-size:9px;color:var(--muted);white-space:nowrap;transition:color .2s}
+.plan-av-name.av-sel{color:var(--accent);font-weight:700}
 /* Effort buttons (athlete only) */
 .effort-row{display:flex;gap:5px;margin-top:8px}
 .effort-lbl{font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
@@ -5348,36 +5341,31 @@ function _planGrpData(plan, ath){
   return plan['all']||null;
 }
 function setPlanGroup(g){
+  if(g==='all'||g==='A'||g==='B') ST._planGroupFilter=g;
   ST._planGroup=g; ST._planActiveInput=null; _renderPlanGroupBtns(); _loadPlanForDay();
 }
 function _renderPlanGroupBtns(){
   ['all','A','B'].forEach(g=>{
     const btn=document.getElementById('pgrp-'+g); if(!btn)return;
-    btn.classList.toggle('on', ST._planGroup===g);
+    btn.classList.toggle('on', (ST._planGroupFilter||'all')===g);
   });
   // Render individual athlete buttons
   const _athWrap=document.getElementById('pgrp-athletes-wrap');
   if(!_athWrap) return;
   const _d=getData();
-  const _dayPlan=(_d.sessionPlans||{})[ST._planDay]||{};
-  _athWrap.innerHTML=(_d.athletes||[]).map(a=>{
+  const _filter=ST._planGroupFilter||'all';
+  const _filtered=(_d.athletes||[]).filter(a=>_filter==='all'||a.group===_filter);
+  _athWrap.innerHTML=`<div class="plan-av-bar">${_filtered.map(a=>{
     const key='ath_'+a.id;
     const isSel=ST._planGroup===key;
     const parts=a.name.split(' ');
     const initials=(parts[0]?parts[0][0]:'')+(parts[1]?parts[1][0]:'');
-    const avCls=isSel?'av-sel':(a.group==='B'?'av-b':'av-a');
-    const athPlan=_dayPlan[key];
-    const hasPlan=athPlan&&['am','pm'].some(s=>athPlan[s]&&athPlan[s].exercises&&athPlan[s].exercises.length>0);
-    return `<div class="plan-ath-card${isSel?' sel':''}" onclick="setPlanGroup('${key}')">
-      <div class="plan-ath-av ${avCls}">${initials}</div>
-      <div class="plan-ath-info">
-        <div class="plan-ath-name">${a.name}</div>
-        <div class="plan-ath-grp">Group ${a.group}</div>
-      </div>
-      <span class="plan-ath-badge ${hasPlan?'badge-has':'badge-no'}">${hasPlan?'계획 있음':'미입력'}</span>
-      <span class="plan-ath-arrow">›</span>
+    const cirCls=isSel?'av-sel':(a.group==='B'?'av-b':'av-a');
+    return `<div class="plan-av-item" onclick="setPlanGroup('${key}')">
+      <div class="plan-av-circle ${cirCls}">${initials}</div>
+      <div class="plan-av-name${isSel?' av-sel':''}">${parts[0]}</div>
     </div>`;
-  }).join('');
+  }).join('')}</div>`;
 }
 
 function _loadPlanForDay(){
