@@ -1734,7 +1734,14 @@ function _enterAthleteMenu(){
   const pmExs=_sessExs(grpData,'pm');
   const totalExs=amExs.length+pmExs.length;
   const hasCond=(grpData?.am?.conditioningText||'').trim().length>0||(grpData?.pm?.conditioningText||'').trim().length>0;
-  if(totalExs>0||hasCond){
+  // Check if today's planned sessions are already logged
+  const todayLogs=data.logs.filter(l=>l.athleteName===ST.athlete.name&&l.date===today);
+  const amNames=new Set(amExs.map(e=>e.name));
+  const pmNames=new Set(pmExs.map(e=>e.name));
+  const amLogged=amExs.length===0||todayLogs.some(l=>(l.exercises||[]).some(e=>amNames.has(e.name)));
+  const pmLogged=pmExs.length===0||todayLogs.some(l=>(l.exercises||[]).some(e=>pmNames.has(e.name)));
+  const todayAllLogged=amLogged&&pmLogged;
+  if((totalExs>0||hasCond)&&!todayAllLogged){
     card.style.display='block';
   } else {
     card.style.display='none';
