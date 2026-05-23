@@ -1353,11 +1353,13 @@ function startCloudSync(){
     const cloudScore=_dataScore(cloudData);
     if(cloudTs>=localTs && cloudScore>=localScore-50){
       _backupLocal();
-      // Merge: preserve local-only logs not yet in cloud
+      // Merge: preserve local-only logs not yet in cloud, but never restore deleted IDs
+      const _deletedIds=_getDeletedIds();
+      cloudData.logs=(cloudData.logs||[]).filter(l=>!_deletedIds.has(l.id));
       if(local?.logs?.length){
-        const cloudIds=new Set((cloudData.logs||[]).map(l=>l.id));
-        const localOnly=local.logs.filter(l=>!cloudIds.has(l.id));
-        if(localOnly.length) cloudData.logs=[...(cloudData.logs||[]),...localOnly];
+        const cloudIds=new Set(cloudData.logs.map(l=>l.id));
+        const localOnly=local.logs.filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
+        if(localOnly.length) cloudData.logs=[...cloudData.logs,...localOnly];
       }
       localStorage.setItem(SK,JSON.stringify(cloudData));
       // Refresh coach view if active
@@ -1382,6 +1384,17 @@ function stopCloudSync(){
 }
 
 const SK='trainlog_v5'; // bumped to avoid stale cache conflicts
+const SK_DELETED='trainlog_v5_deleted'; // blacklist of deleted log IDs
+function _addDeletedId(id){
+  try{
+    const raw=localStorage.getItem(SK_DELETED);
+    const set=new Set(raw?JSON.parse(raw):[]);
+    set.add(id); localStorage.setItem(SK_DELETED,JSON.stringify([...set]));
+  }catch(e){}
+}
+function _getDeletedIds(){
+  try{ const raw=localStorage.getItem(SK_DELETED); return raw?new Set(JSON.parse(raw)):new Set(); }catch(e){ return new Set(); }
+}
 const BODY_PARTS={
   upper:['Neck','Shoulder','Chest','Back','Arm'],
   lower:['Hip','Quad','Glute','Hamstring','Adductor','Calf','Ankle','Foot'],
@@ -4883,6 +4896,7 @@ function _toggleLogDetail(detailId, chevId){
 }
 function deleteLog(id, ctx){
   // ctx: 'today' | 'detail' | 'load'
+  _addDeletedId(id);
   const d=getData();
   d.logs=d.logs.filter(l=>l.id!==id);
   saveData(d);
@@ -4918,6 +4932,7 @@ function _deleteAthLog(id){
   const rm=()=>document.body.removeChild(el);
   el.querySelector('#_del-confirm').onclick=()=>{
     rm();
+    _addDeletedId(id);
     const dd=getData();
     dd.logs=dd.logs.filter(l=>l.id!==id);
     saveData(dd); // saves locally + syncs to Firebase → coach view updated
