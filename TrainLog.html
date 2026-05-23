@@ -736,10 +736,6 @@ const APP_VERSION = '20260520-6';
     <canvas id="chart-my-vbt"></canvas>
     <div id="vbt-vl-row" style="margin-top:10px"></div>
   </div>
-  <div id="vbt-sessions-section" style="display:none">
-    <div class="sec-ttl" style="margin-top:20px">⚡ VBT Squat Analysis — 2026-05-22</div>
-    <div id="vbt-session-cards"></div>
-  </div>
   <div class="sec-ttl" style="margin-top:20px">🏆 Team Ranking</div>
   <div style="display:flex;gap:8px;margin-bottom:12px">
     <button class="period-btn on" id="ts-week" onclick="setTeamPeriod('week',this)">Weekly</button>
@@ -3444,157 +3440,6 @@ function _exVolSplit(logs){
   return {lifting:Math.round(liftingVol), weight:Math.round(weightVol), total:Math.round(total), byType};
 }
 
-// ════════════════════════════════════════════════
-//  VBT SESSION DATA — 2026-05-22 (PoinT GO Coach, artifact-corrected)
-// ════════════════════════════════════════════════
-const VBT_SESSIONS={
-  'Moritz Menning':[
-    {date:'2026-05-22',time:'21:43',weight:70,reps:[
-      {r:1,v:0.39,rom:null,art:false},
-      {r:2,v:0.32,rom:null,art:false},
-      {r:3,v:0.47,rom:null,art:false}
-    ],peakV:0.47,lastV:0.47,volume:210,appVL:null,corrVL:null,rating:'warmup',note:'V형 패턴 (Rep2 최저)'},
-    {date:'2026-05-22',time:'21:50',weight:60,reps:[
-      {r:1,v:0.47,rom:70,art:false},
-      {r:2,v:null,rom:null,art:false},
-      {r:3,v:null,rom:null,art:false},
-      {r:4,v:null,rom:null,art:false},
-      {r:5,v:0.35,rom:70,art:false},
-      {r:6,v:0.16,rom:15,art:true,artType:'dropout'}
-    ],peakV:0.47,lastV:0.35,volume:360,appVL:66.0,corrVL:25.5,rating:'moderate'},
-    {date:'2026-05-22',time:'21:57',weight:60,reps:[
-      {r:1,v:0.24,rom:37,art:true,artType:'groove'},
-      {r:2,v:0.56,rom:75,art:false},
-      {r:3,v:null,rom:null,art:false},
-      {r:4,v:null,rom:null,art:false},
-      {r:5,v:null,rom:null,art:false},
-      {r:6,v:0.47,rom:70,art:false}
-    ],peakV:0.56,lastV:0.47,volume:360,appVL:-94.4,corrVL:16.1,rating:'good'},
-    {date:'2026-05-22',time:'22:05',weight:60,reps:[
-      {r:1,v:0.46,rom:70,art:false},
-      {r:2,v:0.48,rom:80,art:false},
-      {r:3,v:0.36,rom:64,art:false},
-      {r:4,v:0.45,rom:69,art:false},
-      {r:5,v:0.41,rom:85,art:false}
-    ],peakV:0.48,lastV:0.41,volume:300,appVL:12.0,corrVL:14.6,rating:'good'}
-  ],
-  'Charlize Reimann':[
-    {date:'2026-05-22',time:'21:48',weight:55,reps:[
-      {r:1,v:0.41,rom:56,art:false},
-      {r:2,v:0.48,rom:29,art:true,artType:'partial'},
-      {r:3,v:0.37,rom:60,art:false},
-      {r:4,v:0.31,rom:56,art:false},
-      {r:5,v:0.23,rom:41,art:false}
-    ],peakV:0.41,lastV:0.23,volume:275,appVL:44.0,corrVL:43.9,rating:'high'},
-    {date:'2026-05-22',time:'21:53',weight:55,reps:[
-      {r:1,v:0.20,rom:19,art:true,artType:'groove'},
-      {r:2,v:0.35,rom:57,art:false},
-      {r:3,v:0.34,rom:48,art:false},
-      {r:4,v:0.40,rom:58,art:false},
-      {r:5,v:0.34,rom:53,art:false},
-      {r:6,v:0.30,rom:53,art:false}
-    ],peakV:0.40,lastV:0.30,volume:330,appVL:-51.0,corrVL:25.0,rating:'moderate'},
-    {date:'2026-05-22',time:'22:03',weight:53,reps:[
-      {r:1,v:0.31,rom:39,art:true,artType:'groove'},
-      {r:2,v:0.52,rom:75,art:false},
-      {r:3,v:0.33,rom:55,art:false},
-      {r:4,v:0.32,rom:52,art:false},
-      {r:5,v:0.41,rom:64,art:false}
-    ],peakV:0.52,lastV:0.41,volume:263,appVL:-33.8,corrVL:21.2,rating:'moderate'}
-  ],
-  'Maria Votz':[
-    {date:'2026-05-22',time:'21:51',weight:50,reps:[
-      {r:1,v:0.30,rom:46,art:false},
-      {r:2,v:0.36,rom:61,art:false},
-      {r:3,v:0.27,rom:50,art:false},
-      {r:4,v:0.30,rom:49,art:false},
-      {r:5,v:0.23,rom:44,art:false}
-    ],peakV:0.36,lastV:0.23,volume:250,appVL:22.0,corrVL:36.1,rating:'high'},
-    {date:'2026-05-22',time:'21:59',weight:50,reps:[
-      {r:1,v:0.11,rom:83,art:true,artType:'groove'},
-      {r:2,v:0.33,rom:49,art:false},
-      {r:3,v:0.28,rom:54,art:false},
-      {r:4,v:0.29,rom:52,art:false},
-      {r:5,v:0.58,rom:41,art:true,artType:'partial'},
-      {r:6,v:0.30,rom:60,art:false}
-    ],peakV:0.33,lastV:0.30,volume:300,appVL:-180.9,corrVL:9.1,rating:'good'}
-  ]
-};
-
-function renderVbtSessionCards(name){
-  const section=document.getElementById('vbt-sessions-section');
-  const container=document.getElementById('vbt-session-cards');
-  if(!section||!container) return;
-  const sessions=(VBT_SESSIONS[name]||[]);
-  if(!sessions.length){section.style.display='none';return;}
-  section.style.display='block';
-  const RC={
-    good:  {emoji:'🟢',label:'Good',    col:'#3ecf8e'},
-    moderate:{emoji:'🟡',label:'Moderate',col:'#f7a94f'},
-    high:  {emoji:'🔴',label:'High',    col:'#e94560'},
-    warmup:{emoji:'🏁',label:'Warmup',  col:'#8b949e'}
-  };
-  container.innerHTML=sessions.map(s=>{
-    const rc=RC[s.rating]||RC.good;
-    // Badge
-    const badge=s.rating==='warmup'
-      ?`<span style="background:rgba(139,148,158,.15);color:#8b949e;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700">🏁 Warmup</span>`
-      :`<span style="background:${rc.col}22;color:${rc.col};padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700">${rc.emoji} ${rc.label} ${s.corrVL.toFixed(1)}%</span>`;
-    // VL correction line
-    let vlLine='';
-    if(s.rating!=='warmup'){
-      const diff=s.appVL!==null&&Math.abs(s.appVL-s.corrVL)>5;
-      vlLine=diff
-        ?`<div style="margin:5px 0 7px;font-size:11px"><span style="text-decoration:line-through;color:var(--muted)">앱 ${s.appVL>=0?'+':''}${s.appVL.toFixed(1)}%</span> <span style="color:${rc.col};font-weight:700">→ 보정 ${s.corrVL.toFixed(1)}%</span></div>`
-        :`<div style="margin:5px 0 7px;font-size:11px;color:${rc.col};font-weight:700">VL ${s.corrVL.toFixed(1)}%</div>`;
-    }
-    // Stats row
-    const stats=s.rating==='warmup'
-      ?`<div style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:10px"><span>⚡ <b style="color:var(--text)">${s.peakV.toFixed(2)} m/s</b></span><span>📦 <b style="color:var(--text)">${s.volume}kg</b></span>${s.note?`<span style="font-size:11px;font-style:italic">${s.note}</span>`:''}</div>`
-      :`<div style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:10px"><span>⚡ Peak <b style="color:#a78bfa">${s.peakV.toFixed(2)}</b></span><span>✅ Last <b style="color:#4f8ef7">${s.lastV.toFixed(2)}</b></span><span>📦 <b style="color:var(--text)">${s.volume}kg</b></span></div>`;
-    // Bar chart
-    const validVs=s.reps.filter(r=>r.v!==null).map(r=>r.v);
-    const maxV=validVs.length?Math.max(...validVs):1;
-    const BH=52;
-    const validNonArt=s.reps.filter(r=>!r.art&&r.v!==null);
-    const peakRep=validNonArt.length?validNonArt.reduce((a,b)=>b.v>a.v?b:a):null;
-    const lastRep=validNonArt.length?validNonArt[validNonArt.length-1]:null;
-    const barCols=s.reps.map(r=>{
-      if(r.v===null) return {col:'rgba(255,255,255,.06)',h:5,label:'?',vLabel:'',art:false,null:true};
-      const h=Math.max(4,Math.round((r.v/maxV)*BH));
-      if(r.art)   return {col:'rgba(139,148,158,.35)',h,label:'art.',vLabel:'',art:true};
-      if(r===peakRep) return {col:'#a78bfa',h,label:r.v.toFixed(2),vLabel:'#a78bfa',art:false};
-      if(r===lastRep) return {col:'#4f8ef7',h,label:r.v.toFixed(2),vLabel:'#4f8ef7',art:false};
-      return {col:'#3ecf8e',h,label:r.v.toFixed(2),vLabel:'#3ecf8e',art:false};
-    });
-    const barsHTML=s.reps.map((r,i)=>{
-      const bc=barCols[i];
-      if(bc.null) return `<div style="flex:1;display:flex;flex-direction:column;align-items:center"><div style="flex:1"></div><div style="width:70%;height:5px;background:${bc.col};border-radius:2px"></div><div style="height:12px"></div><div style="font-size:8px;color:rgba(255,255,255,.2)">R${r.r}</div></div>`;
-      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center">
-        <div style="flex:1"></div>
-        <div style="width:82%;height:${bc.h}px;background:${bc.col};border-radius:3px 3px 0 0"></div>
-        <div style="height:12px;display:flex;align-items:center;justify-content:center;font-size:8px;color:${bc.vLabel||'#8b949e'};font-weight:${bc.art?'400':'600'}">${bc.label}</div>
-        <div style="font-size:8px;color:rgba(255,255,255,.3)">R${r.r}</div>
-      </div>`;
-    }).join('');
-    const legend=s.rating==='warmup'?''
-      :`<div style="display:flex;gap:10px;font-size:9px;color:var(--muted);margin-top:5px">
-          <span><span style="color:#a78bfa">■</span> Peak</span>
-          <span><span style="color:#4f8ef7">■</span> Last valid</span>
-          <span><span style="color:#3ecf8e">■</span> Other</span>
-          <span><span style="color:rgba(139,148,158,.5)">■</span> Artifact</span>
-        </div>`;
-    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-size:15px;font-weight:700">${s.weight}kg × ${s.reps.length} reps <span style="color:var(--muted);font-size:12px;font-weight:400">${s.time}</span></span>
-        ${badge}
-      </div>
-      ${vlLine}${stats}
-      <div style="display:flex;gap:3px;height:${BH+26}px">${barsHTML}</div>
-      ${legend}
-    </div>`;
-  }).join('');
-}
 
 function renderAthStats(){
   const d=getData(); const name=ST.athlete.name;
@@ -3664,7 +3509,6 @@ function renderAthStats(){
     vbtBox.style.display='none';
   }
 
-  renderVbtSessionCards(name);
   renderMyRecords();
   ST._teamPeriod=ST._teamPeriod||'week';
   renderTeamRanking(d,ST._teamPeriod);
