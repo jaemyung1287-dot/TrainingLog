@@ -3844,9 +3844,9 @@ function renderLoadTab(){
       _mkDotChart('chart-load-resistance',rwl, months.map(m=>m.key), labels, _rvol,   ' kg', 'prefix');
       _mkDotChart('chart-load-sprint',    sl,  months.map(m=>m.key), labels, l=>l.totalDistance, ' m', 'prefix');
       _mkDotChart('chart-load-plyo',      pl,  months.map(m=>m.key), labels, _plyvol, '',    'prefix');
-      _mkDotChart('chart-load-fatigue', cc, months.map(m=>m.key), labels, l=>l.fatigue,     '', 'prefix');
-      _mkDotChart('chart-load-mood',    cc, months.map(m=>m.key), labels, l=>l.mood,         '', 'prefix');
-      _mkDotChart('chart-load-sleepq',  cc, months.map(m=>m.key), labels, l=>l.sleepQuality, '', 'prefix');
+      _mkDotChart('chart-load-fatigue', cc, months.map(m=>m.key), labels, l=>l.fatigue,     '', 'prefix', null, null, 'avg');
+      _mkDotChart('chart-load-mood',    cc, months.map(m=>m.key), labels, l=>l.mood,         '', 'prefix', null, null, 'avg');
+      _mkDotChart('chart-load-sleepq',  cc, months.map(m=>m.key), labels, l=>l.sleepQuality, '', 'prefix', null, null, 'avg');
       document.getElementById('load-cond-table').innerHTML='';
     } else {
       _mkSingleDotChart('chart-load-power',     pwl, months.map(m=>m.key), labels, _pvol,   ' kg', '#f7a94f');
@@ -3872,9 +3872,9 @@ function renderLoadTab(){
       _mkDotChart('chart-load-resistance',rwl, dates, labels, _rvol,   ' kg');
       _mkDotChart('chart-load-sprint',    sl,  dates, labels, l=>l.totalDistance, ' m');
       _mkDotChart('chart-load-plyo',      pl,  dates, labels, _plyvol, '');
-      _mkDotChart('chart-load-fatigue', cc, dates, labels, l=>l.fatigue,     '');
-      _mkDotChart('chart-load-mood',    cc, dates, labels, l=>l.mood,         '');
-      _mkDotChart('chart-load-sleepq',  cc, dates, labels, l=>l.sleepQuality, '');
+      _mkDotChart('chart-load-fatigue', cc, dates, labels, l=>l.fatigue,     '', 'exact', null, null, 'last');
+      _mkDotChart('chart-load-mood',    cc, dates, labels, l=>l.mood,         '', 'exact', null, null, 'last');
+      _mkDotChart('chart-load-sleepq',  cc, dates, labels, l=>l.sleepQuality, '', 'exact', null, null, 'last');
     } else {
       // Single athlete: dot per session, no legend
       _mkSingleDotChart('chart-load-power',     pwl, dates, labels, _pvol,   ' kg', '#f7a94f');
@@ -4384,7 +4384,7 @@ function mkChart(id,datasets,labels,opts={}){
 // dateMode: 'exact' (default) matches l.date===dt; 'prefix' matches l.date.startsWith(dt)
 // colorOverride: if set, all dots use this fixed color instead of per-athlete palette
 // yMax: optional Y-axis max
-function _mkDotChart(id, logs, dates, labels, valFn, unit, dateMode='exact', colorOverride=null, yMax=null){
+function _mkDotChart(id, logs, dates, labels, valFn, unit, dateMode='exact', colorOverride=null, yMax=null, aggMode='sum'){
   if(ST.charts[id]){ ST.charts[id].destroy(); }
   const ctx=document.getElementById(id); if(!ctx) return;
   const names=[...new Set(logs.map(l=>l.athleteName))].sort();
@@ -4394,6 +4394,8 @@ function _mkDotChart(id, logs, dates, labels, valFn, unit, dateMode='exact', col
     data:dates.map(dt=>{
       const dayLogs=logs.filter(l=>matchFn(l,dt)&&l.athleteName===name);
       if(!dayLogs.length) return null;
+      if(aggMode==='last') return valFn(dayLogs[dayLogs.length-1]);
+      if(aggMode==='avg') return Math.round(dayLogs.reduce((s,l)=>s+valFn(l),0)/dayLogs.length*10)/10;
       return dayLogs.reduce((s,l)=>s+valFn(l),0);
     }),
     borderColor:colorOverride||_athColor(i), backgroundColor:colorOverride||_athColor(i),
