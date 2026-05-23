@@ -2933,7 +2933,18 @@ function setExEffort(i,val){
   }
   _setExDone(i); // auto-check on effort selection
 }
-function toggleBW(i){ ST.exercises[i].isBodyweight=!ST.exercises[i].isBodyweight; if(ST.exercises[i].isBodyweight){ ST.exercises[i].weight=''; } else { ST.exercises[i].extraKg=''; } renderExList(); }
+function toggleBW(i){
+  ST.exercises[i].isBodyweight=!ST.exercises[i].isBodyweight;
+  if(ST.exercises[i].isBodyweight){
+    const athData=getData().athletes.find(a=>a.name===ST.athlete.name);
+    ST.exercises[i].weight=athData?.bodyWeight?String(athData.bodyWeight):'';
+    ST.exercises[i].extraKg='';
+  } else {
+    ST.exercises[i].weight='';
+    ST.exercises[i].extraKg='';
+  }
+  renderExList();
+}
 function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:''}); renderExList(); }
 function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exercises.push({name:'',intensity:'',weight:'',sets:'',reps:'',effort:''}); renderExList(); }
 function addSetToEx(i){
