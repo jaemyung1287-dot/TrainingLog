@@ -2438,6 +2438,18 @@ function _renderAthRecentLogs(targetId){
         if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
         stat=pts.join(' · ')||'—';
       }
+      // RPE colour helper
+      const rpe=Number(l.rpe)||0;
+      const rpeColor=rpe>=9?'#ef4444':rpe>=7?'#f97316':rpe>=4?'#f7a94f':'#3ecf8e';
+      const rpeLabel=rpe>=9?'Max 🔴':rpe>=7?'Hard 🟠':rpe>=4?'Moderate 🟡':rpe>0?'Easy 🟢':'—';
+      // Exercise chips (weight/plyo)
+      const exChips=(l.type==='weight'||l.type==='plyo')&&Array.isArray(l.exercises)&&l.exercises.length
+        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.exercises.map(e=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${e.name||'?'}</span>`).join('')}</div>`
+        :'';
+      // Sprint set summary chips
+      const sprintChips=l.type==='sprint'&&Array.isArray(l.sets)&&l.sets.length
+        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.sets.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${s.name||s.distance+'m'||'?'}</span>`).join('')}</div>`
+        :'';
       html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
         <div class="detail-row">
           <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span>
@@ -2448,7 +2460,16 @@ function _renderAthRecentLogs(targetId){
           </div>
         </div>
         <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
-        ${l.rpe?`<div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe}/10</span></div>`:''}
+        ${rpe?`<div class="detail-row" style="align-items:center">
+          <span class="detail-key">Effort</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:80px;height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden">
+              <div style="width:${rpe*10}%;height:100%;border-radius:3px;background:${rpeColor};transition:width .3s"></div>
+            </div>
+            <span style="font-size:12px;font-weight:700;color:${rpeColor}">${rpe}/10 ${rpeLabel}</span>
+          </div>
+        </div>`:''}
+        ${exChips}${sprintChips}
       </div>`;
     });
 
