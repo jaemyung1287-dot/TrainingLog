@@ -3795,8 +3795,14 @@ function renderLoadTab(){
   if(condAll) condAll.style.display=isAll?'block':'none';
 
   // Helper: compute volume for a weight log by training type
-  function _pvol(l){ return (l.exercises||[]).reduce((s,e)=>e.trainingType==='Power Development'?s+(e.weight||0)*(e.sets||0)*(e.reps||0):s,0); }
-  function _rvol(l){ return (l.exercises||[]).reduce((s,e)=>e.trainingType==='Resistance Training'?s+(e.weight||0)*(e.sets||0)*(e.reps||0):s,0); }
+  // Must mirror _exVolSplit: use setRows when available, exclude bodyweight
+  function _exVol(e){
+    if(e.isBodyweight) return 0;
+    if(e.setRows&&e.setRows.length) return e.setRows.reduce((s,row)=>s+(parseFloat(row.kg)||0)*(parseFloat(row.reps)||0),0);
+    return (parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
+  }
+  function _pvol(l){ return (l.exercises||[]).reduce((s,e)=>e.trainingType==='Power Development'?s+_exVol(e):s,0); }
+  function _rvol(l){ return (l.exercises||[]).reduce((s,e)=>e.trainingType==='Resistance Training'?s+_exVol(e):s,0); }
   function _plyvol(l){ return (l.totalReps||0)+(l.totalContacts||0); }
   // Condition dataset helpers — different pointStyle per metric so overlapping values stay visible
   function _condDs(label,data,color,pStyle){ return {label,data,borderColor:color,backgroundColor:color,tension:.4,pointRadius:5,pointHoverRadius:7,pointStyle:pStyle}; }
