@@ -798,9 +798,7 @@ const APP_VERSION = '20260520-6';
   <div class="tab-pane on" id="tab-today">
     <div class="ttl" style="font-size:22px" id="coach-date-ttl"></div>
     <div class="sub">Team overview</div>
-    <div class="sec-ttl" style="margin-top:8px">⚠️ Risk Athletes</div>
-    <div id="today-risk-athletes"></div>
-    <div class="stats-grid" id="today-stats-grid" style="margin-top:18px"></div>
+    <div class="stats-grid" id="today-stats-grid" style="margin-top:8px"></div>
     <div class="sec-ttl">Team Condition Today</div>
     <div id="today-condition-bars"></div>
     <div class="sec-ttl">Morning Check Logged</div>
@@ -3744,7 +3742,6 @@ function switchTab(id,btn){
 
 // ── TODAY ──
 function renderToday(){
-  _renderRiskAthletes();
   const d=getData(); const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
   const cl=tl.filter(l=>l.type==='condition');
