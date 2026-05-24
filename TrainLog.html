@@ -4368,7 +4368,7 @@ function _renderLoadOverview(allLogs, athleteName){
     </div>`;
   wrap.innerHTML =
     secTtl('🏋️ Weekly Training Load · Trainingsbelastung') +
-    `<div style="${grid(4)}">${loadCardHtml}</div>` +
+    `<div style="${grid(4)};margin-bottom:16px">${loadCardHtml}</div>` +
     collapsibleSec('cond', '🌡️', 'Weekly Condition · Befinden',
       `<div style="${grid(2)}">${condHtml}</div>`) +
     collapsibleSec('sor', '🔴', 'Weekly Soreness · Muskelkater',
