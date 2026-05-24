@@ -743,6 +743,17 @@ const APP_VERSION = '20260520-6';
     <canvas id="chart-my-rpe"></canvas>
   </div>
 
+  <!-- ACWR Trend (load management) -->
+  <div class="chart-box">
+    <div class="chart-title">📊 ACWR Trend · Belastungsverhältnis</div>
+    <canvas id="chart-my-acwr"></canvas>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+      <span style="color:#3ecf8e">●</span> 0.8–1.3 sweet spot &nbsp;
+      <span style="color:#f7a94f">●</span> 1.3–1.5 caution &nbsp;
+      <span style="color:#e94560">●</span> ≥1.5 injury risk
+    </div>
+  </div>
+
   <!-- Soreness Log -->
   <div class="sec-ttl" style="margin-top:20px">🔴 Soreness Log · Muskelkater</div>
   <div id="my-soreness-list"></div>
@@ -792,7 +803,9 @@ const APP_VERSION = '20260520-6';
   <div class="tab-pane on" id="tab-today">
     <div class="ttl" style="font-size:22px" id="coach-date-ttl"></div>
     <div class="sub">Team overview</div>
-    <div class="stats-grid" id="today-stats-grid"></div>
+    <div class="sec-ttl" style="margin-top:8px">⚠️ Risk Athletes</div>
+    <div id="today-risk-athletes"></div>
+    <div class="stats-grid" id="today-stats-grid" style="margin-top:18px"></div>
     <div class="sec-ttl">Team Condition Today</div>
     <div id="today-condition-bars"></div>
     <div class="sec-ttl">Morning Check Logged</div>
@@ -841,6 +854,17 @@ const APP_VERSION = '20260520-6';
     <div id="load-rpe-box" class="chart-box" style="display:none">
       <div class="chart-title">📈 Session RPE Trend</div>
       <canvas id="chart-load-rpe"></canvas>
+    </div>
+
+    <!-- Single-athlete only: ACWR Trend (load management) -->
+    <div id="load-acwr-box" class="chart-box" style="display:none">
+      <div class="chart-title">📊 ACWR Trend · Acute:Chronic Workload Ratio</div>
+      <canvas id="chart-load-acwr"></canvas>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+        <span style="color:#3ecf8e">●</span> 0.8–1.3 sweet spot &nbsp;
+        <span style="color:#f7a94f">●</span> 1.3–1.5 caution &nbsp;
+        <span style="color:#e94560">●</span> ≥1.5 injury risk
+      </div>
     </div>
 
     <!-- Single-athlete only: Recent Sessions (expandable cards) -->
@@ -3591,6 +3615,8 @@ function renderAthStats(){
   // RPE chart keeps 14-day window for trend visibility
   const dateSet14 = new Set(dates);
   _renderLoadRPE(myLogs.filter(l=>dateSet14.has(l.date)), dates, 'chart-my-rpe');
+  // ACWR chart — uses full logs (computes 7d/28d rolling internally), plots 14d
+  _renderACWRChart(d.logs, name, dates, 'chart-my-acwr');
   // Lists (Soreness, Recent Sessions) keep only last 5 days so screen stays compact
   const dates5 = getLast(5);
   const dateSet5 = new Set(dates5);
@@ -3715,6 +3741,7 @@ function switchTab(id,btn){
 
 // ── TODAY ──
 function renderToday(){
+  _renderRiskAthletes();
   const d=getData(); const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
   const cl=tl.filter(l=>l.type==='condition');
@@ -3833,6 +3860,221 @@ function cBar(lbl,val,max,color){
   return `<div class="cbar"><span class="cbar-lbl">${lbl}</span><div class="cbar-track"><div class="cbar-fill" style="width:${pct}%;background:${color}"></div></div><span class="cbar-val">${Math.round(val*10)/10}</span></div>`;
 }
 
+// ════════════════════════════════════════════════
+//  RISK DETECTION & ACWR (Load Management)
+// ════════════════════════════════════════════════
+
+// Detection 1: Same body part with intensity >=4 for 3+ consecutive days
+function _detectSoreness(name, allLogs){
+  const myCondLast4 = allLogs.filter(l=>l.athleteName===name && l.type==='condition')
+                              .sort((a,b)=>b.date.localeCompare(a.date))
+                              .slice(0,4);
+  if(myCondLast4.length<3) return null;
+  // For each body part, find max consecutive streak with intensity>=4 starting today
+  const partStreak = {};
+  myCondLast4.forEach((l,idx)=>{
+    (l.soreness||[]).forEach(s=>{
+      if(s.intensity>=4){
+        if(!partStreak[s.part]) partStreak[s.part]={count:0,values:[],brokenAt:null};
+        if(partStreak[s.part].brokenAt===null && partStreak[s.part].count===idx){
+          partStreak[s.part].count++;
+          partStreak[s.part].values.push(s.intensity);
+        }
+      } else if(partStreak[s.part]) {
+        partStreak[s.part].brokenAt = idx;
+      }
+    });
+  });
+  const hits = Object.entries(partStreak).filter(([,v])=>v.count>=3).map(([part,v])=>({part,days:v.count,values:v.values.slice(0,v.count)}));
+  return hits.length ? hits : null;
+}
+
+// Detection 2: Fatigue +3 OR mood -3 vs previous day
+function _detectConditionDrop(name, allLogs){
+  const myCond = allLogs.filter(l=>l.athleteName===name && l.type==='condition')
+                        .sort((a,b)=>b.date.localeCompare(a.date));
+  if(myCond.length<2) return null;
+  const today = myCond[0], prev = myCond[1];
+  const fatigueDelta = (today.fatigue||0) - (prev.fatigue||0);
+  const moodDelta = (today.mood||0) - (prev.mood||0);
+  const issues=[];
+  if(fatigueDelta>=3) issues.push({type:'fatigue', from:prev.fatigue, to:today.fatigue, delta:fatigueDelta});
+  if(moodDelta<=-3) issues.push({type:'mood', from:prev.mood, to:today.mood, delta:moodDelta});
+  return issues.length ? issues : null;
+}
+
+// Detection 3: 3-day avg sleepHours < 7
+function _detectSleepDebt(name, allLogs){
+  const myCond3 = allLogs.filter(l=>l.athleteName===name && l.type==='condition' && l.sleepHours!=null)
+                          .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+  if(myCond3.length<3) return null;
+  const avg = myCond3.reduce((s,l)=>s+(+l.sleepHours||0),0)/3;
+  return avg<7 ? {avg:Math.round(avg*10)/10, days:myCond3.map(l=>l.sleepHours)} : null;
+}
+
+// Detection 4: RPE >=7 for 3 consecutive training-session days
+function _detectHighRPE(name, allLogs){
+  const trainTypes = new Set(['weight','sprint','plyo','tabata']);
+  // Group by date — only consider days where athlete trained
+  const byDate = {};
+  allLogs.filter(l=>l.athleteName===name && trainTypes.has(l.type) && l.rpe!=null)
+         .forEach(l=>{ if(!byDate[l.date]) byDate[l.date]=[]; byDate[l.date].push(+l.rpe); });
+  const dates = Object.keys(byDate).sort().reverse();  // recent first
+  if(dates.length<3) return null;
+  // Take the 3 most recent training days and check each has at least one RPE>=7
+  const last3 = dates.slice(0,3);
+  const allHigh = last3.every(d => byDate[d].some(r=>r>=7));
+  if(!allHigh) return null;
+  return last3.map(d=>({date:d, rpe:Math.max(...byDate[d])}));
+}
+
+// ── ACWR ──
+// Generic: returns {ratio, acute, chronic} for given athlete + type + valueFn
+// acute = sum over last 7 days; chronic = sum over last 28 days / 4 (weekly avg)
+function _calcACWR(allLogs, athleteName, type, valueFn){
+  const last7 = new Set(getLast(7));
+  const last28 = new Set(getLast(28));
+  const my = allLogs.filter(l=>l.athleteName===athleteName && l.type===type);
+  const acute = my.filter(l=>last7.has(l.date)).reduce((s,l)=>s+(+valueFn(l)||0),0);
+  const chronicSum = my.filter(l=>last28.has(l.date)).reduce((s,l)=>s+(+valueFn(l)||0),0);
+  const chronic = chronicSum/4;
+  if(chronic===0) return {ratio:null, acute, chronic};
+  return {ratio:Math.round((acute/chronic)*100)/100, acute, chronic};
+}
+function _acwrColor(ratio){
+  if(ratio==null) return '#666';
+  if(ratio>=1.5) return '#e94560';        // red
+  if(ratio>=1.3) return '#f7a94f';        // orange
+  if(ratio>=0.8) return '#3ecf8e';        // green (sweet spot)
+  return '#888';                          // grey (undertraining)
+}
+function _acwrValue(l, type){
+  if(type==='weight') return _exVolSplit([l]).total;
+  if(type==='sprint') return l.totalDistance||0;
+  if(type==='plyo')   return (l.totalReps||0)+(l.totalContacts||0);
+  return 0;
+}
+
+// Compute all ACWRs for one athlete (Weight, Sprint, Plyo)
+function _athleteACWRs(allLogs, name){
+  return {
+    weight: _calcACWR(allLogs, name, 'weight', l=>_acwrValue(l,'weight')),
+    sprint: _calcACWR(allLogs, name, 'sprint', l=>_acwrValue(l,'sprint')),
+    plyo:   _calcACWR(allLogs, name, 'plyo',   l=>_acwrValue(l,'plyo'))
+  };
+}
+
+// ── Render Risk Athletes section (Today tab) ──
+function _renderRiskAthletes(){
+  const wrap=document.getElementById('today-risk-athletes'); if(!wrap) return;
+  const d=getData(); const cards=[];
+  d.athletes.forEach(a=>{
+    const sor=_detectSoreness(a.name,d.logs);
+    const drop=_detectConditionDrop(a.name,d.logs);
+    const debt=_detectSleepDebt(a.name,d.logs);
+    const rpe=_detectHighRPE(a.name,d.logs);
+    const acwrs=_athleteACWRs(d.logs,a.name);
+    const alerts=[];
+    if(sor) sor.forEach(h=>alerts.push({sev:'high',icon:'🔴',msg:`<b>${h.part}</b> ${h.days}일 연속 (${h.values.join(',')})`}));
+    if(drop) drop.forEach(d2=>{
+      if(d2.type==='fatigue') alerts.push({sev:'mid',icon:'🟠',msg:`Fatigue ${d2.from}→${d2.to} (+${d2.delta})`});
+      else alerts.push({sev:'mid',icon:'🟠',msg:`Mood ${d2.from}→${d2.to} (${d2.delta})`});
+    });
+    if(debt) alerts.push({sev:'mid',icon:'🟠',msg:`Sleep 3-day avg ${debt.avg}h (${debt.days.join(', ')}h)`});
+    if(rpe) alerts.push({sev:'high',icon:'🔴',msg:`RPE ≥7 3일 연속 (${rpe.map(r=>r.rpe).join('/')})`});
+
+    // ACWR badges (only show if any non-green)
+    const acwrAlerts=[];
+    [['Wt','weight'],['Spr','sprint'],['Ply','plyo']].forEach(([lbl,k])=>{
+      const v=acwrs[k]; if(v.ratio==null) return;
+      if(v.ratio>=1.5) acwrAlerts.push(`<span style="color:#e94560;font-weight:700">${lbl} ${v.ratio}🔴</span>`);
+      else if(v.ratio>=1.3) acwrAlerts.push(`<span style="color:#f7a94f;font-weight:700">${lbl} ${v.ratio}🟠</span>`);
+    });
+
+    if(!alerts.length && !acwrAlerts.length) return;
+
+    const alertHtml = alerts.map(a=>`<div style="display:flex;gap:6px;align-items:baseline;padding:3px 0;font-size:12px;color:var(--text)"><span style="flex-shrink:0">${a.icon}</span><span>${a.msg}</span></div>`).join('');
+    const acwrHtml = acwrAlerts.length?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;font-size:11px">${acwrAlerts.join(' · ')}</div>`:'';
+    const hasHigh = alerts.some(a=>a.sev==='high') || acwrAlerts.some(a=>a.includes('🔴'));
+    const borderCol = hasHigh ? '#e94560' : '#f7a94f';
+    const bgCol = hasHigh ? 'rgba(233,69,96,.08)' : 'rgba(247,169,79,.08)';
+
+    cards.push(`<div style="background:${bgCol};border:1px solid ${borderCol};border-left:4px solid ${borderCol};border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer" onclick="openAthDetail('${a.name.replace(/'/g,"\\'")}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-weight:800;color:var(--text);font-size:13px">${a.name}</span>
+        <span style="font-size:11px;color:var(--muted)">View detail ›</span>
+      </div>
+      ${alertHtml}
+      ${acwrHtml}
+    </div>`);
+  });
+  wrap.innerHTML = cards.length
+    ? cards.join('')
+    : '<div style="background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);border-radius:12px;padding:10px 14px;font-size:13px;color:#3ecf8e;font-weight:600">✅ All clear today — no risk signals</div>';
+}
+
+// ── Render ACWR Trend chart (per-athlete, 3 lines: Wt/Spr/Ply) ──
+function _renderACWRChart(allLogs, athleteName, dates, canvasId){
+  // For each date, compute ACWR as-of that date (rolling 7-day acute / 28-day chronic-avg)
+  const computeAsOf = (asOf, type, valueFn) => {
+    const asOfDate = new Date(asOf);
+    const acuteDates=[], chronicDates=[];
+    for(let i=0;i<7;i++){ const d=new Date(asOfDate); d.setDate(d.getDate()-i); acuteDates.push(d.toISOString().slice(0,10)); }
+    for(let i=0;i<28;i++){ const d=new Date(asOfDate); d.setDate(d.getDate()-i); chronicDates.push(d.toISOString().slice(0,10)); }
+    const acuteSet=new Set(acuteDates), chronicSet=new Set(chronicDates);
+    const my = allLogs.filter(l=>l.athleteName===athleteName && l.type===type);
+    const acute = my.filter(l=>acuteSet.has(l.date)).reduce((s,l)=>s+(+valueFn(l)||0),0);
+    const chronicSum = my.filter(l=>chronicSet.has(l.date)).reduce((s,l)=>s+(+valueFn(l)||0),0);
+    const chronic = chronicSum/4;
+    if(chronic===0) return null;
+    return Math.round((acute/chronic)*100)/100;
+  };
+  const labels = dates.map(fmtDate);
+  const wtData = dates.map(dt=>computeAsOf(dt,'weight',l=>_acwrValue(l,'weight')));
+  const sprData = dates.map(dt=>computeAsOf(dt,'sprint',l=>_acwrValue(l,'sprint')));
+  const plyData = dates.map(dt=>computeAsOf(dt,'plyo',l=>_acwrValue(l,'plyo')));
+  const ds = (label,data,color,pStyle)=>({label,data,borderColor:color,backgroundColor:color,tension:.3,pointRadius:4,pointHoverRadius:6,pointStyle:pStyle,spanGaps:true});
+
+  // Reference lines as datasets (no annotation plugin needed)
+  const refLine = (val,color,dash)=>({
+    label:'', data:dates.map(()=>val),
+    borderColor:color, backgroundColor:'transparent',
+    borderWidth:1, borderDash:dash, pointRadius:0, pointHoverRadius:0, spanGaps:true,
+    fill:false, tension:0
+  });
+
+  if(ST.charts[canvasId]){ ST.charts[canvasId].destroy(); }
+  const ctx=document.getElementById(canvasId); if(!ctx) return;
+  ST.charts[canvasId]=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[
+      ds('Weight', wtData,  '#f7a94f', 'circle'),
+      ds('Sprint', sprData, '#3ecf8e', 'rect'),
+      ds('Plyo',   plyData, '#a78bfa', 'triangle'),
+      refLine(0.8,'rgba(62,207,142,.45)',[4,4]),
+      refLine(1.3,'rgba(62,207,142,.45)',[4,4]),
+      refLine(1.5,'rgba(233,69,96,.55)',[6,4])
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:true,
+      plugins:{
+        legend:{labels:{color:'#8888aa',font:{size:11},boxWidth:12, filter:(item)=>item.text!==''}},
+        tooltip:{mode:'index',intersect:false, filter:(item)=>item.dataset.label!=='', callbacks:{
+          label:(c)=>{ const v=c.parsed.y; if(v==null) return c.dataset.label+': —';
+            const zone = v>=1.5?'🔴 위험':v>=1.3?'🟠 주의':v>=0.8?'✅ 적정':'⚪ 부족';
+            return `${c.dataset.label}: ${v.toFixed(2)} ${zone}`;
+          }
+        }}
+      },
+      scales:{
+        x:{ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'}},
+        y:{ticks:{color:'#8888aa',font:{size:10}},grid:{color:'rgba(46,46,94,.5)'},min:0,max:2.2,
+           title:{display:true,text:'ACWR (acute:chronic)',color:'#8888aa',font:{size:10}}}
+      },animation:{duration:300}
+    }
+  });
+}
+
 // ── LOAD ──
 function setPeriod(p,btn){ loadPeriod=p; document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); renderLoadTab(); }
 
@@ -3863,12 +4105,14 @@ function renderLoadTab(){
   if(condSingle) condSingle.style.display=isAll?'none':'block';
   if(condAll) condAll.style.display=isAll?'block':'none';
 
-  // Single-athlete only: Session RPE chart, Recent Sessions cards, Soreness Log
+  // Single-athlete only: Session RPE chart, Recent Sessions cards, Soreness Log, ACWR
   const rpeBox=document.getElementById('load-rpe-box');
+  const acwrBox=document.getElementById('load-acwr-box');
   const recentWrap=document.getElementById('load-recent-wrap');
   const sorenessWrap=document.getElementById('load-soreness-wrap');
   const condTable=document.getElementById('load-cond-table');
   if(rpeBox) rpeBox.style.display=isAll?'none':'block';
+  if(acwrBox) acwrBox.style.display=isAll?'none':'block';
   if(recentWrap) recentWrap.style.display=isAll?'none':'block';
   if(sorenessWrap) sorenessWrap.style.display=isAll?'none':'block';
   if(condTable) condTable.style.display=isAll?'block':'none';
@@ -3954,6 +4198,9 @@ function renderLoadTab(){
     _renderLoadRPE(myLogs, periodDates);
     _renderLoadRecent(myLogs);
     _renderLoadSoreness(myLogs);
+    // ACWR chart always computes against full 14-day window (independent of period filter)
+    // because ACWR itself rolls 7d/28d internally — period only affects how many points we plot
+    _renderACWRChart(d.logs, fn, periodDates, 'chart-load-acwr');
   }
 }
 
