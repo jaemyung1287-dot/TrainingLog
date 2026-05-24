@@ -4357,28 +4357,24 @@ function _renderLoadOverview(allLogs, athleteName){
     sorCard('Core',                 core,  false) +
     sorCard('Total avg',            {totalAvg, totalParts}, true);
 
-  // ── 4. This Week's Note (most recent condition with notes in last 7d) ──
-  const noted = my7.filter(l=>l.type==='condition' && l.notes && l.notes.trim())
-                    .sort((a,b)=>b.date.localeCompare(a.date));
-  const noteHtml = noted.length
-    ? `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid #f7a94f;border-radius:10px;padding:10px 12px">
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px">💬 ${noted[0].date}</div>
-        <div style="font-size:12px;color:var(--text);line-height:1.5;font-style:italic">${noted[0].notes}</div>
-       </div>`
-    : `<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:11px;color:var(--muted);font-style:italic">No notes this week</div>`;
-
   // ── Assemble ──
   const secTtl = (txt) => `<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px">${txt}</div>`;
   const grid = (n) => `display:grid;grid-template-columns:repeat(${n},1fr);gap:7px`;
+  // Collapsible wrapper using existing chart-box toggle infra (data-chart-key for stable id)
+  const collapsibleSec = (key, icon, title, contentHtml) => `
+    <div class="chart-box" data-chart-key="overview-${key}" style="padding:12px 14px;margin-bottom:10px">
+      <div class="chart-title" style="font-size:11px;margin-bottom:10px">${icon} ${title}</div>
+      <div>${contentHtml}</div>
+    </div>`;
   wrap.innerHTML =
     secTtl('🏋️ Weekly Training Load · Trainingsbelastung') +
     `<div style="${grid(4)}">${loadCardHtml}</div>` +
-    secTtl('🌡️ Weekly Condition · Befinden') +
-    `<div style="${grid(2)}">${condHtml}</div>` +
-    secTtl('🔴 Weekly Soreness · Muskelkater') +
-    `<div style="${grid(2)}">${sorHtml}</div>` +
-    secTtl('💬 This Week\'s Notes · Kommentar') +
-    noteHtml;
+    collapsibleSec('cond', '🌡️', 'Weekly Condition · Befinden',
+      `<div style="${grid(2)}">${condHtml}</div>`) +
+    collapsibleSec('sor', '🔴', 'Weekly Soreness · Muskelkater',
+      `<div style="${grid(2)}">${sorHtml}</div>`);
+  // Restore collapsed state for the newly-injected collapsible sections
+  if(typeof _restoreChartCollapsedStates==='function') _restoreChartCollapsedStates();
 
   // ── Risk signals (4 detectors, athlete-scoped) ──
   const sor=_detectSoreness(athleteName,allLogs);
