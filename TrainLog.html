@@ -837,7 +837,7 @@ const APP_VERSION = '20260520-6';
       <div class="chart-box"><div class="chart-title">😊 Mood (1–10)</div><canvas id="chart-load-mood"></canvas></div>
       <div class="chart-box"><div class="chart-title">😴 Sleep Quality (1–10)</div><canvas id="chart-load-sleepq"></canvas></div>
     </div>
-    <div id="load-cond-table"></div>
+    <!-- load-cond-table removed: redundant with Today tab Morning Check cards -->
 
     <!-- Single-athlete only: Session RPE Trend -->
     <div id="load-rpe-box" class="chart-box" style="display:none">
@@ -4108,12 +4108,10 @@ function renderLoadTab(){
   const acwrBox=document.getElementById('load-acwr-box');
   const recentWrap=document.getElementById('load-recent-wrap');
   const sorenessWrap=document.getElementById('load-soreness-wrap');
-  const condTable=document.getElementById('load-cond-table');
   if(rpeBox) rpeBox.style.display=isAll?'none':'block';
   if(acwrBox) acwrBox.style.display=isAll?'none':'block';
   if(recentWrap) recentWrap.style.display=isAll?'none':'block';
   if(sorenessWrap) sorenessWrap.style.display=isAll?'none':'block';
-  if(condTable) condTable.style.display=isAll?'block':'none';
 
   // Helper: compute volume for a weight log by training type
   // Must mirror _exVolSplit: use setRows when available, exclude bodyweight
@@ -4144,7 +4142,6 @@ function renderLoadTab(){
       _mkDotChart('chart-load-fatigue', cc, months.map(m=>m.key), labels, l=>l.fatigue,     '', 'prefix', null, null, 'avg');
       _mkDotChart('chart-load-mood',    cc, months.map(m=>m.key), labels, l=>l.mood,         '', 'prefix', null, null, 'avg');
       _mkDotChart('chart-load-sleepq',  cc, months.map(m=>m.key), labels, l=>l.sleepQuality, '', 'prefix', null, null, 'avg');
-      document.getElementById('load-cond-table').innerHTML='';
     } else {
       _mkSingleDotChart('chart-load-power',     pwl, months.map(m=>m.key), labels, _pvol,   ' kg', '#f7a94f');
       _mkSingleDotChart('chart-load-resistance',rwl, months.map(m=>m.key), labels, _rvol,   ' kg', '#4f8ef7');
@@ -4184,7 +4181,7 @@ function renderLoadTab(){
         _condDs('Sleep Q', dates.map(dt=>{ const c=cc.filter(l=>l.date===dt); return c.length?c[c.length-1].sleepQuality:null; }), '#4f8ef7', 'rectRot')
       ],labels);
     }
-    _renderCondTable(cc.slice().sort((a,b)=>b.date.localeCompare(a.date)));
+    // _renderCondTable call removed — table no longer rendered on Load tab
   }
 
   // Single-athlete only: RPE trend chart + Recent Sessions + Soreness Log
