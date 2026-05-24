@@ -5902,6 +5902,7 @@ function renderProgramImages(grp, d){
 // ════════════════════════════════════════════════
 ST._planDay=null;
 ST._planGroup='all';
+ST._planSelectedAthletes=new Set(); // multi-select: Set of 'ath_'+id keys
 ST._planOpenCats=new Set();   // which accordion cards are expanded
 ST._planActiveInput=null;     // "Power Lifting::Power" — which sub has open input
 
@@ -5912,6 +5913,7 @@ function goSessionPlan(){
   ST._planWeekStart=monday;
   ST._planDay=todayStr();
   ST._planGroup='all';
+  ST._planSelectedAthletes=new Set();
   ST._planSession='am';
   ST._planOpenCats=new Set();
   ST._planActiveInput=null;
@@ -6150,8 +6152,26 @@ function _planGrpData(plan, ath){
   return plan['all']||null;
 }
 function setPlanGroup(g){
-  if(g==='all'||g==='A'||g==='B') ST._planGroupFilter=g;
-  ST._planGroup=g; ST._planActiveInput=null; _renderPlanGroupBtns(); _loadPlanForDay();
+  if(g==='all'||g==='A'||g==='B'){
+    // Group-level selection: clear individual multi-select
+    ST._planGroupFilter=g;
+    ST._planGroup=g;
+    ST._planSelectedAthletes=new Set();
+  } else {
+    // Individual athlete toggle (multi-select)
+    if(!ST._planSelectedAthletes) ST._planSelectedAthletes=new Set();
+    if(ST._planSelectedAthletes.has(g)){
+      ST._planSelectedAthletes.delete(g);
+      // If we removed the primary, promote first remaining; else fall back to 'all'
+      if(ST._planGroup===g){
+        ST._planGroup=ST._planSelectedAthletes.size>0?[...ST._planSelectedAthletes][0]:'all';
+      }
+    } else {
+      ST._planSelectedAthletes.add(g);
+      ST._planGroup=g; // last clicked = primary for display/editing
+    }
+  }
+  ST._planActiveInput=null; _renderPlanGroupBtns(); _loadPlanForDay();
 }
 function _renderPlanGroupBtns(){
   ['all','A','B'].forEach(g=>{
@@ -6166,12 +6186,17 @@ function _renderPlanGroupBtns(){
   const _filtered=(_d.athletes||[]).filter(a=>_filter==='all'||a.group===_filter);
   _athWrap.innerHTML=`<div class="plan-av-bar">${_filtered.map(a=>{
     const key='ath_'+a.id;
-    const isSel=ST._planGroup===key;
+    const isSel=!!(ST._planSelectedAthletes&&ST._planSelectedAthletes.has(key));
+    const isPrimary=ST._planGroup===key;
     const parts=a.name.split(' ');
     const initials=(parts[0]?parts[0][0]:'')+(parts[1]?parts[1][0]:'');
     const cirCls=isSel?'av-sel':(a.group==='B'?'av-b':'av-a');
+    // Show a small dot on the primary athlete when multi-select is active
+    const badge=isSel&&!isPrimary?` style="outline:2px solid var(--accent);outline-offset:2px"`:
+                isSel&&isPrimary?` style="outline:2.5px solid var(--orange);outline-offset:2px"`:
+                '';
     return `<div class="plan-av-item" onclick="setPlanGroup('${key}')">
-      <div class="plan-av-circle ${cirCls}">${initials}</div>
+      <div class="plan-av-circle ${cirCls}"${badge}>${initials}</div>
       <div class="plan-av-name${isSel?' av-sel':''}">${parts[0]}</div>
     </div>`;
   }).join('')}</div>`;
@@ -6228,6 +6253,20 @@ function _getPlanSessionData(grpData){
   if(sess==='am'&&grpData.exercises) return grpData; // backward compat
   return null;
 }
+// Multi-select helper: replicate primary athlete's plan to all selected athletes, then save
+function _savePlanSync(d){
+  const sel=ST._planSelectedAthletes;
+  const primary=ST._planGroup;
+  if(sel&&sel.size>1&&primary&&primary.startsWith('ath_')){
+    const plan=d.sessionPlans[ST._planDay];
+    if(plan&&plan[primary]){
+      sel.forEach(key=>{
+        if(key!==primary) plan[key]=JSON.parse(JSON.stringify(plan[primary]));
+      });
+    }
+  }
+  saveData(d);
+}
 function _updatePlanSessionText(field,val){
   const d=getData();
   const plan=d.sessionPlans[ST._planDay]||{};
@@ -6236,7 +6275,7 @@ function _updatePlanSessionText(field,val){
   if(!plan[ST._planGroup][sess]) plan[ST._planGroup][sess]={exercises:[]};
   plan[ST._planGroup][sess][field]=val;
   d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
+  _savePlanSync(d);
 }
 function _makeConditioningCard(wrap,condText){
   const key='conditioning';
@@ -6775,7 +6814,7 @@ function _addPlanTabataSet(){
   const prev=plan[ST._planGroup].tabataSets.slice(-1)[0];
   plan[ST._planGroup].tabataSets.push({intensity:prev?.intensity||100});
   d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
+  _savePlanSync(d);
   ST._planOpenCats.add('__tabata__');
   renderPlanAccordion();
 }
@@ -6785,7 +6824,7 @@ function _removePlanTabataSet(idx){
   const plan=d.sessionPlans[ST._planDay]; if(!plan||!plan[ST._planGroup]) return;
   (plan[ST._planGroup].tabataSets||[]).splice(idx,1);
   d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
+  _savePlanSync(d);
   renderPlanAccordion();
 }
 
@@ -6795,7 +6834,7 @@ function _updatePlanTabataSet(idx,field,val){
   if(!plan[ST._planGroup].tabataSets) return;
   plan[ST._planGroup].tabataSets[idx][field]=val;
   d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
+  _savePlanSync(d);
 }
 
 function _confirmSpecialPlanEx(type){
@@ -6812,7 +6851,7 @@ function _confirmSpecialPlanEx(type){
   plan.phase=document.getElementById('sp-plan-phase')?.value||'';
   plan.week=document.getElementById('sp-plan-week')?.value||'';
   d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
+  _savePlanSync(d);
   ST._planActiveInput=null;
   renderPlanAccordion();
   showToast(`${name} added ✓`);
@@ -6824,7 +6863,7 @@ function _updateGrpPlanMeta(field,val){
   if(!plan[ST._planGroup]) plan[ST._planGroup]={exercises:[]};
   plan[ST._planGroup][field]=parseFloat(val)||val;
   d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
+  _savePlanSync(d);
 }
 
 function _addPlanExToData(type,sub,name){
@@ -6844,7 +6883,7 @@ function _addPlanExToData(type,sub,name){
   plan.phase=document.getElementById('sp-plan-phase').value;
   plan.week=document.getElementById('sp-plan-week').value;
   d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
+  _savePlanSync(d);
   return true;
 }
 function _getCustomExLib(){
