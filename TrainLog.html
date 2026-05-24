@@ -116,6 +116,12 @@ tr:last-child td{border-bottom:none}
 .tab-pane{display:none}
 .tab-pane.on{display:block}
 .chart-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.chart-box .chart-title{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chart-box .chart-title::after{content:'▼';font-size:10px;color:var(--muted);transition:transform .2s ease;flex-shrink:0;opacity:.7}
+.chart-box.collapsed .chart-title{margin-bottom:0}
+.chart-box.collapsed .chart-title::after{transform:rotate(-90deg)}
+.chart-box.collapsed > *:not(.chart-title){display:none !important}
+.chart-box.collapsed{padding:12px 16px}
 .chart-box canvas{max-height:220px}
 .chart-title{font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
 .pin-wrap{display:flex;justify-content:center;gap:16px;margin:24px 0}
@@ -1746,6 +1752,7 @@ function showScreen(id){
   if(_COACH_TABBAR_SCREENS.has(id)) tb.classList.add('show');
   else tb.classList.remove('show');
   window.scrollTo(0,0);
+  if(typeof _restoreChartCollapsedStates==='function') _restoreChartCollapsedStates();
 }
 function goHome(){ stopCloudSync(); ST.editingLogId=null; ST._extraEditLogIds=[]; if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;} showScreen('s-home'); }
 function goAthleteMode(){ stopCloudSync(); ST.athlete=null; showScreen('s-athlete-select'); renderAthleteChips(); }
@@ -3725,6 +3732,7 @@ function switchTab(id,btn){
   document.getElementById('tab-'+id).classList.add('on');
   if(btn) btn.classList.add('on');
   ({today:renderToday,load:renderLoadTab,athletes:renderAthletesTab,program:renderProgramTab,settings:renderSettings})[id]?.();
+  if(typeof _restoreChartCollapsedStates==='function') _restoreChartCollapsedStates();
 }
 
 // ── TODAY ──
@@ -5373,6 +5381,47 @@ function _toggleLogDetail(detailId, chevId){
   el.style.display=open?'none':'block';
   if(ch) ch.style.transform=open?'rotate(0deg)':'rotate(180deg)';
 }
+
+// ── Collapsible chart boxes (persisted to localStorage) ──
+const CHART_COLLAPSED_KEY='trainlog_chart_collapsed_v1';
+function _chartCollapsedState(){
+  try{ return JSON.parse(localStorage.getItem(CHART_COLLAPSED_KEY)||'{}'); }catch(_){ return {}; }
+}
+function _chartBoxKey(box){
+  // Stable key per chart-box: use canvas id if present, else dataset key, else title text
+  const cv = box.querySelector('canvas');
+  if(cv && cv.id) return cv.id;
+  if(box.dataset.chartKey) return box.dataset.chartKey;
+  const t = box.querySelector('.chart-title');
+  return 'title:' + (t?t.textContent.trim():'unknown');
+}
+function _toggleChartBox(box){
+  box.classList.toggle('collapsed');
+  const key = _chartBoxKey(box);
+  const st = _chartCollapsedState();
+  if(box.classList.contains('collapsed')) st[key]=1; else delete st[key];
+  try{ localStorage.setItem(CHART_COLLAPSED_KEY, JSON.stringify(st)); }catch(_){}
+  // Resize any visible chart in this box after expand (Chart.js needs nudge)
+  if(!box.classList.contains('collapsed')){
+    const cv = box.querySelector('canvas');
+    if(cv && cv.id && ST.charts[cv.id]){ setTimeout(()=>{ try{ ST.charts[cv.id].resize(); }catch(_){} }, 50); }
+  }
+}
+function _restoreChartCollapsedStates(){
+  const st = _chartCollapsedState();
+  document.querySelectorAll('.chart-box').forEach(box=>{
+    const key = _chartBoxKey(box);
+    if(st[key]) box.classList.add('collapsed'); else box.classList.remove('collapsed');
+  });
+}
+// Event delegation — single listener for all chart-title clicks (current and future)
+document.addEventListener('click', (e)=>{
+  const title = e.target.closest && e.target.closest('.chart-box .chart-title');
+  if(title){
+    const box = title.closest('.chart-box');
+    if(box) _toggleChartBox(box);
+  }
+});
 function deleteLog(id, ctx){
   // ctx: 'today' | 'detail' | 'load'
   _addDeletedId(id);
