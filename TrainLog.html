@@ -115,15 +115,15 @@ tr:last-child td{border-bottom:none}
 .tb .ti{font-size:22px}
 .tab-pane{display:none}
 .tab-pane.on{display:block}
-.chart-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.chart-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:8px}
 .chart-box .chart-title{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .chart-box .chart-title::after{content:'▼';font-size:10px;color:var(--muted);transition:transform .2s ease;flex-shrink:0;opacity:.7}
 .chart-box.collapsed .chart-title{margin-bottom:0}
 .chart-box.collapsed .chart-title::after{transform:rotate(-90deg)}
 .chart-box.collapsed > *:not(.chart-title){display:none !important}
-.chart-box.collapsed{padding:12px 16px}
+.chart-box.collapsed{padding:11px 16px !important;margin-bottom:8px !important}
 .chart-box canvas{max-height:220px}
-.chart-title{font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.chart-title{font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
 .pin-wrap{display:flex;justify-content:center;gap:16px;margin:24px 0}
 .pin-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);transition:all .2s}
 .pin-dot.filled{background:var(--accent);border-color:var(--accent)}
@@ -4358,8 +4358,8 @@ function _renderLoadOverview(allLogs, athleteName){
   const grid = (n) => `display:grid;grid-template-columns:repeat(${n},1fr);gap:7px`;
   // Collapsible wrapper using existing chart-box toggle infra (data-chart-key for stable id)
   const collapsibleSec = (key, icon, title, contentHtml) => `
-    <div class="chart-box" data-chart-key="overview-${key}" style="padding:12px 14px;margin-bottom:10px">
-      <div class="chart-title" style="font-size:11px;margin-bottom:10px">${icon} ${title}</div>
+    <div class="chart-box" data-chart-key="overview-${key}">
+      <div class="chart-title">${icon} ${title}</div>
       <div>${contentHtml}</div>
     </div>`;
   wrap.innerHTML =
