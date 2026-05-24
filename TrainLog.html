@@ -3953,7 +3953,7 @@ function _renderLoadRPE(logs, dates){
   ], labels, {yMax:10});
 }
 
-// ── Single-athlete: Recent Sessions (expandable cards, like RoadTo2030 style) ──
+// ── Single-athlete: Recent Sessions (compact one-line cards, expand for detail) ──
 function _renderLoadRecent(logs){
   const wrap = document.getElementById('load-recent-list');
   if(!wrap) return;
@@ -3961,58 +3961,60 @@ function _renderLoadRecent(logs){
   if(!sorted.length){ wrap.innerHTML='<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>'; return; }
 
   const _typeIcon = {weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥'};
-  const _typeColor = {weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c'};
-  const _typeLabel = {weight:'Weight',sprint:'Sprint',plyo:'Plyo',condition:'Condition',tabata:'Tabata'};
 
-  const _exChips = exs => exs.length
-    ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${exs.map(e=>`<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:11px;color:var(--text);line-height:1.4">${e.name||'—'}</span>`).join('')}</div>`
-    : '';
+  // One-line meta string per type (shown on the card head, no expansion needed)
+  const _metaLine = l => {
+    if(l.type==='weight'||l.type==='plyo'){
+      const vol = _exVolSplit([l]).total;
+      const label = l.type==='plyo'?'Plyo':'Weight';
+      return `<span style="color:#f7a94f;font-weight:700">${label}</span> · <span style="color:var(--text);font-weight:600">${vol.toLocaleString()} kg</span>${l.rpe?` · <span style="color:var(--muted)">RPE ${l.rpe}</span>`:''}`;
+    }
+    if(l.type==='sprint'){
+      return `<span style="color:#3ecf8e;font-weight:700">Sprint</span> · <span style="color:var(--text);font-weight:600">${(l.totalDistance||0).toLocaleString()} m</span>${l.rpe?` · <span style="color:var(--muted)">RPE ${l.rpe}</span>`:''}`;
+    }
+    if(l.type==='tabata'){
+      return `<span style="color:#e94560;font-weight:700">Tabata</span> · 8 rounds${l.rpe?` · <span style="color:var(--muted)">RPE ${l.rpe}</span>`:''}`;
+    }
+    if(l.type==='condition'){
+      return `<span style="color:#a78bfa;font-weight:700">Condition</span> · 😴 ${l.sleepHours??'—'}h/Q${l.sleepQuality??'—'} · ⚡ ${l.fatigue??'—'} · 😊 ${l.mood??'—'}`;
+    }
+    return l.type;
+  };
+
+  // Expanded detail per type
   const _exDetailRows = exs => exs.map(e=>{
     const wStr = e.isBodyweight ? `BW${e.bwBase?'+'+e.bwBase+'kg':''}` : (e.weight?`${e.weight}kg`:'—');
     const setsStr = e.setRows && e.setRows.length
-      ? e.setRows.map((sr,i)=>`<span style="font-size:10px;color:var(--muted)">Set${i+1}: ${sr.kg||sr.extraKg||'BW'}kg × ${sr.reps}</span>`).join(' &nbsp;')
+      ? e.setRows.map((sr,i)=>`<span style="font-size:10px;color:var(--muted)">S${i+1}: ${sr.kg||sr.extraKg||'BW'}kg×${sr.reps}</span>`).join(' &nbsp;')
       : `${e.sets||'—'} × ${e.reps||'—'}`;
-    return `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-      <span style="font-size:12px;color:var(--text);flex:1;padding-right:8px">${e.name||'—'}</span>
+    return `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="font-size:12px;color:var(--text);flex:1;padding-right:8px;font-weight:500">${e.name||'—'}</span>
       <span style="font-size:11px;color:var(--muted);text-align:right;white-space:nowrap">${wStr} &nbsp; ${setsStr}</span>
     </div>`;
   }).join('');
-  const _sprintDetailRows = sets => sets.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-    <span style="font-size:12px;color:var(--text)">${s.distance}m</span>
+  const _sprintDetailRows = sets => sets.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+    <span style="font-size:12px;color:var(--text);font-weight:500">${s.distance}m</span>
     <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
   </div>`).join('');
+
+  const _conditionDetail = l => {
+    let parts = [];
+    if((l.soreness||[]).length){
+      const sChips = l.soreness.map(s=>`<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:rgba(247,169,79,.15);border:1px solid rgba(247,169,79,.3);font-size:11px;color:#f7a94f;font-weight:600;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`).join('');
+      parts.push(`<div style="padding:4px 0"><div style="font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600">🔴 Soreness</div><div>${sChips}</div></div>`);
+    } else {
+      parts.push(`<div style="padding:4px 0;font-size:12px;color:var(--muted);font-style:italic">No soreness reported</div>`);
+    }
+    if(l.notes) parts.push(`<div style="padding:6px 0 2px;font-size:12px;color:var(--muted);font-style:italic;border-top:1px solid rgba(255,255,255,.04);margin-top:6px">"${l.notes}"</div>`);
+    return parts.join('');
+  };
 
   wrap.innerHTML = sorted.map(l=>{
     const hasDetail = ((l.type==='weight'||l.type==='plyo') && (l.exercises||[]).length>0)
                     || (l.type==='sprint' && (l.sets||[]).length>0)
-                    || (l.type==='condition' && ((l.soreness||[]).length>0 || l.notes));
+                    || (l.type==='condition');  // condition always expandable (shows soreness or "none")
     const detailId = `lr-${l.id}`;
     const chevId   = `lrc-${l.id}`;
-
-    let summaryHtml='';
-    if(l.type==='weight'||l.type==='plyo'){
-      const vol = _exVolSplit([l]).total;
-      summaryHtml = `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:12px;color:var(--muted)">Volume</span>
-        <span style="font-size:13px;font-weight:700;color:var(--text)">${vol.toLocaleString()} kg</span>
-      </div>` + _exChips(l.exercises||[]);
-    } else if(l.type==='sprint'){
-      summaryHtml = `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:12px;color:var(--muted)">${l.sprintType||'Sprint'}</span>
-        <span style="font-size:13px;font-weight:700;color:var(--text)">${(l.totalDistance||0).toLocaleString()} m</span>
-      </div>`;
-    } else if(l.type==='condition'){
-      summaryHtml = `<div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--muted)">😴 ${l.sleepHours??'—'}h · Q${l.sleepQuality??'—'}</span>
-        <span style="font-size:12px;color:var(--muted)">⚡ Fatigue ${l.fatigue??'—'}/10</span>
-        <span style="font-size:12px;color:var(--muted)">😊 Mood ${l.mood??'—'}/10</span>
-      </div>`;
-    } else if(l.type==='tabata'){
-      summaryHtml = `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:12px;color:var(--muted)">Tabata · 8 rounds</span>
-        <span style="font-size:13px;font-weight:700;color:var(--text)">${l.rpe?'RPE '+l.rpe+'/10':''}</span>
-      </div>`;
-    }
 
     let detailHtml='';
     if((l.type==='weight'||l.type==='plyo') && (l.exercises||[]).length){
@@ -4020,30 +4022,24 @@ function _renderLoadRecent(logs){
     } else if(l.type==='sprint' && (l.sets||[]).length){
       detailHtml = _sprintDetailRows(l.sets||[]);
     } else if(l.type==='condition'){
-      let parts=[];
-      parts.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px"><span style="color:var(--muted)">Sleep</span><span style="color:var(--text);font-weight:600">${l.sleepHours??'—'}h · Q${l.sleepQuality??'—'}</span></div>`);
-      parts.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px"><span style="color:var(--muted)">Fatigue · Mood</span><span style="color:var(--text);font-weight:600">${l.fatigue??'—'} · ${l.mood??'—'}</span></div>`);
-      if((l.soreness||[]).length){
-        const sChips = l.soreness.map(s=>`<span style="display:inline-block;padding:2px 8px;border-radius:14px;background:rgba(247,169,79,.15);border:1px solid rgba(247,169,79,.3);font-size:11px;color:#f7a94f;margin:2px 3px 0 0">${s.part} ${s.intensity}</span>`).join('');
-        parts.push(`<div style="padding:5px 0;font-size:12px"><span style="color:var(--muted);display:block;margin-bottom:4px">Soreness</span><div>${sChips}</div></div>`);
-      }
-      if(l.notes) parts.push(`<div style="padding:5px 0;font-size:12px;color:var(--muted);font-style:italic">"${l.notes}"</div>`);
-      detailHtml = parts.join('');
+      detailHtml = _conditionDetail(l);
+    }
+    if(l.notes && l.type!=='condition'){
+      detailHtml += `<div style="padding:6px 0 2px;font-size:12px;color:var(--muted);font-style:italic;border-top:1px solid rgba(255,255,255,.04);margin-top:6px">"${l.notes}"</div>`;
     }
 
-    return `<div class="detail-card" style="cursor:${hasDetail?'pointer':'default'}" ${hasDetail?`onclick="_toggleLogDetail('${detailId}','${chevId}')"`:''}>
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:18px">${_typeIcon[l.type]||'📝'}</span>
-          <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text)">${l.date}</div>
-            <span class="badge ${_typeColor[l.type]||'b-c'}" style="margin-top:2px">${_typeLabel[l.type]||l.type}${l.rpe?` · RPE ${l.rpe}/10`:''}</span>
+    return `<div class="detail-card" style="cursor:${hasDetail?'pointer':'default'};padding:11px 13px" ${hasDetail?`onclick="_toggleLogDetail('${detailId}','${chevId}')"`:''}>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <span style="font-size:18px;flex-shrink:0">${_typeIcon[l.type]||'📝'}</span>
+          <div style="min-width:0;flex:1">
+            <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:2px">${l.date}</div>
+            <div style="font-size:12.5px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_metaLine(l)}</div>
           </div>
         </div>
-        ${hasDetail?`<span id="${chevId}" style="font-size:16px;color:var(--muted);transition:transform .2s">▼</span>`:''}
+        ${hasDetail?`<span id="${chevId}" style="font-size:14px;color:var(--muted);transition:transform .2s;flex-shrink:0">▼</span>`:''}
       </div>
-      ${summaryHtml}
-      <div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>
+      ${hasDetail?`<div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>`:''}
     </div>`;
   }).join('');
 }
