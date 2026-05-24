@@ -736,6 +736,21 @@ const APP_VERSION = '20260520-6';
     <canvas id="chart-my-vbt"></canvas>
     <div id="vbt-vl-row" style="margin-top:10px"></div>
   </div>
+
+  <!-- Session RPE Trend -->
+  <div class="chart-box">
+    <div class="chart-title">📈 Session RPE Trend · RPE-Verlauf</div>
+    <canvas id="chart-my-rpe"></canvas>
+  </div>
+
+  <!-- Soreness Log -->
+  <div class="sec-ttl" style="margin-top:20px">🔴 Soreness Log · Muskelkater</div>
+  <div id="my-soreness-list"></div>
+
+  <!-- Recent Sessions -->
+  <div class="sec-ttl" style="margin-top:20px">📋 Recent Sessions · Letzte Sitzungen</div>
+  <div id="my-recent-list"></div>
+
   <div class="sec-ttl" style="margin-top:20px">🏆 Team Ranking</div>
   <div style="display:flex;gap:8px;margin-bottom:12px">
     <button class="period-btn on" id="ts-week" onclick="setTeamPeriod('week',this)">Weekly</button>
@@ -3572,6 +3587,13 @@ function renderAthStats(){
     vbtBox.style.display='none';
   }
 
+  // ── Shared single-athlete sections (RPE trend · Soreness log · Recent sessions) ──
+  const dateSet = new Set(dates);
+  const myLogsInWindow = myLogs.filter(l=>dateSet.has(l.date));
+  _renderLoadRPE(myLogsInWindow, dates, 'chart-my-rpe');
+  _renderLoadSoreness(myLogsInWindow, 'my-soreness-list');
+  _renderLoadRecent(myLogsInWindow, 'my-recent-list');
+
   renderMyRecords();
   ST._teamPeriod=ST._teamPeriod||'week';
   renderTeamRanking(d,ST._teamPeriod);
@@ -3932,7 +3954,8 @@ function renderLoadTab(){
 }
 
 // ── Single-athlete: Session RPE Trend chart (Weight/Plyo · Sprint · Tabata) ──
-function _renderLoadRPE(logs, dates){
+function _renderLoadRPE(logs, dates, canvasId){
+  canvasId = canvasId || 'chart-load-rpe';
   const labels = dates.map(fmtDate);
   const pickRpe = (type) => dates.map(dt => {
     const matches = logs.filter(l => l.date===dt && l.type===type && l.rpe!=null);
@@ -3947,7 +3970,7 @@ function _renderLoadRPE(logs, dates){
   const sprintRpe = pickRpe('sprint');
   const tabataRpe = pickRpe('tabata');
   const ds = (label,data,color,pStyle)=>({label,data,borderColor:color,backgroundColor:color,tension:.35,pointRadius:5,pointHoverRadius:7,pointStyle:pStyle});
-  mkChart('chart-load-rpe', [
+  mkChart(canvasId, [
     ds('Weight / Plyo', wpRpe,     '#f7a94f', 'circle'),
     ds('Sprint',        sprintRpe, '#3ecf8e', 'rect'),
     ds('Tabata',        tabataRpe, '#e94560', 'triangle')
@@ -3955,8 +3978,8 @@ function _renderLoadRPE(logs, dates){
 }
 
 // ── Single-athlete: Recent Sessions (compact one-line cards, expand for detail) ──
-function _renderLoadRecent(logs){
-  const wrap = document.getElementById('load-recent-list');
+function _renderLoadRecent(logs, wrapId){
+  const wrap = document.getElementById(wrapId || 'load-recent-list');
   if(!wrap) return;
   const sorted = logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
   if(!sorted.length){ wrap.innerHTML='<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>'; return; }
@@ -4065,8 +4088,8 @@ function _renderLoadRecent(logs){
 }
 
 // ── Single-athlete: Soreness Log (date-grouped chips) ──
-function _renderLoadSoreness(logs){
-  const wrap = document.getElementById('load-soreness-list');
+function _renderLoadSoreness(logs, wrapId){
+  const wrap = document.getElementById(wrapId || 'load-soreness-list');
   if(!wrap) return;
   const sorenessLogs = logs.filter(l=>l.type==='condition' && (l.soreness||[]).length>0)
                             .sort((a,b)=>b.date.localeCompare(a.date));
