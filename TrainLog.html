@@ -743,17 +743,6 @@ const APP_VERSION = '20260520-6';
     <canvas id="chart-my-rpe"></canvas>
   </div>
 
-  <!-- ACWR Trend (load management) -->
-  <div class="chart-box">
-    <div class="chart-title">📊 ACWR Trend · Belastungsverhältnis</div>
-    <canvas id="chart-my-acwr"></canvas>
-    <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
-      <span style="color:#3ecf8e">●</span> 0.8–1.3 sweet spot &nbsp;
-      <span style="color:#f7a94f">●</span> 1.3–1.5 caution &nbsp;
-      <span style="color:#e94560">●</span> ≥1.5 injury risk
-    </div>
-  </div>
-
   <!-- Soreness Log -->
   <div class="sec-ttl" style="margin-top:20px">🔴 Soreness Log · Muskelkater</div>
   <div id="my-soreness-list"></div>
@@ -3615,8 +3604,7 @@ function renderAthStats(){
   // RPE chart keeps 14-day window for trend visibility
   const dateSet14 = new Set(dates);
   _renderLoadRPE(myLogs.filter(l=>dateSet14.has(l.date)), dates, 'chart-my-rpe');
-  // ACWR chart — uses full logs (computes 7d/28d rolling internally), plots 14d
-  _renderACWRChart(d.logs, name, dates, 'chart-my-acwr');
+  // (ACWR chart intentionally NOT shown to athletes — load mgmt is a coach decision tool)
   // Lists (Soreness, Recent Sessions) keep only last 5 days so screen stays compact
   const dates5 = getLast(5);
   const dateSet5 = new Set(dates5);
