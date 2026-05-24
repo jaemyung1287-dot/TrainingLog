@@ -3929,17 +3929,24 @@ function _detectHighRPE(name, allLogs){
 }
 
 // ── ACWR ──
-// Generic: returns {ratio, acute, chronic} for given athlete + type + valueFn
+// Generic: returns {ratio, acute, chronic, insufficient} for given athlete + type + valueFn
 // acute = sum over last 7 days; chronic = sum over last 28 days / 4 (weekly avg)
+// IMPORTANT: requires at least 14 distinct active days in chronic window to avoid
+// inflated ratios when data hasn't been accumulated long enough (e.g. ratio=4.0
+// when athlete only logged in the last 7 of 28 days).
 function _calcACWR(allLogs, athleteName, type, valueFn){
   const last7 = new Set(getLast(7));
   const last28 = new Set(getLast(28));
   const my = allLogs.filter(l=>l.athleteName===athleteName && l.type===type);
+  const chronicLogs = my.filter(l=>last28.has(l.date));
+  // Need ≥14 distinct active days across chronic window for a meaningful baseline
+  const activeDays = new Set(chronicLogs.map(l=>l.date)).size;
+  if(activeDays < 14) return {ratio:null, acute:0, chronic:0, insufficient:true, activeDays};
   const acute = my.filter(l=>last7.has(l.date)).reduce((s,l)=>s+(+valueFn(l)||0),0);
-  const chronicSum = my.filter(l=>last28.has(l.date)).reduce((s,l)=>s+(+valueFn(l)||0),0);
+  const chronicSum = chronicLogs.reduce((s,l)=>s+(+valueFn(l)||0),0);
   const chronic = chronicSum/4;
-  if(chronic===0) return {ratio:null, acute, chronic};
-  return {ratio:Math.round((acute/chronic)*100)/100, acute, chronic};
+  if(chronic===0) return {ratio:null, acute, chronic, insufficient:false, activeDays};
+  return {ratio:Math.round((acute/chronic)*100)/100, acute, chronic, insufficient:false, activeDays};
 }
 function _acwrColor(ratio){
   if(ratio==null) return '#666';
@@ -4016,6 +4023,7 @@ function _renderRiskAthletes(){
 // ── Render ACWR Trend chart (per-athlete, 3 lines: Wt/Spr/Ply) ──
 function _renderACWRChart(allLogs, athleteName, dates, canvasId){
   // For each date, compute ACWR as-of that date (rolling 7-day acute / 28-day chronic-avg)
+  // Returns null if chronic window has <14 active days (insufficient baseline)
   const computeAsOf = (asOf, type, valueFn) => {
     const asOfDate = new Date(asOf);
     const acuteDates=[], chronicDates=[];
@@ -4023,8 +4031,10 @@ function _renderACWRChart(allLogs, athleteName, dates, canvasId){
     for(let i=0;i<28;i++){ const d=new Date(asOfDate); d.setDate(d.getDate()-i); chronicDates.push(d.toISOString().slice(0,10)); }
     const acuteSet=new Set(acuteDates), chronicSet=new Set(chronicDates);
     const my = allLogs.filter(l=>l.athleteName===athleteName && l.type===type);
+    const chronicLogs = my.filter(l=>chronicSet.has(l.date));
+    if(new Set(chronicLogs.map(l=>l.date)).size < 14) return null;
     const acute = my.filter(l=>acuteSet.has(l.date)).reduce((s,l)=>s+(+valueFn(l)||0),0);
-    const chronicSum = my.filter(l=>chronicSet.has(l.date)).reduce((s,l)=>s+(+valueFn(l)||0),0);
+    const chronicSum = chronicLogs.reduce((s,l)=>s+(+valueFn(l)||0),0);
     const chronic = chronicSum/4;
     if(chronic===0) return null;
     return Math.round((acute/chronic)*100)/100;
