@@ -4861,8 +4861,13 @@ function _mkDotChart(id, logs, dates, labels, valFn, unit, dateMode='exact', col
   const ctx=document.getElementById(id); if(!ctx) return;
   const names=[...new Set(logs.map(l=>l.athleteName))].sort();
   const matchFn=dateMode==='prefix'?(l,dt)=>l.date.startsWith(dt):(l,dt)=>l.date===dt;
+  // First name only for cleaner legends/tooltips; disambiguate with last-initial only on collision
+  const firstNames=names.map(n=>n.split(' ')[0]);
+  const fnCounts={}; firstNames.forEach(fn=>fnCounts[fn]=(fnCounts[fn]||0)+1);
   const datasets=names.map((name,i)=>({
-    label:name,
+    label: fnCounts[firstNames[i]]>1
+      ? firstNames[i]+' '+((name.split(' ')[1]||'').charAt(0)+'.').replace(' .','')
+      : firstNames[i],
     data:dates.map(dt=>{
       const dayLogs=logs.filter(l=>matchFn(l,dt)&&l.athleteName===name);
       if(!dayLogs.length) return null;
