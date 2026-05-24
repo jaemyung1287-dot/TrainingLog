@@ -821,6 +821,24 @@ const APP_VERSION = '20260520-6';
       <div class="chart-box"><div class="chart-title">😴 Sleep Quality (1–10)</div><canvas id="chart-load-sleepq"></canvas></div>
     </div>
     <div id="load-cond-table"></div>
+
+    <!-- Single-athlete only: Session RPE Trend -->
+    <div id="load-rpe-box" class="chart-box" style="display:none">
+      <div class="chart-title">📈 Session RPE Trend</div>
+      <canvas id="chart-load-rpe"></canvas>
+    </div>
+
+    <!-- Single-athlete only: Recent Sessions (expandable cards) -->
+    <div id="load-recent-wrap" style="display:none">
+      <div class="sec-ttl" style="margin-top:18px">📋 Recent Sessions</div>
+      <div id="load-recent-list"></div>
+    </div>
+
+    <!-- Single-athlete only: Soreness Log -->
+    <div id="load-soreness-wrap" style="display:none">
+      <div class="sec-ttl" style="margin-top:18px">🔴 Soreness Log</div>
+      <div id="load-soreness-list"></div>
+    </div>
   </div>
 
   <!-- ATHLETES -->
@@ -3818,6 +3836,16 @@ function renderLoadTab(){
   if(condSingle) condSingle.style.display=isAll?'none':'block';
   if(condAll) condAll.style.display=isAll?'block':'none';
 
+  // Single-athlete only: Session RPE chart, Recent Sessions cards, Soreness Log
+  const rpeBox=document.getElementById('load-rpe-box');
+  const recentWrap=document.getElementById('load-recent-wrap');
+  const sorenessWrap=document.getElementById('load-soreness-wrap');
+  const condTable=document.getElementById('load-cond-table');
+  if(rpeBox) rpeBox.style.display=isAll?'none':'block';
+  if(recentWrap) recentWrap.style.display=isAll?'none':'block';
+  if(sorenessWrap) sorenessWrap.style.display=isAll?'none':'block';
+  if(condTable) condTable.style.display=isAll?'block':'none';
+
   // Helper: compute volume for a weight log by training type
   // Must mirror _exVolSplit: use setRows when available, exclude bodyweight
   function _exVol(e){
@@ -3889,7 +3917,166 @@ function renderLoadTab(){
     }
     _renderCondTable(cc.slice().sort((a,b)=>b.date.localeCompare(a.date)));
   }
+
+  // Single-athlete only: RPE trend chart + Recent Sessions + Soreness Log
+  if(!isAll){
+    const days = loadPeriod==='week'?7:loadPeriod==='month'?30:90;
+    const periodDates = getLast(days);
+    const periodSet = new Set(periodDates);
+    const myLogs = d.logs.filter(l=>l.athleteName===fn && periodSet.has(l.date));
+    _renderLoadRPE(myLogs, periodDates);
+    _renderLoadRecent(myLogs);
+    _renderLoadSoreness(myLogs);
+  }
 }
+
+// ── Single-athlete: Session RPE Trend chart (Weight/Plyo · Sprint · Tabata) ──
+function _renderLoadRPE(logs, dates){
+  const labels = dates.map(fmtDate);
+  const pickRpe = (type) => dates.map(dt => {
+    const matches = logs.filter(l => l.date===dt && l.type===type && l.rpe!=null);
+    if(!matches.length) return null;
+    return Math.round(matches.reduce((s,l)=>s+(+l.rpe||0),0)/matches.length*10)/10;
+  });
+  const wpRpe = dates.map(dt => {
+    const matches = logs.filter(l => l.date===dt && (l.type==='weight'||l.type==='plyo') && l.rpe!=null);
+    if(!matches.length) return null;
+    return Math.round(matches.reduce((s,l)=>s+(+l.rpe||0),0)/matches.length*10)/10;
+  });
+  const sprintRpe = pickRpe('sprint');
+  const tabataRpe = pickRpe('tabata');
+  const ds = (label,data,color,pStyle)=>({label,data,borderColor:color,backgroundColor:color,tension:.35,pointRadius:5,pointHoverRadius:7,pointStyle:pStyle});
+  mkChart('chart-load-rpe', [
+    ds('Weight / Plyo', wpRpe,     '#f7a94f', 'circle'),
+    ds('Sprint',        sprintRpe, '#3ecf8e', 'rect'),
+    ds('Tabata',        tabataRpe, '#e94560', 'triangle')
+  ], labels, {yMax:10});
+}
+
+// ── Single-athlete: Recent Sessions (expandable cards, like RoadTo2030 style) ──
+function _renderLoadRecent(logs){
+  const wrap = document.getElementById('load-recent-list');
+  if(!wrap) return;
+  const sorted = logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
+  if(!sorted.length){ wrap.innerHTML='<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>'; return; }
+
+  const _typeIcon = {weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥'};
+  const _typeColor = {weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c'};
+  const _typeLabel = {weight:'Weight',sprint:'Sprint',plyo:'Plyo',condition:'Condition',tabata:'Tabata'};
+
+  const _exChips = exs => exs.length
+    ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${exs.map(e=>`<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:11px;color:var(--text);line-height:1.4">${e.name||'—'}</span>`).join('')}</div>`
+    : '';
+  const _exDetailRows = exs => exs.map(e=>{
+    const wStr = e.isBodyweight ? `BW${e.bwBase?'+'+e.bwBase+'kg':''}` : (e.weight?`${e.weight}kg`:'—');
+    const setsStr = e.setRows && e.setRows.length
+      ? e.setRows.map((sr,i)=>`<span style="font-size:10px;color:var(--muted)">Set${i+1}: ${sr.kg||sr.extraKg||'BW'}kg × ${sr.reps}</span>`).join(' &nbsp;')
+      : `${e.sets||'—'} × ${e.reps||'—'}`;
+    return `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="font-size:12px;color:var(--text);flex:1;padding-right:8px">${e.name||'—'}</span>
+      <span style="font-size:11px;color:var(--muted);text-align:right;white-space:nowrap">${wStr} &nbsp; ${setsStr}</span>
+    </div>`;
+  }).join('');
+  const _sprintDetailRows = sets => sets.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+    <span style="font-size:12px;color:var(--text)">${s.distance}m</span>
+    <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
+  </div>`).join('');
+
+  wrap.innerHTML = sorted.map(l=>{
+    const hasDetail = ((l.type==='weight'||l.type==='plyo') && (l.exercises||[]).length>0)
+                    || (l.type==='sprint' && (l.sets||[]).length>0)
+                    || (l.type==='condition' && ((l.soreness||[]).length>0 || l.notes));
+    const detailId = `lr-${l.id}`;
+    const chevId   = `lrc-${l.id}`;
+
+    let summaryHtml='';
+    if(l.type==='weight'||l.type==='plyo'){
+      const vol = _exVolSplit([l]).total;
+      summaryHtml = `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--muted)">Volume</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${vol.toLocaleString()} kg</span>
+      </div>` + _exChips(l.exercises||[]);
+    } else if(l.type==='sprint'){
+      summaryHtml = `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--muted)">${l.sprintType||'Sprint'}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${(l.totalDistance||0).toLocaleString()} m</span>
+      </div>`;
+    } else if(l.type==='condition'){
+      summaryHtml = `<div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--muted)">😴 ${l.sleepHours??'—'}h · Q${l.sleepQuality??'—'}</span>
+        <span style="font-size:12px;color:var(--muted)">⚡ Fatigue ${l.fatigue??'—'}/10</span>
+        <span style="font-size:12px;color:var(--muted)">😊 Mood ${l.mood??'—'}/10</span>
+      </div>`;
+    } else if(l.type==='tabata'){
+      summaryHtml = `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--muted)">Tabata · 8 rounds</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${l.rpe?'RPE '+l.rpe+'/10':''}</span>
+      </div>`;
+    }
+
+    let detailHtml='';
+    if((l.type==='weight'||l.type==='plyo') && (l.exercises||[]).length){
+      detailHtml = _exDetailRows(l.exercises||[]);
+    } else if(l.type==='sprint' && (l.sets||[]).length){
+      detailHtml = _sprintDetailRows(l.sets||[]);
+    } else if(l.type==='condition'){
+      let parts=[];
+      parts.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px"><span style="color:var(--muted)">Sleep</span><span style="color:var(--text);font-weight:600">${l.sleepHours??'—'}h · Q${l.sleepQuality??'—'}</span></div>`);
+      parts.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px"><span style="color:var(--muted)">Fatigue · Mood</span><span style="color:var(--text);font-weight:600">${l.fatigue??'—'} · ${l.mood??'—'}</span></div>`);
+      if((l.soreness||[]).length){
+        const sChips = l.soreness.map(s=>`<span style="display:inline-block;padding:2px 8px;border-radius:14px;background:rgba(247,169,79,.15);border:1px solid rgba(247,169,79,.3);font-size:11px;color:#f7a94f;margin:2px 3px 0 0">${s.part} ${s.intensity}</span>`).join('');
+        parts.push(`<div style="padding:5px 0;font-size:12px"><span style="color:var(--muted);display:block;margin-bottom:4px">Soreness</span><div>${sChips}</div></div>`);
+      }
+      if(l.notes) parts.push(`<div style="padding:5px 0;font-size:12px;color:var(--muted);font-style:italic">"${l.notes}"</div>`);
+      detailHtml = parts.join('');
+    }
+
+    return `<div class="detail-card" style="cursor:${hasDetail?'pointer':'default'}" ${hasDetail?`onclick="_toggleLogDetail('${detailId}','${chevId}')"`:''}>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">${_typeIcon[l.type]||'📝'}</span>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${l.date}</div>
+            <span class="badge ${_typeColor[l.type]||'b-c'}" style="margin-top:2px">${_typeLabel[l.type]||l.type}${l.rpe?` · RPE ${l.rpe}/10`:''}</span>
+          </div>
+        </div>
+        ${hasDetail?`<span id="${chevId}" style="font-size:16px;color:var(--muted);transition:transform .2s">▼</span>`:''}
+      </div>
+      ${summaryHtml}
+      <div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Single-athlete: Soreness Log (date-grouped chips) ──
+function _renderLoadSoreness(logs){
+  const wrap = document.getElementById('load-soreness-list');
+  if(!wrap) return;
+  const sorenessLogs = logs.filter(l=>l.type==='condition' && (l.soreness||[]).length>0)
+                            .sort((a,b)=>b.date.localeCompare(a.date));
+  if(!sorenessLogs.length){
+    wrap.innerHTML='<div class="empty" style="padding:20px 0;font-size:13px">No soreness reports in this period</div>';
+    return;
+  }
+  // Map English body parts → section color
+  const _partSection = {};
+  ['Neck','Shoulder','Chest','Back','Arm'].forEach(p=>_partSection[p]='upper');
+  ['Hip','Quad','Glute','Hamstring','Adductor','Calf','Ankle','Foot'].forEach(p=>_partSection[p]='lower');
+  ['Lower Back','Abs','Oblique'].forEach(p=>_partSection[p]='core');
+
+  wrap.innerHTML = sorenessLogs.map(l=>{
+    const chips = l.soreness.map(s=>{
+      const sec = _partSection[s.part]||'upper';
+      const col = _SECTION_COL[sec];
+      return `<span style="display:inline-block;padding:4px 11px;border-radius:18px;background:${col.bg};border:1px solid ${col.border};font-size:12px;color:${col.color};font-weight:600;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;
+    }).join('');
+    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">${l.date}</div>
+      <div>${chips}</div>
+    </div>`;
+  }).join('');
+}
+
 function _renderCondTable(cc){
   const wrap=document.getElementById('load-cond-table');
   if(!wrap) return;
