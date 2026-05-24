@@ -4296,10 +4296,10 @@ function _renderLoadOverview(allLogs, athleteName){
   };
 
   const condCard = (lbl, val, color, delta) => `
-    <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:7px 7px;text-align:center">
-      <div style="font-size:9px;color:var(--muted);font-weight:600">${lbl}</div>
-      <div style="font-size:17px;font-weight:800;color:${color};margin-top:3px;line-height:1">${val==null?'—':val.toFixed(1)}</div>
-      <div style="margin-top:3px;min-height:12px">${delta}</div>
+    <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <div style="font-size:10px;color:var(--muted);font-weight:600;text-align:center">${lbl}</div>
+      <div style="font-size:22px;font-weight:800;color:${color};margin-top:4px;line-height:1;text-align:center">${val==null?'—':val.toFixed(1)}</div>
+      <div style="margin-top:4px;min-height:14px;text-align:center">${delta}</div>
     </div>`;
   const condHtml =
     condCard('Fatigue · Müdigkeit', fat7,   colorFatigue(fat7),  deltaHtml(fat7,   fatPrev,   'fatigue')) +
@@ -4338,10 +4338,10 @@ function _renderLoadOverview(allLogs, athleteName){
       ? (stats.totalParts ? `${stats.totalParts} parts` : 'no soreness')
       : (stats.topPart ? `Max: ${stats.topPart} ${stats.topInt}` : 'no soreness');
     const val = isTotal ? stats.totalAvg : stats.avg;
-    return `<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:7px 7px;text-align:center">
-      <div style="font-size:9px;color:var(--muted);font-weight:600">${lbl}</div>
-      <div style="font-size:17px;font-weight:800;color:${col};margin-top:3px;line-height:1">${val==null?'—':val.toFixed(1)}</div>
-      <div style="font-size:9px;color:var(--muted);margin-top:2px">${sub}</div>
+    return `<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <div style="font-size:10px;color:var(--muted);font-weight:600;text-align:center">${lbl}</div>
+      <div style="font-size:22px;font-weight:800;color:${col};margin-top:4px;line-height:1;text-align:center">${val==null?'—':val.toFixed(1)}</div>
+      <div style="font-size:9.5px;color:var(--muted);margin-top:3px;text-align:center">${sub}</div>
     </div>`;
   };
   const upper = regionStats('upper');
@@ -4354,12 +4354,12 @@ function _renderLoadOverview(allLogs, athleteName){
     sorCard('Total avg',            {totalAvg, totalParts}, true);
 
   // ── Assemble ──
-  const secTtl = (txt) => `<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px">${txt}</div>`;
-  const grid = (n) => `display:grid;grid-template-columns:repeat(${n},1fr);gap:5px`;
+  const secTtl = (txt) => `<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px">${txt}</div>`;
+  const grid = (n) => `display:grid;grid-template-columns:repeat(${n},1fr);gap:7px`;
   // Collapsible wrapper using existing chart-box toggle infra (data-chart-key for stable id)
   const collapsibleSec = (key, icon, title, contentHtml) => `
-    <div class="chart-box" data-chart-key="overview-${key}" style="padding:8px 10px;margin-bottom:7px">
-      <div class="chart-title" style="font-size:10px;margin-bottom:7px">${icon} ${title}</div>
+    <div class="chart-box" data-chart-key="overview-${key}" style="padding:12px 14px;margin-bottom:10px">
+      <div class="chart-title" style="font-size:11px;margin-bottom:10px">${icon} ${title}</div>
       <div>${contentHtml}</div>
     </div>`;
   wrap.innerHTML =
