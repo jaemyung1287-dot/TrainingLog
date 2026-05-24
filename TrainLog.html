@@ -66,7 +66,7 @@ textarea.fi{resize:vertical;min-height:80px}
 .slider-row input[type=range]{flex:1;-webkit-appearance:none;height:6px;border-radius:3px;background:var(--border);outline:none}
 .slider-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--accent);cursor:pointer}
 .sv{font-size:22px;font-weight:800;min-width:36px;text-align:right}
-.sv.good{color:var(--green)}.sv.mid{color:var(--orange)}.sv.bad{color:var(--accent)}
+.sv.good{color:var(--green)}.sv.mid{color:var(--orange)}.sv.bad{color:var(--red)}
 .ex-row{background:var(--input);border-radius:var(--r);padding:14px;margin-bottom:10px;border:1px solid var(--border)}
 .ex-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .ex-name{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:8px 12px;flex:1;margin-right:8px;outline:none;font-family:inherit}
@@ -92,7 +92,7 @@ textarea.fi{resize:vertical;min-height:80px}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px}
 .stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .stat-val{font-size:26px;font-weight:800}
-.c-blue{color:var(--blue)}.c-green{color:var(--green)}.c-orange{color:var(--orange)}.c-red{color:var(--accent)}.c-purple{color:var(--purple)}
+.c-blue{color:var(--blue)}.c-green{color:var(--green)}.c-orange{color:var(--orange)}.c-red{color:var(--red)}.c-purple{color:var(--purple)}
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:var(--input);padding:10px;text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
@@ -2513,7 +2513,7 @@ function _renderAthRecentLogs(targetId){
       }
       // RPE colour helper
       const rpe=Number(l.rpe)||0;
-      const rpeColor=rpe>=9?'#ef4444':rpe>=7?'#f97316':rpe>=4?'#f7a94f':'#3ecf8e';
+      const rpeColor=rpe>=7?'#e94560':rpe>=4?'#f7a94f':'#3ecf8e';
       const rpeLabel=rpe>=9?'Max 🔴':rpe>=7?'Hard 🟠':rpe>=4?'Moderate 🟡':rpe>0?'Easy 🟢':'—';
       // Exercise chips (weight/plyo)
       const exChips=(l.type==='weight'||l.type==='plyo')&&Array.isArray(l.exercises)&&l.exercises.length
@@ -4278,10 +4278,10 @@ function _renderLoadOverview(allLogs, athleteName){
   const moodPrev = condAvg(myPrev7, l=>l.mood);
   const rpePrev = rpeAll(myPrev7);
 
-  // Color by metric semantics (fatigue: lower better; others: higher better; RPE: middle good)
-  const colorFatigue = v => v==null?'#666':v>=7?'#e94560':v>=5?'#f7a94f':'#3ecf8e';
-  const colorHigher  = v => v==null?'#666':v>=7?'#3ecf8e':v>=5?'#f7a94f':'#e94560';
-  const colorRPE     = v => v==null?'#666':v>=8?'#e94560':v>=6?'#f7a94f':v>=4?'#3ecf8e':'#888';
+  // Color by metric semantics — unified 3-tier: 1-3 green/red, 4-6 orange, 7-10 red/green
+  const colorFatigue = v => v==null?'#666':v>=7?'#e94560':v>=4?'#f7a94f':'#3ecf8e';
+  const colorHigher  = v => v==null?'#666':v>=7?'#3ecf8e':v>=4?'#f7a94f':'#e94560';
+  const colorRPE     = v => v==null?'#666':v>=7?'#e94560':v>=4?'#f7a94f':'#3ecf8e';
 
   // Delta arrows (better = green, worse = red)
   const deltaHtml = (cur, prev, type) => {
@@ -4539,6 +4539,7 @@ function _renderLoadSoreness(logs, wrapId){
   }).join('');
 }
 
+const _scCol=(v,highGood)=>v==null?'#666':highGood?(v>=7?'#3ecf8e':v>=4?'#f7a94f':'#e94560'):(v>=7?'#e94560':v>=4?'#f7a94f':'#3ecf8e');
 function _renderCondTable(cc){
   const wrap=document.getElementById('load-cond-table');
   if(!wrap) return;
@@ -4547,9 +4548,9 @@ function _renderCondTable(cc){
     <div style="display:grid;grid-template-columns:72px 1fr 28px 28px 28px 28px;align-items:center;gap:4px;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px">
       <span style="color:var(--muted);font-size:11px">${l.date.slice(5).replace('-','/')}</span>
       <span style="font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.athleteName}</span>
-      <span style="text-align:center;font-weight:700;color:#e94560">${l.fatigue??'—'}</span>
-      <span style="text-align:center;font-weight:700;color:#3ecf8e">${l.mood??'—'}</span>
-      <span style="text-align:center;font-weight:700;color:#4f8ef7">${l.sleepQuality??'—'}</span>
+      <span style="text-align:center;font-weight:700;color:${_scCol(l.fatigue,false)}">${l.fatigue??'—'}</span>
+      <span style="text-align:center;font-weight:700;color:${_scCol(l.mood,true)}">${l.mood??'—'}</span>
+      <span style="text-align:center;font-weight:700;color:${_scCol(l.sleepQuality,true)}">${l.sleepQuality??'—'}</span>
       <button onclick="deleteLog('${l.id}','load')" style="padding:2px 5px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:#e94560;font-size:10px;cursor:pointer">🗑</button>
     </div>`).join('');
   wrap.innerHTML=`
