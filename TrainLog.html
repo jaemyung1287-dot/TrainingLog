@@ -3587,12 +3587,16 @@ function renderAthStats(){
     vbtBox.style.display='none';
   }
 
-  // ── Shared single-athlete sections (RPE trend · Soreness log · Recent sessions) ──
-  const dateSet = new Set(dates);
-  const myLogsInWindow = myLogs.filter(l=>dateSet.has(l.date));
-  _renderLoadRPE(myLogsInWindow, dates, 'chart-my-rpe');
-  _renderLoadSoreness(myLogsInWindow, 'my-soreness-list');
-  _renderLoadRecent(myLogsInWindow, 'my-recent-list');
+  // ── Shared single-athlete sections ──
+  // RPE chart keeps 14-day window for trend visibility
+  const dateSet14 = new Set(dates);
+  _renderLoadRPE(myLogs.filter(l=>dateSet14.has(l.date)), dates, 'chart-my-rpe');
+  // Lists (Soreness, Recent Sessions) keep only last 5 days so screen stays compact
+  const dates5 = getLast(5);
+  const dateSet5 = new Set(dates5);
+  const myLogs5 = myLogs.filter(l=>dateSet5.has(l.date));
+  _renderLoadSoreness(myLogs5, 'my-soreness-list');
+  _renderLoadRecent(myLogs5, 'my-recent-list');
 
   renderMyRecords();
   ST._teamPeriod=ST._teamPeriod||'week';
