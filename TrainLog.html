@@ -829,11 +829,11 @@ const APP_VERSION = '20260520-6';
       <button class="period-btn" onclick="setPeriod('year',this)">1 Year</button>
     </div>
 
-    <!-- Single-athlete only: Overview (KPIs + Risk signals) -->
+    <!-- Single-athlete only: Overview (4 category cards + Risk signals) -->
     <div id="load-overview-wrap" style="display:none;margin-bottom:14px">
       <div class="sec-ttl" style="margin-top:0">🎯 Overview · Letzte 7 Tage</div>
-      <div id="load-overview-kpis" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px"></div>
-      <div id="load-overview-risk"></div>
+      <div id="load-overview-content"></div>
+      <div id="load-overview-risk" style="margin-top:12px"></div>
     </div>
 
     <div class="chart-box"><div class="chart-title">🏋️ Power Development Volume (kg)</div><canvas id="chart-load-power"></canvas></div>
@@ -4224,45 +4224,161 @@ function renderLoadTab(){
   }
 }
 
-// ── Overview section for single-athlete Load tab (KPIs + Risk signals) ──
+// ── Overview section for single-athlete Load tab (4 category cards + Risk signals) ──
 function _renderLoadOverview(allLogs, athleteName){
-  const kpisWrap = document.getElementById('load-overview-kpis');
+  const wrap = document.getElementById('load-overview-content');
   const riskWrap = document.getElementById('load-overview-risk');
-  if(!kpisWrap || !riskWrap) return;
+  if(!wrap || !riskWrap) return;
 
-  // ── KPI calculations (last 7 days) ──
+  // Window helpers — this week (last 7) vs previous week (8–14 days ago)
   const last7 = new Set(getLast(7));
+  const last14arr = getLast(14);
+  const prev7 = new Set(last14arr.slice(0,7));  // older 7 days
   const my7 = allLogs.filter(l=>l.athleteName===athleteName && last7.has(l.date));
-  const wtVol = my7.filter(l=>l.type==='weight').reduce((s,l)=>s+_exVolSplit([l]).total,0);
-  const sprDist = my7.filter(l=>l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0);
-  const rpeLogs = my7.filter(l=>(l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='tabata') && l.rpe!=null);
-  const avgRPE = rpeLogs.length ? Math.round(rpeLogs.reduce((s,l)=>s+(+l.rpe||0),0)/rpeLogs.length*10)/10 : null;
-  const acwrs = _athleteACWRs(allLogs, athleteName);
-  // Pick the most representative ACWR (highest non-null), or weight default
-  let primaryAcwr = acwrs.weight;
-  if(acwrs.sprint.ratio!=null && (primaryAcwr.ratio==null || acwrs.sprint.ratio>primaryAcwr.ratio)) primaryAcwr = acwrs.sprint;
-  if(acwrs.plyo.ratio!=null && (primaryAcwr.ratio==null || acwrs.plyo.ratio>primaryAcwr.ratio)) primaryAcwr = acwrs.plyo;
+  const myPrev7 = allLogs.filter(l=>l.athleteName===athleteName && prev7.has(l.date));
 
-  // ── KPI card builder ──
-  const card = (lbl, val, sub, color) => `
-    <div style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${color};border-radius:10px;padding:10px 12px">
-      <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px">${lbl}</div>
-      <div style="font-size:18px;font-weight:800;color:${color};margin-top:3px;line-height:1.1">${val}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:2px">${sub}</div>
+  // ── 1. Weekly Training Load (per-sport avg RPE) ──
+  const avgRpeByType = (logs, type) => {
+    const ls = logs.filter(l=>l.type===type && l.rpe!=null);
+    if(!ls.length) return null;
+    return Math.round(ls.reduce((s,l)=>s+(+l.rpe||0),0)/ls.length*10)/10;
+  };
+  const sports = [
+    {key:'weight',  lbl:'🏋️ Weight',  color:'#f7a94f'},
+    {key:'sprint',  lbl:'⚡ Sprint',   color:'#3ecf8e'},
+    {key:'plyo',    lbl:'🦘 Plyo',     color:'#a78bfa'},
+    {key:'tabata',  lbl:'🔥 Tabata',   color:'#e94560'}
+  ];
+  const loadCardHtml = sports.map(s=>{
+    const r = avgRpeByType(my7, s.key);
+    const cnt = my7.filter(l=>l.type===s.key).length;
+    return `<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-top:2px solid ${s.color};border-radius:10px;padding:10px 8px;text-align:center">
+      <div style="font-size:10px;color:var(--muted);font-weight:600">${s.lbl}</div>
+      <div style="font-size:16px;font-weight:800;color:${r==null?'#666':s.color};margin-top:4px;line-height:1">RPE ${r==null?'—':r.toFixed(1)}</div>
+      <div style="font-size:9px;color:var(--muted);margin-top:3px">${cnt} sessions</div>
     </div>`;
+  }).join('');
 
-  const rpeColor = avgRPE==null?'#666':avgRPE>=7?'#e94560':avgRPE>=5?'#f7a94f':'#3ecf8e';
-  const acwrLabel = primaryAcwr.ratio==null ? '—' : primaryAcwr.ratio.toFixed(2);
-  const acwrColor = _acwrColor(primaryAcwr.ratio);
-  const acwrZone = primaryAcwr.ratio==null
-    ? (primaryAcwr.insufficient ? 'Baseline 누적 중' : 'No data')
-    : primaryAcwr.ratio>=1.5?'🔴 위험':primaryAcwr.ratio>=1.3?'🟠 주의':primaryAcwr.ratio>=0.8?'✅ 적정':'⚪ 부족';
+  // ── 2. Weekly Condition (Fatigue / Sleep Q / Mood / Avg RPE) ──
+  const condAvg = (logs, fn) => {
+    const c = logs.filter(l=>l.type==='condition' && fn(l)!=null);
+    if(!c.length) return null;
+    return Math.round(c.reduce((s,l)=>s+(+fn(l)||0),0)/c.length*10)/10;
+  };
+  const rpeAll = (logs) => {
+    const tr = logs.filter(l=>(l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='tabata') && l.rpe!=null);
+    if(!tr.length) return null;
+    return Math.round(tr.reduce((s,l)=>s+(+l.rpe||0),0)/tr.length*10)/10;
+  };
+  const fat7 = condAvg(my7, l=>l.fatigue);
+  const sleep7 = condAvg(my7, l=>l.sleepQuality);
+  const mood7 = condAvg(my7, l=>l.mood);
+  const rpe7 = rpeAll(my7);
+  const fatPrev = condAvg(myPrev7, l=>l.fatigue);
+  const sleepPrev = condAvg(myPrev7, l=>l.sleepQuality);
+  const moodPrev = condAvg(myPrev7, l=>l.mood);
+  const rpePrev = rpeAll(myPrev7);
 
-  kpisWrap.innerHTML =
-    card('Weight Vol',   wtVol.toLocaleString(),                'kg · 7d',         '#f7a94f') +
-    card('Sprint Dist',  sprDist.toLocaleString(),              'm · 7d',          '#3ecf8e') +
-    card('Avg RPE',      avgRPE==null?'—':avgRPE.toFixed(1),    rpeLogs.length+' sessions · 7d', rpeColor) +
-    card('ACWR',         acwrLabel,                              acwrZone,          acwrColor);
+  // Color by metric semantics (fatigue: lower better; others: higher better; RPE: middle good)
+  const colorFatigue = v => v==null?'#666':v>=7?'#e94560':v>=5?'#f7a94f':'#3ecf8e';
+  const colorHigher  = v => v==null?'#666':v>=7?'#3ecf8e':v>=5?'#f7a94f':'#e94560';
+  const colorRPE     = v => v==null?'#666':v>=8?'#e94560':v>=6?'#f7a94f':v>=4?'#3ecf8e':'#888';
+
+  // Delta arrows (better = green, worse = red)
+  const deltaHtml = (cur, prev, type) => {
+    if(cur==null || prev==null) return '';
+    const d = Math.round((cur - prev)*10)/10;
+    if(d===0) return `<span style="font-size:10px;color:#666">→ 0</span>`;
+    // "improvement direction": fatigue → lower is better; mood/sleep/rpe → context
+    let good;
+    if(type==='fatigue') good = d<0;
+    else if(type==='mood' || type==='sleep') good = d>0;
+    else good = Math.abs(d)<1;  // RPE: stable is best
+    const col = good?'#3ecf8e':'#e94560';
+    const arrow = d>0?'↑':'↓';
+    return `<span style="font-size:10px;color:${col};font-weight:600">${arrow} ${d>0?'+':''}${d}</span>`;
+  };
+
+  const condCard = (lbl, val, color, delta) => `
+    <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center">
+      <div style="font-size:10px;color:var(--muted);font-weight:600">${lbl}</div>
+      <div style="font-size:22px;font-weight:800;color:${color};margin-top:4px;line-height:1">${val==null?'—':val.toFixed(1)}</div>
+      <div style="margin-top:4px;min-height:14px">${delta}</div>
+    </div>`;
+  const condHtml =
+    condCard('Fatigue · Müdigkeit', fat7,   colorFatigue(fat7),  deltaHtml(fat7,   fatPrev,   'fatigue')) +
+    condCard('Sleep Q · Schlafqual.', sleep7, colorHigher(sleep7), deltaHtml(sleep7, sleepPrev, 'sleep')) +
+    condCard('Mood · Stimmung',      mood7,  colorHigher(mood7),  deltaHtml(mood7,  moodPrev,  'mood')) +
+    condCard('Avg RPE',              rpe7,   colorRPE(rpe7),      deltaHtml(rpe7,   rpePrev,   'rpe'));
+
+  // ── 3. Weekly Soreness (by body region) ──
+  const partSection = {};
+  ['Neck','Shoulder','Chest','Back','Arm'].forEach(p=>partSection[p]='upper');
+  ['Hip','Quad','Glute','Hamstring','Adductor','Calf','Ankle','Foot'].forEach(p=>partSection[p]='lower');
+  ['Lower Back','Abs','Oblique'].forEach(p=>partSection[p]='core');
+
+  const regionAgg = {upper:[], lower:[], core:[]};
+  my7.filter(l=>l.type==='condition' && (l.soreness||[]).length).forEach(l=>{
+    l.soreness.forEach(s=>{
+      const reg = partSection[s.part];
+      if(reg) regionAgg[reg].push({part:s.part, intensity:s.intensity});
+    });
+  });
+  const regionStats = (region)=>{
+    const arr = regionAgg[region];
+    if(!arr.length) return {avg:null, topPart:null, topInt:null};
+    const avg = Math.round(arr.reduce((s,r)=>s+r.intensity,0)/arr.length*10)/10;
+    const top = arr.slice().sort((a,b)=>b.intensity-a.intensity)[0];
+    return {avg, topPart:top.part, topInt:top.intensity};
+  };
+  const allSor = [...regionAgg.upper, ...regionAgg.lower, ...regionAgg.core];
+  const totalAvg = allSor.length ? Math.round(allSor.reduce((s,r)=>s+r.intensity,0)/allSor.length*10)/10 : null;
+  const totalParts = new Set(allSor.map(r=>r.part)).size;
+
+  const sorColor = v => v==null?'#666':v>=7?'#e94560':v>=4?'#f7a94f':'#3ecf8e';
+  const sorCard = (lbl, stats, isTotal) => {
+    const col = sorColor(isTotal?stats.totalAvg:stats.avg);
+    const sub = isTotal
+      ? (stats.totalParts ? `${stats.totalParts} parts` : 'no soreness')
+      : (stats.topPart ? `Max: ${stats.topPart} ${stats.topInt}` : 'no soreness');
+    const val = isTotal ? stats.totalAvg : stats.avg;
+    return `<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center">
+      <div style="font-size:10px;color:var(--muted);font-weight:600">${lbl}</div>
+      <div style="font-size:22px;font-weight:800;color:${col};margin-top:4px;line-height:1">${val==null?'—':val.toFixed(1)}</div>
+      <div style="font-size:9.5px;color:var(--muted);margin-top:3px">${sub}</div>
+    </div>`;
+  };
+  const upper = regionStats('upper');
+  const lower = regionStats('lower');
+  const core = regionStats('core');
+  const sorHtml =
+    sorCard('Upper · Oberkörper', upper, false) +
+    sorCard('Lower · Unterkörper', lower, false) +
+    sorCard('Core',                 core,  false) +
+    sorCard('Total avg',            {totalAvg, totalParts}, true);
+
+  // ── 4. This Week's Note (most recent condition with notes in last 7d) ──
+  const noted = my7.filter(l=>l.type==='condition' && l.notes && l.notes.trim())
+                    .sort((a,b)=>b.date.localeCompare(a.date));
+  const noteHtml = noted.length
+    ? `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid #f7a94f;border-radius:10px;padding:10px 12px">
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px">💬 ${noted[0].date}</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.5;font-style:italic">${noted[0].notes}</div>
+       </div>`
+    : `<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:11px;color:var(--muted);font-style:italic">No notes this week</div>`;
+
+  // ── Assemble ──
+  const secTtl = (txt) => `<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px">${txt}</div>`;
+  const grid = (n) => `display:grid;grid-template-columns:repeat(${n},1fr);gap:7px`;
+  wrap.innerHTML =
+    secTtl('🏋️ Weekly Training Load · Trainingsbelastung') +
+    `<div style="${grid(4)}">${loadCardHtml}</div>` +
+    secTtl('🌡️ Weekly Condition · Befinden') +
+    `<div style="${grid(2)}">${condHtml}</div>` +
+    secTtl('🔴 Weekly Soreness · Muskelkater') +
+    `<div style="${grid(2)}">${sorHtml}</div>` +
+    secTtl('💬 This Week\'s Notes · Kommentar') +
+    noteHtml;
 
   // ── Risk signals (4 detectors, athlete-scoped) ──
   const sor=_detectSoreness(athleteName,allLogs);
