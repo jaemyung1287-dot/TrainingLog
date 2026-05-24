@@ -3998,11 +3998,30 @@ function _renderLoadRecent(logs){
     <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
   </div>`).join('');
 
+  // Traffic-light intensity colors: 1-3 mild (green), 4-6 moderate (orange), 7-10 severe (red)
+  const _intensityCol = n => {
+    if(n>=7) return {color:'#e94560', bg:'rgba(233,69,96,.15)', border:'rgba(233,69,96,.35)'};
+    if(n>=4) return {color:'#f7a94f', bg:'rgba(247,169,79,.15)', border:'rgba(247,169,79,.35)'};
+    return {color:'#3ecf8e', bg:'rgba(62,207,142,.15)', border:'rgba(62,207,142,.35)'};
+  };
   const _conditionDetail = l => {
     let parts = [];
     if((l.soreness||[]).length){
-      const sChips = l.soreness.map(s=>`<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:rgba(247,169,79,.15);border:1px solid rgba(247,169,79,.3);font-size:11px;color:#f7a94f;font-weight:600;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`).join('');
-      parts.push(`<div style="padding:4px 0"><div style="font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600">🔴 Soreness</div><div>${sChips}</div></div>`);
+      const sChips = l.soreness.map(s=>{
+        const c = _intensityCol(s.intensity);
+        return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;
+      }).join('');
+      parts.push(`<div style="padding:4px 0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;color:var(--muted);font-weight:600">🔴 Soreness</span>
+          <span style="font-size:10px;color:var(--muted);letter-spacing:.3px">
+            <span style="color:#3ecf8e">●</span> mild
+            <span style="color:#f7a94f;margin-left:6px">●</span> moderate
+            <span style="color:#e94560;margin-left:6px">●</span> severe
+          </span>
+        </div>
+        <div>${sChips}</div>
+      </div>`);
     } else {
       parts.push(`<div style="padding:4px 0;font-size:12px;color:var(--muted);font-style:italic">No soreness reported</div>`);
     }
