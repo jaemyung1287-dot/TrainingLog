@@ -2293,6 +2293,7 @@ function selectType(t){
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
+            isSL:e.isSL||lg.isSL||false,
             // Actual logged values
             intensity:lg.intensity!=null?String(lg.intensity):'',
             weight:lg.weight!=null?String(lg.weight):'',
@@ -2313,6 +2314,7 @@ function selectType(t){
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
+            isSL:e.isSL||false,
             intensity:e.planIntensity||'', sets:e.planSets||'', reps:e.planReps||'',
             isBodyweight:e.isBW||BW_EXERCISES.has(e.name)||false,
             weight:(e.isBW||BW_EXERCISES.has(e.name))&&athBW?String(athBW):'',
@@ -6602,7 +6604,9 @@ function renderPlanAccordion(){
         let fieldsHtml='';
         if(typeParams==='lifting'){
           const bwOn=ex.isBW||false;
+          const slOn=ex.isSL||false;
           const bwBtnStyle=`font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;border:1px solid ${bwOn?'rgba(62,207,142,.6)':'rgba(255,255,255,.15)'};background:${bwOn?'rgba(62,207,142,.2)':'transparent'};color:${bwOn?'#3ecf8e':'var(--muted)'};cursor:pointer`;
+          const slBtnStyle=`font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;border:1px solid ${slOn?'rgba(79,142,247,.6)':'rgba(255,255,255,.15)'};background:${slOn?'rgba(79,142,247,.2)':'transparent'};color:${slOn?'#4f8ef7':'var(--muted)'};cursor:pointer`;
           // Contraction type & time/tempo
           const cType=ex.planContractionType||'';
           const cVal=ex.planContractionValue||'';
@@ -6618,10 +6622,11 @@ function renderPlanAccordion(){
           }
           const cLabel=cType==='Concentric'?'Tempo':(cType?'Time (s)':'');
           fieldsHtml=`
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-            <span style="font-size:11px;color:var(--muted)">Body Weight 모드:</span>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--muted)">모드:</span>
             <button style="${bwBtnStyle}" onclick="_togglePlanExBW(${globalIdx})">${bwOn?'✓ BW':'BW'}</button>
-            ${bwOn?`<span style="font-size:10px;color:var(--muted)">(선수 체중 자동 입력)</span>`:''}
+            <button style="${slBtnStyle}" onclick="_togglePlanExSL(${globalIdx})" title="Single Leg — 볼륨 자동 ×2">${slOn?'✓ SL':'SL'}</button>
+            ${slOn?`<span style="font-size:10px;color:#4f8ef7">reps ×2로 볼륨 계산</span>`:''}
           </div>
           <div class="ex-nums" style="grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planIntensity||''}" oninput="_updatePlanEx(${globalIdx},'planIntensity',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Int %</div></div>
@@ -7118,6 +7123,16 @@ function _togglePlanExBW(idx){
   const exs=_getPlanSessionExsFromData(plan); if(!exs) return;
   const ex=exs[idx]; if(!ex) return;
   ex.isBW=!ex.isBW;
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
+}
+function _togglePlanExSL(idx){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
+  const exs=_getPlanSessionExsFromData(plan); if(!exs) return;
+  const ex=exs[idx]; if(!ex) return;
+  ex.isSL=!ex.isSL;
   d.sessionPlans[ST._planDay]=plan;
   saveData(d);
   renderPlanAccordion();
