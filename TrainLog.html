@@ -3539,7 +3539,7 @@ function renderProgram(){
     const ds=`${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
     const isToday=ds===todayStr();
     const plan=d.sessionPlans[ds];
-    const gd=plan?(plan[grp]||plan['all']):null;
+    const gd=_planGrpData(plan, ST.athlete);
     const amExs=_wExs(gd,'am'); const pmExs=_wExs(gd,'pm');
     const amSd=_wSess(gd,'am'); const pmSd=_wSess(gd,'pm');
     const hasPlan=amExs.length>0||pmExs.length>0||(amSd?.conditioningText||'').trim().length>0||(pmSd?.conditioningText||'').trim().length>0;
