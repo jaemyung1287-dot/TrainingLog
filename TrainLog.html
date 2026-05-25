@@ -1804,7 +1804,8 @@ function _enterAthleteMenu(){
   const amExs=_sessExs(grpData,'am');
   const pmExs=_sessExs(grpData,'pm');
   const totalExs=amExs.length+pmExs.length;
-  const hasCond=(grpData?.am?.conditioningText||'').trim().length>0||(grpData?.pm?.conditioningText||'').trim().length>0;
+  const _hasSessionText=(s)=>(grpData?.[s]?.conditioningText||'').trim().length>0||(grpData?.[s]?.warmup||'').trim().length>0||(grpData?.[s]?.cooldown||'').trim().length>0;
+  const hasCond=_hasSessionText('am')||_hasSessionText('pm');
   // Check if today's planned sessions are already logged
   const todayLogs=data.logs.filter(l=>l.athleteName===ST.athlete.name&&l.date===today);
   const amNames=new Set(amExs.map(e=>e.name));
@@ -1873,7 +1874,15 @@ function goTodayPlan(){
   let exs=_sessExs(grpData,preferred);
   let chosenSess=preferred;
   if(!exs.length){ exs=_sessExs(grpData,fallback); chosenSess=fallback; }
-  if(!exs.length) return;
+  if(!exs.length){
+    // No exercises but may have warmup/cooldown/conditioning text — still open weight screen to show them
+    const _hasTxt=(s)=>!!(grpData?.[s]?.warmup?.trim()||grpData?.[s]?.cooldown?.trim()||grpData?.[s]?.conditioningText?.trim());
+    const txtSess=_hasTxt(preferred)?preferred:_hasTxt(fallback)?fallback:null;
+    if(!txtSess) return;
+    ST._todayPlanSession=txtSess;
+    selectType('weight');
+    return;
+  }
   ST._todayPlanSession=chosenSess; // store for selectType to use
   const sprintExs=exs.filter(e=>e.trainingType==='Sprint Training');
   const weightExs=exs.filter(e=>e.trainingType!=='Sprint Training');
@@ -2340,10 +2349,9 @@ function selectType(t){
       // Still show warm-up / cool-down / conditioning if text is set, even with no exercises
       const _sbFallback=(()=>{
         if(!grpData) return null;
-        const s=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
-        if(grpData[s]) return grpData[s];
-        if(grpData.exercises) return grpData;
-        const other=s==='am'?'pm':'am';
+        if(grpData[sess]) return grpData[sess];
+        if(grpData.exercises) return grpData; // backward compat
+        const other=sess==='am'?'pm':'am';
         if(grpData[other]) return grpData[other];
         return null;
       })();
