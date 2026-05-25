@@ -6195,8 +6195,17 @@ function _renderPlanWeek(){
 
 function _planGrpData(plan, ath){
   // Priority: individual athlete plan → group plan → all
+  // Strict-individual mode: if ANY athlete in the same group has an individual plan key,
+  // unselected athletes do NOT fall back to the group plan (coach targeted specific athletes only)
   if(!plan) return null;
-  if(ath){ const ak='ath_'+ath.id; return plan[ak]||plan[ath.group]||plan['all']||null; }
+  if(ath){
+    const ak='ath_'+ath.id;
+    if(plan[ak]) return plan[ak]; // this athlete has an individual plan
+    // Check strict-individual mode for this group
+    const grpAthletes=(getData().athletes||[]).filter(a=>a.group===ath.group&&a.id!==ath.id);
+    if(grpAthletes.some(a=>plan['ath_'+a.id])) return plan['all']||null; // strict mode: skip group plan
+    return plan[ath.group]||plan['all']||null;
+  }
   return plan['all']||null;
 }
 function setPlanGroup(g){
@@ -7107,8 +7116,29 @@ function saveSessionPlan(){
   plan.phase=document.getElementById('sp-plan-phase').value;
   plan.week=document.getElementById('sp-plan-week').value;
   const sess=ST._planSession||'am';
-  if(!plan[ST._planGroup]) plan[ST._planGroup]={};
-  if(!plan[ST._planGroup][sess]) plan[ST._planGroup][sess]={exercises:[]};
+  const isIndividualMode=ST._planGroup&&ST._planGroup.startsWith('ath_');
+  if(isIndividualMode){
+    // Individual mode: remove the group key so only selected athletes get the plan
+    const grpFilter=ST._planGroupFilter;
+    if(grpFilter&&(grpFilter==='A'||grpFilter==='B')) delete plan[grpFilter];
+    // Copy plan from primary to all selected athletes
+    const primary=ST._planGroup;
+    if(!plan[primary]) plan[primary]={};
+    if(!plan[primary][sess]) plan[primary][sess]={exercises:[]};
+    if(ST._planSelectedAthletes&&ST._planSelectedAthletes.size>1){
+      ST._planSelectedAthletes.forEach(ak=>{
+        if(ak!==primary) plan[ak]=JSON.parse(JSON.stringify(plan[primary]));
+      });
+    }
+  } else {
+    // Group mode: remove any individual athlete keys for this group so the group plan is sole source
+    const grp=ST._planGroup; // 'A', 'B', or 'all'
+    if(grp==='A'||grp==='B'){
+      (d.athletes||[]).filter(a=>a.group===grp).forEach(a=>delete plan['ath_'+a.id]);
+    }
+    if(!plan[grp]) plan[grp]={};
+    if(!plan[grp][sess]) plan[grp][sess]={exercises:[]};
+  }
   d.sessionPlans[ST._planDay]=plan;
   saveData(d);
   _renderPlanWeek();
