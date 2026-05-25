@@ -2337,9 +2337,28 @@ function selectType(t){
       banner.style.display='none';
       document.getElementById('w-phase').value=prog.phase||'';
       document.getElementById('w-week').value=prog.week||'';
-      document.getElementById('w-warmup-box').style.display='none';
-      document.getElementById('w-cooldown-box').style.display='none';
-      document.getElementById('w-conditioning-box').style.display='none';
+      // Still show warm-up / cool-down / conditioning if text is set, even with no exercises
+      const _sbFallback=(()=>{
+        if(!grpData) return null;
+        const s=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
+        if(grpData[s]) return grpData[s];
+        if(grpData.exercises) return grpData;
+        const other=s==='am'?'pm':'am';
+        if(grpData[other]) return grpData[other];
+        return null;
+      })();
+      const wu2=_sbFallback?.warmup||'';
+      const cd2=_sbFallback?.cooldown||'';
+      const ct2=_sbFallback?.conditioningText||'';
+      const warmupBox2=document.getElementById('w-warmup-box');
+      const cooldownBox2=document.getElementById('w-cooldown-box');
+      const condBox2=document.getElementById('w-conditioning-box');
+      if(wu2.trim()){ warmupBox2.style.display='block'; document.getElementById('w-warmup-text').textContent=wu2; }
+      else { warmupBox2.style.display='none'; }
+      if(cd2.trim()){ cooldownBox2.style.display='block'; document.getElementById('w-cooldown-text').textContent=cd2; }
+      else { cooldownBox2.style.display='none'; }
+      if(ct2.trim()){ condBox2.style.display='block'; document.getElementById('w-conditioning-text').textContent=ct2; }
+      else { condBox2.style.display='none'; }
       document.getElementById('w-screen-title').textContent='Weight Training';
       document.getElementById('w-screen-logo').textContent='🏋️ Weights';
     }
