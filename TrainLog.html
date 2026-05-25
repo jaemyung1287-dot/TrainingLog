@@ -2836,14 +2836,11 @@ function renderExList(){
 
     // Header row
     const donePrefix=ex.done?`<span style="color:#3ecf8e;font-size:12px;font-weight:700;margin-right:6px">✓</span>`:'';
-    const _modeTag=ex.isSL?'SL ×2':ex.isSA?'SA ×2':'';
-    const _modeColor=ex.isSL?'#3ecf8e':ex.isSA?'#a78bfa':'var(--muted)';
-    const slBtn=_modeTag?`<span style="padding:3px 9px;border-radius:6px;border:1.5px solid ${_modeColor};background:transparent;color:${_modeColor};font-size:10px;font-weight:800;flex-shrink:0">${_modeTag}</span>`:`<button onclick="toggleSL(${i})" title="Single Leg — reps ×2" style="padding:3px 9px;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:var(--muted);font-size:10px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0">SL</button>`;
     const headerHtml=fromPlan
       ? `<span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;flex:1;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
-         ${slBtn}<span style="font-size:10px;color:var(--muted)">📋</span>`
+         <span style="font-size:10px;color:var(--muted)">📋</span>`
       : `<input class="ex-name" placeholder="Exercise name" value="${ex.name}" oninput="ST.exercises[${i}].name=this.value">
-         ${slBtn}<button class="del-btn" onclick="removeEx(${i})">×</button>`;
+         <button class="del-btn" onclick="removeEx(${i})">×</button>`;
 
     // Parameter rows based on type
     let paramsHtml='';
@@ -2926,15 +2923,11 @@ function renderExList(){
           ?`<span style="font-size:12px;font-weight:700;color:#3ecf8e;min-width:36px;text-align:center">${ex.weight||'BW'}</span>
              <input type="number" placeholder="+kg" value="${sr.extraKg||''}" oninput="updateSetRowField(${i},${j},'extraKg',this.value)" style="${inStyle};width:56px;color:#f7a94f">`
           :`<input type="number" placeholder="kg" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
-        const slMult=(ex.isSL||ex.isSA)?2:1;
-        const actualReps=(parseFloat(sr.reps)||0)*slMult;
-        const slTag=ex.isSL?`<span style="font-size:10px;font-weight:800;color:#3ecf8e;white-space:nowrap;flex-shrink:0">×2</span>`:'';
         return `<div style="${rowStyle}">
           <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Set ${j+1}</span>
           ${kgField}
           <span style="font-size:11px;color:var(--muted)">×</span>
           <input type="number" placeholder="reps" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">
-          ${slTag}
           <button onclick="toggleSetRowDone(${i},${j})" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1.5px solid ${rd?'#3ecf8e':'rgba(255,255,255,.15)'};background:${rd?'rgba(62,207,142,.12)':'transparent'};color:${rd?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${rd?'✓':'○'}</button>
           ${ST.exercises[i].setRows.length>1?`<button onclick="removeSetRow(${i},${j})" style="padding:4px 8px;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.07);color:rgba(255,100,100,.8);font-size:13px;font-weight:700;cursor:pointer;line-height:1" title="Delete set">×</button>`:''}
         </div>`;
