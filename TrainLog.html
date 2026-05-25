@@ -3173,7 +3173,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
           intensity:e.intensity!==''&&e.intensity!==null&&e.intensity!==undefined?parseFloat(e.intensity):null,
           weight:savedW, bwBase:isBW?bwBase:null,
           isBodyweight:isBW, extraKg:isBW?parseFloat(firstSet?.extraKg)||0:null,
-          isSL:e.isSL||false,
+          isSL:e.isSL||false, isSA:e.isSA||false,
           sets:e.setRows?.length||parseInt(e.sets)||0,
           reps:parseFloat(firstSet?.reps)||parseInt(e.reps)||0,
           setRows:e.setRows||null,
@@ -4197,7 +4197,7 @@ function renderLoadTab(){
   // Must mirror _exVolSplit: use setRows when available, exclude bodyweight
   function _exVol(e){
     if(e.isBodyweight) return 0;
-    const slMult=e.isSL?2:1;
+    const slMult=(e.isSL||e.isSA)?2:1;
     if(e.setRows&&e.setRows.length) return e.setRows.reduce((s,row)=>s+(parseFloat(row.kg)||0)*(parseFloat(row.reps)||0)*slMult,0);
     return (parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0)*slMult;
   }
