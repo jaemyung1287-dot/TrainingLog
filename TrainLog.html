@@ -2293,7 +2293,7 @@ function selectType(t){
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
-            isSL:e.isSL||lg.isSL||false,
+            isSL:e.isSL||lg.isSL||false, isSA:e.isSA||lg.isSA||false,
             // Actual logged values
             intensity:lg.intensity!=null?String(lg.intensity):'',
             weight:lg.weight!=null?String(lg.weight):'',
@@ -2314,7 +2314,7 @@ function selectType(t){
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
-            isSL:e.isSL||false,
+            isSL:e.isSL||false, isSA:e.isSA||false,
             intensity:e.planIntensity||'', sets:e.planSets||'', reps:e.planReps||'',
             isBodyweight:e.isBW||BW_EXERCISES.has(e.name)||false,
             weight:(e.isBW||BW_EXERCISES.has(e.name))&&athBW?String(athBW):'',
@@ -2836,7 +2836,9 @@ function renderExList(){
 
     // Header row
     const donePrefix=ex.done?`<span style="color:#3ecf8e;font-size:12px;font-weight:700;margin-right:6px">✓</span>`:'';
-    const slBtn=`<button onclick="toggleSL(${i})" title="Single Leg — reps ×2 for volume" style="padding:3px 9px;border-radius:6px;border:1.5px solid ${ex.isSL?'#3ecf8e':'rgba(255,255,255,.2)'};background:${ex.isSL?'rgba(62,207,142,.15)':'transparent'};color:${ex.isSL?'#3ecf8e':'var(--muted)'};font-size:10px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0">${ex.isSL?'SL ×2':'SL'}</button>`;
+    const _modeTag=ex.isSL?'SL ×2':ex.isSA?'SA ×2':'';
+    const _modeColor=ex.isSL?'#3ecf8e':ex.isSA?'#a78bfa':'var(--muted)';
+    const slBtn=_modeTag?`<span style="padding:3px 9px;border-radius:6px;border:1.5px solid ${_modeColor};background:transparent;color:${_modeColor};font-size:10px;font-weight:800;flex-shrink:0">${_modeTag}</span>`:`<button onclick="toggleSL(${i})" title="Single Leg — reps ×2" style="padding:3px 9px;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:var(--muted);font-size:10px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0">SL</button>`;
     const headerHtml=fromPlan
       ? `<span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;flex:1;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
          ${slBtn}<span style="font-size:10px;color:var(--muted)">📋</span>`
@@ -2924,7 +2926,7 @@ function renderExList(){
           ?`<span style="font-size:12px;font-weight:700;color:#3ecf8e;min-width:36px;text-align:center">${ex.weight||'BW'}</span>
              <input type="number" placeholder="+kg" value="${sr.extraKg||''}" oninput="updateSetRowField(${i},${j},'extraKg',this.value)" style="${inStyle};width:56px;color:#f7a94f">`
           :`<input type="number" placeholder="kg" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
-        const slMult=ex.isSL?2:1;
+        const slMult=(ex.isSL||ex.isSA)?2:1;
         const actualReps=(parseFloat(sr.reps)||0)*slMult;
         const slTag=ex.isSL?`<span style="font-size:10px;font-weight:800;color:#3ecf8e;white-space:nowrap;flex-shrink:0">×2</span>`:'';
         return `<div style="${rowStyle}">
@@ -3154,7 +3156,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const totalVol=liftingExs.reduce((s,e)=>{
       const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
       const bwBase=isBW?(parseFloat(e.weight)||0):0;
-      const slMult=e.isSL?2:1;
+      const slMult=(e.isSL||e.isSA)?2:1;
       if(e.setRows&&e.setRows.length){
         return s+e.setRows.reduce((ss,row)=>{
           const kg=isBW?(bwBase+(parseFloat(row.extraKg)||0)):(parseFloat(row.kg)||0);
@@ -3587,7 +3589,7 @@ function _exVolSplit(logs){
   logs.filter(l=>l.type==='weight').forEach(log=>{
     (log.exercises||[]).forEach(ex=>{
       if(ex.isBodyweight) return; // bodyweight exercises excluded from volume charts
-      const slMult=ex.isSL?2:1;
+      const slMult=(ex.isSL||ex.isSA)?2:1;
       let vol=0;
       if(ex.setRows&&ex.setRows.length){
         vol=ex.setRows.reduce((s,row)=>s+(parseFloat(row.kg)||0)*(parseFloat(row.reps)||0)*slMult,0);
@@ -6605,8 +6607,10 @@ function renderPlanAccordion(){
         if(typeParams==='lifting'){
           const bwOn=ex.isBW||false;
           const slOn=ex.isSL||false;
+          const saOn=ex.isSA||false;
           const bwBtnStyle=`font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;border:1px solid ${bwOn?'rgba(62,207,142,.6)':'rgba(255,255,255,.15)'};background:${bwOn?'rgba(62,207,142,.2)':'transparent'};color:${bwOn?'#3ecf8e':'var(--muted)'};cursor:pointer`;
           const slBtnStyle=`font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;border:1px solid ${slOn?'rgba(79,142,247,.6)':'rgba(255,255,255,.15)'};background:${slOn?'rgba(79,142,247,.2)':'transparent'};color:${slOn?'#4f8ef7':'var(--muted)'};cursor:pointer`;
+          const saBtnStyle=`font-size:10px;font-weight:700;padding:3px 9px;border-radius:7px;border:1px solid ${saOn?'rgba(167,139,250,.6)':'rgba(255,255,255,.15)'};background:${saOn?'rgba(167,139,250,.2)':'transparent'};color:${saOn?'#a78bfa':'var(--muted)'};cursor:pointer`;
           // Contraction type & time/tempo
           const cType=ex.planContractionType||'';
           const cVal=ex.planContractionValue||'';
@@ -6622,11 +6626,11 @@ function renderPlanAccordion(){
           }
           const cLabel=cType==='Concentric'?'Tempo':(cType?'Time (s)':'');
           fieldsHtml=`
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-            <span style="font-size:11px;color:var(--muted)">모드:</span>
-            <button style="${bwBtnStyle}" onclick="_togglePlanExBW(${globalIdx})">${bwOn?'✓ BW':'BW'}</button>
-            <button style="${slBtnStyle}" onclick="_togglePlanExSL(${globalIdx})" title="Single Leg — 볼륨 자동 ×2">${slOn?'✓ SL':'SL'}</button>
-            ${slOn?`<span style="font-size:10px;color:#4f8ef7">reps ×2로 볼륨 계산</span>`:''}
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.3px">훈련 모드</span>
+            <button style="${bwBtnStyle}" onclick="_togglePlanExBW(${globalIdx})" title="Body Weight">${bwOn?'✓ BW':'BW'}</button>
+            <button style="${slBtnStyle}" onclick="_togglePlanExSL(${globalIdx})" title="Single Leg — reps ×2">${slOn?'✓ SL':'SL'}</button>
+            <button style="${saBtnStyle}" onclick="_togglePlanExSA(${globalIdx})" title="Single Arm — reps ×2">${saOn?'✓ SA':'SA'}</button>
           </div>
           <div class="ex-nums" style="grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planIntensity||''}" oninput="_updatePlanEx(${globalIdx},'planIntensity',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Int %</div></div>
@@ -7133,6 +7137,16 @@ function _togglePlanExSL(idx){
   const exs=_getPlanSessionExsFromData(plan); if(!exs) return;
   const ex=exs[idx]; if(!ex) return;
   ex.isSL=!ex.isSL;
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
+}
+function _togglePlanExSA(idx){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]; if(!plan) return;
+  const exs=_getPlanSessionExsFromData(plan); if(!exs) return;
+  const ex=exs[idx]; if(!ex) return;
+  ex.isSA=!ex.isSA;
   d.sessionPlans[ST._planDay]=plan;
   saveData(d);
   renderPlanAccordion();
