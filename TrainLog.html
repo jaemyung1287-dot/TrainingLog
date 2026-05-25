@@ -589,6 +589,14 @@ const APP_VERSION = '20260520-6';
     </div>
   </div>
   <div id="sp-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.25);font-size:12px;color:#3ecf8e"></div>
+  <div id="sp-warmup-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(247,169,79,.07);border:1px solid rgba(247,169,79,.25)">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 Warm-up</div>
+    <div id="sp-warmup-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
+  </div>
+  <div id="sp-cooldown-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.25)">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4f8ef7;margin-bottom:6px">🧊 Cool-down</div>
+    <div id="sp-cooldown-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <div class="fg" style="margin:0"><label class="fl">Phase</label><input class="fi" id="sp-phase" placeholder="e.g. Mesocycle 1"></div>
     <div class="fg" style="margin:0"><label class="fl">Week</label><input class="fi" id="sp-week" placeholder="e.g. 5.11~5.15"></div>
@@ -1875,12 +1883,12 @@ function goTodayPlan(){
   let chosenSess=preferred;
   if(!exs.length){ exs=_sessExs(grpData,fallback); chosenSess=fallback; }
   if(!exs.length){
-    // No exercises but may have warmup/cooldown/conditioning text — still open weight screen to show them
+    // No exercises but may have warmup/cooldown/conditioning text — go to type select so athlete picks sprint or weight
     const _hasTxt=(s)=>!!(grpData?.[s]?.warmup?.trim()||grpData?.[s]?.cooldown?.trim()||grpData?.[s]?.conditioningText?.trim());
     const txtSess=_hasTxt(preferred)?preferred:_hasTxt(fallback)?fallback:null;
     if(!txtSess) return;
     ST._todayPlanSession=txtSess;
-    selectType('weight');
+    goTypeSelect(); // athlete picks sprint or weight — warmup shows on whichever screen they choose
     return;
   }
   ST._todayPlanSession=chosenSess; // store for selectType to use
@@ -2448,6 +2456,22 @@ function selectType(t){
       document.getElementById('sp-phase').value=prog.phase||'';
       document.getElementById('sp-week').value=prog.week||'';
     }
+    // Show warmup / cooldown on sprint screen if set in plan
+    (()=>{
+      const _spSessBlock=(()=>{
+        if(!grpData) return null;
+        if(grpData[sess]) return grpData[sess];
+        if(grpData.exercises) return grpData;
+        const other=sess==='am'?'pm':'am';
+        return grpData[other]||null;
+      })();
+      const spWu=_spSessBlock?.warmup||'';
+      const spCd=_spSessBlock?.cooldown||'';
+      const spWuBox=document.getElementById('sp-warmup-box');
+      const spCdBox=document.getElementById('sp-cooldown-box');
+      if(spWuBox){ if(spWu.trim()){ spWuBox.style.display='block'; document.getElementById('sp-warmup-text').textContent=spWu; } else { spWuBox.style.display='none'; } }
+      if(spCdBox){ if(spCd.trim()){ spCdBox.style.display='block'; document.getElementById('sp-cooldown-text').textContent=spCd; } else { spCdBox.style.display='none'; } }
+    })();
     renderSprintSets();
     showScreen('s-sprint');
   } else if(t==='tabata'){
