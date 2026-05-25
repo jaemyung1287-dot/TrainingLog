@@ -2834,11 +2834,12 @@ function renderExList(){
 
     // Header row
     const donePrefix=ex.done?`<span style="color:#3ecf8e;font-size:12px;font-weight:700;margin-right:6px">✓</span>`:'';
+    const slBtn=`<button onclick="toggleSL(${i})" title="Single Leg — reps ×2 for volume" style="padding:3px 9px;border-radius:6px;border:1.5px solid ${ex.isSL?'#3ecf8e':'rgba(255,255,255,.2)'};background:${ex.isSL?'rgba(62,207,142,.15)':'transparent'};color:${ex.isSL?'#3ecf8e':'var(--muted)'};font-size:10px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0">${ex.isSL?'SL ×2':'SL'}</button>`;
     const headerHtml=fromPlan
       ? `<span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;flex:1;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
-         <span style="font-size:10px;color:var(--muted)">📋</span>`
+         ${slBtn}<span style="font-size:10px;color:var(--muted)">📋</span>`
       : `<input class="ex-name" placeholder="Exercise name" value="${ex.name}" oninput="ST.exercises[${i}].name=this.value">
-         <button class="del-btn" onclick="removeEx(${i})">×</button>`;
+         ${slBtn}<button class="del-btn" onclick="removeEx(${i})">×</button>`;
 
     // Parameter rows based on type
     let paramsHtml='';
@@ -2921,11 +2922,15 @@ function renderExList(){
           ?`<span style="font-size:12px;font-weight:700;color:#3ecf8e;min-width:36px;text-align:center">${ex.weight||'BW'}</span>
              <input type="number" placeholder="+kg" value="${sr.extraKg||''}" oninput="updateSetRowField(${i},${j},'extraKg',this.value)" style="${inStyle};width:56px;color:#f7a94f">`
           :`<input type="number" placeholder="kg" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
+        const slMult=ex.isSL?2:1;
+        const actualReps=(parseFloat(sr.reps)||0)*slMult;
+        const slTag=ex.isSL?`<span style="font-size:10px;font-weight:800;color:#3ecf8e;white-space:nowrap;flex-shrink:0">×2</span>`:'';
         return `<div style="${rowStyle}">
           <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Set ${j+1}</span>
           ${kgField}
           <span style="font-size:11px;color:var(--muted)">×</span>
           <input type="number" placeholder="reps" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">
+          ${slTag}
           <button onclick="toggleSetRowDone(${i},${j})" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1.5px solid ${rd?'#3ecf8e':'rgba(255,255,255,.15)'};background:${rd?'rgba(62,207,142,.12)':'transparent'};color:${rd?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${rd?'✓':'○'}</button>
           ${ST.exercises[i].setRows.length>1?`<button onclick="removeSetRow(${i},${j})" style="padding:4px 8px;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.07);color:rgba(255,100,100,.8);font-size:13px;font-weight:700;cursor:pointer;line-height:1" title="Delete set">×</button>`:''}
         </div>`;
@@ -3070,7 +3075,8 @@ function toggleBW(i){
   }
   renderExList();
 }
-function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:''}); renderExList(); }
+function toggleSL(i){ ST.exercises[i].isSL=!ST.exercises[i].isSL; renderExList(); }
+function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:'',isSL:false}); renderExList(); }
 function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exercises.push({name:'',intensity:'',weight:'',sets:'',reps:'',effort:''}); renderExList(); }
 function addSetToEx(i){
   if(!ST.exercises[i].setRows) ST.exercises[i].setRows=[];
@@ -3146,14 +3152,15 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const totalVol=liftingExs.reduce((s,e)=>{
       const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
       const bwBase=isBW?(parseFloat(e.weight)||0):0;
+      const slMult=e.isSL?2:1;
       if(e.setRows&&e.setRows.length){
         return s+e.setRows.reduce((ss,row)=>{
           const kg=isBW?(bwBase+(parseFloat(row.extraKg)||0)):(parseFloat(row.kg)||0);
-          return ss+kg*(parseFloat(row.reps)||0);
+          return ss+kg*(parseFloat(row.reps)||0)*slMult;
         },0);
       }
       const w=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
-      return s+w*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
+      return s+w*(parseInt(e.sets)||0)*(parseInt(e.reps)||0)*slMult;
     },0);
     d.logs.push({
       id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',
@@ -3169,6 +3176,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
           intensity:e.intensity!==''&&e.intensity!==null&&e.intensity!==undefined?parseFloat(e.intensity):null,
           weight:savedW, bwBase:isBW?bwBase:null,
           isBodyweight:isBW, extraKg:isBW?parseFloat(firstSet?.extraKg)||0:null,
+          isSL:e.isSL||false,
           sets:e.setRows?.length||parseInt(e.sets)||0,
           reps:parseFloat(firstSet?.reps)||parseInt(e.reps)||0,
           setRows:e.setRows||null,
@@ -3577,11 +3585,12 @@ function _exVolSplit(logs){
   logs.filter(l=>l.type==='weight').forEach(log=>{
     (log.exercises||[]).forEach(ex=>{
       if(ex.isBodyweight) return; // bodyweight exercises excluded from volume charts
+      const slMult=ex.isSL?2:1;
       let vol=0;
       if(ex.setRows&&ex.setRows.length){
-        vol=ex.setRows.reduce((s,row)=>s+(parseFloat(row.kg)||0)*(parseFloat(row.reps)||0),0);
+        vol=ex.setRows.reduce((s,row)=>s+(parseFloat(row.kg)||0)*(parseFloat(row.reps)||0)*slMult,0);
       } else {
-        vol=(parseFloat(ex.weight)||0)*(parseInt(ex.sets)||0)*(parseInt(ex.reps)||0);
+        vol=(parseFloat(ex.weight)||0)*(parseInt(ex.sets)||0)*(parseInt(ex.reps)||0)*slMult;
       }
       const key=ex.trainingType&&ex.subCategory?`${ex.trainingType}·${ex.subCategory}`:'Other';
       byType[key]=(byType[key]||0)+vol;
@@ -4191,8 +4200,9 @@ function renderLoadTab(){
   // Must mirror _exVolSplit: use setRows when available, exclude bodyweight
   function _exVol(e){
     if(e.isBodyweight) return 0;
-    if(e.setRows&&e.setRows.length) return e.setRows.reduce((s,row)=>s+(parseFloat(row.kg)||0)*(parseFloat(row.reps)||0),0);
-    return (parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
+    const slMult=e.isSL?2:1;
+    if(e.setRows&&e.setRows.length) return e.setRows.reduce((s,row)=>s+(parseFloat(row.kg)||0)*(parseFloat(row.reps)||0)*slMult,0);
+    return (parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0)*slMult;
   }
   function _pvol(l){ return (l.exercises||[]).reduce((s,e)=>e.trainingType==='Power Development'?s+_exVol(e):s,0); }
   function _rvol(l){ return (l.exercises||[]).reduce((s,e)=>e.trainingType==='Resistance Training'?s+_exVol(e):s,0); }
