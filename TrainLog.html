@@ -3390,7 +3390,7 @@ function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',re
 function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length) ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
 
 function saveSprint(dupMode){
-  const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0);
+  const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0 && s.done!==false);
   if(!sets.length){ showToast('Enter at least one distance'); return; }
   const totalDist=sets.reduce((sum,s)=>sum+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
 
