@@ -2175,24 +2175,18 @@ function goLogTraining(){
           const cVal=e.planContractionValue?` · ${e.planContractionValue}`:'';
           contractStr=`<span style="color:rgba(167,139,250,.75)"> / ${e.planContractionType}${cVal}</span>`;
         }
-        // Actual log status indicator (separate from checkbox)
+        // Actual log status indicator
         const _logTag=_sessLogged
           ?(_wasLogged
             ?`<span style="font-size:10px;font-weight:700;color:#3ecf8e;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(62,207,142,.08)">✓</span>`
             :_isSkipped
-              ?'' // skip badge handles the visual below
+              ?`<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.06)">Skipped</span>`
               :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! Not logged</span>`)
           :'';
-        // Skip button — visible for unlogged exercises
-        const _skipBtn=!_wasLogged
-          ?`<span onclick="_toggleSkip(event,'${chkKey}','${sess}',${idx})" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;margin-left:${_logTag?'4px':'auto'};color:${_isSkipped?'rgba(255,255,255,.5)':'rgba(255,255,255,.22)'};background:${_isSkipped?'rgba(255,255,255,.09)':'rgba(255,255,255,.05)'};border:1px solid ${_isSkipped?'rgba(255,255,255,.2)':'rgba(255,255,255,.08)'}">${_isSkipped?'↩ 건너뜀':'↩'}</span>`
-          :'';
-        const _rowColor=isDone?'rgba(255,255,255,.2)':_isSkipped?'rgba(255,255,255,.25)':_isMissing?'#f7a94f':'var(--muted)';
-        return `<div id="_chk_${sess}_${idx}" onclick="_toggleChk(event,'${chkKey}','${sess}',${idx})"
-          style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:${_rowColor}">
-          <span class="_chk-circle" style="width:18px;height:18px;border-radius:50%;flex-shrink:0;border:1.5px solid ${isDone?'#3ecf8e':'rgba(255,255,255,.2)'};background:${isDone?'#3ecf8e':'transparent'};display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700">${isDone?'✓':''}</span>
-          <span class="_chk-label" style="flex:1;${isDone||_isSkipped?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
-          ${_logTag}${_skipBtn}
+        const _rowColor=_isSkipped?'rgba(255,255,255,.2)':_isMissing?'#f7a94f':'var(--muted)';
+        return `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;color:${_rowColor}">
+          <span style="flex:1;${_isSkipped?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
+          ${_logTag}
         </div>`;
       }).join('');
 
@@ -3069,7 +3063,7 @@ function renderExList(){
       <div style="display:flex;gap:8px;align-items:center">
         <button onclick="_toggleExSkip(${i})"
           style="padding:7px 14px;border-radius:10px;border:1.5px solid ${ex.skipped?'rgba(255,255,255,.3)':'rgba(255,255,255,.1)'};background:${ex.skipped?'rgba(255,255,255,.1)':'transparent'};color:${ex.skipped?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${ex.skipped?'↩ 건너뜀':'↩'}
+          ${ex.skipped?'↩ Skip':'Skip'}
         </button>
         <button class="_ex-done-btn" onclick="_toggleExDone(${i})"
           style="padding:7px 16px;border-radius:10px;border:1.5px solid ${ex.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${ex.done?'rgba(62,207,142,.12)':'transparent'};color:${ex.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
@@ -3419,7 +3413,7 @@ function renderSprintSets(){
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
         <button onclick="_toggleSprintSkip(${i})"
           style="padding:7px 14px;border-radius:10px;border:1.5px solid ${s.skipped?'rgba(255,255,255,.3)':'rgba(255,255,255,.1)'};background:${s.skipped?'rgba(255,255,255,.1)':'transparent'};color:${s.skipped?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${s.skipped?'↩ 건너뜀':'↩'}
+          ${s.skipped?'↩ Skip':'Skip'}
         </button>
         <button class="_ex-done-btn" onclick="_toggleSprintDone(${i})"
           style="padding:7px 16px;border-radius:10px;border:1.5px solid ${s.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${s.done?'rgba(62,207,142,.12)':'transparent'};color:${s.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
