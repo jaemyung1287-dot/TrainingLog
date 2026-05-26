@@ -274,7 +274,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260527-1';
+const APP_VERSION = '20260527-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1260,8 +1260,13 @@ const FB_CONFIG={
 };
 firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();
-const CLOUD_DOC=db.collection('trainlog').doc('team');
+// ── Per-doc Firestore structure ──────────────────────────────────────────────
+// trainlog/coach  → athletes list, sessionPlans, programs, settings, records
+// trainlog/athlete_[id] → logs for each individual athlete
+const COACH_DOC=db.collection('trainlog').doc('coach');
+const ATHLETE_DOC=(id)=>db.collection('trainlog').doc('athlete_'+id);
 let _unsubscribe=null; // real-time listener handle
+let _syncAthleteId=null; // set before saveData() when coach modifies a specific athlete's log
 
 // Strip base64 images before sending to Firestore (1MB doc limit)
 function _stripImages(d){
@@ -1286,26 +1291,40 @@ function _restoreImages(cloudData){
 }
 
 // Push to Firestore (background, non-blocking)
+// Coach data → COACH_DOC | Athlete logs → ATHLETE_DOC(id)
 function syncToCloud(d){
   _hideSyncError();
-  CLOUD_DOC.set(_stripImages(d)).then(()=>{
-    try{ localStorage.setItem('trainlog_last_sync', Date.now().toString()); }catch(e){}
+  // 1. Always push coach-owned data (no logs)
+  const coachData=_stripImages({
+    athletes:d.athletes||[],
+    sessionPlans:d.sessionPlans||{},
+    programs:d.programs||{},
+    settings:d.settings||{},
+    records:d.records||[],
+    _lastUpdated:d._lastUpdated||Date.now()
+  });
+  COACH_DOC.set(coachData).then(()=>{
+    try{ localStorage.setItem('trainlog_last_sync',Date.now().toString()); }catch(e){}
     showToast('☁️ Cloud synced ✓');
   }).catch(e=>{
-    console.warn('[TrainLog] Firestore sync error:',e);
-    // Retry once after 3 seconds — use latest data, not stale closure
+    console.warn('[TrainLog] Coach sync error:',e);
     setTimeout(()=>{
       const latest=getData();
-      CLOUD_DOC.set(_stripImages(latest)).then(()=>{
-        try{ localStorage.setItem('trainlog_last_sync', Date.now().toString()); }catch(e2){}
-        showToast('☁️ Cloud sync recovered ✓');
-        _hideSyncError();
-      }).catch(e2=>{
-        console.warn('[TrainLog] Firestore retry failed:',e2);
-        _showSyncError(e2?.message||'Unknown error');
-      });
-    }, 3000);
+      const retryData=_stripImages({athletes:latest.athletes||[],sessionPlans:latest.sessionPlans||{},programs:latest.programs||{},settings:latest.settings||{},records:latest.records||[],_lastUpdated:latest._lastUpdated||Date.now()});
+      COACH_DOC.set(retryData).then(()=>{ showToast('☁️ Sync recovered ✓'); _hideSyncError(); })
+        .catch(e2=>_showSyncError(e2?.message||'Unknown error'));
+    },3000);
   });
+  // 2. Push athlete logs — only when we know whose logs are authoritative
+  const athId=ST.athlete?.id
+    ||_syncAthleteId
+    ||(ST.coachRecordAthlete?(d.athletes||[]).find(a=>a.name===ST.coachRecordAthlete)?.id:null);
+  if(athId){
+    const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId);
+    ATHLETE_DOC(athId).set({logs:athLogs,_lastUpdated:d._lastUpdated||Date.now()})
+      .catch(e=>console.warn('[TrainLog] Athlete log sync error:',e));
+    _syncAthleteId=null;
+  }
 }
 function _showSyncError(msg){
   let b=document.getElementById('sync-error-banner');
@@ -1345,61 +1364,82 @@ function _dataScore(d){
   return (d.athletes?.length||0)*100 + (d.logs?.length||0)*10 + (d.records?.length||0) + Object.keys(d.sessionPlans||{}).length*5;
 }
 
+// Merge all Firestore docs into one unified object
+async function _fetchAllCloudData(){
+  const coachSnap=await COACH_DOC.get();
+  if(!coachSnap.exists) return null;
+  const coachData=_restoreImages(coachSnap.data());
+  if(!coachData.records) coachData.records=[];
+  if(!coachData.sessionPlans) coachData.sessionPlans={};
+  if(!coachData.programs) coachData.programs={};
+  ['A','B'].forEach(g=>{
+    if(!coachData.programs[g]) coachData.programs[g]={phase:'',week:'',days:[],images:{macro:null,meso:null,micro:null}};
+    if(!coachData.programs[g].images) coachData.programs[g].images={macro:null,meso:null,micro:null};
+  });
+  const athIds=(coachData.athletes||[]).map(a=>a.id);
+  const athSnaps=await Promise.all(athIds.map(id=>ATHLETE_DOC(id).get()));
+  const _deletedIds=_getDeletedIds();
+  const allLogs=[];
+  athSnaps.forEach(snap=>{
+    if(snap.exists)(snap.data().logs||[]).forEach(l=>{ if(!_deletedIds.has(l.id)) allLogs.push(l); });
+  });
+  return {...coachData,logs:allLogs};
+}
+
 async function initFirebase(){
   try{
     window._fbStatus='connecting...';
-    const snap=await CLOUD_DOC.get();
-    window._fbStatus='got snap: exists='+snap.exists;
     const localRaw=localStorage.getItem(SK);
     const local=localRaw?JSON.parse(localRaw):null;
-    const localTs=local?._lastUpdated||0;
-    const localScore=_dataScore(local);
 
-    if(snap.exists){
-      const cloudData=_restoreImages(snap.data());
-      // backward compat
-      if(!cloudData.records) cloudData.records=[];
-      if(!cloudData.sessionPlans) cloudData.sessionPlans={};
-      if(cloudData.programs){
-        ['A','B'].forEach(g=>{
-          if(cloudData.programs[g]&&!cloudData.programs[g].images)
-            cloudData.programs[g].images={macro:null,meso:null,micro:null};
+    // ── Migration: if old trainlog/team doc exists and new coach doc doesn't ──
+    const coachSnap=await COACH_DOC.get();
+    if(!coachSnap.exists){
+      const oldSnap=await db.collection('trainlog').doc('team').get();
+      if(oldSnap.exists){
+        console.log('[TrainLog] Migrating to per-athlete structure...');
+        const oldData=_restoreImages(oldSnap.data());
+        if(!oldData.records) oldData.records=[];
+        if(!oldData.sessionPlans) oldData.sessionPlans={};
+        // Write coach doc
+        await COACH_DOC.set(_stripImages({athletes:oldData.athletes||[],sessionPlans:oldData.sessionPlans,programs:oldData.programs||{},settings:oldData.settings||{},records:oldData.records,_lastUpdated:oldData._lastUpdated||Date.now()}));
+        // Split logs by athlete and write to individual docs
+        const logsByAthlete={};
+        (oldData.logs||[]).forEach(log=>{
+          const ath=(oldData.athletes||[]).find(a=>a.name===log.athleteName);
+          if(ath){ if(!logsByAthlete[ath.id]) logsByAthlete[ath.id]=[]; logsByAthlete[ath.id].push(log); }
         });
+        await Promise.all(Object.entries(logsByAthlete).map(([athId,logs])=>ATHLETE_DOC(athId).set({logs,_lastUpdated:oldData._lastUpdated||Date.now()})));
+        localStorage.setItem(SK,JSON.stringify(oldData));
+        console.log('[TrainLog] Migration complete ✓');
+        return;
       }
-      const cloudTs=cloudData._lastUpdated||0;
-      const cloudScore=_dataScore(cloudData);
+    }
 
-      // 1순위: 타임스탬프 비교. 타임스탬프가 둘 다 0일 때만 데이터량으로 판단
-      if(localTs>cloudTs || (localTs===0&&cloudTs===0&&localScore>cloudScore+50)){
-        // Local is newer (coach saved plans after athletes logged)
-        // BUT: always pull coach-managed fields from cloud so athletes see latest plans
-        const merged=JSON.parse(JSON.stringify(local));
-        // sessionPlans & athletes are coach-owned — always use cloud version (overlay on local)
-        if(cloudData.sessionPlans) merged.sessionPlans=Object.assign({},local.sessionPlans||{},cloudData.sessionPlans);
-        if(cloudData.athletes?.length) merged.athletes=cloudData.athletes;
-        // Merge cloud logs not in local (athlete logs saved from other devices)
-        const _deletedIdsInit=_getDeletedIds();
-        const localIdsInit=new Set((merged.logs||[]).map(l=>l.id));
-        const cloudOnlyInit=(cloudData.logs||[]).filter(l=>!localIdsInit.has(l.id)&&!_deletedIdsInit.has(l.id));
-        if(cloudOnlyInit.length) merged.logs=[...(merged.logs||[]),...cloudOnlyInit];
-        localStorage.setItem(SK,JSON.stringify(merged));
-        console.log(`[TrainLog] Local wins but merged cloud logs (${cloudOnlyInit.length} new) ✓`);
-      } else {
-        // Cloud is newer — safe to use, backup local first
-        _backupLocal();
-        // Still preserve any local athlete logs not yet in cloud (merge logs arrays)
-        if(local?.logs?.length){
-          const cloudIds=new Set((cloudData.logs||[]).map(l=>l.id));
-          const localOnly=local.logs.filter(l=>!cloudIds.has(l.id));
-          if(localOnly.length) cloudData.logs=[...(cloudData.logs||[]),...localOnly];
-        }
-        localStorage.setItem(SK,JSON.stringify(cloudData));
-        console.log('[TrainLog] Loaded from Firebase ✓');
-      }
+    const cloudData=await _fetchAllCloudData();
+    window._fbStatus='got cloud: '+(cloudData?'ok':'null');
+
+    if(cloudData){
+      // Always use cloud coach-data (sessionPlans, athletes) + merge logs
+      const merged=JSON.parse(JSON.stringify(local||cloudData));
+      merged.sessionPlans=cloudData.sessionPlans;
+      merged.athletes=cloudData.athletes;
+      merged.programs=cloudData.programs;
+      merged.settings=cloudData.settings;
+      merged.records=cloudData.records;
+      // Merge logs: cloud logs + any local-only logs not yet in cloud
+      const _deletedIds=_getDeletedIds();
+      const cloudIds=new Set(cloudData.logs.map(l=>l.id));
+      const localOnly=(local?.logs||[]).filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
+      merged.logs=[...cloudData.logs,...localOnly];
+      _backupLocal();
+      localStorage.setItem(SK,JSON.stringify(merged));
+      console.log(`[TrainLog] Loaded from Firebase ✓ (${merged.logs.length} logs)`);
     } else {
-      // First time — push local data to cloud
+      // No cloud data yet — push local data to new structure
       const localData=getData();
-      syncToCloud(localData);
+      // Force full sync: push coach doc + all athlete docs
+      await _fullSyncToCloud(localData);
       console.log('[TrainLog] First run — pushed to Firebase ✓');
     }
   } catch(e){
@@ -1408,54 +1448,60 @@ async function initFirebase(){
   }
 }
 
+// Full sync: push coach doc + every athlete's logs to their own doc
+async function _fullSyncToCloud(d){
+  const coachData=_stripImages({athletes:d.athletes||[],sessionPlans:d.sessionPlans||{},programs:d.programs||{},settings:d.settings||{},records:d.records||[],_lastUpdated:d._lastUpdated||Date.now()});
+  await COACH_DOC.set(coachData);
+  const logsByAthlete={};
+  (d.logs||[]).forEach(log=>{
+    const ath=(d.athletes||[]).find(a=>a.name===log.athleteName);
+    if(ath){ if(!logsByAthlete[ath.id]) logsByAthlete[ath.id]=[]; logsByAthlete[ath.id].push(log); }
+  });
+  await Promise.all(Object.entries(logsByAthlete).map(([athId,logs])=>ATHLETE_DOC(athId).set({logs,_lastUpdated:d._lastUpdated||Date.now()})));
+}
+
 // Start real-time listener (coach dashboard)
+// Listens to COACH_DOC + all ATHLETE_DOCs
 function startCloudSync(){
-  if(_unsubscribe) return; // already listening
-  _unsubscribe=CLOUD_DOC.onSnapshot(snap=>{
-    if(!snap.exists) return;
-    const cloudData=_restoreImages(snap.data());
-    if(!cloudData.records) cloudData.records=[];
-    const local=JSON.parse(localStorage.getItem(SK)||'null');
-    const localTs=local?._lastUpdated||0;
-    const cloudTs=cloudData._lastUpdated||0;
-    const localScore=_dataScore(local);
-    const cloudScore=_dataScore(cloudData);
-    if(cloudTs>=localTs && cloudScore>=localScore-50){
-      _backupLocal();
-      // Merge: preserve local-only logs not yet in cloud, but never restore deleted IDs
-      const _deletedIds=_getDeletedIds();
-      cloudData.logs=(cloudData.logs||[]).filter(l=>!_deletedIds.has(l.id));
-      if(local?.logs?.length){
-        const cloudIds=new Set(cloudData.logs.map(l=>l.id));
-        const localOnly=local.logs.filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
-        if(localOnly.length) cloudData.logs=[...cloudData.logs,...localOnly];
-      }
-      localStorage.setItem(SK,JSON.stringify(cloudData));
-      // Refresh coach view if active
-      const coachEl=document.getElementById('s-coach');
-      if(coachEl?.classList.contains('active')) renderToday();
-    } else {
-      // Local is newer but still merge coach-managed fields from cloud
-      if(local){
-        const merged=JSON.parse(JSON.stringify(local));
-        if(cloudData.sessionPlans) merged.sessionPlans=Object.assign({},local.sessionPlans||{},cloudData.sessionPlans);
-        if(cloudData.athletes?.length) merged.athletes=cloudData.athletes;
-        // Also merge any logs that exist in cloud but not locally (athlete logs from other devices)
+  if(_unsubscribe) return;
+  const unsubs=[];
+  let _debounce=null;
+
+  async function _onAnyChange(){
+    clearTimeout(_debounce);
+    _debounce=setTimeout(async()=>{
+      try{
+        const cloudData=await _fetchAllCloudData();
+        if(!cloudData) return;
+        const local=JSON.parse(localStorage.getItem(SK)||'null');
         const _deletedIds=_getDeletedIds();
-        const localIds=new Set((merged.logs||[]).map(l=>l.id));
-        const cloudOnly=(cloudData.logs||[]).filter(l=>!localIds.has(l.id)&&!_deletedIds.has(l.id));
-        if(cloudOnly.length){
-          merged.logs=[...(merged.logs||[]),...cloudOnly];
-          localStorage.setItem(SK,JSON.stringify(merged));
-          const coachEl=document.getElementById('s-coach');
-          if(coachEl?.classList.contains('active')) renderToday();
-        } else {
-          localStorage.setItem(SK,JSON.stringify(merged));
-        }
-      }
-    }
-  },e=>console.warn('[TrainLog] Listener error:',e));
-  console.log('[TrainLog] Real-time sync started ✓');
+        // Always trust cloud for coach-owned fields
+        const merged=JSON.parse(JSON.stringify(local||cloudData));
+        merged.sessionPlans=cloudData.sessionPlans;
+        merged.athletes=cloudData.athletes;
+        merged.programs=cloudData.programs;
+        merged.settings=cloudData.settings;
+        merged.records=cloudData.records;
+        // Merge logs: cloud + local-only
+        const cloudIds=new Set(cloudData.logs.map(l=>l.id));
+        const localOnly=(local?.logs||[]).filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
+        merged.logs=[...cloudData.logs,...localOnly];
+        localStorage.setItem(SK,JSON.stringify(merged));
+        const coachEl=document.getElementById('s-coach');
+        if(coachEl?.classList.contains('active')) renderToday();
+      }catch(e){ console.warn('[TrainLog] Sync update error:',e); }
+    },600);
+  }
+
+  // Listen to coach doc
+  unsubs.push(COACH_DOC.onSnapshot(()=>_onAnyChange(),e=>console.warn('[TrainLog] Coach listener error:',e)));
+  // Listen to each athlete's doc
+  (getData().athletes||[]).forEach(ath=>{
+    unsubs.push(ATHLETE_DOC(ath.id).onSnapshot(()=>_onAnyChange(),e=>console.warn('[TrainLog] Athlete listener error:',e)));
+  });
+
+  _unsubscribe=()=>unsubs.forEach(u=>u());
+  console.log(`[TrainLog] Real-time sync started ✓ (${(getData().athletes||[]).length+1} docs)`);
 }
 
 // Stop listener when coach leaves
@@ -1714,9 +1760,6 @@ function getData(){
 function newData(){
   return {
     athletes:[
-      {id:'a1',name:'Corinna Leipold',group:'A',dob:'1996.09.20',gender:'F'},
-      {id:'a2',name:'Felix Keisinger',group:'A',dob:'1997.12.29',gender:'M'},
-      {id:'a3',name:'Timm Beiwinkler',group:'A',dob:'2002.05.13',gender:'M'},
       {id:'a4',name:'Charlize Reimann',group:'A',dob:'2005.12.04',gender:'F'},
       {id:'a5',name:'Maria Votz',group:'A',dob:'2006.01.05',gender:'F'},
       {id:'a6',name:'Marie Angerer',group:'A',dob:'2006.07.15',gender:'F'},
@@ -5096,9 +5139,9 @@ async function forceSyncNow(){
   showToast('☁️ Syncing...');
   const d=getData();
   try{
-    await CLOUD_DOC.set(_stripImages(d));
-    localStorage.setItem('trainlog_last_sync', Date.now().toString());
-    showToast('✅ Sync complete! Athletes can now see today\'s plan.');
+    await _fullSyncToCloud(d);
+    localStorage.setItem('trainlog_last_sync',Date.now().toString());
+    showToast('✅ Full sync complete!');
     renderSettings();
   }catch(e){
     showToast('❌ Sync failed. Check your connection.');
@@ -5716,8 +5759,10 @@ document.addEventListener('click', (e)=>{
 });
 function deleteLog(id, ctx){
   // ctx: 'today' | 'detail' | 'load'
-  _addDeletedId(id);
   const d=getData();
+  const log=d.logs.find(l=>l.id===id);
+  if(log){ const ath=(d.athletes||[]).find(a=>a.name===log.athleteName); if(ath) _syncAthleteId=ath.id; }
+  _addDeletedId(id);
   d.logs=d.logs.filter(l=>l.id!==id);
   saveData(d);
   showToast('Log deleted');
