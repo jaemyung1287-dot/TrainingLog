@@ -274,7 +274,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260527-4';
+const APP_VERSION = '20260527-5';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3128,7 +3128,27 @@ function renderExList(){
         </button>
       </div>
     </div>`;
-    div.innerHTML=`<div class="ex-top">${headerHtml}</div>${paramsHtml}${vbtHtml}${effortHtml}${doneHtml}`;
+    // Training Mode badges
+    const _tmBW = ex.isBodyweight || BW_EXERCISES.has(ex.name);
+    const _tmSL = ex.isSL || (ex.planLegMode === 'SL');
+    const _tmSA = ex.isSA || (ex.planLegMode === 'SA');
+    let trainingModeHtml = '';
+    if(_tmBW || _tmSL || _tmSA){
+      const _badge=(label,active,green)=>{
+        const c=green?'62,207,142':'79,142,247';
+        const col=green?'#3ecf8e':'#4f8ef7';
+        return active
+          ?`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;background:rgba(${c},.18);color:${col};border:1px solid rgba(${c},.45)">✓ ${label}</span>`
+          :`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:rgba(255,255,255,.05);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${label}</span>`;
+      };
+      trainingModeHtml=`<div style="display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap">
+        <span style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.3px">Training Mode</span>
+        ${_badge('BW',_tmBW,true)}
+        ${_badge('SL',_tmSL,false)}
+        ${_badge('SA',_tmSA,false)}
+      </div>`;
+    }
+    div.innerHTML=`<div class="ex-top">${headerHtml}</div>${trainingModeHtml}${paramsHtml}${vbtHtml}${effortHtml}${doneHtml}`;
     wrap.appendChild(div);
   });
   _updateExProgress();
