@@ -1755,7 +1755,7 @@ function fmtDate(s){ const p=s.split('-'); return `${p[1]}/${p[2]}`; }
 // ════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════
-const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_sessExpanded:new Set()};
+const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_skipped:{},_sessExpanded:new Set()};
 let loadPeriod='week';
 
 // ════════════════════════════════════════════════
@@ -1954,6 +1954,13 @@ function _toggleChk(ev,chkKey,sess,idx){
   const badge=document.getElementById(`_chk_badge_${sess}`);
   if(badge) badge.textContent=doneCount>0?` · ${doneCount}/${total} ✓`:'';
 }
+function _toggleSkip(ev,chkKey,sess,idx){
+  ev.stopPropagation();
+  if(!ST._skipped[chkKey]) ST._skipped[chkKey]=new Set();
+  const sk=ST._skipped[chkKey];
+  if(sk.has(idx)) sk.delete(idx); else sk.add(idx);
+  goLogTraining(); // re-render (expand state preserved via ST._sessExpanded)
+}
 // ── Exercise card done-toggle ──
 function _applyDoneStyle(card, done){
   card.style.border=done?'1.5px solid rgba(62,207,142,.4)':'';
@@ -2093,6 +2100,7 @@ function goLogTraining(){
       const isSprintOnly=exs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
       const chkKey=_chkKey(sess);
       const ck=ST._chks[chkKey]||new Set();
+      const _skippedSet=ST._skipped[chkKey]||new Set();
       const doneCount=ck.size;
       const isOpen=ST._sessExpanded.has(sess);
 
@@ -2116,7 +2124,7 @@ function goLogTraining(){
         return arr.map(e=>e.name||'').filter(Boolean);
       }));
       // Which plan exercises are missing from actual submissions?
-      const _missingExs=_sessLogged?exs.filter(e=>!_loggedExNames.has(e.name)):[];
+      const _missingExs=_sessLogged?exs.filter((e,i)=>!_loggedExNames.has(e.name)&&!_skippedSet.has(i)):[];
       // Header status badge
       const _statusBadge=_sessLogged
         ?(_missingExs.length
@@ -2131,7 +2139,8 @@ function goLogTraining(){
       const allLines=exs.map((e,idx)=>{
         const isDone=ck.has(idx);
         const _wasLogged=_loggedExNames.has(e.name);
-        const _isMissing=_sessLogged&&!_wasLogged;
+        const _isSkipped=_skippedSet.has(idx);
+        const _isMissing=_sessLogged&&!_wasLogged&&!_isSkipped;
         let detail='';
         {const dp=[];
         if(e.planIntensity) dp.push(`${e.planIntensity}%`);
@@ -2160,13 +2169,20 @@ function goLogTraining(){
         const _logTag=_sessLogged
           ?(_wasLogged
             ?`<span style="font-size:10px;font-weight:700;color:#3ecf8e;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(62,207,142,.08)">✓</span>`
-            :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! Not logged</span>`)
+            :_isSkipped
+              ?'' // skip badge handles the visual below
+              :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! Not logged</span>`)
           :'';
+        // Skip button — visible for unlogged exercises
+        const _skipBtn=!_wasLogged
+          ?`<span onclick="_toggleSkip(event,'${chkKey}','${sess}',${idx})" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;margin-left:${_logTag?'4px':'auto'};color:${_isSkipped?'rgba(255,255,255,.5)':'rgba(255,255,255,.22)'};background:${_isSkipped?'rgba(255,255,255,.09)':'rgba(255,255,255,.05)'};border:1px solid ${_isSkipped?'rgba(255,255,255,.2)':'rgba(255,255,255,.08)'}">${_isSkipped?'↩ 건너뜀':'↩'}</span>`
+          :'';
+        const _rowColor=isDone?'rgba(255,255,255,.2)':_isSkipped?'rgba(255,255,255,.25)':_isMissing?'#f7a94f':'var(--muted)';
         return `<div id="_chk_${sess}_${idx}" onclick="_toggleChk(event,'${chkKey}','${sess}',${idx})"
-          style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:${isDone?'rgba(255,255,255,.2)':_isMissing?'#f7a94f':'var(--muted)'}">
+          style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:${_rowColor}">
           <span class="_chk-circle" style="width:18px;height:18px;border-radius:50%;flex-shrink:0;border:1.5px solid ${isDone?'#3ecf8e':'rgba(255,255,255,.2)'};background:${isDone?'#3ecf8e':'transparent'};display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700">${isDone?'✓':''}</span>
-          <span class="_chk-label" style="flex:1;${isDone?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
-          ${_logTag}
+          <span class="_chk-label" style="flex:1;${isDone||_isSkipped?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
+          ${_logTag}${_skipBtn}
         </div>`;
       }).join('');
 
