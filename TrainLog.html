@@ -1998,6 +1998,16 @@ function removeSetRow(i,j){
   ST.exercises[i].done=allDone;
   renderExList();
 }
+function _toggleExSkip(i){
+  ST.exercises[i].skipped=!ST.exercises[i].skipped;
+  if(ST.exercises[i].skipped){ ST.exercises[i].done=false; if(ST.exercises[i].setRows) ST.exercises[i].setRows.forEach(s=>s.done=false); }
+  renderExList();
+}
+function _toggleSprintSkip(i){
+  ST.sprintSets[i].skipped=!ST.sprintSets[i].skipped;
+  if(ST.sprintSets[i].skipped) ST.sprintSets[i].done=false;
+  renderSprintSets();
+}
 function _toggleExDone(i){
   // Toggle all set rows together
   const newDone=!ST.exercises[i].done;
@@ -2121,7 +2131,7 @@ function goLogTraining(){
       // Collect all exercise names actually submitted today
       const _loggedExNames=new Set(_todayLogs.flatMap(l=>{
         const arr=(l.type==='weight'||l.type==='plyo')?(l.exercises||[]):(l.sets||[]);
-        return arr.map(e=>e.name||'').filter(Boolean);
+        return [...arr.map(e=>e.name||'').filter(Boolean), ...(l.skippedExercises||[])];
       }));
       // Which plan exercises are missing from actual submissions?
       const _missingExs=_sessLogged?exs.filter((e,i)=>!_loggedExNames.has(e.name)&&!_skippedSet.has(i)):[];
@@ -2851,6 +2861,7 @@ function renderExList(){
 
     const div=document.createElement('div'); div.className='ex-row';
     if(ex.done){ div.style.border='1.5px solid rgba(62,207,142,.4)'; div.style.background='rgba(62,207,142,.04)'; }
+    else if(ex.skipped){ div.style.border='1.5px solid rgba(255,255,255,.12)'; div.style.background='rgba(255,255,255,.03)'; div.style.opacity='0.6'; }
 
     // Header row
     const donePrefix=ex.done?`<span style="color:#3ecf8e;font-size:12px;font-weight:700;margin-right:6px">✓</span>`:'';
@@ -3055,10 +3066,16 @@ function renderExList(){
         style="padding:7px 14px;border-radius:10px;border:1.5px solid rgba(79,142,247,.4);background:rgba(79,142,247,.1);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
         + Set
       </button>
-      <button class="_ex-done-btn" onclick="_toggleExDone(${i})"
-        style="padding:7px 16px;border-radius:10px;border:1.5px solid ${ex.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${ex.done?'rgba(62,207,142,.12)':'transparent'};color:${ex.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-        ${ex.done?'✅ Done':'○ Mark as Done'}
-      </button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="_toggleExSkip(${i})"
+          style="padding:7px 14px;border-radius:10px;border:1.5px solid ${ex.skipped?'rgba(255,255,255,.3)':'rgba(255,255,255,.1)'};background:${ex.skipped?'rgba(255,255,255,.1)':'transparent'};color:${ex.skipped?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          ${ex.skipped?'↩ 건너뜀':'↩'}
+        </button>
+        <button class="_ex-done-btn" onclick="_toggleExDone(${i})"
+          style="padding:7px 16px;border-radius:10px;border:1.5px solid ${ex.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${ex.done?'rgba(62,207,142,.12)':'transparent'};color:${ex.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          ${ex.done?'✅ Done':'○ Mark as Done'}
+        </button>
+      </div>
     </div>`;
     div.innerHTML=`<div class="ex-top">${headerHtml}</div>${paramsHtml}${vbtHtml}${effortHtml}${doneHtml}`;
     wrap.appendChild(div);
@@ -3111,11 +3128,15 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     return;
   }
 
-  // Split exercises by their training params type
+  // Split exercises by their training params type (exclude skipped)
   const _params=(e)=>TRAINING_STRUCTURE[e.trainingType]?.params||'lifting';
-  const liftingExs=allExs.filter(e=>_params(e)==='lifting');
-  const plyoExs=allExs.filter(e=>_params(e)==='plyo');
-  const sprintExs=allExs.filter(e=>_params(e)==='sprint');
+  const liftingExs=allExs.filter(e=>_params(e)==='lifting'&&!e.skipped);
+  const plyoExs=allExs.filter(e=>_params(e)==='plyo'&&!e.skipped);
+  const sprintExs=allExs.filter(e=>_params(e)==='sprint'&&!e.skipped);
+  // Collect skipped exercise names by type (for not-logged detection)
+  const _skippedLifting=allExs.filter(e=>_params(e)==='lifting'&&e.skipped).map(e=>e.name).filter(Boolean);
+  const _skippedPlyo=allExs.filter(e=>_params(e)==='plyo'&&e.skipped).map(e=>e.name).filter(Boolean);
+  const _skippedSprint=allExs.filter(e=>_params(e)==='sprint'&&e.skipped).map(e=>e.name).filter(Boolean);
 
   // ── Duplicate detection (runs after confirmation, before actual save) ──
   if(!ST.editingLogId && dupMode==='confirmed'){
@@ -3200,7 +3221,8 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
           planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null, planRestType:e.planRestType||[]
         };
       }),
-      totalVolume:Math.round(totalVol), rpe, notes
+      totalVolume:Math.round(totalVol), rpe, notes,
+      skippedExercises:_skippedLifting
     });
     summaryParts.push(`${Math.round(totalVol).toLocaleString()} kg 🏋️`);
   }
@@ -3220,7 +3242,8 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
         effort:e.effort||null, fromPlan:e.fromPlan||false,
         planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null
       })),
-      totalReps, totalContacts, rpe, notes
+      totalReps, totalContacts, rpe, notes,
+      skippedExercises:_skippedPlyo
     });
     const sp=[];
     if(totalReps>0) sp.push(`${totalReps} reps`);
@@ -3247,7 +3270,8 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
         planDistance:e.planDistance?parseFloat(e.planDistance):null,
         planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null
       })),
-      totalDistance:totalDist, rpe, notes
+      totalDistance:totalDist, rpe, notes,
+      skippedExercises:_skippedSprint
     });
     summaryParts.push(`${totalDist.toLocaleString()} m ⚡`);
   }
@@ -3392,7 +3416,11 @@ function renderSprintSets(){
       </div>
       ${spPlanSummary}
       ${effortHtml}
-      <div style="display:flex;justify-content:flex-end;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
+        <button onclick="_toggleSprintSkip(${i})"
+          style="padding:7px 14px;border-radius:10px;border:1.5px solid ${s.skipped?'rgba(255,255,255,.3)':'rgba(255,255,255,.1)'};background:${s.skipped?'rgba(255,255,255,.1)':'transparent'};color:${s.skipped?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          ${s.skipped?'↩ 건너뜀':'↩'}
+        </button>
         <button class="_ex-done-btn" onclick="_toggleSprintDone(${i})"
           style="padding:7px 16px;border-radius:10px;border:1.5px solid ${s.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${s.done?'rgba(62,207,142,.12)':'transparent'};color:${s.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
           ${s.done?'✅ Done':'○ Mark as Done'}
@@ -3416,7 +3444,8 @@ function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',re
 function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length) ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
 
 function saveSprint(dupMode){
-  const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0 && s.done!==false);
+  const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0 && !s.skipped && s.done!==false);
+  const _skippedSprintSets=ST.sprintSets.filter(s=>s.skipped).map(s=>s.name).filter(Boolean);
   if(!sets.length){ showToast('Enter at least one distance'); return; }
   const totalDist=sets.reduce((sum,s)=>sum+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
 
@@ -3465,7 +3494,8 @@ function saveSprint(dupMode){
     sets:sets.map(s=>({name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:parseFloat(s.actualTime)||null,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]})),
     totalDistance:Math.round(totalDist),
     rpe:parseInt(document.getElementById('sl-srpe').value),
-    notes:document.getElementById('sprint-notes').value
+    notes:document.getElementById('sprint-notes').value,
+    skippedExercises:_skippedSprintSets
   };
   d.logs.push(log); saveData(d);
   ST._logDate=null;
