@@ -274,7 +274,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260527-3';
+const APP_VERSION = '20260527-4';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -2372,7 +2372,7 @@ function selectType(t){
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
-            isSL:e.isSL||lg.isSL||false, isSA:e.isSA||lg.isSA||false,
+            isSL:e.isSL||(e.planLegMode==='SL')||lg.isSL||false, isSA:e.isSA||(e.planLegMode==='SA')||lg.isSA||false,
             // Actual logged values
             intensity:lg.intensity!=null?String(lg.intensity):'',
             weight:lg.weight!=null?String(lg.weight):'',
@@ -2393,7 +2393,7 @@ function selectType(t){
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
             planContractionType:e.planContractionType||'', planContractionValue:e.planContractionValue||'',
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
-            isSL:e.isSL||false, isSA:e.isSA||false,
+            isSL:e.isSL||(e.planLegMode==='SL')||false, isSA:e.isSA||(e.planLegMode==='SA')||false,
             intensity:e.planIntensity||'', sets:e.planSets||'', reps:e.planReps||'',
             isBodyweight:e.isBW||BW_EXERCISES.has(e.name)||false,
             weight:(e.isBW||BW_EXERCISES.has(e.name))&&athBW?String(athBW):'',
