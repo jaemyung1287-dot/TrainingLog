@@ -1371,15 +1371,19 @@ async function initFirebase(){
 
       // 1순위: 타임스탬프 비교. 타임스탬프가 둘 다 0일 때만 데이터량으로 판단
       if(localTs>cloudTs || (localTs===0&&cloudTs===0&&localScore>cloudScore+50)){
-        // Local is newer (athlete saved logs after coach saved plans)
+        // Local is newer (coach saved plans after athletes logged)
         // BUT: always pull coach-managed fields from cloud so athletes see latest plans
         const merged=JSON.parse(JSON.stringify(local));
         // sessionPlans & athletes are coach-owned — always use cloud version (overlay on local)
         if(cloudData.sessionPlans) merged.sessionPlans=Object.assign({},local.sessionPlans||{},cloudData.sessionPlans);
         if(cloudData.athletes?.length) merged.athletes=cloudData.athletes;
+        // Merge cloud logs not in local (athlete logs saved from other devices)
+        const _deletedIdsInit=_getDeletedIds();
+        const localIdsInit=new Set((merged.logs||[]).map(l=>l.id));
+        const cloudOnlyInit=(cloudData.logs||[]).filter(l=>!localIdsInit.has(l.id)&&!_deletedIdsInit.has(l.id));
+        if(cloudOnlyInit.length) merged.logs=[...(merged.logs||[]),...cloudOnlyInit];
         localStorage.setItem(SK,JSON.stringify(merged));
-        console.log(`[TrainLog] Local wins but merged coach data from cloud ✓`);
-        syncToCloud(merged);
+        console.log(`[TrainLog] Local wins but merged cloud logs (${cloudOnlyInit.length} new) ✓`);
       } else {
         // Cloud is newer — safe to use, backup local first
         _backupLocal();
