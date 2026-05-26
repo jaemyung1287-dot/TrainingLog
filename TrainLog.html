@@ -274,7 +274,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260527-2';
+const APP_VERSION = '20260527-3';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -5661,10 +5661,12 @@ function _editLog(logId){
       sets:e.sets?String(e.sets):'', reps:e.reps?String(e.reps):'',
       effort:e.effort||null, done:true,
       isBodyweight:e.isBodyweight||false,
+      isSL:e.isSL||false, isSA:e.isSA||false,
       extraKg:e.extraKg!=null?String(e.extraKg):'',
       bwBase:e.bwBase!=null?String(e.bwBase):'',
       distance:e.distance?String(e.distance):'',
-      meanV:e.meanV!=null?String(e.meanV):'', peakV:e.peakV!=null?String(e.peakV):'', velLoss:e.velLoss!=null?String(e.velLoss):''
+      meanV:e.meanV!=null?String(e.meanV):'', peakV:e.peakV!=null?String(e.peakV):'', velLoss:e.velLoss!=null?String(e.velLoss):'',
+      setRows:e.setRows?e.setRows.map(sr=>({...sr,done:true})):null
     }));
     // Restore form fields
     const phEl=document.getElementById('w-phase'); if(phEl) phEl.value=log.phase||'';
