@@ -2108,10 +2108,6 @@ function goLogTraining(){
       if(!exs.length&&!wu) return '';
       const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
       const isSprintOnly=exs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
-      const chkKey=_chkKey(sess);
-      const ck=ST._chks[chkKey]||new Set();
-      const _skippedSet=ST._skipped[chkKey]||new Set();
-      const doneCount=ck.size;
       const isOpen=ST._sessExpanded.has(sess);
 
       // ── Actual logged status for today ──
@@ -2128,13 +2124,17 @@ function goLogTraining(){
       });
       const _loggedTypes=new Set(_todayLogs.map(l=>l.type));
       const _sessLogged=[..._sessTypes].every(t=>_loggedTypes.has(t));
-      // Collect all exercise names actually submitted today
-      const _loggedExNames=new Set(_todayLogs.flatMap(l=>{
+      // Skipped exercise names (from saved logs)
+      const _skippedExNames=new Set(_todayLogs.flatMap(l=>l.skippedExercises||[]));
+      // Actually logged exercise names (excluding skipped)
+      const _actualLogNames=new Set(_todayLogs.flatMap(l=>{
         const arr=(l.type==='weight'||l.type==='plyo')?(l.exercises||[]):(l.sets||[]);
-        return [...arr.map(e=>e.name||'').filter(Boolean), ...(l.skippedExercises||[])];
+        return arr.map(e=>e.name||'').filter(Boolean);
       }));
+      // Combined (for missing check — skipped counts as "handled")
+      const _loggedExNames=new Set([..._actualLogNames,..._skippedExNames]);
       // Which plan exercises are missing from actual submissions?
-      const _missingExs=_sessLogged?exs.filter((e,i)=>!_loggedExNames.has(e.name)&&!_skippedSet.has(i)):[];
+      const _missingExs=_sessLogged?exs.filter(e=>!_loggedExNames.has(e.name)):[];
       // Header status badge
       const _statusBadge=_sessLogged
         ?(_missingExs.length
@@ -2147,10 +2147,9 @@ function goLogTraining(){
 
       // All exercise rows (shown when expanded)
       const allLines=exs.map((e,idx)=>{
-        const isDone=ck.has(idx);
-        const _wasLogged=_loggedExNames.has(e.name);
-        const _isSkipped=_skippedSet.has(idx);
-        const _isMissing=_sessLogged&&!_wasLogged&&!_isSkipped;
+        const _wasSkipped=_skippedExNames.has(e.name);
+        const _wasLogged=_actualLogNames.has(e.name);
+        const _isMissing=_sessLogged&&!_wasLogged&&!_wasSkipped;
         let detail='';
         {const dp=[];
         if(e.planIntensity) dp.push(`${e.planIntensity}%`);
@@ -2179,13 +2178,13 @@ function goLogTraining(){
         const _logTag=_sessLogged
           ?(_wasLogged
             ?`<span style="font-size:10px;font-weight:700;color:#3ecf8e;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(62,207,142,.08)">✓</span>`
-            :_isSkipped
-              ?`<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.06)">Skipped</span>`
+            :_wasSkipped
+              ?`<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.06)">↩ Skipped</span>`
               :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! Not logged</span>`)
           :'';
-        const _rowColor=_isSkipped?'rgba(255,255,255,.2)':_isMissing?'#f7a94f':'var(--muted)';
+        const _rowColor=_wasSkipped?'rgba(255,255,255,.2)':_isMissing?'#f7a94f':'var(--muted)';
         return `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;color:${_rowColor}">
-          <span style="flex:1;${_isSkipped?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
+          <span style="flex:1;${_wasSkipped?'text-decoration:line-through;opacity:.35':''}">${e.name}<span style="color:rgba(255,255,255,.3);margin-left:4px">${detail}</span>${restStr}${contractStr}</span>
           ${_logTag}
         </div>`;
       }).join('');
@@ -3268,6 +3267,14 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       skippedExercises:_skippedSprint
     });
     summaryParts.push(`${totalDist.toLocaleString()} m ⚡`);
+  }
+
+  // ── All-skipped fallback: push a marker log so session shows as handled ──
+  const _allSkipped=[..._skippedLifting,..._skippedPlyo,..._skippedSprint];
+  if(!liftingExs.length&&!plyoExs.length&&!sprintExs.length&&_allSkipped.length){
+    d.logs.push({id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,
+      type:'weight',phase,week,exercises:[],skippedExercises:_allSkipped,totalVolume:0,rpe,notes});
+    summaryParts.push(`${_allSkipped.length} skipped ↩`);
   }
 
   saveData(d);
