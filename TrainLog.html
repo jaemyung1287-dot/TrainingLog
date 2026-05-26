@@ -1432,11 +1432,22 @@ function startCloudSync(){
       if(coachEl?.classList.contains('active')) renderToday();
     } else {
       // Local is newer but still merge coach-managed fields from cloud
-      if(local && cloudData.sessionPlans){
+      if(local){
         const merged=JSON.parse(JSON.stringify(local));
-        merged.sessionPlans=Object.assign({},local.sessionPlans||{},cloudData.sessionPlans);
+        if(cloudData.sessionPlans) merged.sessionPlans=Object.assign({},local.sessionPlans||{},cloudData.sessionPlans);
         if(cloudData.athletes?.length) merged.athletes=cloudData.athletes;
-        localStorage.setItem(SK,JSON.stringify(merged));
+        // Also merge any logs that exist in cloud but not locally (athlete logs from other devices)
+        const _deletedIds=_getDeletedIds();
+        const localIds=new Set((merged.logs||[]).map(l=>l.id));
+        const cloudOnly=(cloudData.logs||[]).filter(l=>!localIds.has(l.id)&&!_deletedIds.has(l.id));
+        if(cloudOnly.length){
+          merged.logs=[...(merged.logs||[]),...cloudOnly];
+          localStorage.setItem(SK,JSON.stringify(merged));
+          const coachEl=document.getElementById('s-coach');
+          if(coachEl?.classList.contains('active')) renderToday();
+        } else {
+          localStorage.setItem(SK,JSON.stringify(merged));
+        }
       }
     }
   },e=>console.warn('[TrainLog] Listener error:',e));
