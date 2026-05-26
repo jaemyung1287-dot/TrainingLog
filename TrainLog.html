@@ -274,7 +274,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260527-6';
+const APP_VERSION = '20260527-7';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -2377,7 +2377,7 @@ function selectType(t){
             intensity:lg.intensity!=null?String(lg.intensity):'',
             weight:lg.weight!=null?String(lg.weight):'',
             sets:lg.sets?String(lg.sets):'', reps:lg.reps?String(lg.reps):'',
-            isBodyweight:lg.isBodyweight||BW_EXERCISES.has(e.name)||false,
+            isBodyweight:lg.isBodyweight||e.isBW||false,
             extraKg:lg.extraKg!=null?String(lg.extraKg):'',
             bwBase:lg.bwBase!=null?String(lg.bwBase):'',
             distance:lg.distance?String(lg.distance):'',
@@ -2395,8 +2395,8 @@ function selectType(t){
             planRepType:e.planRepType||'reps', planLegMode:e.planLegMode||'DL',
             isSL:e.isSL||(e.planLegMode==='SL')||/\(SL\)/i.test(e.name)||false, isSA:e.isSA||(e.planLegMode==='SA')||/\(SA\)/i.test(e.name)||false,
             intensity:e.planIntensity||'', sets:e.planSets||'', reps:e.planReps||'',
-            isBodyweight:e.isBW||BW_EXERCISES.has(e.name)||false,
-            weight:(e.isBW||BW_EXERCISES.has(e.name))&&athBW?String(athBW):'',
+            isBodyweight:e.isBW||false,
+            weight:e.isBW&&athBW?String(athBW):'',
             extraKg:'', distance:e.planDistance||'', effort:''
           };
         }
@@ -2949,7 +2949,7 @@ function renderExList(){
       }
 
       // Auto-detect intensity mode from exercise name
-      const isBW=ex.isBodyweight||BW_EXERCISES.has(ex.name);
+      const isBW=ex.isBodyweight||false;
       const isRef=!isBW&&REF_WEIGHT_EXERCISES.has(ex.name); // ref-weight: kg + Int% both shown
       // isFree = !isBW && !isRef → kg only, intensity optional
 
@@ -3129,7 +3129,7 @@ function renderExList(){
       </div>
     </div>`;
     // Training Mode badges
-    const _tmBW = ex.isBodyweight || BW_EXERCISES.has(ex.name);
+    const _tmBW = ex.isBodyweight||false;
     const _tmSL = ex.isSL || (ex.planLegMode === 'SL') || /\(SL\)/i.test(ex.name);
     const _tmSA = ex.isSA || (ex.planLegMode === 'SA') || /\(SA\)/i.test(ex.name);
     let trainingModeHtml = '';
@@ -3257,7 +3257,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   // ── Weight / Lifting log ──
   if(liftingExs.length){
     const totalVol=liftingExs.reduce((s,e)=>{
-      const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
+      const isBW=e.isBodyweight||false;
       const bwBase=isBW?(parseFloat(e.weight)||0):0;
       const slMult=(e.isSL||e.isSA)?2:1;
       if(e.setRows&&e.setRows.length){
@@ -3273,7 +3273,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',
       phase,week,
       exercises:liftingExs.map(e=>{
-        const isBW=e.isBodyweight||BW_EXERCISES.has(e.name);
+        const isBW=e.isBodyweight||false;
         const bwBase=isBW?(parseFloat(e.weight)||0):0;
         const firstSet=e.setRows?.[0];
         const savedW=isBW?(bwBase+(parseFloat(firstSet?.extraKg)||0)):(parseFloat(firstSet?.kg)||0);
@@ -3622,7 +3622,7 @@ function renderProgram(){
     if(e.planDistance) dp.push(`${e.planDistance}m`);
     if(e.planSets||e.planReps) dp.push(`${e.planSets||'—'}×${e.planReps||'—'}`);
     if(dp.length) p+=` ${dp.join(' · ')}`; }
-    const bwTag=(e.isBW||BW_EXERCISES.has(e.name))?`<span style="font-size:9px;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:4px;padding:1px 5px;margin-right:4px;font-weight:700">BW</span>`:'';
+    const bwTag=e.isBW?`<span style="font-size:9px;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:4px;padding:1px 5px;margin-right:4px;font-weight:700">BW</span>`:'';
     // Rest info
     let restStr='';
     if(e.planRestTime||e.planRestTimeReps){
