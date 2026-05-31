@@ -278,7 +278,7 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 /* ── Cards ── */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
 .card-hd{
-  font-size:10px;font-weight:700;color:var(--muted);
+  font-size:10px;font-weight:700;color:#c9d1d9;
   text-transform:uppercase;letter-spacing:.6px;
   margin-bottom:12px;display:flex;align-items:center;justify-content:space-between
 }
@@ -352,7 +352,7 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 
 /* ── Condition bars ── */
 .cb-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
-.cb-lbl{font-size:10px;color:var(--muted);min-width:56px;flex-shrink:0}
+.cb-lbl{font-size:10px;color:#8b949e;min-width:56px;flex-shrink:0}
 .cb-track{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.06);overflow:hidden}
 .cb-fill{height:100%;border-radius:2px}
 .cb-val{font-size:10px;font-weight:700;min-width:20px;text-align:right;flex-shrink:0}
@@ -857,7 +857,7 @@ function renderLoad(){
 function buildBarChart(id,dates,data,bg,border){
   killChart(id);
   const c=document.getElementById('ch-'+id);if(!c)return;
-  charts[id]=new Chart(c,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9}},beginAtZero:true}}}});
+  charts[id]=new Chart(c,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},beginAtZero:true}}}});
 }
 
 // ══════════════════════════════════════
@@ -957,10 +957,10 @@ function renderCondition(){
       {label:'Fatigue',data:dates.map(d=>get(d,'fatigue')),borderColor:'#f85149',backgroundColor:'rgba(248,81,73,.06)',fill:true,pointRadius:3,spanGaps:true,tension:.35},
       {label:'Mood',data:dates.map(d=>get(d,'mood')),borderColor:'#3ecf8e',backgroundColor:'rgba(62,207,142,.06)',fill:true,pointRadius:3,spanGaps:true,tension:.35},
       {label:'Sleep Q',data:dates.map(d=>get(d,'sleepQuality')),borderColor:'#bc8cff',pointRadius:3,spanGaps:true,tension:.35},
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'var(--muted)',font:{size:11},boxWidth:10}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9}},min:0,max:10}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#c9d1d9',font:{size:11},boxWidth:10}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},min:0,max:10}}}});
     killChart('sleep-h');
     const cSH=document.getElementById('ch-sleep-h');
-    if(cSH)charts['sleep-h']=new Chart(cSH,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data:dates.map(d=>get(d,'sleepHours')),backgroundColor:'rgba(188,140,255,.35)',borderColor:'#bc8cff',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9}},beginAtZero:false,min:4,max:12}}}});
+    if(cSH)charts['sleep-h']=new Chart(cSH,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data:dates.map(d=>get(d,'sleepHours')),backgroundColor:'rgba(188,140,255,.35)',borderColor:'#bc8cff',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},beginAtZero:false,min:4,max:12}}}});
   },50);
 }
 
