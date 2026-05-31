@@ -896,7 +896,11 @@ const APP_VERSION = '20260527-7';
 
     <!-- Single-athlete only: Soreness Log -->
     <div id="load-soreness-wrap" style="display:none">
-      <div class="sec-ttl" style="margin-top:18px">🔴 Soreness Log</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:20px;margin-bottom:6px;padding:0 2px">
+        <span style="font-size:13px">🔴</span>
+        <span style="font-size:10px;font-weight:700;color:#e94560;letter-spacing:.7px;text-transform:uppercase">Soreness Log</span>
+        <div style="flex:1;height:1px;background:#e9456033;margin-left:4px"></div>
+      </div>
       <div id="load-soreness-list"></div>
     </div>
   </div>
@@ -1717,7 +1721,7 @@ const BW_EXERCISES=new Set([
   'Pull Up','Chin Up','Neutral Grip Pull Up','Wide Grip Pull Up','Inverted Row','TRX Row',
   'Push Up','Dips',
   // Resistance — posterior chain
-  'Nordic Curl','GHD Back Extension','GHD Sit Up','Reverse Hyper',
+  'Nordic Curl','GHD Back Extension','Reverse Hyper',
   // Resistance — core
   'Plank','Side Plank','Copenhagen Plank','Crunch / Sit Up','Leg Raise','Ab Wheel / Ab Slide',
   'Dead Bug','Bird Dog','Hollow Body Hold','L-Sit','Hanging Leg Raise','Dragon Flag','Toes to Bar','V-Up','Single Leg Dead Bug',
@@ -4703,7 +4707,7 @@ function _renderLoadRecent(logs, wrapId){
     const nameColor = _effColor[e.effort] || 'var(--text)';
     const borderAccent = _effColor[e.effort] ? `border-left:2px solid ${_effColor[e.effort]}55;padding-left:7px;` : '';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);${borderAccent}">
-      <span style="font-size:12px;color:${nameColor};flex:1;padding-right:8px;font-weight:500;display:flex;align-items:center;flex-wrap:wrap;gap:2px">${e.name||'—'}${_effBadge(e.effort)}</span>
+      <span style="font-size:12px;color:${nameColor};flex:1;padding-right:8px;font-weight:500">${e.name||'—'}</span>
       <span style="font-size:11px;color:var(--muted);text-align:right;white-space:nowrap">${wStr} &nbsp; ${setsStr}</span>
     </div>`;
   }).join('');
@@ -4711,7 +4715,7 @@ function _renderLoadRecent(logs, wrapId){
   const _sprintDetailRows = sets => sets.map(s=>{
     const nameColor = _effColor[s.effort] || 'var(--text)';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-      <span style="font-size:12px;color:${nameColor};font-weight:500;display:flex;align-items:center;gap:4px">${s.distance}m${_effBadge(s.effort)}</span>
+      <span style="font-size:12px;color:${nameColor};font-weight:500">${s.distance}m</span>
       <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
     </div>`;
   }).join('');
@@ -4955,12 +4959,12 @@ function _renderDetailLogs(logs){
     const nameCol=_effColor[e.effort]||'var(--text)';
     const borderAcc=_effColor[e.effort]?`border-left:2px solid ${_effColor[e.effort]}55;padding-left:7px;`:'';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);${borderAcc}">
-      <span style="font-size:12px;color:${nameCol};flex:1;padding-right:8px;display:flex;align-items:center;flex-wrap:wrap;gap:2px">${e.name}${_effBadge(e.effort)}</span>
+      <span style="font-size:12px;color:${nameCol};flex:1;padding-right:8px;font-weight:500">${e.name}</span>
       <span style="font-size:11px;color:var(--muted);text-align:right;white-space:nowrap">${wStr} &nbsp; ${setsStr}</span>
     </div>`;
   }).join('');
   const _sprintDetailRows=(sets)=>sets.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-    <span style="font-size:12px;color:${_effColor[s.effort]||'var(--text)'};display:flex;align-items:center;gap:4px">${s.distance}m${_effBadge(s.effort)}</span>
+    <span style="font-size:12px;color:${_effColor[s.effort]||'var(--text)'};font-weight:500">${s.distance}m</span>
     <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
   </div>`).join('');
 
