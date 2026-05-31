@@ -6154,12 +6154,17 @@ function _deleteAthLog(id){
     _addDeletedId(id);
     const dd=getData();
     dd.logs=dd.logs.filter(l=>l.id!==id);
-    saveData(dd); // saves locally + syncs to Firebase → coach view updated
+    saveData(dd);
     showToast('Log deleted · Gelöscht');
     _renderAthRecentLogs('log-sess-recent');
-    // Also refresh log-session view if open
     const logSess=document.getElementById('s-log-session');
     if(logSess?.classList.contains('active')) goLogTraining();
+    // 코치 뷰 전체 동기화
+    renderToday();
+    renderLoadTab();
+    if(ST._detailAthName && document.getElementById('s-ath-detail')?.classList.contains('active')){
+      openAthDetail(ST._detailAthName);
+    }
   };
   el.querySelector('#_del-cancel').onclick=()=>rm();
   el.onclick=(ev)=>{ if(ev.target===el) rm(); };
