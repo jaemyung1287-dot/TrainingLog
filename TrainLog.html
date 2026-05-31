@@ -4856,7 +4856,7 @@ function _renderLoadRecent(logs, wrapId){
     return { visible: list.filter(l=>visSet.has(l.date)), hidden: list.filter(l=>!visSet.has(l.date)) };
   };
   const _moreBtn = (hiddenId) =>
-    `<button id="${hiddenId}-btn" onclick="(function(btn,hid){const el=document.getElementById(hid);const open=el.style.display!=='none'&&el.style.display!=='';el.style.display=open?'none':'';btn.style.transform=open?'rotate(0deg)':'rotate(180deg)'})(this,'${hiddenId}')"
+    `<button id="${hiddenId}-btn" onclick="(function(btn,hid){const el=document.getElementById(hid);const open=el.style.display!=='none';el.style.display=open?'none':'';btn.style.transform=open?'rotate(0deg)':'rotate(180deg)'})(this,'${hiddenId}')"
       style="width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;cursor:pointer;transition:transform .2s;font-family:inherit">
       ▼
     </button>`;
@@ -4922,7 +4922,7 @@ function _renderLoadSoreness(logs, wrapId){
   let html = visible.map(_renderCard).join('');
   if(hidden.length){
     html += `<div id="lr-sore-extra" style="display:none">${hidden.map(_renderCard).join('')}</div>`;
-    html += `<button id="lr-sore-extra-btn" onclick="(function(btn,hid){const el=document.getElementById(hid);const open=el.style.display!=='none'&&el.style.display!=='';el.style.display=open?'none':'';btn.style.transform=open?'rotate(0deg)':'rotate(180deg)'})(this,'lr-sore-extra')"
+    html += `<button id="lr-sore-extra-btn" onclick="(function(btn,hid){const el=document.getElementById(hid);const open=el.style.display!=='none';el.style.display=open?'none':'';btn.style.transform=open?'rotate(0deg)':'rotate(180deg)'})(this,'lr-sore-extra')"
       style="width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;cursor:pointer;transition:transform .2s;font-family:inherit">
       ▼
     </button>`;
