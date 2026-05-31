@@ -4855,10 +4855,10 @@ function _renderLoadRecent(logs, wrapId){
     const visSet = new Set(dates.slice(0, days));
     return { visible: list.filter(l=>visSet.has(l.date)), hidden: list.filter(l=>!visSet.has(l.date)) };
   };
-  const _moreBtn = (hiddenId, count) =>
-    `<button id="${hiddenId}-btn" onclick="document.getElementById('${hiddenId}').style.display='';this.style.display='none'"
-      style="width:100%;margin-top:6px;padding:9px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
-      더 보기 (+${count}개) ▼
+  const _moreBtn = (hiddenId) =>
+    `<button id="${hiddenId}-btn" onclick="(function(btn,hid){const el=document.getElementById(hid);const open=el.style.display!=='none'&&el.style.display!=='';el.style.display=open?'none':'';btn.style.transform=open?'rotate(0deg)':'rotate(180deg)'})(this,'${hiddenId}')"
+      style="width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;cursor:pointer;transition:transform .2s;font-family:inherit">
+      ▼
     </button>`;
 
   // Split into Training vs Condition groups
@@ -4872,7 +4872,7 @@ function _renderLoadRecent(logs, wrapId){
     html += trainVis.map(_renderCard).join('');
     if(trainHid.length){
       html += `<div id="lr-train-extra" style="display:none">${trainHid.map(_renderCard).join('')}</div>`;
-      html += _moreBtn('lr-train-extra', trainHid.length);
+      html += _moreBtn('lr-train-extra');
     }
   }
   if(condVis.length || condHid.length){
@@ -4880,7 +4880,7 @@ function _renderLoadRecent(logs, wrapId){
     html += condVis.map(_renderCard).join('');
     if(condHid.length){
       html += `<div id="lr-cond-extra" style="display:none">${condHid.map(_renderCard).join('')}</div>`;
-      html += _moreBtn('lr-cond-extra', condHid.length);
+      html += _moreBtn('lr-cond-extra');
     }
   }
   wrap.innerHTML = html;
@@ -4922,9 +4922,9 @@ function _renderLoadSoreness(logs, wrapId){
   let html = visible.map(_renderCard).join('');
   if(hidden.length){
     html += `<div id="lr-sore-extra" style="display:none">${hidden.map(_renderCard).join('')}</div>`;
-    html += `<button id="lr-sore-extra-btn" onclick="document.getElementById('lr-sore-extra').style.display='';this.style.display='none'"
-      style="width:100%;margin-top:6px;padding:9px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
-      더 보기 (+${hidden.length}개) ▼
+    html += `<button id="lr-sore-extra-btn" onclick="(function(btn,hid){const el=document.getElementById(hid);const open=el.style.display!=='none'&&el.style.display!=='';el.style.display=open?'none':'';btn.style.transform=open?'rotate(0deg)':'rotate(180deg)'})(this,'lr-sore-extra')"
+      style="width:100%;margin-top:6px;padding:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;cursor:pointer;transition:transform .2s;font-family:inherit">
+      ▼
     </button>`;
   }
   wrap.innerHTML = html;
@@ -5010,7 +5010,7 @@ function openAthDetail(name){
   document.getElementById('detail-log-filter').innerHTML =
     `<div style="position:relative">
       <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;color:var(--muted)">🔍</span>
-      <input type="search" id="detail-search-input" placeholder="운동 이름으로 검색…"
+      <input type="search" id="detail-search-input" placeholder="Search exercise…"
         style="width:100%;box-sizing:border-box;padding:9px 12px 9px 32px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;-webkit-appearance:none"
         oninput="filterDetailLogs(this.value)">
     </div>`;
@@ -5153,7 +5153,7 @@ function _buildDetailSummary(name, d){
     const fC=lastCond.fatigue>=7?'#e94560':lastCond.fatigue>=4?'#f7a94f':'#3ecf8e';
     const mC=lastCond.mood>=7?'#3ecf8e':lastCond.mood>=4?'#f7a94f':'#e94560';
     condLine=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--muted)">최근 컨디션 · ${lastCond.date.slice(5)}</span>
+      <span style="font-size:11px;color:var(--muted)">Last condition · ${lastCond.date.slice(5)}</span>
       <span style="font-size:12px">😴 <b>${lastCond.sleepHours||'—'}h</b> · Q${lastCond.sleepQuality||'—'}</span>
       <span style="font-size:12px;color:${fC}">⚡ 피로 <b>${lastCond.fatigue||'—'}</b></span>
       <span style="font-size:12px;color:${mC}">😊 기분 <b>${lastCond.mood||'—'}</b></span>
@@ -5163,15 +5163,15 @@ function _buildDetailSummary(name, d){
   return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">
     <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin-bottom:12px">📊 7-Day Summary</div>
     <div style="display:flex;align-items:center;justify-content:space-around">
-      ${stat('훈련 세션', wLogs.length+sLogs.length||'—', '#f7a94f')}
+      ${stat('Sessions', wLogs.length+sLogs.length||'—', '#f7a94f')}
       ${div}
-      ${stat('웨이트 볼륨', wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—', '#f7a94f')}
+      ${stat('Volume', wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—', '#f7a94f')}
       ${div}
-      ${stat('스프린트', sDist>0?sDist.toLocaleString()+'m':'—', '#3ecf8e')}
+      ${stat('Sprint', sDist>0?sDist.toLocaleString()+'m':'—', '#3ecf8e')}
       ${div}
-      ${stat('평균 피로', avgFat??'—', fatCol)}
+      ${stat('Ø Fatigue', avgFat??'—', fatCol)}
       ${div}
-      ${stat('평균 기분', avgMood??'—', moodCol)}
+      ${stat('Ø Mood', avgMood??'—', moodCol)}
     </div>
     ${condLine}
   </div>`;
