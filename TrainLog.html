@@ -3248,19 +3248,11 @@ function renderExList(){
     const _tmSA = ex.isSA || (ex.planLegMode === 'SA') || /\(SA\)/i.test(ex.name);
     let trainingModeHtml = '';
     if(_tmBW || _tmSL || _tmSA){
-      const _badge=(label,active,green)=>{
-        const c=green?'62,207,142':'79,142,247';
-        const col=green?'#3ecf8e':'#4f8ef7';
-        return active
-          ?`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;background:rgba(${c},.18);color:${col};border:1px solid rgba(${c},.45)">✓ ${label}</span>`
-          :`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:rgba(255,255,255,.05);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${label}</span>`;
-      };
-      trainingModeHtml=`<div style="display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap">
-        <span style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.3px">Training Mode</span>
-        ${_badge('BW',_tmBW,true)}
-        ${_badge('SL',_tmSL,false)}
-        ${_badge('SA',_tmSA,false)}
-      </div>`;
+      let chips='';
+      if(_tmBW) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.3);color:#3ecf8e">BW</span>`;
+      if(_tmSL) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:#4f8ef7">SL</span>`;
+      if(_tmSA) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:#a78bfa">SA</span>`;
+      trainingModeHtml=`<div style="display:flex;align-items:center;gap:5px;margin-top:7px;flex-wrap:wrap">${chips}</div>`;
     }
     div.innerHTML=`<div class="ex-top">${headerHtml}</div>${trainingModeHtml}${paramsHtml}${vbtHtml}${effortHtml}${doneHtml}`;
     wrap.appendChild(div);
