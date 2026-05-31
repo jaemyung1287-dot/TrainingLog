@@ -4795,19 +4795,39 @@ function _renderLoadRecent(logs, wrapId){
       <div style="flex:1;height:1px;background:${color}33;margin-left:4px"></div>
     </div>`;
 
+  // 3-day default + expand helper
+  const _splitByDays = (list, days=3) => {
+    const dates = [...new Set(list.map(l=>l.date))].sort().reverse();
+    const visSet = new Set(dates.slice(0, days));
+    return { visible: list.filter(l=>visSet.has(l.date)), hidden: list.filter(l=>!visSet.has(l.date)) };
+  };
+  const _moreBtn = (hiddenId, count) =>
+    `<button id="${hiddenId}-btn" onclick="document.getElementById('${hiddenId}').style.display='';this.style.display='none'"
+      style="width:100%;margin-top:6px;padding:9px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
+      더 보기 (+${count}개) ▼
+    </button>`;
+
   // Split into Training vs Condition groups
   const trainTypes = new Set(['weight','plyo','sprint','tabata']);
-  const trainLogs = sorted.filter(l => trainTypes.has(l.type));
-  const condLogs  = sorted.filter(l => l.type === 'condition');
+  const { visible: trainVis, hidden: trainHid } = _splitByDays(sorted.filter(l => trainTypes.has(l.type)));
+  const { visible: condVis,  hidden: condHid  } = _splitByDays(sorted.filter(l => l.type === 'condition'));
 
   let html = '';
-  if(trainLogs.length){
+  if(trainVis.length || trainHid.length){
     html += _sectionHdr('🏋️', 'Training', '#f7a94f', 4);
-    html += trainLogs.map(_renderCard).join('');
+    html += trainVis.map(_renderCard).join('');
+    if(trainHid.length){
+      html += `<div id="lr-train-extra" style="display:none">${trainHid.map(_renderCard).join('')}</div>`;
+      html += _moreBtn('lr-train-extra', trainHid.length);
+    }
   }
-  if(condLogs.length){
-    html += _sectionHdr('🌡️', 'Condition', '#a78bfa', trainLogs.length ? 16 : 4);
-    html += condLogs.map(_renderCard).join('');
+  if(condVis.length || condHid.length){
+    html += _sectionHdr('🌡️', 'Condition', '#a78bfa', (trainVis.length||trainHid.length) ? 16 : 4);
+    html += condVis.map(_renderCard).join('');
+    if(condHid.length){
+      html += `<div id="lr-cond-extra" style="display:none">${condHid.map(_renderCard).join('')}</div>`;
+      html += _moreBtn('lr-cond-extra', condHid.length);
+    }
   }
   wrap.innerHTML = html;
 }
@@ -4822,23 +4842,38 @@ function _renderLoadSoreness(logs, wrapId){
     wrap.innerHTML='<div class="empty" style="padding:20px 0;font-size:13px">No soreness reports in this period</div>';
     return;
   }
-  // Map English body parts → section color
   const _partSection = {};
   ['Neck','Shoulder','Chest','Back','Arm'].forEach(p=>_partSection[p]='upper');
   ['Hip','Quad','Glute','Hamstring','Adductor','Calf','Ankle','Foot'].forEach(p=>_partSection[p]='lower');
   ['Lower Back','Abs','Oblique'].forEach(p=>_partSection[p]='core');
 
-  wrap.innerHTML = sorenessLogs.map(l=>{
+  const _renderCard = l => {
     const chips = l.soreness.map(s=>{
       const sec = _partSection[s.part]||'upper';
       const col = _SECTION_COL[sec];
-      return `<span style="display:inline-block;padding:4px 11px;border-radius:18px;background:${col.bg};border:1px solid ${col.border};font-size:12px;color:${col.color};font-weight:600;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;
+      return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${col.bg};border:1px solid ${col.border};font-size:11px;color:${col.color};font-weight:700;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;
     }).join('');
-    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">${l.date}</div>
-      <div>${chips}</div>
+    return `<div class="detail-card" style="border-left:3px solid #e94560;padding:11px 13px">
+      <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px">${l.date}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0">${chips}</div>
     </div>`;
-  }).join('');
+  };
+
+  // 3-day default + expand
+  const dates = [...new Set(sorenessLogs.map(l=>l.date))].sort().reverse();
+  const visSet = new Set(dates.slice(0, 3));
+  const visible = sorenessLogs.filter(l=>visSet.has(l.date));
+  const hidden  = sorenessLogs.filter(l=>!visSet.has(l.date));
+
+  let html = visible.map(_renderCard).join('');
+  if(hidden.length){
+    html += `<div id="lr-sore-extra" style="display:none">${hidden.map(_renderCard).join('')}</div>`;
+    html += `<button id="lr-sore-extra-btn" onclick="document.getElementById('lr-sore-extra').style.display='';this.style.display='none'"
+      style="width:100%;margin-top:6px;padding:9px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
+      더 보기 (+${hidden.length}개) ▼
+    </button>`;
+  }
+  wrap.innerHTML = html;
 }
 
 const _scCol=(v,highGood)=>v==null?'#666':highGood?(v>=7?'#3ecf8e':v>=4?'#f7a94f':'#e94560'):(v>=7?'#e94560':v>=4?'#f7a94f':'#3ecf8e');
