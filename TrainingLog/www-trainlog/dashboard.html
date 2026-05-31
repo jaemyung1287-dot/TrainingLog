@@ -388,6 +388,46 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .exp-label{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
 .exp-desc{font-size:11px;color:var(--muted);line-height:1.4}
 
+/* ── Compare ── */
+.compare-panel{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:16px;overflow-x:auto
+}
+.compare-panel-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+.compare-table{width:100%;border-collapse:collapse;font-size:12px;min-width:400px}
+.compare-table th{
+  padding:8px 12px;font-size:10px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.4px;text-align:right;
+  border-bottom:1px solid var(--border);background:var(--bg3)
+}
+.compare-table th.metric-col{text-align:left;min-width:120px}
+.compare-table td{
+  padding:8px 12px;border-bottom:1px solid var(--border2);text-align:right;
+  font-weight:600;font-size:12px
+}
+.compare-table td.metric-col{text-align:left;font-weight:500;color:var(--muted)}
+.compare-table tr:last-child td{border-bottom:none}
+.compare-table tr:hover td{background:rgba(255,255,255,.02)}
+.compare-best{color:var(--green)}
+.compare-worst{color:var(--red)}
+
+.ath-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;transition:border-color .15s;cursor:default;position:relative
+}
+.ath-card.selected{border-color:var(--gold);box-shadow:0 0 0 1px rgba(247,169,79,.3)}
+.cmp-toggle{
+  position:absolute;top:10px;right:10px;
+  width:20px;height:20px;border-radius:5px;
+  border:1.5px solid var(--border);background:var(--bg3);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:10px;transition:all .12s;color:transparent;z-index:2
+}
+.cmp-toggle:hover{border-color:var(--gold);background:var(--gold-dim)}
+.ath-card.selected .cmp-toggle{
+  border-color:var(--gold);background:var(--gold);color:#000;font-weight:800
+}
+
 /* ── Empty ── */
 .empty{color:var(--muted);font-size:12px;padding:32px;text-align:center}
 
@@ -479,6 +519,8 @@ const ALLOWED='jaemyung1287@gmail.com';
 let coachData=null, athLogs={}, unsubs=[], athUnsubs=[], curTab='overview';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
 let overviewFilter='all';
+let athletesFilter='all';
+let compareSet=new Set();
 const charts={};
 
 // ══ AUTH ══
@@ -695,7 +737,7 @@ function renderOverview(){
           const c=tc(l.type);
           const bg=tcBg(l.type);
           const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
-          const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`
+          const val=l.type==='weight'?`${vol([l]).toLocaleString()} kg`
             :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
             :l.type==='plyo'?`${l.totalReps||0} reps`
             :l.type==='tabata'?'8 rounds':'—';
@@ -764,7 +806,7 @@ function renderLoad(){
       let cell='<td style="text-align:center">';
       trains.forEach(l=>{
         const c=tc(l.type);
-        const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:l.type==='tabata'?'Tabata':'—';
+        const val=l.type==='weight'?`${vol([l]).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:l.type==='tabata'?'Tabata':'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
         cell+=`<div><span class="type-pill" style="background:${tcBg(l.type)};color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'}</span> <span style="font-weight:700;font-size:12px">${val}</span>${l.rpe?`<span style="font-size:10px;color:var(--muted)"> ·${l.rpe}</span>`:''}</div>`;
@@ -932,30 +974,139 @@ function cBar2(label,val,max,hg){
 // ══════════════════════════════════════
 //  ATHLETES
 // ══════════════════════════════════════
+function setAthletesFilter(f){athletesFilter=f;renderAthletes();}
+function toggleCompare(name){
+  if(compareSet.has(name))compareSet.delete(name);else compareSet.add(name);
+  renderAthletes();
+}
+
+function _athStats(ath,days=7){
+  const logs=getLogsByName(ath.name);
+  const dateSet=new Set(getLast(days));
+  const my=logs.filter(l=>dateSet.has(l.date));
+  const wVol=vol(my.filter(l=>l.type==='weight'||l.type==='plyo'));
+  const sDist=my.filter(l=>l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0);
+  const cL=my.filter(l=>l.type==='condition');
+  const avgF=cL.length?(cL.reduce((s,l)=>s+(l.fatigue||0),0)/cL.length):null;
+  const avgM=cL.length?(cL.reduce((s,l)=>s+(l.mood||0),0)/cL.length):null;
+  const avgSQ=cL.length?(cL.reduce((s,l)=>s+(l.sleepQuality||0),0)/cL.length):null;
+  const avgSH=cL.length?(cL.reduce((s,l)=>s+(l.sleepHours||0),0)/cL.length):null;
+  const sess=my.filter(l=>l.type!=='condition').length;
+  return {wVol,sDist,avgF,avgM,avgSQ,avgSH,sess};
+}
+
 function renderAthletes(){
   const wrap=document.getElementById('tab-athletes');
-  const athletes=coachData.athletes||[];
-  if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
-  document.getElementById('tb-sub').textContent='Last 7 days';
+  const allAthletes=coachData.athletes||[];
+  if(!allAthletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
 
-  let html='<div class="g2">';
+  const groups=[...new Set(allAthletes.map(a=>a.group))].sort();
+  const isGrp=f=>groups.includes(f);
+
+  // ── Filter bar ──
+  let fb=`<div class="filter-bar">
+    <div class="filter-group">
+      <button class="flt-btn ${athletesFilter==='all'?'on':''}" onclick="setAthletesFilter('all')">All Athletes</button>`;
+  groups.forEach(g=>{
+    fb+=`<button class="flt-btn ${athletesFilter===g?'on':''}" onclick="setAthletesFilter('${g}')">Group ${g}</button>`;
+  });
+  fb+=`</div><div class="flt-sep"></div><div class="filter-group">`;
+  allAthletes.forEach(a=>{
+    const c=a.group==='A'?'#58a6ff':'#3ecf8e';
+    const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
+    fb+=`<button class="flt-btn ath-btn ${athletesFilter===a.name?'on':''}" onclick="setAthletesFilter(${JSON.stringify(a.name)})">
+      <span class="flt-dot" style="background:${c}"></span>${short}
+    </button>`;
+  });
+  fb+=`</div></div>`;
+
+  // ── Filtered list ──
+  let athletes = athletesFilter==='all' ? allAthletes
+    : isGrp(athletesFilter) ? allAthletes.filter(a=>a.group===athletesFilter)
+    : allAthletes.filter(a=>a.name===athletesFilter);
+
+  document.getElementById('tb-sub').textContent=
+    compareSet.size>=2?`${compareSet.size} athletes selected · Click cards to compare`:'Last 7 days';
+
+  // ── Compare panel ──
+  let comparePanelHtml='';
+  if(compareSet.size>=2){
+    const cAthletes=allAthletes.filter(a=>compareSet.has(a.name));
+    const stats=cAthletes.map(a=>({ath:a,..._athStats(a,7)}));
+
+    // Helper: highlight best/worst value in a row
+    const highlight=(vals,hgIdx,higher=true)=>{
+      const nums=vals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));
+      if(!nums.length)return vals.map(v=>`<td class="compare-table-td">${v||'—'}</td>`);
+      const best=higher?Math.max(...nums):Math.min(...nums);
+      const worst=higher?Math.min(...nums):Math.max(...nums);
+      return vals.map((v,i)=>{
+        const n=parseFloat(v);
+        const cls=isNaN(n)?'':(n===best&&nums.filter(x=>x===best).length<nums.length)?'compare-best':(n===worst&&nums.filter(x=>x===worst).length<nums.length)?'compare-worst':'';
+        return`<td class="compare-table-td" style="text-align:right;padding:8px 12px;border-bottom:1px solid var(--border2);font-weight:600" ${cls?`class="${cls}"`:''}>${v||'—'}</td>`;
+      });
+    };
+
+    const fmtV=v=>v>0?(v>=1000?(v/1000).toFixed(1)+'t':v.toLocaleString()+'kg'):'—';
+    const fmtD=v=>v>0?v.toLocaleString()+'m':'—';
+    const fmtN=(v,d=1)=>v!=null?parseFloat(v).toFixed(d):'—';
+
+    const rows=[
+      ['Sessions (7d)', stats.map(s=>s.sess), true],
+      ['Volume (7d)', stats.map(s=>s.wVol>0?s.wVol:null), true, s=>fmtV(s.wVol)],
+      ['Sprint (7d)', stats.map(s=>s.sDist>0?s.sDist:null), true, s=>fmtD(s.sDist)],
+      ['Ø Fatigue', stats.map(s=>s.avgF), false, s=>fmtN(s.avgF)],
+      ['Ø Mood', stats.map(s=>s.avgM), true, s=>fmtN(s.avgM)],
+      ['Ø Sleep Q', stats.map(s=>s.avgSQ), true, s=>fmtN(s.avgSQ)],
+      ['Ø Sleep h', stats.map(s=>s.avgSH), true, s=>fmtN(s.avgSH)],
+    ];
+
+    comparePanelHtml=`<div class="compare-panel">
+      <div class="compare-panel-title">Comparison · Last 7 Days</div>
+      <table class="compare-table">
+        <thead><tr>
+          <th class="metric-col">Metric</th>
+          ${cAthletes.map(a=>{const gc=a.group==='A'?'#58a6ff':'#3ecf8e';return`<th style="text-align:right"><span style="color:${gc}">${a.name.split(' ')[0]}</span></th>`;}).join('')}
+        </tr></thead>
+        <tbody>`;
+
+    rows.forEach(([label, rawVals, higher, fmtFn])=>{
+      const displayVals=fmtFn?stats.map(fmtFn):rawVals.map(v=>v!=null?String(v):'—');
+      const nums=rawVals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));
+      const best=higher?Math.max(...nums):Math.min(...nums);
+      const worst=higher?Math.min(...nums):Math.max(...nums);
+      comparePanelHtml+=`<tr>
+        <td class="metric-col" style="padding:8px 12px;border-bottom:1px solid var(--border2);color:var(--muted)">${label}</td>
+        ${displayVals.map((dv,i)=>{
+          const n=parseFloat(rawVals[i]);
+          const cls=isNaN(n)||nums.length<2?'':(n===best&&nums.filter(x=>x===best).length<nums.length)?'compare-best':(n===worst&&nums.filter(x=>x===worst).length<nums.length)?'compare-worst':'';
+          return`<td style="text-align:right;padding:8px 12px;border-bottom:1px solid var(--border2);font-weight:600" ${cls?`class="${cls}"`:''}>${dv}</td>`;
+        }).join('')}
+      </tr>`;
+    });
+    comparePanelHtml+=`</tbody></table>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted)">
+        <span style="color:var(--green)">●</span> Best &nbsp;
+        <span style="color:var(--red)">●</span> Worst &nbsp;(Fatigue: lower = better, others: higher = better)
+      </div>
+    </div>`;
+  }
+
+  // ── Athlete cards ──
+  const gridCols=athletes.length===1?'1fr':athletes.length===2?'1fr 1fr':'1fr 1fr';
+  let cardsHtml=`<div class="g2">`;
   athletes.forEach(ath=>{
     const athId=ath.id;
     const logs=getLogsByName(ath.name);
-    const last7=new Set(getLast(7));
-    const my7=logs.filter(l=>last7.has(l.date));
-    const wVol=vol(my7.filter(l=>l.type==='weight'||l.type==='plyo'));
-    const sDist=my7.filter(l=>l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0);
-    const cL=my7.filter(l=>l.type==='condition');
-    const avgF=cL.length?(cL.reduce((s,l)=>s+l.fatigue,0)/cL.length).toFixed(1):null;
-    const avgM=cL.length?(cL.reduce((s,l)=>s+l.mood,0)/cL.length).toFixed(1):null;
-    const sess7=my7.filter(l=>l.type!=='condition').length;
+    const {wVol,sDist,avgF,avgM,sess}=_athStats(ath,7);
     const recent=logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
     const sore=logs.filter(l=>l.type==='condition'&&(l.soreness||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
     const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
     const grpBg=ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)';
+    const isSel=compareSet.has(ath.name);
 
-    html+=`<div class="card" style="padding:0;overflow:hidden">
+    cardsHtml+=`<div class="ath-card ${isSel?'selected':''}">
+      <button class="cmp-toggle" onclick="toggleCompare(${JSON.stringify(ath.name)})" title="Compare">✓</button>
       <div style="padding:14px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px">
         <div style="width:38px;height:38px;border-radius:8px;background:${grpBg};color:${grpColor};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">${ath.name[0]}</div>
         <div>
@@ -968,15 +1119,15 @@ function renderAthletes(){
       </div>
       <div style="padding:14px 16px">
         <div class="g3" style="margin-bottom:12px">
-          <div class="stat-chip"><div class="sv" style="color:var(--gold)">${sess7}</div><div class="sl">Sessions</div></div>
+          <div class="stat-chip"><div class="sv" style="color:var(--gold)">${sess}</div><div class="sl">Sessions</div></div>
           <div class="stat-chip"><div class="sv" style="color:var(--gold)">${wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—'}</div><div class="sl">Volume</div></div>
           <div class="stat-chip"><div class="sv" style="color:var(--green)">${sDist>0?sDist.toLocaleString()+'m':'—'}</div><div class="sl">Sprint</div></div>
         </div>
-        ${avgF?`<div style="margin-bottom:12px">${cBar2('Ø Fatigue',avgF,10,false)}${cBar2('Ø Mood',avgM,10,true)}</div>`:''}
+        ${avgF!=null?`<div style="margin-bottom:12px">${cBar2('Ø Fatigue',avgF.toFixed(1),10,false)}${cBar2('Ø Mood',avgM!=null?avgM.toFixed(1):null,10,true)}</div>`:''}
         <div class="sec"><span class="sec-title">Recent Logs</span><div class="sec-line"></div></div>
         ${recent.length?recent.map(l=>{
           const c=tc(l.type);
-          const v=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='condition'?`F${l.fatigue||'—'} M${l.mood||'—'}`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+          const v=l.type==='weight'?`${vol([l]).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='condition'?`F${l.fatigue||'—'} M${l.mood||'—'}`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
           return`<div class="lr">
             <span class="ld">${fmt(l.date)}</span>
             <span class="lt" style="color:${c}">${l.type}</span>
@@ -989,8 +1140,9 @@ function renderAthletes(){
       </div>
     </div>`;
   });
-  html+='</div>';
-  wrap.innerHTML=html;
+  cardsHtml+='</div>';
+
+  wrap.innerHTML=fb+comparePanelHtml+cardsHtml;
 }
 
 // ══════════════════════════════════════
@@ -1056,7 +1208,7 @@ function genWeeklyReport(){
       if(!trains.length&&!cond){cell+='<span style="color:#9ca3af;font-size:10px">Rest</span>';}
       trains.forEach(l=>{
         const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626'}[l.type]||'#64748b';
-        const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:'—';
+        const val=l.type==='weight'?`${vol([l]).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
         sessCount++;
@@ -1113,7 +1265,7 @@ function genFullReport(){
     const avgM=cLogs.length?(cLogs.reduce((s,l)=>s+(l.mood||0),0)/cLogs.length).toFixed(1):null;
     const rows=tLogs.slice(0,20).map(l=>{
       const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626'}[l.type]||'#64748b';
-      const v=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+      const v=l.type==='weight'?`${vol([l]).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
       return`<tr><td style="padding:5px 8px;border:1px solid #e5e7eb">${fmtFull(l.date)}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:700;color:${c}">${l.type}</td><td style="padding:5px 8px;border:1px solid #e5e7eb">${v}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;color:#64748b">${l.rpe||'—'}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;color:#64748b">${l.notes||''}</td></tr>`;
     }).join('');
     const gc=ath.group==='A'?'#1d4ed8':'#065f46';
