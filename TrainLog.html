@@ -6109,7 +6109,6 @@ document.addEventListener('click', (e)=>{
   }
 });
 function deleteLog(id, ctx){
-  // ctx: 'today' | 'detail' | 'load'
   const d=getData();
   const log=d.logs.find(l=>l.id===id);
   if(log){ const ath=(d.athletes||[]).find(a=>a.name===log.athleteName); if(ath) _syncAthleteId=ath.id; }
@@ -6117,8 +6116,12 @@ function deleteLog(id, ctx){
   d.logs=d.logs.filter(l=>l.id!==id);
   saveData(d);
   showToast('Log deleted');
-  if(ctx==='detail'&&ST._detailAthName) openAthDetail(ST._detailAthName);
-  else { renderToday(); if(ctx==='load') renderLoadTab(); }
+  // 어디서 지우든 열려 있는 모든 뷰 동기화
+  renderToday();
+  renderLoadTab();
+  if(ST._detailAthName && document.getElementById('s-ath-detail')?.classList.contains('active')){
+    openAthDetail(ST._detailAthName);
+  }
 }
 
 // Delete from athlete's Recent Logs view — with confirmation modal
