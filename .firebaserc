@@ -10,6 +10,9 @@
         ],
         "road2030": [
           "road-to-2030-kr"
+        ],
+        "coach-dashboard": [
+          "trainlog-coach-dashboard"
         ]
       }
     }
