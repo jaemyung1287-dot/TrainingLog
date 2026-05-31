@@ -259,6 +259,7 @@ const ALLOWED='jaemyung1287@gmail.com';
 // ══ STATE ══
 let coachData=null, athLogs={}, unsubs=[], athUnsubs=[], curTab='overview';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
+let overviewFilter='all'; // 'all' | 'A' | 'B' | athlete name
 const charts={};
 
 // ══ AUTH ══
@@ -399,6 +400,8 @@ function renderCurrent(){
 // ══════════════════════════════════════
 //  ÜBERSICHT — 7-day timeline
 // ══════════════════════════════════════
+function setOverviewFilter(f){overviewFilter=f;renderOverview();}
+
 function renderOverview(){
   const wrap=document.getElementById('tab-overview');
   const wk=getWeekDates(weekOffset);
@@ -406,13 +409,42 @@ function renderOverview(){
   const mon=wk[0].d,sun=wk[6].d;
   document.getElementById('tb-sub').textContent=`${fmtShort(mon)} – ${fmtShort(sun)}`;
 
-  const athletes=coachData.athletes||[];
-  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+  const allAthletes=coachData.athletes||[];
+  if(!allAthletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+
+  // ── Filter bar ──
+  const groups=[...new Set(allAthletes.map(a=>a.group))].sort();
+  const isGrp=f=>f==='A'||f==='B';
+  const isAth=f=>f!=='all'&&!isGrp(f);
+
+  let filterBar=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap">`;
+  // Group buttons
+  filterBar+=`<button class="pb ${overviewFilter==='all'?'on':''}" onclick="setOverviewFilter('all')">전체 선수</button>`;
+  groups.forEach(g=>{
+    filterBar+=`<button class="pb ${overviewFilter===g?'on':''}" onclick="setOverviewFilter('${g}')">Group ${g}</button>`;
+  });
+  // Divider
+  filterBar+=`<span style="width:1px;height:18px;background:var(--border);margin:0 4px;flex-shrink:0"></span>`;
+  // Individual athlete buttons
+  allAthletes.forEach(a=>{
+    const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
+    filterBar+=`<button class="pb ${overviewFilter===a.name?'on':''}" onclick="setOverviewFilter('${a.name.replace(/'/g,"\\'")}')">
+      <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${a.group==='A'?'rgba(79,142,247,.5)':'rgba(62,207,142,.5)'};margin-right:4px;vertical-align:middle"></span>${short}
+    </button>`;
+  });
+  filterBar+=`</div>`;
+
+  // ── Filtered athletes ──
+  let athletes;
+  if(overviewFilter==='all') athletes=allAthletes;
+  else if(isGrp(overviewFilter)) athletes=allAthletes.filter(a=>a.group===overviewFilter);
+  else athletes=allAthletes.filter(a=>a.name===overviewFilter);
 
   const DN_DE=['Mo','Di','Mi','Do','Fr','Sa','So'];
   const DN_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const isSingle=athletes.length===1;
 
-  let html='';
+  let html=filterBar;
   athletes.forEach(ath=>{
     const logs=getLogsByName(ath.name);
 
@@ -422,9 +454,10 @@ function renderOverview(){
         <div>
           <div class="ath-nm">${ath.name}</div>
           <span class="badge b${ath.group.toLowerCase()}">Group ${ath.group}</span>
+          ${ath.dob?`<span style="font-size:10px;color:var(--muted);margin-left:6px">${ath.dob}</span>`:''}
         </div>
       </div>
-      <div class="tl-grid" style="grid-template-columns:repeat(7,minmax(120px,1fr))">`;
+      <div class="tl-grid" style="grid-template-columns:repeat(7,minmax(${isSingle?'150':'120'}px,1fr))">`;
 
     wk.forEach(({ds,d},i)=>{
       const isToday=ds===today;
@@ -436,7 +469,7 @@ function renderOverview(){
       const amExs=sessExs(gd,'am'); const pmExs=sessExs(gd,'pm');
       const hasPlan=amExs.length>0||pmExs.length>0;
 
-      html+=`<div class="tl-day ${isToday?'today':''}">
+      html+=`<div class="tl-day ${isToday?'today':''}" style="${isSingle?'min-height:130px':''}">
         <div class="tl-day-hdr">
           <span class="tl-day-name">${DN_DE[i]}·${DN_EN[i]}</span>
           <span class="tl-day-date">${d.getDate()}.${d.getMonth()+1}.${isToday?'&nbsp;<span class="today-tag">TODAY</span>':''}</span>
