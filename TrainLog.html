@@ -823,11 +823,21 @@ const APP_VERSION = '20260527-7';
   <!-- LOAD -->
   <div class="tab-pane" id="tab-load">
     <div class="ttl" style="font-size:22px">Training Load</div>
-    <div class="fg">
-      <label class="fl">Athlete</label>
-      <select class="fi" id="load-ath-select" onchange="renderLoadTab()">
-        <option value="all">All Athletes</option>
-      </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div>
+        <label class="fl">Group</label>
+        <select class="fi" id="load-group-select" onchange="renderLoadTab()">
+          <option value="all">All Groups</option>
+          <option value="A">Group A</option>
+          <option value="B">Group B</option>
+        </select>
+      </div>
+      <div>
+        <label class="fl">Athlete</label>
+        <select class="fi" id="load-ath-select" onchange="renderLoadTab()">
+          <option value="all">All Athletes</option>
+        </select>
+      </div>
     </div>
     <div class="period-sel">
       <button class="period-btn on" onclick="setPeriod('week',this)">7 Days</button>
@@ -4295,12 +4305,20 @@ function getLast12Months(){
 
 function renderLoadTab(){
   const d=getData();
+  const grpSel=document.getElementById('load-group-select');
+  const grpV=grpSel?grpSel.value:'all';
+  const filteredAthletes=grpV==='all'?d.athletes:d.athletes.filter(a=>a.group===grpV);
+
   const sel=document.getElementById('load-ath-select');
-  const curV=sel.value; sel.innerHTML='<option value="all">All Athletes</option>';
-  d.athletes.forEach(a=>{ const o=document.createElement('option'); o.value=a.name; o.textContent=a.name; sel.appendChild(o); });
-  if(curV) sel.value=curV;
-  const fn=d.athletes.find(a=>a.name===sel.value)?sel.value:'all';
+  const curV=sel.value;
+  sel.innerHTML='<option value="all">All Athletes</option>';
+  filteredAthletes.forEach(a=>{ const o=document.createElement('option'); o.value=a.name; o.textContent=a.name; sel.appendChild(o); });
+  if(curV&&curV!=='all'&&filteredAthletes.find(a=>a.name===curV)) sel.value=curV;
+  else if(curV==='all') sel.value='all';
+  const fn=filteredAthletes.find(a=>a.name===sel.value)?sel.value:'all';
   const isAll=(fn==='all');
+  const groupAthNames=new Set(filteredAthletes.map(a=>a.name));
+  const logFilter=(l)=>isAll?groupAthNames.has(l.athleteName):l.athleteName===fn;
 
   // Show/hide condition chart containers based on selection
   const condSingle=document.getElementById('load-cond-single');
@@ -4337,7 +4355,7 @@ function renderLoadTab(){
   if(loadPeriod==='year'){
     const months=getLast12Months();
     const labels=months.map(m=>m.label);
-    const fl=(type)=>d.logs.filter(l=>l.type===type&&(isAll||l.athleteName===fn));
+    const fl=(type)=>d.logs.filter(l=>l.type===type&&logFilter(l));
     const wl=fl('weight'),sl=fl('sprint'),pl=fl('plyo'),cc=fl('condition');
     const pwl=wl.filter(l=>(l.exercises||[]).some(e=>e.trainingType==='Power Development'));
     const rwl=wl.filter(l=>(l.exercises||[]).some(e=>e.trainingType==='Resistance Training'));
@@ -4363,7 +4381,7 @@ function renderLoadTab(){
     }
   } else {
     const n=loadPeriod==='week'?7:30; const dates=getLast(n); const labels=dates.map(fmtDate);
-    const fl=(type)=>d.logs.filter(l=>l.type===type&&dates.includes(l.date)&&(isAll||l.athleteName===fn));
+    const fl=(type)=>d.logs.filter(l=>l.type===type&&dates.includes(l.date)&&logFilter(l));
     const wl=fl('weight'),sl=fl('sprint'),pl=fl('plyo'),cc=fl('condition');
     const pwl=wl.filter(l=>(l.exercises||[]).some(e=>e.trainingType==='Power Development'));
     const rwl=wl.filter(l=>(l.exercises||[]).some(e=>e.trainingType==='Resistance Training'));
