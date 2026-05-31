@@ -428,6 +428,20 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
   border-color:var(--gold);background:var(--gold);color:#000;font-weight:800
 }
 
+/* ── Tooltip ── */
+#g-tip{
+  display:none;position:fixed;z-index:9999;pointer-events:none;
+  background:#1c2128;border:1px solid #30363d;border-radius:8px;
+  padding:10px 13px;font-size:12px;color:#e6edf3;
+  box-shadow:0 6px 20px rgba(0,0,0,.5);max-width:230px;min-width:130px
+}
+#g-tip .tip-date{font-size:10px;color:#8b949e;margin-bottom:7px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+#g-tip .tip-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-weight:600}
+#g-tip .tip-rest{color:#484f58;font-size:11px}
+#g-tip .tip-sore{margin-top:7px;padding-top:7px;border-top:1px solid #21262d;font-size:11px;color:#f85149}
+.heatmap td{cursor:default}
+.heatmap td:hover{background:rgba(255,255,255,.04)}
+
 /* ── Empty ── */
 .empty{color:var(--muted);font-size:12px;padding:32px;text-align:center}
 
@@ -509,6 +523,7 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
   </div>
 </div>
 
+<div id="g-tip"></div>
 <script>
 // ══ FIREBASE ══
 firebase.initializeApp({apiKey:"AIzaSyBF_F7ANEj4n9E5O5-x9YWn9mOBunl8Ze8",authDomain:"traininglogskeleton.firebaseapp.com",projectId:"traininglogskeleton",storageBucket:"traininglogskeleton.firebasestorage.app",messagingSenderId:"467243804287",appId:"1:467243804287:web:8808291abb44de59b7c1a4"});
@@ -881,6 +896,16 @@ function renderSoreness(){
     if(!map[l.date])map[l.date]={};
     (l.soreness||[]).forEach(s=>{if(!map[l.date][s.part]||map[l.date][s.part]<s.intensity)map[l.date][s.part]=s.intensity;});
   });
+  // 툴팁 데이터: 날짜별 훈련 내용
+  const trainMap={};
+  logs.filter(l=>l.type!=='condition').forEach(l=>{
+    if(!trainMap[l.date])trainMap[l.date]=[];
+    trainMap[l.date].push(l);
+  });
+  dates.forEach(d=>{
+    const soreToday=map[d]?Object.entries(map[d]).map(([p,v])=>`${p}(${v})`).join(' · '):null;
+    _td[d]={trains:trainMap[d]||[],soreLabel:soreToday};
+  });
 
   let html=`<div class="sel-bar"><select class="fsel" onchange="soreAth=this.value;renderSoreness()">${athOpts}</select></div>
   <div class="card">
@@ -899,10 +924,11 @@ function renderSoreness(){
     html+=`<tr ${!hasData?'style="opacity:.3"':''}><td class="part-label">${part}</td>`;
     dates.forEach(d=>{
       const v=map[d]?.[part];
-      if(!v){html+=`<td></td>`;return;}
+      const tipAttr=`onmouseenter="showTip(event,'${d}')" onmouseleave="hideTip()"`;
+      if(!v){html+=`<td ${tipAttr}></td>`;return;}
       const c=v>=7?'248,81,73':v>=4?'247,169,79':'62,207,142';
       const a=.15+((v-1)/9)*.6;
-      html+=`<td><div class="hm-cell" style="background:rgba(${c},${a.toFixed(2)});color:rgba(${c},1)">${v}</div></td>`;
+      html+=`<td ${tipAttr}><div class="hm-cell" style="background:rgba(${c},${a.toFixed(2)});color:rgba(${c},1)">${v}</div></td>`;
     });
     html+=`</tr>`;
   });
@@ -1325,6 +1351,43 @@ function downloadJSON(){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download=`trainlog_backup_${todayStr()}.json`;a.click();URL.revokeObjectURL(url);
 }
+
+// ══ TOOLTIP ══
+const _td={};
+function showTip(e,dateKey){
+  const t=document.getElementById('g-tip');
+  const d=_td[dateKey];if(!d){return;}
+  const icon={weight:'🏋️',sprint:'⚡',tabata:'🔥',plyo:'🦘',circuit:'🔄'};
+  const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',circuit:'Circuit'};
+  let html=`<div class="tip-date">${fmtFull(dateKey)}</div>`;
+  if(d.trains.length){
+    d.trains.forEach(tr=>{
+      const c=tc(tr.type);
+      const v=tr.type==='weight'?`${vol([tr]).toLocaleString()} kg`
+        :tr.type==='sprint'?`${(tr.totalDistance||0).toLocaleString()} m`
+        :tr.type==='tabata'?'8 rounds'
+        :tr.type==='plyo'?`${tr.totalReps||0} reps`:'';
+      html+=`<div class="tip-row"><span>${icon[tr.type]||'•'}</span><span style="color:${c}">${label[tr.type]||tr.type} ${v}</span>${tr.rpe?`<span style="color:#8b949e;font-size:10px">RPE ${tr.rpe}</span>`:''}</div>`;
+    });
+  } else {
+    html+=`<div class="tip-rest">Rest day</div>`;
+  }
+  if(d.soreLabel){
+    html+=`<div class="tip-sore">🔴 ${d.soreLabel}</div>`;
+  }
+  t.innerHTML=html;
+  t.style.display='block';
+  _moveTip(e);
+}
+function hideTip(){document.getElementById('g-tip').style.display='none';}
+function _moveTip(e){
+  const t=document.getElementById('g-tip');
+  if(!t||t.style.display==='none')return;
+  const x=e.clientX+14,y=e.clientY-8;
+  t.style.left=(x+240>window.innerWidth?e.clientX-240:x)+'px';
+  t.style.top=(y+150>window.innerHeight?e.clientY-150:y)+'px';
+}
+document.addEventListener('mousemove',_moveTip);
 
 // ══ DELETE ══
 async function delLog(logId,athId,event){
