@@ -6963,7 +6963,12 @@ function renderPlanAccordion(){
         contractStr=`<span style="color:rgba(167,139,250,.75)"> / ${e.planContractionType}${cVal}</span>`;
       }
       const detailStr=parts.length?`<span style="color:rgba(198,168,90,.8)">${parts.join(' · ')}</span>`:'';
-      return `<span style="font-size:11px">${detailStr}${restStr}${contractStr}</span>`;
+      const _isSL=e.isSL||(e.planLegMode==='SL')||/\(SL\)/i.test(e.name);
+      const _isSA=e.isSA||(e.planLegMode==='SA')||/\(SA\)/i.test(e.name);
+      let modChips='';
+      if(_isSL) modChips+=`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.3);color:#3ecf8e;margin-right:5px">SL</span>`;
+      if(_isSA) modChips+=`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:#a78bfa;margin-right:5px">SA</span>`;
+      return `<span style="font-size:11px">${modChips}${detailStr}${restStr}${contractStr}</span>`;
     };
 
     html+=`<div id="plan-ov-list" style="border-radius:14px;border:1px solid rgba(255,255,255,.08);overflow:hidden">`;
