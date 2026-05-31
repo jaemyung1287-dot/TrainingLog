@@ -669,7 +669,7 @@ function renderOverview(){
   allAthletes.forEach(a=>{
     const c=a.group==='A'?'#58a6ff':'#3ecf8e';
     const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
-    fb+=`<button class="flt-btn ath-btn ${overviewFilter===a.name?'on':''}" onclick="setOverviewFilter(${JSON.stringify(a.name)})">
+    fb+=`<button class="flt-btn ath-btn ${overviewFilter===a.name?'on':''}" onclick="setOverviewFilter('${a.name.replace(/'/g,"\\'")}')">
       <span class="flt-dot" style="background:${c}"></span>${short}
     </button>`;
   });
@@ -1014,7 +1014,7 @@ function renderAthletes(){
   allAthletes.forEach(a=>{
     const c=a.group==='A'?'#58a6ff':'#3ecf8e';
     const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
-    fb+=`<button class="flt-btn ath-btn ${athletesFilter===a.name?'on':''}" onclick="setAthletesFilter(${JSON.stringify(a.name)})">
+    fb+=`<button class="flt-btn ath-btn ${athletesFilter===a.name?'on':''}" onclick="setAthletesFilter('${a.name.replace(/'/g,"\\'")}')">
       <span class="flt-dot" style="background:${c}"></span>${short}
     </button>`;
   });
@@ -1106,7 +1106,7 @@ function renderAthletes(){
     const isSel=compareSet.has(ath.name);
 
     cardsHtml+=`<div class="ath-card ${isSel?'selected':''}">
-      <button class="cmp-toggle" onclick="toggleCompare(${JSON.stringify(ath.name)})" title="Compare">✓</button>
+      <button class="cmp-toggle" onclick="toggleCompare('${ath.name.replace(/'/g,"\\'")}')" title="Compare">✓</button>
       <div style="padding:14px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px">
         <div style="width:38px;height:38px;border-radius:8px;background:${grpBg};color:${grpColor};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">${ath.name[0]}</div>
         <div>
