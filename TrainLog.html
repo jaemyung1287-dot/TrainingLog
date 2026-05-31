@@ -4826,7 +4826,7 @@ function _renderLoadRecent(logs, wrapId){
       detailHtml += `<div style="padding:6px 0 2px;font-size:12px;color:var(--muted);font-style:italic;border-top:1px solid rgba(255,255,255,.04);margin-top:6px">"${l.notes}"</div>`;
     }
 
-    return `<div class="detail-card" style="cursor:${hasDetail?'pointer':'default'};padding:11px 13px;border-left:3px solid ${borderColor}" ${hasDetail?`onclick="_toggleLogDetail('${detailId}','${chevId}')"`:''}>
+    return `<div id="lr-card-${l.id}" class="detail-card" style="cursor:${hasDetail?'pointer':'default'};padding:11px 13px;border-left:3px solid ${borderColor}" ${hasDetail?`onclick="_toggleLogDetail('${detailId}','${chevId}')"`:''}>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
           <span style="font-size:18px;flex-shrink:0">${_typeIcon[l.type]||'📝'}</span>
@@ -4837,7 +4837,7 @@ function _renderLoadRecent(logs, wrapId){
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           ${hasDetail?`<span id="${chevId}" style="font-size:14px;color:var(--muted);flex-shrink:0">▼</span>`:''}
-          <button onclick="event.stopPropagation();deleteLog('${l.id}','load')" style="padding:3px 8px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>
+          <button onclick="event.stopPropagation();_deleteLoadCard('${l.id}')" style="padding:3px 8px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>
         </div>
       </div>
       ${hasDetail?`<div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>`:''}
@@ -6108,6 +6108,23 @@ document.addEventListener('click', (e)=>{
     if(box) _toggleChartBox(box);
   }
 });
+// Load탭 Recent Sessions 전용: 해당 카드만 제거 (전체 재렌더 없이 펼침 상태 유지)
+function _deleteLoadCard(id){
+  const card=document.getElementById('lr-card-'+id);
+  if(card) card.remove();
+  const d=getData();
+  const log=d.logs.find(l=>l.id===id);
+  if(log){ const ath=(d.athletes||[]).find(a=>a.name===log.athleteName); if(ath) _syncAthleteId=ath.id; }
+  _addDeletedId(id);
+  d.logs=d.logs.filter(l=>l.id!==id);
+  saveData(d);
+  showToast('Log deleted');
+  renderToday();
+  if(ST._detailAthName && document.getElementById('s-ath-detail')?.classList.contains('active')){
+    openAthDetail(ST._detailAthName);
+  }
+}
+
 function deleteLog(id, ctx){
   const d=getData();
   const log=d.logs.find(l=>l.id===id);
