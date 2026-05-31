@@ -14,7 +14,7 @@
   "hosting": [
     {
       "target": "trainlog",
-      "public": "www-trainlog",
+      "public": "TrainingLog/www-trainlog",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "headers": [
         {
