@@ -4820,8 +4820,17 @@ function openAthDetail(name){
   const _dBtn=(id)=>`<button onclick="event.stopPropagation();deleteLog('${id}','detail')" style="padding:4px 9px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
   const _eBtn=(id)=>{const l=d.logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="event.stopPropagation();_editLog('${id}')" style="padding:4px 9px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';}
 
-  // Exercise chips (clean pill style)
-  const _exChips=(exs)=>exs.length?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${exs.map(e=>`<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:11px;color:var(--text);line-height:1.4">${e.name}</span>`).join('')}</div>`:'';
+  // Effort color helpers
+  const _effColor={Low:'#3ecf8e',Medium:'#f7a94f',High:'#e94560'};
+  const _effChipStyle=(eff)=>_effColor[eff]
+    ?`display:inline-block;padding:3px 9px;border-radius:20px;border:1px solid;font-size:11px;line-height:1.4;background:${_effColor[eff]}22;border-color:${_effColor[eff]}66;color:${_effColor[eff]}`
+    :'display:inline-block;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:11px;color:var(--text);line-height:1.4';
+  const _effBadge=(eff)=>_effColor[eff]
+    ?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_effColor[eff]}22;border:1px solid ${_effColor[eff]}55;color:${_effColor[eff]};font-weight:700;margin-left:5px;flex-shrink:0">${eff}</span>`
+    :'';
+
+  // Exercise chips — color by effort
+  const _exChips=(exs)=>exs.length?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${exs.map(e=>`<span style="${_effChipStyle(e.effort)}">${e.name}</span>`).join('')}</div>`:'';
 
   // Full exercise detail rows (shown when expanded)
   const _exDetailRows=(exs)=>exs.map(e=>{
@@ -4829,15 +4838,15 @@ function openAthDetail(name){
     const setsStr=e.setRows&&e.setRows.length
       ?e.setRows.map((sr,i)=>`<span style="font-size:10px;color:var(--muted)">Set${i+1}: ${sr.kg||sr.extraKg||'BW'}kg × ${sr.reps}</span>`).join(' &nbsp;')
       :`${e.sets||'—'} × ${e.reps||'—'}`;
-    return `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-      <span style="font-size:12px;color:var(--text);flex:1;padding-right:8px">${e.name}</span>
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="font-size:12px;color:var(--text);flex:1;padding-right:8px;display:flex;align-items:center;flex-wrap:wrap;gap:2px">${e.name}${_effBadge(e.effort)}</span>
       <span style="font-size:11px;color:var(--muted);text-align:right;white-space:nowrap">${wStr} &nbsp; ${setsStr}</span>
     </div>`;
   }).join('');
 
-  // Sprint set detail rows
+  // Sprint set detail rows — color by effort
   const _sprintDetailRows=(sets)=>sets.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-    <span style="font-size:12px;color:var(--text)">${s.distance}m</span>
+    <span style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:4px">${s.distance}m${_effBadge(s.effort)}</span>
     <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
   </div>`).join('');
 
@@ -4861,7 +4870,7 @@ function openAthDetail(name){
         <span style="font-size:12px;color:var(--muted)">${l.sprintType||'Sprint'}</span>
         <span style="font-size:13px;font-weight:700;color:var(--text)">${(l.totalDistance||0).toLocaleString()} m</span>
       </div>`;
-      if((l.sets||[]).length){summaryHtml+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${(l.sets||[]).map(s=>`<span style="display:inline-block;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:11px;color:var(--text)">${s.distance}m</span>`).join('')}</div>`;}
+      if((l.sets||[]).length){summaryHtml+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${(l.sets||[]).map(s=>`<span style="${_effChipStyle(s.effort)}">${s.distance}m</span>`).join('')}</div>`;}
     } else if(l.type==='condition'){
       summaryHtml=`<div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--muted)">😴 ${l.sleepHours}h · Q${l.sleepQuality}</span>
