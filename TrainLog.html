@@ -973,8 +973,11 @@ const APP_VERSION = '20260527-7';
     <span class="logo">📈 Athlete</span>
   </div>
   <div id="detail-profile-card"></div>
+  <div id="detail-summary"></div>
   <div id="detail-performance"></div>
-  <div class="sec-ttl" style="margin-top:4px">Recent Logs</div>
+  <div id="detail-ex-pb"></div>
+  <div class="sec-ttl" style="margin-top:16px">Recent Logs</div>
+  <div id="detail-log-filter" style="margin-bottom:8px"></div>
   <div id="detail-logs"></div>
 </div>
 
@@ -4907,12 +4910,35 @@ function openAthDetail(name){
   document.getElementById('detail-performance').innerHTML=_buildPerfHtml(recs);
   setTimeout(()=>_renderPerfSparklines(recs),40);
 
-  // ── Recent logs ──
-  const recent=d.logs.filter(l=>l.athleteName===name).slice(-20).reverse();
+  // ── Summary card ──
+  document.getElementById('detail-summary').innerHTML = _buildDetailSummary(name, d);
+
+  // ── Auto exercise PBs ──
+  document.getElementById('detail-ex-pb').innerHTML = _buildExPBHtml(name, d);
+
+  // ── Recent logs + search filter ──
+  document.getElementById('detail-log-filter').innerHTML =
+    `<div style="position:relative">
+      <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;color:var(--muted)">🔍</span>
+      <input type="search" id="detail-search-input" placeholder="운동 이름으로 검색…"
+        style="width:100%;box-sizing:border-box;padding:9px 12px 9px 32px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;-webkit-appearance:none"
+        oninput="filterDetailLogs(this.value)">
+    </div>`;
+  _renderDetailLogs(d.logs.filter(l=>l.athleteName===name).slice(-50).reverse());
+
+  document.getElementById('coach-tabbar').classList.remove('show');
+  showScreen('s-ath-detail');
+}
+
+// ── Render detail-logs list (shared by openAthDetail + filterDetailLogs) ──
+function _renderDetailLogs(logs){
+  const d=getData();
+  const wrap=document.getElementById('detail-logs');
+  if(!wrap) return;
+
   const _dBtn=(id)=>`<button onclick="event.stopPropagation();deleteLog('${id}','detail')" style="padding:4px 9px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
   const _eBtn=(id)=>{const l=d.logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="event.stopPropagation();_editLog('${id}')" style="padding:4px 9px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';}
 
-  // Effort color helpers
   const _effColor={Low:'#3ecf8e',Medium:'#f7a94f',High:'#e94560'};
   const _effChipStyle=(eff)=>_effColor[eff]
     ?`display:inline-block;padding:3px 9px;border-radius:20px;border:1px solid;font-size:11px;line-height:1.4;background:${_effColor[eff]}22;border-color:${_effColor[eff]}66;color:${_effColor[eff]}`
@@ -4920,37 +4946,34 @@ function openAthDetail(name){
   const _effBadge=(eff)=>_effColor[eff]
     ?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_effColor[eff]}22;border:1px solid ${_effColor[eff]}55;color:${_effColor[eff]};font-weight:700;margin-left:5px;flex-shrink:0">${eff}</span>`
     :'';
-
-  // Exercise chips — color by effort
   const _exChips=(exs)=>exs.length?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${exs.map(e=>`<span style="${_effChipStyle(e.effort)}">${e.name}</span>`).join('')}</div>`:'';
-
-  // Full exercise detail rows (shown when expanded)
   const _exDetailRows=(exs)=>exs.map(e=>{
     const wStr=e.isBodyweight?`BW${e.bwBase?'+'+e.bwBase+'kg':''}`:e.weight?`${e.weight}kg`:'—';
     const setsStr=e.setRows&&e.setRows.length
       ?e.setRows.map((sr,i)=>`<span style="font-size:10px;color:var(--muted)">Set${i+1}: ${sr.kg||sr.extraKg||'BW'}kg × ${sr.reps}</span>`).join(' &nbsp;')
       :`${e.sets||'—'} × ${e.reps||'—'}`;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-      <span style="font-size:12px;color:var(--text);flex:1;padding-right:8px;display:flex;align-items:center;flex-wrap:wrap;gap:2px">${e.name}${_effBadge(e.effort)}</span>
+    const nameCol=_effColor[e.effort]||'var(--text)';
+    const borderAcc=_effColor[e.effort]?`border-left:2px solid ${_effColor[e.effort]}55;padding-left:7px;`:'';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);${borderAcc}">
+      <span style="font-size:12px;color:${nameCol};flex:1;padding-right:8px;display:flex;align-items:center;flex-wrap:wrap;gap:2px">${e.name}${_effBadge(e.effort)}</span>
       <span style="font-size:11px;color:var(--muted);text-align:right;white-space:nowrap">${wStr} &nbsp; ${setsStr}</span>
     </div>`;
   }).join('');
-
-  // Sprint set detail rows — color by effort
   const _sprintDetailRows=(sets)=>sets.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-    <span style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:4px">${s.distance}m${_effBadge(s.effort)}</span>
+    <span style="font-size:12px;color:${_effColor[s.effort]||'var(--text)'};display:flex;align-items:center;gap:4px">${s.distance}m${_effBadge(s.effort)}</span>
     <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
   </div>`).join('');
 
+  const _typeBorder={weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa'};
   const _typeColor={weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c'};
   const _typeIcon={weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥'};
 
-  document.getElementById('detail-logs').innerHTML=recent.length?recent.map(l=>{
+  if(!logs.length){ wrap.innerHTML='<div class="empty">No logs found</div>'; return; }
+  wrap.innerHTML=logs.map(l=>{
     const hasDetail=(l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length>0||(l.type==='sprint'&&(l.sets||[]).length>0);
-    const detailId=`ld-${l.id}`;
-    const chevId=`lc-${l.id}`;
+    const detailId=`ld-${l.id}`, chevId=`lc-${l.id}`;
+    const borderColor=_typeBorder[l.type]||'rgba(255,255,255,.1)';
 
-    // Summary line
     let summaryHtml='';
     if(l.type==='weight'||l.type==='plyo'){
       summaryHtml=`<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
@@ -4971,7 +4994,6 @@ function openAthDetail(name){
       </div>`;
     }
 
-    // Detail section (hidden by default)
     let detailHtml='';
     if((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length){
       detailHtml=`<div style="margin-top:4px;padding-top:4px">${_exDetailRows(l.exercises||[])}</div>`;
@@ -4979,7 +5001,7 @@ function openAthDetail(name){
       detailHtml=`<div style="margin-top:4px;padding-top:4px">${_sprintDetailRows(l.sets||[])}</div>`;
     }
 
-    return `<div class="detail-card" style="cursor:${hasDetail?'pointer':'default'}" onclick="${hasDetail?`_toggleLogDetail('${detailId}','${chevId}')`:''}" >
+    return `<div class="detail-card" style="cursor:${hasDetail?'pointer':'default'};border-left:3px solid ${borderColor}" onclick="${hasDetail?`_toggleLogDetail('${detailId}','${chevId}')`:''}" >
       <div style="display:flex;align-items:center;justify-content:space-between">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:18px">${_typeIcon[l.type]||'📝'}</span>
@@ -4996,10 +5018,105 @@ function openAthDetail(name){
       ${summaryHtml}
       <div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>
     </div>`;
-  }).join(''):'<div class="empty">No logs yet</div>';
+  }).join('');
+}
 
-  document.getElementById('coach-tabbar').classList.remove('show');
-  showScreen('s-ath-detail');
+// ── Search filter ──
+function filterDetailLogs(query){
+  const d=getData(), name=ST._detailAthName;
+  if(!name) return;
+  const all=d.logs.filter(l=>l.athleteName===name).slice(-50).reverse();
+  const q=query.trim().toLowerCase();
+  const filtered=q?all.filter(l=>{
+    if(l.type==='weight'||l.type==='plyo') return (l.exercises||[]).some(e=>(e.name||'').toLowerCase().includes(q));
+    if(l.type==='sprint') return (l.sprintType||'sprint').toLowerCase().includes(q)||'sprint'.includes(q);
+    if(l.type==='condition') return 'condition'.includes(q);
+    return true;
+  }):all;
+  _renderDetailLogs(filtered);
+}
+
+// ── 7-day summary card ──
+function _buildDetailSummary(name, d){
+  const last7=new Set(getLast(7));
+  const my7=d.logs.filter(l=>l.athleteName===name&&last7.has(l.date));
+  const wLogs=my7.filter(l=>l.type==='weight'||l.type==='plyo');
+  const sLogs=my7.filter(l=>l.type==='sprint');
+  const cLogs=my7.filter(l=>l.type==='condition');
+  const wVol=_exVolSplit(wLogs).total;
+  const sDist=sLogs.reduce((s,l)=>s+(l.totalDistance||0),0);
+  const avgFat=cLogs.length?(cLogs.reduce((s,l)=>s+l.fatigue,0)/cLogs.length).toFixed(1):null;
+  const avgMood=cLogs.length?(cLogs.reduce((s,l)=>s+l.mood,0)/cLogs.length).toFixed(1):null;
+  const lastCond=[...cLogs].sort((a,b)=>b.date.localeCompare(a.date))[0];
+
+  const fatCol=avgFat?avgFat>=7?'#e94560':avgFat>=4?'#f7a94f':'#3ecf8e':'var(--muted)';
+  const moodCol=avgMood?avgMood>=7?'#3ecf8e':avgMood>=4?'#f7a94f':'#e94560':'var(--muted)';
+
+  const stat=(label,val,color)=>`<div style="flex:1;text-align:center;padding:2px 0">
+    <div style="font-size:17px;font-weight:800;color:${color};line-height:1.2">${val}</div>
+    <div style="font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.3px;white-space:nowrap">${label}</div>
+  </div>`;
+  const div=`<div style="width:1px;background:rgba(255,255,255,.08);align-self:stretch;margin:0 2px"></div>`;
+
+  let condLine='';
+  if(lastCond){
+    const fC=lastCond.fatigue>=7?'#e94560':lastCond.fatigue>=4?'#f7a94f':'#3ecf8e';
+    const mC=lastCond.mood>=7?'#3ecf8e':lastCond.mood>=4?'#f7a94f':'#e94560';
+    condLine=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--muted)">최근 컨디션 · ${lastCond.date.slice(5)}</span>
+      <span style="font-size:12px">😴 <b>${lastCond.sleepHours||'—'}h</b> · Q${lastCond.sleepQuality||'—'}</span>
+      <span style="font-size:12px;color:${fC}">⚡ 피로 <b>${lastCond.fatigue||'—'}</b></span>
+      <span style="font-size:12px;color:${mC}">😊 기분 <b>${lastCond.mood||'—'}</b></span>
+    </div>`;
+  }
+
+  return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin-bottom:12px">📊 7-Day Summary</div>
+    <div style="display:flex;align-items:center;justify-content:space-around">
+      ${stat('훈련 세션', wLogs.length+sLogs.length||'—', '#f7a94f')}
+      ${div}
+      ${stat('웨이트 볼륨', wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—', '#f7a94f')}
+      ${div}
+      ${stat('스프린트', sDist>0?sDist.toLocaleString()+'m':'—', '#3ecf8e')}
+      ${div}
+      ${stat('평균 피로', avgFat??'—', fatCol)}
+      ${div}
+      ${stat('평균 기분', avgMood??'—', moodCol)}
+    </div>
+    ${condLine}
+  </div>`;
+}
+
+// ── Auto-derived exercise PBs from training logs ──
+function _buildExPBHtml(name, d){
+  const wLogs=d.logs.filter(l=>l.athleteName===name&&(l.type==='weight'||l.type==='plyo'));
+  if(!wLogs.length) return '';
+  const pbMap={};  // name → {maxW, date}
+  wLogs.forEach(l=>{
+    (l.exercises||[]).forEach(e=>{
+      if(!e.name) return;
+      let maxW=0;
+      if(e.isBodyweight){ maxW=e.bwBase?parseFloat(e.bwBase)||0:0; }
+      else if(e.setRows&&e.setRows.length){ maxW=Math.max(...e.setRows.map(sr=>parseFloat(sr.kg)||0)); }
+      else if(e.weight){ maxW=parseFloat(e.weight)||0; }
+      if(maxW>0&&(!pbMap[e.name]||pbMap[e.name].maxW<maxW)) pbMap[e.name]={maxW,date:l.date};
+    });
+  });
+  const entries=Object.entries(pbMap).sort((a,b)=>b[1].maxW-a[1].maxW);
+  if(!entries.length) return '';
+
+  const rows=entries.map(([exName,{maxW,date}])=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="font-size:12px;color:var(--text);font-weight:500;flex:1;padding-right:8px">${exName}</span>
+      <span style="font-size:12px;font-weight:800;color:#f7a94f">${maxW} <span style="font-size:10px;font-weight:400;color:var(--muted)">kg · ${date.slice(5)}</span></span>
+    </div>`).join('');
+
+  return `<div style="margin-bottom:4px">
+    <div class="sec-ttl" style="margin-top:4px;margin-bottom:8px">🏆 Exercise PBs · Bestleistungen</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:4px 14px">
+      ${rows}
+    </div>
+  </div>`;
 }
 
 // ── Build performance HTML ──
