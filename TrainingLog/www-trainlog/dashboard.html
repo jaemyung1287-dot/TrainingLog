@@ -67,6 +67,12 @@ nav{padding:6px 0;flex:1}
 #content{flex:1;overflow-y:auto;padding:20px 24px}
 .tab{display:none}.tab.on{display:block}
 
+/* ── Loading state ── */
+.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;gap:12px}
+.loading-spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:12px;color:var(--muted)}
+
 /* ── Timeline (Übersicht) ── */
 .timeline-ath{margin-bottom:28px}
 .ath-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -154,6 +160,17 @@ nav{padding:6px 0;flex:1}
 .cb-fill{height:100%;border-radius:2px}
 .cb-val{font-size:10px;font-weight:700;min-width:18px;text-align:right;flex-shrink:0}
 
+/* ── Export tab ── */
+.exp-section{margin-bottom:16px}
+.exp-btn{display:flex;align-items:center;gap:10px;width:100%;padding:14px 18px;background:rgba(247,169,79,.08);border:1px solid rgba(247,169,79,.25);border-radius:10px;color:var(--gold);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left;transition:all .12s}
+.exp-btn:hover{background:rgba(247,169,79,.14);border-color:rgba(247,169,79,.45)}
+.exp-btn .exp-icon{font-size:20px;width:28px;flex-shrink:0}
+.exp-btn .exp-desc{font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+.exp-btn-blue{background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.25);color:var(--blue)}
+.exp-btn-blue:hover{background:rgba(79,142,247,.14);border-color:rgba(79,142,247,.45)}
+.exp-btn-green{background:rgba(62,207,142,.08);border-color:rgba(62,207,142,.25);color:var(--green)}
+.exp-btn-green:hover{background:rgba(62,207,142,.14);border-color:rgba(62,207,142,.45)}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -190,6 +207,7 @@ nav{padding:6px 0;flex:1}
       <button class="nb" onclick="switchTab('soreness',this)"><span class="ni">🔴</span>Soreness</button>
       <button class="nb" onclick="switchTab('condition',this)"><span class="ni">😴</span>Condition</button>
       <button class="nb" onclick="switchTab('athletes',this)"><span class="ni">👥</span>Athletes</button>
+      <button class="nb" onclick="switchTab('export',this)"><span class="ni">⬇️</span>Export</button>
     </nav>
     <!-- Week navigation -->
     <div class="week-nav">
@@ -227,6 +245,7 @@ nav{padding:6px 0;flex:1}
       <div class="tab" id="tab-soreness"></div>
       <div class="tab" id="tab-condition"></div>
       <div class="tab" id="tab-athletes"></div>
+      <div class="tab" id="tab-export"></div>
     </div>
   </div>
 </div>
@@ -240,6 +259,7 @@ const ALLOWED='jaemyung1287@gmail.com';
 // ══ STATE ══
 let coachData=null, athLogs={}, unsubs=[], athUnsubs=[], curTab='overview';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
+let overviewFilter='all'; // 'all' | 'A' | 'B' | athlete name
 const charts={};
 
 // ══ AUTH ══
@@ -264,21 +284,41 @@ auth.onAuthStateChanged(u=>{
 // ══ LISTENERS ══
 function startListen(){
   unsubs.forEach(u=>u());unsubs=[];
+  // Show loading state on current tab while Firebase loads
+  showTabLoading();
   unsubs.push(db.collection('trainlog').doc('coach').onSnapshot(snap=>{
-    if(!snap.exists)return;
+    if(!snap.exists){renderCurrent();return;}
     const prev=coachData; coachData=snap.data();
     if(!loadAth&&coachData.athletes?.length){loadAth=coachData.athletes[0].name;condAth=loadAth;soreAth=loadAth;}
     const ids=(coachData.athletes||[]).map(a=>a.id).filter(Boolean);
     const prevIds=(prev?.athletes||[]).map(a=>a.id).filter(Boolean);
-    if(JSON.stringify(ids)!==JSON.stringify(prevIds))setupAthListeners(ids);
-    else renderCurrent();
+    if(JSON.stringify(ids)!==JSON.stringify(prevIds)){
+      setupAthListeners(ids);
+      // Fallback: render after 1.5s even if athlete snapshots haven't fired
+      setTimeout(renderCurrent, 1500);
+    } else {
+      renderCurrent();
+    }
   }));
 }
+
+function showTabLoading(){
+  const wrap=document.getElementById('tab-'+curTab);
+  if(wrap&&!wrap.innerHTML.trim()){
+    wrap.innerHTML=`<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">데이터 불러오는 중…</div></div>`;
+  }
+}
+
 function setupAthListeners(ids){
   athUnsubs.forEach(u=>u());athUnsubs=[];
+  if(!ids.length){renderCurrent();return;}
   ids.forEach(id=>{
     athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).onSnapshot(snap=>{
       athLogs[id]=snap.exists?(snap.data().logs||[]):[];
+      renderCurrent();
+    },err=>{
+      // Permission denied or other error — still render with available data
+      console.warn('[dashboard] athlete snapshot error:',id,err);
       renderCurrent();
     }));
   });
@@ -295,6 +335,7 @@ function getWeekDates(off=0){
   return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return{ds:dsFromDate(d),d};});
 }
 function fmt(ds){if(!ds)return'—';const p=ds.split('-');return`${p[2]}.${p[1]}.`;}
+function fmtFull(ds){if(!ds)return'—';const p=ds.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function fmtShort(dt){return`${dt.toLocaleString('de',{month:'short'})} ${dt.getDate()}`;}
 function getLogsByName(name){
   const ath=(coachData?.athletes||[]).find(a=>a.name===name);
@@ -334,7 +375,7 @@ function updateWeekLabel(){
 }
 
 // ══ NAV ══
-const TITLES={overview:'Overview · Woche',load:'Training Load',soreness:'Soreness Heatmap',condition:'Condition Trend',athletes:'Athletes · Detail'};
+const TITLES={overview:'Overview · Woche',load:'Training Load',soreness:'Soreness Heatmap',condition:'Condition Trend',athletes:'Athletes · Detail',export:'Export & Download'};
 function switchTab(id,btn){
   curTab=id;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -342,6 +383,7 @@ function switchTab(id,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
   document.getElementById('tb-title').textContent=TITLES[id]||id;
+  if(!coachData){showTabLoading();return;}
   renderCurrent();
 }
 function renderCurrent(){
@@ -352,11 +394,14 @@ function renderCurrent(){
   else if(curTab==='soreness')renderSoreness();
   else if(curTab==='condition')renderCondition();
   else if(curTab==='athletes')renderAthletes();
+  else if(curTab==='export')renderExport();
 }
 
 // ══════════════════════════════════════
 //  ÜBERSICHT — 7-day timeline
 // ══════════════════════════════════════
+function setOverviewFilter(f){overviewFilter=f;renderOverview();}
+
 function renderOverview(){
   const wrap=document.getElementById('tab-overview');
   const wk=getWeekDates(weekOffset);
@@ -364,13 +409,42 @@ function renderOverview(){
   const mon=wk[0].d,sun=wk[6].d;
   document.getElementById('tb-sub').textContent=`${fmtShort(mon)} – ${fmtShort(sun)}`;
 
-  const athletes=coachData.athletes||[];
-  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+  const allAthletes=coachData.athletes||[];
+  if(!allAthletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+
+  // ── Filter bar ──
+  const groups=[...new Set(allAthletes.map(a=>a.group))].sort();
+  const isGrp=f=>f==='A'||f==='B';
+  const isAth=f=>f!=='all'&&!isGrp(f);
+
+  let filterBar=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap">`;
+  // Group buttons
+  filterBar+=`<button class="pb ${overviewFilter==='all'?'on':''}" onclick="setOverviewFilter('all')">전체 선수</button>`;
+  groups.forEach(g=>{
+    filterBar+=`<button class="pb ${overviewFilter===g?'on':''}" onclick="setOverviewFilter('${g}')">Group ${g}</button>`;
+  });
+  // Divider
+  filterBar+=`<span style="width:1px;height:18px;background:var(--border);margin:0 4px;flex-shrink:0"></span>`;
+  // Individual athlete buttons
+  allAthletes.forEach(a=>{
+    const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
+    filterBar+=`<button class="pb ${overviewFilter===a.name?'on':''}" onclick="setOverviewFilter('${a.name.replace(/'/g,"\\'")}')">
+      <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${a.group==='A'?'rgba(79,142,247,.5)':'rgba(62,207,142,.5)'};margin-right:4px;vertical-align:middle"></span>${short}
+    </button>`;
+  });
+  filterBar+=`</div>`;
+
+  // ── Filtered athletes ──
+  let athletes;
+  if(overviewFilter==='all') athletes=allAthletes;
+  else if(isGrp(overviewFilter)) athletes=allAthletes.filter(a=>a.group===overviewFilter);
+  else athletes=allAthletes.filter(a=>a.name===overviewFilter);
 
   const DN_DE=['Mo','Di','Mi','Do','Fr','Sa','So'];
   const DN_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const isSingle=athletes.length===1;
 
-  let html='';
+  let html=filterBar;
   athletes.forEach(ath=>{
     const logs=getLogsByName(ath.name);
 
@@ -380,9 +454,10 @@ function renderOverview(){
         <div>
           <div class="ath-nm">${ath.name}</div>
           <span class="badge b${ath.group.toLowerCase()}">Group ${ath.group}</span>
+          ${ath.dob?`<span style="font-size:10px;color:var(--muted);margin-left:6px">${ath.dob}</span>`:''}
         </div>
       </div>
-      <div class="tl-grid" style="grid-template-columns:repeat(7,minmax(120px,1fr))">`;
+      <div class="tl-grid" style="grid-template-columns:repeat(7,minmax(${isSingle?'150':'120'}px,1fr))">`;
 
     wk.forEach(({ds,d},i)=>{
       const isToday=ds===today;
@@ -394,19 +469,17 @@ function renderOverview(){
       const amExs=sessExs(gd,'am'); const pmExs=sessExs(gd,'pm');
       const hasPlan=amExs.length>0||pmExs.length>0;
 
-      html+=`<div class="tl-day ${isToday?'today':''}">
+      html+=`<div class="tl-day ${isToday?'today':''}" style="${isSingle?'min-height:130px':''}">
         <div class="tl-day-hdr">
           <span class="tl-day-name">${DN_DE[i]}·${DN_EN[i]}</span>
           <span class="tl-day-date">${d.getDate()}.${d.getMonth()+1}.${isToday?'&nbsp;<span class="today-tag">TODAY</span>':''}</span>
         </div>`;
 
-      // Plan badge
       if(hasPlan&&!trainLogs.length){
         const planExCount=amExs.length+pmExs.length;
         html+=`<div class="tl-plan-badge" style="background:rgba(79,142,247,.12);color:var(--blue);border:1px solid rgba(79,142,247,.25)">📋 Plan: ${planExCount}개</div>`;
       }
 
-      // Training logs
       if(trainLogs.length){
         trainLogs.forEach(l=>{
           const c=tc(l.type);
@@ -424,7 +497,6 @@ function renderOverview(){
         html+=`<div class="tl-rest">Rest</div>`;
       }
 
-      // Condition
       if(condLog){
         const fc=iCol(condLog.fatigue,false), mc=iCol(condLog.mood,true);
         html+=`<div class="tl-cond">
@@ -434,7 +506,6 @@ function renderOverview(){
         </div>`;
       }
 
-      // Soreness
       if(condLog&&(condLog.soreness||[]).length){
         html+=`<div class="tl-sore">`;
         condLog.soreness.forEach(s=>{
@@ -519,7 +590,6 @@ function renderLoad(){
 
   wrap.innerHTML=tableHtml+chartHtml;
 
-  // Build charts
   const logs=getLogsByName(loadAth);
   const dates=getLast(loadPeriod).reverse();
   const ds=new Set(dates);
@@ -552,7 +622,6 @@ function renderSoreness(){
   const dates=getLast(14).reverse();
   const logs=getLogsByName(soreAth);
 
-  // Build intensity map: date → part → max intensity
   const map={};
   logs.filter(l=>l.type==='condition'&&(l.soreness||[]).length).forEach(l=>{
     if(!dates.includes(l.date))return;
@@ -560,7 +629,6 @@ function renderSoreness(){
     (l.soreness||[]).forEach(s=>{ if(!map[l.date][s.part]||map[l.date][s.part]<s.intensity) map[l.date][s.part]=s.intensity; });
   });
 
-  // Header row
   let tableHtml=`<div class="sel-bar"><select class="fsel" onchange="soreAth=this.value;renderSoreness()">${athOpts}</select></div>
     <div class="card"><div class="card-t">🔴 Soreness Heatmap<span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">
       &nbsp;&nbsp;<span style="color:var(--green)">●</span> mild (1–3)
@@ -571,7 +639,6 @@ function renderSoreness(){
       <tr><th class="part-hdr">Body Part</th>${dates.map(d=>`<th>${fmt(d)}</th>`).join('')}</tr>`;
 
   BODY_PARTS.forEach(part=>{
-    // Check if this part has any data
     const hasData=dates.some(d=>map[d]?.[part]);
     tableHtml+=`<tr ${!hasData?'style="opacity:.35"':''}><td class="part-label">${part}</td>`;
     dates.forEach(d=>{
@@ -627,7 +694,6 @@ function renderCondition(){
   const get=(d,k)=>{const l=logs.find(l=>l.date===d&&l.type==='condition');return l?l[k]:null;};
   const condLogs=logs.filter(l=>l.type==='condition'&&dates.includes(l.date));
 
-  // Stats
   const avg=k=>condLogs.length?(condLogs.reduce((s,l)=>s+(l[k]||0),0)/condLogs.length).toFixed(1):null;
   const avgFat=avg('fatigue'),avgMood=avg('mood'),avgSQ=avg('sleepQuality'),avgSH=avg('sleepHours');
   document.getElementById('cond-stats').innerHTML=`
@@ -639,7 +705,6 @@ function renderCondition(){
     </div>`;
 
   setTimeout(()=>{
-    // Main condition chart
     killChart('cond-main');
     const cMain=document.getElementById('ch-cond-main');
     if(cMain)charts['cond-main']=new Chart(cMain,{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[
@@ -648,7 +713,6 @@ function renderCondition(){
       {label:'Sleep Q',data:dates.map(d=>get(d,'sleepQuality')),borderColor:'#a78bfa',backgroundColor:'transparent',pointRadius:3,spanGaps:true,tension:.35},
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.45)',font:{size:11},boxWidth:12}}},scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},min:0,max:10}}}});
 
-    // Sleep hours chart
     killChart('sleep-h');
     const cSH=document.getElementById('ch-sleep-h');
     if(cSH)charts['sleep-h']=new Chart(cSH,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data:dates.map(d=>get(d,'sleepHours')),backgroundColor:'rgba(167,139,250,.4)',borderColor:'#a78bfa',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:false,min:4,max:12}}}});
@@ -710,6 +774,328 @@ function renderAthletes(){
   });
   html+='</div>';
   wrap.innerHTML=html;
+}
+
+// ══════════════════════════════════════
+//  EXPORT & DOWNLOAD
+// ══════════════════════════════════════
+function renderExport(){
+  const wrap=document.getElementById('tab-export');
+  const athletes=coachData?.athletes||[];
+  const allLogs=getAllLogs();
+  const totalLogs=allLogs.length;
+  document.getElementById('tb-sub').textContent=`총 ${athletes.length}명 · ${totalLogs}개 로그`;
+
+  wrap.innerHTML=`
+    <div style="margin-bottom:20px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        전체 데이터를 다운로드합니다. PDF 리포트는 새 탭에서 열린 후 인쇄(Ctrl+P) → PDF 저장으로 저장하세요.
+      </div>
+
+      <div class="exp-section">
+        <div class="sh">📊 리포트 (PDF)</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="exp-btn" onclick="genWeeklyReport()">
+            <span class="exp-icon">📋</span>
+            <div>
+              <div>주간 리포트</div>
+              <div class="exp-desc">선택된 주간의 선수별 훈련·컨디션 전체 요약</div>
+            </div>
+          </button>
+          <button class="exp-btn exp-btn-blue" onclick="genFullReport()">
+            <span class="exp-icon">📈</span>
+            <div>
+              <div>전체 기간 리포트</div>
+              <div class="exp-desc">모든 선수의 누적 훈련 데이터 종합 리포트</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="exp-section">
+        <div class="sh">📋 데이터 파일</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="exp-btn exp-btn-green" onclick="downloadCSV('all')">
+            <span class="exp-icon">📄</span>
+            <div>
+              <div>훈련 로그 CSV</div>
+              <div class="exp-desc">날짜·선수·종류·볼륨·거리·RPE 전체 (Excel에서 열기 가능)</div>
+            </div>
+          </button>
+          <button class="exp-btn exp-btn-green" onclick="downloadCSV('condition')">
+            <span class="exp-icon">😴</span>
+            <div>
+              <div>컨디션 로그 CSV</div>
+              <div class="exp-desc">수면·피로도·기분·근육통 기록 전체</div>
+            </div>
+          </button>
+          <button class="exp-btn" onclick="downloadJSON()">
+            <span class="exp-icon">💾</span>
+            <div>
+              <div>전체 데이터 JSON</div>
+              <div class="exp-desc">원본 데이터 백업용 (모든 필드 포함)</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── 주간 리포트 (PDF) ──
+function genWeeklyReport(){
+  const athletes=coachData?.athletes||[];
+  const wk=getWeekDates(weekOffset);
+  const mon=wk[0].d, sun=wk[6].d;
+  const DN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const today=todayStr();
+
+  let rows='';
+  athletes.forEach(ath=>{
+    const logs=getLogsByName(ath.name);
+    let weekVol=0, weekDist=0, sessCount=0;
+
+    const dayCells=wk.map(({ds},i)=>{
+      const dayLogs=logs.filter(l=>l.date===ds);
+      const trains=dayLogs.filter(l=>l.type!=='condition');
+      const cond=dayLogs.find(l=>l.type==='condition');
+      const isToday=ds===today;
+      let cell=`<td style="padding:8px 6px;border:1px solid #e2e8f0;vertical-align:top;min-width:80px;${isToday?'background:#fffbeb':''}">`;
+      if(!trains.length&&!cond){cell+='<span style="color:#94a3b8;font-size:10px">—</span>';}
+      trains.forEach(l=>{
+        const typeColors={weight:'#f59e0b',sprint:'#10b981',plyo:'#8b5cf6',tabata:'#ef4444'};
+        const c=typeColors[l.type]||'#64748b';
+        const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`
+          :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`
+          :l.type==='plyo'?`${l.totalReps||0}r`:'—';
+        if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
+        if(l.type==='sprint')weekDist+=(l.totalDistance||0);
+        sessCount++;
+        cell+=`<div style="font-size:10px;font-weight:700;color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'} ${val}</div>`;
+        if(l.rpe)cell+=`<div style="font-size:9px;color:#64748b">RPE ${l.rpe}</div>`;
+      });
+      if(cond){
+        const fc=cond.fatigue>=7?'#ef4444':cond.fatigue>=4?'#f59e0b':'#10b981';
+        const mc=cond.mood>=7?'#10b981':cond.mood>=4?'#f59e0b':'#ef4444';
+        cell+=`<div style="font-size:9px;margin-top:3px;border-top:1px solid #f1f5f9;padding-top:2px">
+          <span style="color:${fc}">⚡${cond.fatigue||'—'}</span>
+          <span style="color:${mc};margin-left:3px">😊${cond.mood||'—'}</span>
+          <span style="color:#64748b;margin-left:3px">😴${cond.sleepHours||'—'}h</span>
+        </div>`;
+        if((cond.soreness||[]).length){
+          cell+=`<div style="font-size:8px;color:#ef4444;margin-top:2px">${cond.soreness.map(s=>s.part+'('+s.intensity+')').join(', ')}</div>`;
+        }
+      }
+      cell+='</td>';
+      return cell;
+    }).join('');
+
+    rows+=`
+      <tr style="background:#f8fafc">
+        <td colspan="10" style="padding:10px 12px;border:1px solid #e2e8f0;font-weight:700;font-size:13px;background:${ath.group==='A'?'#eff6ff':'#f0fdf4'}">
+          ${ath.name} &nbsp;<span style="font-size:10px;font-weight:400;color:#64748b">Group ${ath.group}${ath.dob?' · '+ath.dob:''}</span>
+          &nbsp;&nbsp;<span style="font-size:11px;color:#94a3b8">${sessCount}회 훈련 · ${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'} · ${weekDist>0?weekDist.toLocaleString()+'m':'—'}</span>
+        </td>
+      </tr>
+      <tr>${dayCells}</tr>`;
+  });
+
+  const html=`<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<title>TrainLog Weekly Report · ${fmtFull(mon)} ~ ${fmtFull(sun)}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#1e293b;padding:28px 32px;font-size:12px}
+  @media print{body{padding:16px 20px}@page{size:A4 landscape;margin:12mm}}
+  h1{font-size:20px;font-weight:800;color:#0f172a;margin-bottom:4px}
+  .sub{font-size:12px;color:#64748b;margin-bottom:20px}
+  .legend{display:flex;gap:16px;margin-bottom:14px;font-size:11px;flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:4px}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th{padding:8px 6px;background:#1e293b;color:#fff;font-size:10px;font-weight:700;text-align:center;border:1px solid #334155}
+  th.ath-col{min-width:100px}
+  .footer{margin-top:20px;font-size:10px;color:#94a3b8;text-align:right}
+</style>
+</head><body>
+<h1>🏋️ Bayern Skeleton TrainLog</h1>
+<div class="sub">📅 Weekly Report &nbsp;·&nbsp; ${fmtFull(mon)} ~ ${fmtFull(sun)} &nbsp;·&nbsp; 출력일: ${fmtFull(todayStr())}</div>
+<div class="legend">
+  <span><b style="color:#f59e0b">W</b> Weight Training</span>
+  <span><b style="color:#10b981">S</b> Sprint</span>
+  <span><b style="color:#8b5cf6">P</b> Plyometric</span>
+  <span><b style="color:#ef4444">T</b> Tabata</span>
+  <span>⚡ Fatigue (낮을수록 good)</span>
+  <span>😊 Mood (높을수록 good)</span>
+  <span>😴 Sleep hours</span>
+</div>
+<table>
+  <tr>
+    ${wk.map(({ds,d},i)=>`<th>${DN[i]}<br><span style="font-weight:400;opacity:.75">${d.getDate()}.${d.getMonth()+1}.</span></th>`).join('')}
+  </tr>
+  ${rows}
+</table>
+<div class="footer">Generated by TrainLog Coach Dashboard · ${new Date().toLocaleString('ko-KR')}</div>
+</body></html>`;
+
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),400);
+}
+
+// ── 전체 기간 리포트 ──
+function genFullReport(){
+  const athletes=coachData?.athletes||[];
+  const today=todayStr();
+
+  let body='';
+  athletes.forEach(ath=>{
+    const logs=getLogsByName(ath.name).slice().sort((a,b)=>b.date.localeCompare(a.date));
+    const trainLogs=logs.filter(l=>l.type!=='condition');
+    const condLogs=logs.filter(l=>l.type==='condition');
+    const wLogs=trainLogs.filter(l=>l.type==='weight');
+    const sLogs=trainLogs.filter(l=>l.type==='sprint');
+    const totalVol=vol(wLogs);
+    const totalDist=sLogs.reduce((s,l)=>s+(l.totalDistance||0),0);
+    const avgFat=condLogs.length?(condLogs.reduce((s,l)=>s+(l.fatigue||0),0)/condLogs.length).toFixed(1):null;
+    const avgMood=condLogs.length?(condLogs.reduce((s,l)=>s+(l.mood||0),0)/condLogs.length).toFixed(1):null;
+
+    // Recent 20 training logs table
+    const recentRows=trainLogs.slice(0,20).map(l=>{
+      const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`
+        :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
+        :l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+      return`<tr>
+        <td style="padding:5px 8px;border:1px solid #e2e8f0">${fmtFull(l.date)}</td>
+        <td style="padding:5px 8px;border:1px solid #e2e8f0;font-weight:700;color:${l.type==='weight'?'#f59e0b':l.type==='sprint'?'#10b981':'#8b5cf6'}">${l.type}</td>
+        <td style="padding:5px 8px;border:1px solid #e2e8f0">${val}</td>
+        <td style="padding:5px 8px;border:1px solid #e2e8f0;color:#64748b">${l.rpe||'—'}</td>
+        <td style="padding:5px 8px;border:1px solid #e2e8f0;font-size:10px;color:#64748b">${l.notes||''}</td>
+      </tr>`;
+    }).join('');
+
+    // Soreness summary
+    const soreMap={};
+    condLogs.forEach(l=>(l.soreness||[]).forEach(s=>{
+      if(!soreMap[s.part])soreMap[s.part]={count:0,total:0};
+      soreMap[s.part].count++;soreMap[s.part].total+=s.intensity;
+    }));
+    const soreSummary=Object.entries(soreMap).sort((a,b)=>b[1].total-a[1].total).slice(0,6)
+      .map(([part,v])=>`<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#dc2626;font-size:10px;margin:2px">${part} (avg ${(v.total/v.count).toFixed(1)})</span>`).join('');
+
+    body+=`
+      <div style="margin-bottom:32px;page-break-inside:avoid">
+        <div style="background:${ath.group==='A'?'#1e40af':'#065f46'};color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:16px;font-weight:800">${ath.name}</div>
+            <div style="font-size:11px;opacity:.8">Group ${ath.group}${ath.dob?' · '+ath.dob:''}</div>
+          </div>
+          <div style="text-align:right;font-size:11px;opacity:.85">
+            총 ${trainLogs.length}회 훈련 · 컨디션 ${condLogs.length}회
+          </div>
+        </div>
+        <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:14px 16px">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px">
+              <div style="font-size:20px;font-weight:800;color:#f59e0b">${totalVol>=1000?(totalVol/1000).toFixed(1)+'t':totalVol.toLocaleString()+'kg'}</div>
+              <div style="font-size:10px;color:#94a3b8">누적 Volume</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px">
+              <div style="font-size:20px;font-weight:800;color:#10b981">${totalDist>=1000?(totalDist/1000).toFixed(1)+'km':totalDist.toLocaleString()+'m'}</div>
+              <div style="font-size:10px;color:#94a3b8">누적 Sprint</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px">
+              <div style="font-size:20px;font-weight:800;color:#ef4444">${avgFat||'—'}</div>
+              <div style="font-size:10px;color:#94a3b8">평균 Fatigue</div>
+            </div>
+            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px">
+              <div style="font-size:20px;font-weight:800;color:#10b981">${avgMood||'—'}</div>
+              <div style="font-size:10px;color:#94a3b8">평균 Mood</div>
+            </div>
+          </div>
+          ${soreSummary?`<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">주요 근육통 부위</div>${soreSummary}</div>`:''}
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">최근 훈련 로그 (최대 20개)</div>
+          ${recentRows?`<table style="width:100%;border-collapse:collapse;font-size:11px">
+            <tr><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">날짜</th><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">종류</th><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">볼륨/거리</th><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">RPE</th><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">메모</th></tr>
+            ${recentRows}</table>`:'<div style="color:#94a3b8;font-size:11px">훈련 데이터 없음</div>'}
+        </div>
+      </div>`;
+  });
+
+  const html=`<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<title>TrainLog Full Report · ${fmtFull(today)}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#1e293b;padding:28px 32px;font-size:12px}
+  @media print{body{padding:16px 20px}@page{size:A4;margin:14mm}}
+  h1{font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px}
+  .sub{font-size:12px;color:#64748b;margin-bottom:24px}
+  .footer{margin-top:24px;font-size:10px;color:#94a3b8;text-align:right;border-top:1px solid #e2e8f0;padding-top:10px}
+</style>
+</head><body>
+<h1>🏋️ Bayern Skeleton TrainLog</h1>
+<div class="sub">📈 Full Training Report &nbsp;·&nbsp; 출력일: ${fmtFull(today)}&nbsp;·&nbsp; 선수 ${athletes.length}명</div>
+${body}
+<div class="footer">Generated by TrainLog Coach Dashboard · ${new Date().toLocaleString('ko-KR')}</div>
+</body></html>`;
+
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),400);
+}
+
+// ── CSV 다운로드 ──
+function downloadCSV(type='all'){
+  const athletes=coachData?.athletes||[];
+  let rows=[], filename='';
+
+  if(type==='condition'){
+    filename=`trainlog_condition_${todayStr()}.csv`;
+    rows.push(['날짜','선수','그룹','수면시간','수면질','피로도','기분','근육통']);
+    athletes.forEach(ath=>{
+      const logs=getLogsByName(ath.name).filter(l=>l.type==='condition').sort((a,b)=>a.date.localeCompare(b.date));
+      logs.forEach(l=>{
+        const sore=(l.soreness||[]).map(s=>s.part+'('+s.intensity+')').join(' / ');
+        rows.push([l.date,ath.name,ath.group,l.sleepHours||'',l.sleepQuality||'',l.fatigue||'',l.mood||'',sore]);
+      });
+    });
+  } else {
+    filename=`trainlog_training_${todayStr()}.csv`;
+    rows.push(['날짜','선수','그룹','종류','볼륨(kg)','거리(m)','총_렙','RPE','Phase','Week','메모']);
+    athletes.forEach(ath=>{
+      const logs=getLogsByName(ath.name).filter(l=>l.type!=='condition').sort((a,b)=>a.date.localeCompare(b.date));
+      logs.forEach(l=>{
+        const wv=l.type==='weight'?(l.totalVolume||vol([l])):0;
+        const dist=l.type==='sprint'?(l.totalDistance||0):0;
+        const reps=l.type==='plyo'?(l.totalReps||0):0;
+        rows.push([l.date,ath.name,ath.group,l.type,wv||'',dist||'',reps||'',l.rpe||'',l.phase||'',l.week||'',l.notes||'']);
+      });
+    });
+  }
+
+  const bom='﻿'; // UTF-8 BOM for Excel
+  const csv=bom+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── JSON 백업 다운로드 ──
+function downloadJSON(){
+  const athletes=coachData?.athletes||[];
+  const data={
+    exportedAt:new Date().toISOString(),
+    athletes:athletes.map(ath=>({
+      ...ath,
+      logs:getLogsByName(ath.name)
+    }))
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`trainlog_backup_${todayStr()}.json`;a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ══ DELETE LOG ══
