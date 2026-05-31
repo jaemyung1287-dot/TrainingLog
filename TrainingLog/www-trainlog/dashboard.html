@@ -808,7 +808,7 @@ function renderLoad(){
   let html=`<div class="card" style="margin-bottom:16px;overflow-x:auto">
     <div class="card-hd">Weekly Load Summary</div>
     <table class="data-table">
-      <tr><th>Athlete</th>${DN.map((d,i)=>`<th style="text-align:center">${d} ${wk[i].d.split('-')[2]}.</th>`).join('')}<th>Volume</th><th>Distance</th></tr>`;
+      <tr><th>Athlete</th>${DN.map((d,i)=>`<th style="text-align:center">${d} ${wk[i].d.getDate()}.</th>`).join('')}<th>Volume</th><th>Distance</th></tr>`;
 
   athletes.forEach(ath=>{
     const logs=getLogsByName(ath.name);
