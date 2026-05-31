@@ -433,7 +433,7 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
   display:none;position:fixed;z-index:9999;pointer-events:none;
   background:#1c2128;border:1px solid #30363d;border-radius:8px;
   padding:10px 13px;font-size:12px;color:#e6edf3;
-  box-shadow:0 6px 20px rgba(0,0,0,.5);max-width:230px;min-width:130px
+  box-shadow:0 6px 20px rgba(0,0,0,.5);max-width:280px;min-width:160px
 }
 #g-tip .tip-date{font-size:10px;color:#8b949e;margin-bottom:7px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
 #g-tip .tip-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-weight:600}
@@ -1354,23 +1354,70 @@ function downloadJSON(){
 
 // ══ TOOLTIP ══
 const _td={};
+const ICON={weight:'🏋️',sprint:'⚡',tabata:'🔥',plyo:'🦘',circuit:'🔄'};
+const LABEL={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',circuit:'Circuit'};
+
+function _prevDate(ds){
+  const d=new Date(ds);d.setDate(d.getDate()-1);return dsFromDate(d);
+}
+function _trainBlock(trains,dayLabel){
+  if(!trains||!trains.length)return'';
+  let html=`<div style="font-size:9px;font-weight:700;color:#484f58;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 3px">${dayLabel}</div>`;
+  trains.forEach(tr=>{
+    const c=tc(tr.type);
+    const v=tr.type==='weight'?`${vol([tr]).toLocaleString()} kg`
+      :tr.type==='sprint'?`${(tr.totalDistance||0).toLocaleString()} m`
+      :tr.type==='tabata'?'8 rounds'
+      :tr.type==='plyo'?`${tr.totalReps||0} reps`:'';
+    html+=`<div class="tip-row">
+      <span>${ICON[tr.type]||'•'}</span>
+      <span style="color:${c};font-weight:700">${LABEL[tr.type]||tr.type} ${v}</span>
+      ${tr.rpe?`<span style="color:#8b949e;font-size:10px">RPE ${tr.rpe}</span>`:''}
+    </div>`;
+    // 운동 종목 목록 (weight는 최대 4개)
+    if(tr.type==='weight'&&(tr.exercises||[]).length){
+      const exs=tr.exercises.filter(e=>!e.isBodyweight).slice(0,4);
+      const bwExs=tr.exercises.filter(e=>e.isBodyweight).slice(0,2);
+      const all=[...exs,...bwExs].slice(0,4);
+      if(all.length){
+        html+=`<div style="margin:3px 0 3px 20px;display:flex;flex-direction:column;gap:1px">`;
+        all.forEach(ex=>{
+          const w=ex.isBodyweight?'BW':(ex.weight>0?ex.weight+'kg':'BW');
+          html+=`<div style="font-size:10px;color:#8b949e">${ex.name||''} <span style="color:#c9d1d9">${w}</span></div>`;
+        });
+        if(tr.exercises.length>4)html+=`<div style="font-size:9px;color:#484f58">+${tr.exercises.length-4} more</div>`;
+        html+=`</div>`;
+      }
+    }
+    // sprint sets
+    if(tr.type==='sprint'&&(tr.sets||[]).length){
+      const sets=tr.sets.slice(0,3);
+      html+=`<div style="margin:3px 0 3px 20px;display:flex;flex-direction:column;gap:1px">`;
+      sets.forEach(s=>{
+        html+=`<div style="font-size:10px;color:#8b949e">${s.distance||'?'}m × ${s.reps||1}r${s.intensity?' @ '+s.intensity+'%':''}</div>`;
+      });
+      html+=`</div>`;
+    }
+  });
+  return html;
+}
+
 function showTip(e,dateKey){
   const t=document.getElementById('g-tip');
-  const d=_td[dateKey];if(!d){return;}
-  const icon={weight:'🏋️',sprint:'⚡',tabata:'🔥',plyo:'🦘',circuit:'🔄'};
-  const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',circuit:'Circuit'};
+  const d=_td[dateKey];if(!d)return;
+  const prevKey=_prevDate(dateKey);
+  const prevD=_td[prevKey];
+
   let html=`<div class="tip-date">${fmtFull(dateKey)}</div>`;
-  if(d.trains.length){
-    d.trains.forEach(tr=>{
-      const c=tc(tr.type);
-      const v=tr.type==='weight'?`${vol([tr]).toLocaleString()} kg`
-        :tr.type==='sprint'?`${(tr.totalDistance||0).toLocaleString()} m`
-        :tr.type==='tabata'?'8 rounds'
-        :tr.type==='plyo'?`${tr.totalReps||0} reps`:'';
-      html+=`<div class="tip-row"><span>${icon[tr.type]||'•'}</span><span style="color:${c}">${label[tr.type]||tr.type} ${v}</span>${tr.rpe?`<span style="color:#8b949e;font-size:10px">RPE ${tr.rpe}</span>`:''}</div>`;
-    });
+
+  const prevTrains=prevD?.trains||[];
+  const sameTrains=d.trains||[];
+
+  if(!prevTrains.length&&!sameTrains.length){
+    html+=`<div class="tip-rest">운동 기록 없음</div>`;
   } else {
-    html+=`<div class="tip-rest">Rest day</div>`;
+    if(prevTrains.length)html+=_trainBlock(prevTrains,`📅 전날 (${fmtFull(prevKey)})`);
+    if(sameTrains.length)html+=_trainBlock(sameTrains,`📅 당일 (${fmtFull(dateKey)})`);
   }
   if(d.soreLabel){
     html+=`<div class="tip-sore">🔴 ${d.soreLabel}</div>`;
@@ -1384,8 +1431,9 @@ function _moveTip(e){
   const t=document.getElementById('g-tip');
   if(!t||t.style.display==='none')return;
   const x=e.clientX+14,y=e.clientY-8;
-  t.style.left=(x+240>window.innerWidth?e.clientX-240:x)+'px';
-  t.style.top=(y+150>window.innerHeight?e.clientY-150:y)+'px';
+  const tw=t.offsetWidth||260,th=t.offsetHeight||200;
+  t.style.left=(x+tw>window.innerWidth?e.clientX-tw-10:x)+'px';
+  t.style.top=(y+th>window.innerHeight?e.clientY-th-8:y)+'px';
 }
 document.addEventListener('mousemove',_moveTip);
 
