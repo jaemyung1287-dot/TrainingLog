@@ -2963,6 +2963,37 @@ function saveCondition(){
 // ════════════════════════════════════════════════
 //  WEIGHT FORM
 // ════════════════════════════════════════════════
+
+// ── 이전 세션에서 해당 운동의 마지막 기록 반환 ──
+function _getLastExWeight(exName){
+  if(!ST.athlete||!exName) return null;
+  const d=getData();
+  const myLogs=d.logs
+    .filter(l=>l.athleteName===ST.athlete.name&&(l.type==='weight'||l.type==='plyo'))
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  for(const log of myLogs){
+    const ex=(log.exercises||[]).find(e=>e.name===exName);
+    if(!ex) continue;
+    // Max weight across set rows
+    let maxW=0, setNotes='';
+    if(ex.isBodyweight){
+      maxW=parseFloat(ex.bwBase)||0;
+    } else if(ex.setRows&&ex.setRows.length){
+      const kgs=ex.setRows.map(sr=>parseFloat(sr.kg)||0).filter(v=>v>0);
+      if(kgs.length){ maxW=Math.max(...kgs); }
+      if(ex.setRows.length>1){
+        setNotes=ex.setRows.map((sr,i)=>`S${i+1}:${sr.kg||'—'}`).join('  ');
+      }
+    } else {
+      maxW=parseFloat(ex.weight)||0;
+    }
+    if(maxW>0||ex.isBodyweight){
+      return {weight:maxW, date:log.date, isBodyweight:ex.isBodyweight, setNotes};
+    }
+  }
+  return null;
+}
+
 function renderExList(){
   const wrap=document.getElementById('exercise-list'); wrap.innerHTML='';
   if(!ST.exercises.length) ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',effort:''});
@@ -3002,7 +3033,13 @@ function renderExList(){
         if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · reps`);
         liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
-      const liftPlanSummary=_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`:'';
+      const _lastW=_getLastExWeight(ex.name);
+      const _lastWHint=_lastW
+        ?` <span style="color:rgba(255,255,255,.18);margin:0 5px">|</span><span style="color:rgba(255,255,255,.38)">Letzt. ${_lastW.date.slice(5)} · <span style="color:#f7a94f;font-weight:700">${_lastW.weight} kg</span></span>`
+        :'';
+      const liftPlanSummary=_liftPlanParts.length
+        ?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}${_lastWHint}</div>`
+        :(_lastW?`<div class="plan-summary-row" style="color:rgba(255,255,255,.38)">Letzt. ${_lastW.date.slice(5)} · <span style="color:#f7a94f;font-weight:700">${_lastW.weight} kg</span></div>`:'');
       // Contraction info (read-only for athlete)
       let contractionBadge='';
       if(fromPlan&&ex.planContractionType){
