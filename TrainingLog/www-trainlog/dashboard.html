@@ -9,178 +9,389 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 :root{
-  --bg:#0d1117;--bg2:#13151c;--card:#161b22;--border:#21262d;
-  --text:#e6edf3;--muted:rgba(230,237,243,.42);--hint:rgba(230,237,243,.18);
-  --gold:#f7a94f;--green:#3ecf8e;--red:#e94560;--purple:#a78bfa;--blue:#4f8ef7;
-  --sidebar:210px;
+  --bg:#0d1117;
+  --bg2:#161b22;
+  --bg3:#1c2128;
+  --card:#1c2128;
+  --border:#30363d;
+  --border2:#21262d;
+  --text:#e6edf3;
+  --text2:#c9d1d9;
+  --muted:#8b949e;
+  --hint:#484f58;
+  --gold:#f7a94f;
+  --gold-dim:rgba(247,169,79,.15);
+  --green:#3ecf8e;
+  --green-dim:rgba(62,207,142,.12);
+  --red:#f85149;
+  --red-dim:rgba(248,81,73,.12);
+  --blue:#58a6ff;
+  --blue-dim:rgba(88,166,255,.12);
+  --purple:#bc8cff;
+  --sidebar:220px;
+  --radius:8px;
 }
+
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;height:100vh;overflow:hidden}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.5}
 
 /* ── Login ── */
-#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:18px}
-.lg-logo{font-size:50px}.lg-title{font-size:24px;font-weight:800}.lg-sub{font-size:13px;color:var(--muted)}
-#google-btn{display:flex;align-items:center;gap:12px;padding:13px 28px;border-radius:12px;background:#fff;color:#222;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-top:6px}
-#google-btn:hover{opacity:.9}
-#google-btn img{width:20px}
-#auth-err{color:var(--red);font-size:12px;display:none}
+#login-screen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100vh;gap:16px;background:var(--bg);
+}
+.lg-logo{font-size:44px;filter:drop-shadow(0 4px 12px rgba(247,169,79,.3))}
+.lg-title{font-size:22px;font-weight:700;letter-spacing:-.3px}
+.lg-sub{font-size:12px;color:var(--muted);letter-spacing:.3px;text-transform:uppercase}
+#google-btn{
+  display:flex;align-items:center;gap:10px;padding:11px 24px;
+  border-radius:var(--radius);background:#fff;color:#24292f;font-size:13px;font-weight:600;
+  border:none;cursor:pointer;margin-top:8px;transition:opacity .15s
+}
+#google-btn:hover{opacity:.92}
+#google-btn img{width:18px}
+#auth-err{color:var(--red);font-size:12px}
 
-/* ── App ── */
-#app{display:none;height:100vh}
+/* ── App shell ── */
+#app{display:none;height:100vh;flex-direction:row}
 #app.show{display:flex}
 
 /* ── Sidebar ── */
-#sidebar{width:var(--sidebar);flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
-.sb-logo{padding:18px 18px 14px;font-size:15px;font-weight:800;color:var(--gold);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
-nav{padding:6px 0;flex:1}
-.nb{display:flex;align-items:center;gap:9px;width:100%;padding:9px 16px;background:none;border:none;border-left:3px solid transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;text-align:left;transition:all .12s;font-family:inherit}
-.nb:hover{background:rgba(255,255,255,.04);color:var(--text)}
-.nb.on{background:rgba(247,169,79,.08);color:var(--gold);border-left-color:var(--gold)}
-.nb .ni{font-size:14px;width:18px;flex-shrink:0}
-.sb-foot{padding:12px 16px;border-top:1px solid var(--border)}
-.sb-user{display:flex;align-items:center;gap:8px;margin-bottom:9px}
-.sb-av{width:28px;height:28px;border-radius:50%;background:var(--border);overflow:hidden;flex-shrink:0}
-.sb-av img{width:100%;height:100%;object-fit:cover}
-.sb-name{font-size:11px;font-weight:600;color:var(--text)}
-.sb-live{font-size:10px;color:var(--green)}
-.sb-out{width:100%;padding:6px;border-radius:7px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.22);color:var(--red);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+#sidebar{
+  width:var(--sidebar);flex-shrink:0;
+  background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column
+}
+.sb-brand{
+  padding:16px 16px 14px;
+  border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;gap:10px
+}
+.sb-brand-icon{font-size:18px}
+.sb-brand-name{font-size:14px;font-weight:700;color:var(--text);letter-spacing:-.3px}
+.sb-brand-sub{font-size:10px;color:var(--muted);font-weight:400;letter-spacing:.2px;margin-top:1px}
 
-/* ── Week nav in sidebar ── */
-.week-nav{padding:10px 16px 6px;border-top:1px solid var(--border);margin-top:6px}
-.week-nav-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
-.week-nav-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.wn-btn{padding:4px 10px;border-radius:6px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:14px;cursor:pointer;line-height:1}
+nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
+.nb{
+  display:flex;align-items:center;gap:9px;width:100%;
+  padding:7px 10px;border-radius:6px;
+  background:none;border:none;border-left:2px solid transparent;
+  color:var(--muted);font-size:12px;font-weight:500;cursor:pointer;
+  text-align:left;transition:all .1s;font-family:inherit
+}
+.nb:hover{background:rgba(255,255,255,.05);color:var(--text2)}
+.nb.on{
+  background:rgba(247,169,79,.1);color:var(--gold);
+  border-left-color:var(--gold);font-weight:600
+}
+.nb .ni{font-size:13px;width:16px;flex-shrink:0;opacity:.8}
+
+.sb-section-label{
+  font-size:10px;font-weight:600;color:var(--hint);
+  text-transform:uppercase;letter-spacing:.8px;
+  padding:10px 12px 4px
+}
+
+/* ── Sidebar bottom ── */
+.sb-bottom{border-top:1px solid var(--border2)}
+.week-nav{padding:10px 12px}
+.week-nav-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.week-nav-row{display:flex;align-items:center;gap:4px}
+.wn-btn{
+  padding:4px 8px;border-radius:5px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);font-size:13px;cursor:pointer;line-height:1;
+  transition:background .1s
+}
+.wn-btn:hover{background:var(--border)}
 .wn-dates{font-size:11px;font-weight:600;color:var(--text);text-align:center;flex:1}
-.wn-today{width:100%;margin-top:6px;padding:4px;border-radius:6px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.28);color:var(--blue);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;display:none}
+.wn-today{
+  width:100%;margin-top:5px;padding:4px;border-radius:5px;
+  background:var(--blue-dim);border:1px solid rgba(88,166,255,.25);
+  color:var(--blue);font-size:10px;font-weight:600;cursor:pointer;
+  font-family:inherit;display:none;transition:background .1s
+}
+.wn-today:hover{background:rgba(88,166,255,.2)}
 
-/* ── Main ── */
+.sb-user{
+  padding:10px 12px;display:flex;align-items:center;gap:9px;
+  border-top:1px solid var(--border2)
+}
+.sb-av{width:26px;height:26px;border-radius:50%;background:var(--border);overflow:hidden;flex-shrink:0}
+.sb-av img{width:100%;height:100%;object-fit:cover}
+.sb-user-info{flex:1;min-width:0}
+.sb-name{font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-status{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--green)}
+.sb-status-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 2.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.sb-out{
+  width:calc(100% - 24px);margin:0 12px 10px;
+  padding:6px;border-radius:6px;
+  background:transparent;border:1px solid var(--border);
+  color:var(--muted);font-size:11px;font-weight:500;cursor:pointer;
+  font-family:inherit;transition:all .1s
+}
+.sb-out:hover{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+
+/* ── Main panel ── */
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-#topbar{padding:12px 24px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
-.tb-left .tb-title{font-size:17px;font-weight:800}
-.tb-left .tb-sub{font-size:11px;color:var(--muted);margin-top:1px}
-.live{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green);font-weight:700}
-.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+#topbar{
+  padding:0 24px;height:52px;
+  border-bottom:1px solid var(--border);background:var(--bg2);
+  flex-shrink:0;display:flex;align-items:center;justify-content:space-between
+}
+.tb-left{display:flex;align-items:baseline;gap:8px}
+.tb-title{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.tb-sub{font-size:12px;color:var(--muted)}
+.live-badge{
+  display:flex;align-items:center;gap:5px;
+  font-size:10px;font-weight:600;color:var(--green);
+  padding:3px 8px;border-radius:20px;
+  background:var(--green-dim);border:1px solid rgba(62,207,142,.2)
+}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 2.5s infinite}
 
 /* ── Content ── */
-#content{flex:1;overflow-y:auto;padding:20px 24px}
+#content{flex:1;overflow-y:auto;padding:20px 24px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+#content::-webkit-scrollbar{width:5px}
+#content::-webkit-scrollbar-track{background:transparent}
+#content::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
 .tab{display:none}.tab.on{display:block}
 
-/* ── Loading state ── */
-.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;gap:12px}
-.loading-spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite}
+/* ── Loading ── */
+.page-loading{display:flex;align-items:center;gap:10px;padding:40px;color:var(--muted);font-size:12px}
+.spin{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-size:12px;color:var(--muted)}
 
-/* ── Timeline (Übersicht) ── */
-.timeline-ath{margin-bottom:28px}
-.ath-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.ath-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0}
-.ath-nm{font-size:15px;font-weight:800}
-.badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700}
-.ba{background:rgba(79,142,247,.2);color:var(--blue)}
-.bb{background:rgba(62,207,142,.2);color:var(--green)}
+/* ── Filter bar ── */
+.filter-bar{
+  display:flex;align-items:center;gap:6px;
+  margin-bottom:20px;padding-bottom:16px;
+  border-bottom:1px solid var(--border2);flex-wrap:wrap
+}
+.filter-group{display:flex;align-items:center;gap:3px}
+.flt-btn{
+  padding:4px 12px;border-radius:6px;font-size:11px;font-weight:500;
+  background:none;border:1px solid var(--border);color:var(--muted);
+  cursor:pointer;font-family:inherit;transition:all .1s;white-space:nowrap
+}
+.flt-btn:hover{border-color:var(--border2);color:var(--text2);background:rgba(255,255,255,.04)}
+.flt-btn.on{
+  background:rgba(247,169,79,.1);border-color:rgba(247,169,79,.35);
+  color:var(--gold);font-weight:600
+}
+.flt-btn.ath-btn{
+  display:flex;align-items:center;gap:5px;
+  padding:4px 10px
+}
+.flt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.flt-sep{width:1px;height:14px;background:var(--border);margin:0 4px;flex-shrink:0}
 
-.tl-grid{display:grid;gap:6px;overflow-x:auto}
-.tl-day{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 11px;min-height:110px;display:flex;flex-direction:column;gap:5px;min-width:0}
-.tl-day.today{border-color:rgba(79,142,247,.45);background:rgba(79,142,247,.05)}
-.tl-day-hdr{font-size:10px;font-weight:800;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
-.tl-day-name{color:var(--text)}
-.tl-day-date{color:var(--muted)}
-.today-tag{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(79,142,247,.25);color:var(--blue);font-weight:800}
-.tl-train{padding:4px 7px;border-radius:6px;margin-bottom:2px}
-.tl-train-name{font-size:10px;font-weight:700}
-.tl-train-val{font-size:11px;font-weight:800;margin-top:1px}
-.tl-train-rpe{font-size:9px;color:var(--muted);margin-top:1px}
-.tl-cond{display:flex;gap:6px;align-items:center;padding:3px 0;border-top:1px solid rgba(255,255,255,.05);margin-top:2px;flex-wrap:wrap}
-.tl-cond-item{font-size:10px;font-weight:700}
-.tl-sore{display:flex;flex-wrap:wrap;gap:2px;padding-top:3px;border-top:1px solid rgba(255,255,255,.05)}
-.sore-chip{font-size:9px;font-weight:700;padding:2px 5px;border-radius:8px;white-space:nowrap}
-.tl-rest{font-size:10px;color:var(--hint);padding-top:4px}
-.tl-plan-badge{font-size:9px;padding:2px 6px;border-radius:4px;display:inline-block;margin-bottom:3px;font-weight:700}
+/* ── Schedule table (Overview) ── */
+.sched-wrap{overflow-x:auto}
+.sched-table{width:100%;border-collapse:collapse;min-width:900px}
+
+.sched-table thead th{
+  padding:8px 10px;font-size:10px;font-weight:600;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
+  border-bottom:2px solid var(--border);text-align:center;
+  background:var(--bg2);position:sticky;top:0;z-index:2
+}
+.sched-table thead th.day-today{
+  color:var(--blue);border-bottom-color:var(--blue)
+}
+.sched-table thead th.ath-col{
+  text-align:left;min-width:160px;width:160px
+}
+
+.sched-table tbody tr{border-bottom:1px solid var(--border2)}
+.sched-table tbody tr:last-child{border-bottom:none}
+.sched-table tbody tr:hover td{background:rgba(255,255,255,.015)}
+
+.sched-table td{
+  padding:10px;vertical-align:top;border-right:1px solid var(--border2)
+}
+.sched-table td:last-child{border-right:none}
+
+.td-ath{
+  min-width:160px;width:160px;padding:12px 10px;
+  vertical-align:middle;position:sticky;left:0;
+  background:var(--bg);z-index:1
+}
+.td-ath-inner{display:flex;align-items:center;gap:9px}
+.td-av{
+  width:32px;height:32px;border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700
+}
+.td-ath-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.3}
+.td-ath-meta{font-size:10px;color:var(--muted);margin-top:1px}
+.td-ath-badge{
+  display:inline-block;padding:1px 5px;border-radius:3px;
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px
+}
+
+.td-day{min-width:120px;vertical-align:top}
+.td-day.is-today{background:rgba(88,166,255,.04)}
+
+.day-rest{
+  color:var(--hint);font-size:10px;padding-top:2px
+}
+
+.session-block{
+  padding:5px 7px;border-radius:5px;margin-bottom:4px;
+  border-left:2px solid transparent
+}
+.session-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px}
+.session-val{font-size:12px;font-weight:700;line-height:1.2}
+.session-rpe{font-size:10px;color:var(--muted);margin-top:1px}
+
+.cond-row{
+  display:flex;gap:7px;align-items:center;
+  padding-top:5px;border-top:1px solid var(--border2);
+  margin-top:4px;flex-wrap:wrap
+}
+.cond-item{font-size:10px;font-weight:500;white-space:nowrap}
+
+.sore-row{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.sore-tag{
+  font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;white-space:nowrap
+}
+
+.plan-hint{
+  font-size:9px;color:var(--blue);
+  padding:3px 6px;border-radius:4px;
+  background:var(--blue-dim);display:inline-block;margin-bottom:4px
+}
+
+/* ── Section header ── */
+.sec{margin:0 0 16px;display:flex;align-items:center;gap:10px}
+.sec-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.sec-line{flex:1;height:1px;background:var(--border2)}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.card-hd{
+  font-size:10px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.6px;
+  margin-bottom:12px;display:flex;align-items:center;justify-content:space-between
+}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+/* ── Stat chips ── */
+.stat-chip{
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:6px;padding:10px 12px;text-align:center
+}
+.stat-chip .sv{font-size:17px;font-weight:800;line-height:1.2}
+.stat-chip .sl{font-size:10px;color:var(--muted);margin-top:2px}
 
 /* ── Load table ── */
-.load-table{width:100%;border-collapse:collapse;font-size:12px}
-.load-table th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
-.load-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
-.load-table tr:hover td{background:rgba(255,255,255,.02)}
-.load-cell{display:flex;flex-direction:column;gap:2px}
-.lc-type{font-size:10px;font-weight:700}
-.lc-val{font-size:12px;font-weight:800}
-.lc-rpe{font-size:10px;color:var(--muted)}
-.rest-cell{font-size:10px;color:var(--hint)}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{
+  padding:8px 10px;text-align:left;font-size:10px;font-weight:600;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
+  border-bottom:1px solid var(--border);white-space:nowrap;background:var(--bg2)
+}
+.data-table td{
+  padding:8px 10px;border-bottom:1px solid var(--border2);vertical-align:top
+}
+.data-table tr:hover td{background:rgba(255,255,255,.02)}
+.data-table td:last-child,.data-table th:last-child{text-align:right}
 
-/* ── Soreness heatmap ── */
+.type-pill{
+  display:inline-block;padding:1px 6px;border-radius:3px;
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px
+}
+
+/* ── Heatmap ── */
 .heatmap-wrap{overflow-x:auto}
-.heatmap{border-collapse:collapse;font-size:11px}
-.heatmap th{padding:6px 8px;font-size:10px;font-weight:700;color:var(--muted);text-align:center;white-space:nowrap;border-bottom:1px solid var(--border)}
-.heatmap th.part-hdr{text-align:left;min-width:110px}
-.heatmap td{padding:4px 6px;text-align:center;border:1px solid rgba(255,255,255,.04)}
-.heatmap td.part-label{text-align:left;font-size:11px;color:var(--text);font-weight:600;padding-left:8px;white-space:nowrap}
-.hm-cell{width:28px;height:24px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;min-width:28px}
+.heatmap{border-collapse:collapse;font-size:11px;width:100%}
+.heatmap th{
+  padding:6px 8px;font-size:10px;font-weight:600;color:var(--muted);
+  text-align:center;white-space:nowrap;border-bottom:1px solid var(--border);background:var(--bg2)
+}
+.heatmap th.part-col{text-align:left;min-width:120px}
+.heatmap td{padding:4px 5px;text-align:center;border:1px solid rgba(255,255,255,.03)}
+.heatmap td.part-label{text-align:left;padding-left:8px;white-space:nowrap;font-weight:500}
+.hm-cell{
+  width:26px;height:22px;border-radius:3px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;width:100%
+}
 
 /* ── Charts ── */
-.chart-wrap{position:relative;height:220px}
-.chart-sm{position:relative;height:170px}
+.chart-h{position:relative;height:210px}
+.chart-sm{position:relative;height:160px}
 
-/* ── Cards / layout ── */
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
-.card-t{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.sh{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:8px;margin:16px 0 10px}
-.sh::after{content:'';flex:1;height:1px;background:var(--border)}
-
-/* ── Stat mini ── */
-.sm{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:9px;padding:10px 12px;text-align:center}
-.sm .sv{font-size:18px;font-weight:800;line-height:1.2}
-.sm .sl{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.3px}
-
-/* ── Period / group selector ── */
+/* ── Selector bar ── */
 .sel-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.pb{padding:4px 11px;border-radius:7px;font-size:11px;font-weight:600;background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-family:inherit}
-.pb.on{background:rgba(247,169,79,.12);border-color:rgba(247,169,79,.4);color:var(--gold)}
-.fsel{padding:6px 10px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:12px;outline:none;cursor:pointer;font-family:inherit}
+.seg-btn{
+  padding:4px 12px;border-radius:6px;font-size:11px;font-weight:500;
+  background:none;border:1px solid var(--border);color:var(--muted);
+  cursor:pointer;font-family:inherit;transition:all .1s
+}
+.seg-btn:hover{color:var(--text2);background:rgba(255,255,255,.04)}
+.seg-btn.on{
+  background:rgba(247,169,79,.1);border-color:rgba(247,169,79,.35);
+  color:var(--gold);font-weight:600
+}
+.fsel{
+  padding:5px 10px;border-radius:6px;
+  background:var(--card);border:1px solid var(--border);
+  color:var(--text2);font-size:12px;outline:none;cursor:pointer;font-family:inherit
+}
+
+/* ── Condition bars ── */
+.cb-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.cb-lbl{font-size:10px;color:var(--muted);min-width:56px;flex-shrink:0}
+.cb-track{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.06);overflow:hidden}
+.cb-fill{height:100%;border-radius:2px}
+.cb-val{font-size:10px;font-weight:700;min-width:20px;text-align:right;flex-shrink:0}
 
 /* ── Log rows ── */
-.lr{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+.lr{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2);font-size:12px}
 .lr:last-child{border-bottom:none}
-.lr .ld{color:var(--muted);min-width:46px;flex-shrink:0;font-size:11px}
-.lr .lt{font-weight:700;min-width:54px;flex-shrink:0}
-.lr .lv{flex:1}
+.lr .ld{color:var(--muted);min-width:50px;flex-shrink:0;font-size:11px}
+.lr .lt{font-weight:600;min-width:52px;flex-shrink:0}
+.lr .lv{flex:1;color:var(--text2)}
 .lr .lrpe{color:var(--muted);font-size:10px;flex-shrink:0}
-.lr .ldel{padding:1px 6px;border-radius:4px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:var(--red);font-size:10px;cursor:pointer;opacity:0;transition:opacity .12s;flex-shrink:0}
+.lr .ldel{
+  padding:1px 6px;border-radius:4px;
+  background:transparent;border:1px solid var(--border);
+  color:var(--muted);font-size:10px;cursor:pointer;opacity:0;
+  transition:all .1s;flex-shrink:0
+}
 .lr:hover .ldel{opacity:1}
+.lr:hover .ldel:hover{border-color:var(--red);color:var(--red);background:var(--red-dim)}
 
-/* ── Condition bar ── */
-.cb-row{display:flex;align-items:center;gap:7px;margin-bottom:4px}
-.cb-lbl{font-size:10px;color:var(--muted);min-width:52px;flex-shrink:0}
-.cb-track{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}
-.cb-fill{height:100%;border-radius:2px}
-.cb-val{font-size:10px;font-weight:700;min-width:18px;text-align:right;flex-shrink:0}
+/* ── Export ── */
+.exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.exp-btn{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:14px 16px;border-radius:var(--radius);cursor:pointer;
+  font-family:inherit;text-align:left;border:1px solid var(--border);
+  background:var(--card);transition:all .12s
+}
+.exp-btn:hover{border-color:var(--gold);background:rgba(247,169,79,.05)}
+.exp-btn.blue:hover{border-color:var(--blue);background:rgba(88,166,255,.05)}
+.exp-btn.green:hover{border-color:var(--green);background:rgba(62,207,142,.05)}
+.exp-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.exp-label{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
+.exp-desc{font-size:11px;color:var(--muted);line-height:1.4}
 
-/* ── Export tab ── */
-.exp-section{margin-bottom:16px}
-.exp-btn{display:flex;align-items:center;gap:10px;width:100%;padding:14px 18px;background:rgba(247,169,79,.08);border:1px solid rgba(247,169,79,.25);border-radius:10px;color:var(--gold);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left;transition:all .12s}
-.exp-btn:hover{background:rgba(247,169,79,.14);border-color:rgba(247,169,79,.45)}
-.exp-btn .exp-icon{font-size:20px;width:28px;flex-shrink:0}
-.exp-btn .exp-desc{font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
-.exp-btn-blue{background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.25);color:var(--blue)}
-.exp-btn-blue:hover{background:rgba(79,142,247,.14);border-color:rgba(79,142,247,.45)}
-.exp-btn-green{background:rgba(62,207,142,.08);border-color:rgba(62,207,142,.25);color:var(--green)}
-.exp-btn-green:hover{background:rgba(62,207,142,.14);border-color:rgba(62,207,142,.45)}
+/* ── Empty ── */
+.empty{color:var(--muted);font-size:12px;padding:32px;text-align:center}
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
-
-/* ── Empty / loading ── */
-.empty{color:var(--muted);font-size:12px;padding:24px;text-align:center}
-.loading{color:var(--muted);font-size:13px;padding:36px;text-align:center}
-
-@media(max-width:900px){.g2{grid-template-columns:1fr}#sidebar{width:180px}}
+@media(max-width:1000px){#sidebar{width:180px}.g2{grid-template-columns:1fr}.exp-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -188,11 +399,11 @@ nav{padding:6px 0;flex:1}
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="lg-logo">🏋️</div>
-  <div class="lg-title">TrainLog Coach</div>
+  <div class="lg-title">TrainLog</div>
   <div class="lg-sub">Bayern Skeleton · Coach Dashboard</div>
   <button id="google-btn" onclick="doLogin()">
-    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
-    Mit Google anmelden
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
+    Continue with Google
   </button>
   <div id="auth-err"></div>
 </div>
@@ -200,31 +411,39 @@ nav{padding:6px 0;flex:1}
 <!-- APP -->
 <div id="app">
   <aside id="sidebar">
-    <div class="sb-logo"><span style="font-size:20px">🏋️</span>TrainLog</div>
+    <div class="sb-brand">
+      <span class="sb-brand-icon">🏋️</span>
+      <div>
+        <div class="sb-brand-name">TrainLog</div>
+        <div class="sb-brand-sub">Bayern Skeleton</div>
+      </div>
+    </div>
     <nav>
+      <div class="sb-section-label">Views</div>
       <button class="nb on" onclick="switchTab('overview',this)"><span class="ni">📋</span>Overview</button>
       <button class="nb" onclick="switchTab('load',this)"><span class="ni">📊</span>Load</button>
       <button class="nb" onclick="switchTab('soreness',this)"><span class="ni">🔴</span>Soreness</button>
       <button class="nb" onclick="switchTab('condition',this)"><span class="ni">😴</span>Condition</button>
-      <button class="nb" onclick="switchTab('athletes',this)"><span class="ni">👥</span>Athletes</button>
+      <div class="sb-section-label">Athletes</div>
+      <button class="nb" onclick="switchTab('athletes',this)"><span class="ni">👥</span>All Athletes</button>
+      <div class="sb-section-label">Data</div>
       <button class="nb" onclick="switchTab('export',this)"><span class="ni">⬇️</span>Export</button>
     </nav>
-    <!-- Week navigation -->
-    <div class="week-nav">
-      <div class="week-nav-label">Week · Woche</div>
-      <div class="week-nav-row">
-        <button class="wn-btn" onclick="shiftWeek(-1)">‹</button>
-        <div class="wn-dates" id="wn-dates">—</div>
-        <button class="wn-btn" onclick="shiftWeek(1)">›</button>
+    <div class="sb-bottom">
+      <div class="week-nav">
+        <div class="week-nav-label">Week · Woche</div>
+        <div class="week-nav-row">
+          <button class="wn-btn" onclick="shiftWeek(-1)">‹</button>
+          <div class="wn-dates" id="wn-dates">—</div>
+          <button class="wn-btn" onclick="shiftWeek(1)">›</button>
+        </div>
+        <button class="wn-today" id="wn-today-btn" onclick="shiftWeek(0,true)">← This Week</button>
       </div>
-      <button class="wn-today" id="wn-today-btn" onclick="shiftWeek(0,true)">← This Week</button>
-    </div>
-    <div class="sb-foot">
       <div class="sb-user">
         <div class="sb-av"><img id="user-photo" src="" alt=""></div>
-        <div>
+        <div class="sb-user-info">
           <div class="sb-name" id="user-name">—</div>
-          <div class="sb-live">● Live sync</div>
+          <div class="sb-status"><span class="sb-status-dot"></span>Live sync</div>
         </div>
       </div>
       <button class="sb-out" onclick="firebase.auth().signOut()">Sign out</button>
@@ -237,7 +456,7 @@ nav{padding:6px 0;flex:1}
         <div class="tb-title" id="tb-title">Overview</div>
         <div class="tb-sub" id="tb-sub"></div>
       </div>
-      <div class="live"><div class="live-dot"></div>Live</div>
+      <div class="live-badge"><div class="live-dot"></div>Live</div>
     </div>
     <div id="content">
       <div class="tab on" id="tab-overview"></div>
@@ -259,16 +478,16 @@ const ALLOWED='jaemyung1287@gmail.com';
 // ══ STATE ══
 let coachData=null, athLogs={}, unsubs=[], athUnsubs=[], curTab='overview';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
-let overviewFilter='all'; // 'all' | 'A' | 'B' | athlete name
+let overviewFilter='all';
 const charts={};
 
 // ══ AUTH ══
-function doLogin(){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{showErr(e.message)});}
+function doLogin(){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>showErr(e.message));}
 function showErr(m){const el=document.getElementById('auth-err');el.textContent=m;el.style.display='block';}
 
 auth.onAuthStateChanged(u=>{
   if(u){
-    if(u.email!==ALLOWED){auth.signOut();showErr('No access: '+u.email);return;}
+    if(u.email!==ALLOWED){auth.signOut();showErr('Access denied: '+u.email);return;}
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('show');
     document.getElementById('user-name').textContent=u.displayName||u.email;
@@ -284,7 +503,6 @@ auth.onAuthStateChanged(u=>{
 // ══ LISTENERS ══
 function startListen(){
   unsubs.forEach(u=>u());unsubs=[];
-  // Show loading state on current tab while Firebase loads
   showTabLoading();
   unsubs.push(db.collection('trainlog').doc('coach').onSnapshot(snap=>{
     if(!snap.exists){renderCurrent();return;}
@@ -292,35 +510,22 @@ function startListen(){
     if(!loadAth&&coachData.athletes?.length){loadAth=coachData.athletes[0].name;condAth=loadAth;soreAth=loadAth;}
     const ids=(coachData.athletes||[]).map(a=>a.id).filter(Boolean);
     const prevIds=(prev?.athletes||[]).map(a=>a.id).filter(Boolean);
-    if(JSON.stringify(ids)!==JSON.stringify(prevIds)){
-      setupAthListeners(ids);
-      // Fallback: render after 1.5s even if athlete snapshots haven't fired
-      setTimeout(renderCurrent, 1500);
-    } else {
-      renderCurrent();
-    }
+    if(JSON.stringify(ids)!==JSON.stringify(prevIds)){setupAthListeners(ids);setTimeout(renderCurrent,1500);}
+    else renderCurrent();
   }));
 }
-
 function showTabLoading(){
-  const wrap=document.getElementById('tab-'+curTab);
-  if(wrap&&!wrap.innerHTML.trim()){
-    wrap.innerHTML=`<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">데이터 불러오는 중…</div></div>`;
-  }
+  const w=document.getElementById('tab-'+curTab);
+  if(w&&!w.innerHTML.trim())w.innerHTML='<div class="page-loading"><div class="spin"></div>Loading data…</div>';
 }
-
 function setupAthListeners(ids){
   athUnsubs.forEach(u=>u());athUnsubs=[];
   if(!ids.length){renderCurrent();return;}
   ids.forEach(id=>{
-    athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).onSnapshot(snap=>{
-      athLogs[id]=snap.exists?(snap.data().logs||[]):[];
-      renderCurrent();
-    },err=>{
-      // Permission denied or other error — still render with available data
-      console.warn('[dashboard] athlete snapshot error:',id,err);
-      renderCurrent();
-    }));
+    athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).onSnapshot(
+      snap=>{athLogs[id]=snap.exists?(snap.data().logs||[]):[];renderCurrent();},
+      err=>{console.warn('[dash] snapshot err:',id,err);renderCurrent();}
+    ));
   });
 }
 
@@ -356,7 +561,8 @@ function iCol(v,hg){
   if(hg)return v>=7?'var(--green)':v>=4?'var(--gold)':'var(--red)';
   return v>=7?'var(--red)':v>=4?'var(--gold)':'var(--green)';
 }
-function tc(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#a78bfa',tabata:'#e94560'}[t]||'var(--muted)';}
+function tc(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#bc8cff',tabata:'#f85149'}[t]||'var(--muted)';}
+function tcBg(t){return{weight:'rgba(247,169,79,.1)',sprint:'rgba(62,207,142,.1)',plyo:'rgba(247,169,79,.1)',tabata:'rgba(248,81,73,.1)'}[t]||'rgba(255,255,255,.04)';}
 function planGrp(plan,ath){if(!plan)return null;return plan.groups?.[ath.group]||(!plan.groups?plan:null);}
 function sessExs(gd,s){if(!gd)return[];if(gd[s]?.exercises)return gd[s].exercises;if(s==='am'&&gd.exercises)return gd.exercises;return[];}
 function killChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
@@ -368,14 +574,13 @@ function shiftWeek(delta,reset=false){
 }
 function updateWeekLabel(){
   const wk=getWeekDates(weekOffset);
-  const mon=wk[0].d,sun=wk[6].d;
-  document.getElementById('wn-dates').textContent=`${fmtShort(mon)} – ${fmtShort(sun)}`;
+  document.getElementById('wn-dates').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}`;
   const btn=document.getElementById('wn-today-btn');
   if(btn)btn.style.display=weekOffset!==0?'block':'none';
 }
 
 // ══ NAV ══
-const TITLES={overview:'Overview · Woche',load:'Training Load',soreness:'Soreness Heatmap',condition:'Condition Trend',athletes:'Athletes · Detail',export:'Export & Download'};
+const TITLES={overview:'Overview',load:'Training Load',soreness:'Soreness',condition:'Condition',athletes:'Athletes',export:'Export'};
 function switchTab(id,btn){
   curTab=id;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -389,16 +594,11 @@ function switchTab(id,btn){
 function renderCurrent(){
   if(!coachData)return;
   updateWeekLabel();
-  if(curTab==='overview')renderOverview();
-  else if(curTab==='load')renderLoad();
-  else if(curTab==='soreness')renderSoreness();
-  else if(curTab==='condition')renderCondition();
-  else if(curTab==='athletes')renderAthletes();
-  else if(curTab==='export')renderExport();
+  ({overview:renderOverview,load:renderLoad,soreness:renderSoreness,condition:renderCondition,athletes:renderAthletes,export:renderExport})[curTab]?.();
 }
 
 // ══════════════════════════════════════
-//  ÜBERSICHT — 7-day timeline
+//  OVERVIEW — Schedule table
 // ══════════════════════════════════════
 function setOverviewFilter(f){overviewFilter=f;renderOverview();}
 
@@ -406,58 +606,73 @@ function renderOverview(){
   const wrap=document.getElementById('tab-overview');
   const wk=getWeekDates(weekOffset);
   const today=todayStr();
-  const mon=wk[0].d,sun=wk[6].d;
+  const mon=wk[0].d, sun=wk[6].d;
   document.getElementById('tb-sub').textContent=`${fmtShort(mon)} – ${fmtShort(sun)}`;
 
   const allAthletes=coachData.athletes||[];
-  if(!allAthletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+  if(!allAthletes.length){wrap.innerHTML='<div class="empty">No athletes found</div>';return;}
 
-  // ── Filter bar ──
   const groups=[...new Set(allAthletes.map(a=>a.group))].sort();
-  const isGrp=f=>f==='A'||f==='B';
-  const isAth=f=>f!=='all'&&!isGrp(f);
+  const isGrp=f=>groups.includes(f);
 
-  let filterBar=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap">`;
-  // Group buttons
-  filterBar+=`<button class="pb ${overviewFilter==='all'?'on':''}" onclick="setOverviewFilter('all')">전체 선수</button>`;
+  // Filter bar
+  let fb=`<div class="filter-bar">
+    <div class="filter-group">
+      <button class="flt-btn ${overviewFilter==='all'?'on':''}" onclick="setOverviewFilter('all')">All Athletes</button>`;
   groups.forEach(g=>{
-    filterBar+=`<button class="pb ${overviewFilter===g?'on':''}" onclick="setOverviewFilter('${g}')">Group ${g}</button>`;
+    const c=g==='A'?'#58a6ff':'#3ecf8e';
+    fb+=`<button class="flt-btn ${overviewFilter===g?'on':''}" onclick="setOverviewFilter('${g}')">Group ${g}</button>`;
   });
-  // Divider
-  filterBar+=`<span style="width:1px;height:18px;background:var(--border);margin:0 4px;flex-shrink:0"></span>`;
-  // Individual athlete buttons
+  fb+=`</div><div class="flt-sep"></div><div class="filter-group">`;
   allAthletes.forEach(a=>{
+    const c=a.group==='A'?'#58a6ff':'#3ecf8e';
     const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
-    filterBar+=`<button class="pb ${overviewFilter===a.name?'on':''}" onclick="setOverviewFilter('${a.name.replace(/'/g,"\\'")}')">
-      <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${a.group==='A'?'rgba(79,142,247,.5)':'rgba(62,207,142,.5)'};margin-right:4px;vertical-align:middle"></span>${short}
+    fb+=`<button class="flt-btn ath-btn ${overviewFilter===a.name?'on':''}" onclick="setOverviewFilter(${JSON.stringify(a.name)})">
+      <span class="flt-dot" style="background:${c}"></span>${short}
     </button>`;
   });
-  filterBar+=`</div>`;
+  fb+=`</div></div>`;
 
-  // ── Filtered athletes ──
-  let athletes;
-  if(overviewFilter==='all') athletes=allAthletes;
-  else if(isGrp(overviewFilter)) athletes=allAthletes.filter(a=>a.group===overviewFilter);
-  else athletes=allAthletes.filter(a=>a.name===overviewFilter);
+  // Filtered athletes
+  let athletes = overviewFilter==='all' ? allAthletes
+    : isGrp(overviewFilter) ? allAthletes.filter(a=>a.group===overviewFilter)
+    : allAthletes.filter(a=>a.name===overviewFilter);
 
   const DN_DE=['Mo','Di','Mi','Do','Fr','Sa','So'];
   const DN_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const isSingle=athletes.length===1;
 
-  let html=filterBar;
+  // Table header
+  let table=`<div class="sched-wrap"><table class="sched-table">
+    <thead><tr>
+      <th class="ath-col">Athlete</th>`;
+  wk.forEach(({ds,d},i)=>{
+    const isToday=ds===today;
+    table+=`<th class="${isToday?'day-today':''}">
+      ${DN_DE[i]} · ${DN_EN[i]}<br>
+      <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0">${d.getDate()}.${d.getMonth()+1}.</span>
+      ${isToday?'<span style="margin-left:3px;font-size:9px;padding:1px 4px;border-radius:2px;background:var(--blue-dim);color:var(--blue);font-weight:700">TODAY</span>':''}
+    </th>`;
+  });
+  table+=`</tr></thead><tbody>`;
+
   athletes.forEach(ath=>{
     const logs=getLogsByName(ath.name);
+    const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
+    const grpBg=ath.group==='A'?'rgba(88,166,255,.15)':'rgba(62,207,142,.15)';
 
-    html+=`<div class="timeline-ath">
-      <div class="ath-hdr">
-        <div class="ath-av" style="background:${ath.group==='A'?'rgba(79,142,247,.2)':'rgba(62,207,142,.2)'}">${ath.name[0]}</div>
-        <div>
-          <div class="ath-nm">${ath.name}</div>
-          <span class="badge b${ath.group.toLowerCase()}">Group ${ath.group}</span>
-          ${ath.dob?`<span style="font-size:10px;color:var(--muted);margin-left:6px">${ath.dob}</span>`:''}
+    table+=`<tr>
+      <td class="td-ath">
+        <div class="td-ath-inner">
+          <div class="td-av" style="background:${grpBg};color:${grpColor}">${ath.name[0]}</div>
+          <div>
+            <div class="td-ath-name">${ath.name}</div>
+            <div class="td-ath-meta">
+              <span class="td-ath-badge" style="background:${grpBg};color:${grpColor}">Group ${ath.group}</span>
+              ${ath.dob?`<span style="margin-left:4px;font-size:9px;color:var(--hint)">${ath.dob}</span>`:''}
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="tl-grid" style="grid-template-columns:repeat(7,minmax(${isSingle?'150':'120'}px,1fr))">`;
+      </td>`;
 
     wk.forEach(({ds,d},i)=>{
       const isToday=ds===today;
@@ -466,83 +681,77 @@ function renderOverview(){
       const condLog=dayLogs.find(l=>l.type==='condition');
       const plan=coachData.sessionPlans?.[ds];
       const gd=planGrp(plan,ath);
-      const amExs=sessExs(gd,'am'); const pmExs=sessExs(gd,'pm');
-      const hasPlan=amExs.length>0||pmExs.length>0;
+      const hasPlan=(sessExs(gd,'am').length+sessExs(gd,'pm').length)>0;
 
-      html+=`<div class="tl-day ${isToday?'today':''}" style="${isSingle?'min-height:130px':''}">
-        <div class="tl-day-hdr">
-          <span class="tl-day-name">${DN_DE[i]}·${DN_EN[i]}</span>
-          <span class="tl-day-date">${d.getDate()}.${d.getMonth()+1}.${isToday?'&nbsp;<span class="today-tag">TODAY</span>':''}</span>
-        </div>`;
+      table+=`<td class="td-day${isToday?' is-today':''}">`;
 
       if(hasPlan&&!trainLogs.length){
-        const planExCount=amExs.length+pmExs.length;
-        html+=`<div class="tl-plan-badge" style="background:rgba(79,142,247,.12);color:var(--blue);border:1px solid rgba(79,142,247,.25)">📋 Plan: ${planExCount}개</div>`;
+        const cnt=sessExs(gd,'am').length+sessExs(gd,'pm').length;
+        table+=`<div class="plan-hint">📋 ${cnt} planned</div>`;
       }
 
       if(trainLogs.length){
         trainLogs.forEach(l=>{
           const c=tc(l.type);
+          const bg=tcBg(l.type);
+          const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
           const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`
             :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
             :l.type==='plyo'?`${l.totalReps||0} reps`
             :l.type==='tabata'?'8 rounds':'—';
-          html+=`<div class="tl-train" style="background:${c}18;border:1px solid ${c}33">
-            <div class="tl-train-name" style="color:${c}">${l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type}</div>
-            <div class="tl-train-val" style="color:${c}">${val}</div>
-            ${l.rpe?`<div class="tl-train-rpe">RPE ${l.rpe}</div>`:''}
+          table+=`<div class="session-block" style="background:${bg};border-left-color:${c}">
+            <div class="session-type" style="color:${c}">${typeLabel}</div>
+            <div class="session-val">${val}</div>
+            ${l.rpe?`<div class="session-rpe">RPE ${l.rpe}</div>`:''}
           </div>`;
         });
       } else if(!hasPlan){
-        html+=`<div class="tl-rest">Rest</div>`;
+        table+=`<div class="day-rest">—</div>`;
       }
 
       if(condLog){
         const fc=iCol(condLog.fatigue,false), mc=iCol(condLog.mood,true);
-        html+=`<div class="tl-cond">
-          <span class="tl-cond-item">😴 ${condLog.sleepHours||'—'}h</span>
-          <span class="tl-cond-item" style="color:${fc}">⚡${condLog.fatigue||'—'}</span>
-          <span class="tl-cond-item" style="color:${mc}">😊${condLog.mood||'—'}</span>
+        table+=`<div class="cond-row">
+          <span class="cond-item">😴 ${condLog.sleepHours||'—'}h</span>
+          <span class="cond-item" style="color:${fc}">⚡${condLog.fatigue||'—'}</span>
+          <span class="cond-item" style="color:${mc}">😊${condLog.mood||'—'}</span>
         </div>`;
       }
-
       if(condLog&&(condLog.soreness||[]).length){
-        html+=`<div class="tl-sore">`;
+        table+=`<div class="sore-row">`;
         condLog.soreness.forEach(s=>{
           const n=s.intensity;
-          const c=n>=7?'var(--red)':n>=4?'var(--gold)':'var(--green)';
-          html+=`<span class="sore-chip" style="background:${c}22;border:1px solid ${c}44;color:${c}">${s.part} ${s.intensity}</span>`;
+          const c=n>=7?'248,81,73':n>=4?'247,169,79':'62,207,142';
+          table+=`<span class="sore-tag" style="background:rgba(${c},.15);color:rgba(${c},1)">${s.part} ${s.intensity}</span>`;
         });
-        html+=`</div>`;
+        table+=`</div>`;
       }
 
-      html+=`</div>`;
+      table+=`</td>`;
     });
-
-    html+=`</div></div>`;
+    table+=`</tr>`;
   });
 
-  wrap.innerHTML=html||'<div class="empty">Keine Daten</div>';
+  table+=`</tbody></table></div>`;
+  wrap.innerHTML=fb+table;
 }
 
 // ══════════════════════════════════════
-//  BELASTUNG — Load table + charts
+//  LOAD
 // ══════════════════════════════════════
 function renderLoad(){
   const wrap=document.getElementById('tab-load');
   const wk=getWeekDates(weekOffset);
-  const today=todayStr();
   const athletes=coachData.athletes||[];
-  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+  if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
   document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}`;
 
   const DN=['Mo','Di','Mi','Do','Fr','Sa','So'];
 
-  // ── Weekly summary table ──
-  let tableHtml=`<div class="card" style="margin-bottom:16px;overflow-x:auto">
-    <div class="card-t">📋 Weekly Load Summary</div>
-    <table class="load-table">
-      <tr><th>Athlet</th>${DN.map((d,i)=>`<th>${d} ${wk[i].d.split('-')[2]}</th>`).join('')}<th>Total Vol.</th><th>Total Dist.</th></tr>`;
+  let html=`<div class="card" style="margin-bottom:16px;overflow-x:auto">
+    <div class="card-hd">Weekly Load Summary</div>
+    <table class="data-table">
+      <tr><th>Athlete</th>${DN.map((d,i)=>`<th style="text-align:center">${d} ${wk[i].d.split('-')[2]}.</th>`).join('')}<th>Volume</th><th>Distance</th></tr>`;
 
   athletes.forEach(ath=>{
     const logs=getLogsByName(ath.name);
@@ -551,189 +760,183 @@ function renderLoad(){
       const dayLogs=logs.filter(l=>l.date===ds);
       const trains=dayLogs.filter(l=>l.type!=='condition');
       const cond=dayLogs.find(l=>l.type==='condition');
-      if(!trains.length&&!cond) return`<td><div class="rest-cell">—</div></td>`;
-      let html='<td><div class="load-cell">';
+      if(!trains.length&&!cond)return`<td style="text-align:center"><span style="color:var(--hint)">—</span></td>`;
+      let cell='<td style="text-align:center">';
       trains.forEach(l=>{
         const c=tc(l.type);
-        const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`
-          :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`
-          :l.type==='tabata'?'Tabata':'—';
+        const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:l.type==='tabata'?'Tabata':'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
-        html+=`<div><span class="lc-type" style="color:${c}">${l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type}</span><span class="lc-val" style="margin-left:5px">${val}</span>${l.rpe?`<span class="lc-rpe"> RPE${l.rpe}</span>`:''}</div>`;
+        cell+=`<div><span class="type-pill" style="background:${tcBg(l.type)};color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'}</span> <span style="font-weight:700;font-size:12px">${val}</span>${l.rpe?`<span style="font-size:10px;color:var(--muted)"> ·${l.rpe}</span>`:''}</div>`;
       });
       if(cond){
         const fc=iCol(cond.fatigue,false),mc=iCol(cond.mood,true);
-        html+=`<div style="font-size:10px;margin-top:2px"><span style="color:${fc}">⚡${cond.fatigue||'—'}</span> <span style="color:${mc}">😊${cond.mood||'—'}</span></div>`;
+        cell+=`<div style="font-size:10px;margin-top:3px"><span style="color:${fc}">⚡${cond.fatigue||'—'}</span> <span style="color:${mc}">😊${cond.mood||'—'}</span></div>`;
       }
-      html+='</div></td>';
-      return html;
+      return cell+'</td>';
     });
-    tableHtml+=`<tr><td style="font-weight:700;white-space:nowrap">${ath.name}<br><span class="badge b${ath.group.toLowerCase()}" style="margin-top:2px">Grp ${ath.group}</span></td>${cells.join('')}<td style="font-weight:800;color:var(--gold)">${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'}</td><td style="font-weight:800;color:var(--green)">${weekDist>0?weekDist.toLocaleString()+'m':'—'}</td></tr>`;
+    const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
+    html+=`<tr>
+      <td style="font-weight:600;white-space:nowrap">
+        ${ath.name}
+        <span class="type-pill" style="margin-left:4px;background:${ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)'};color:${grpColor}">Grp ${ath.group}</span>
+      </td>
+      ${cells.join('')}
+      <td style="font-weight:700;color:var(--gold)">${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'}</td>
+      <td style="font-weight:700;color:var(--green)">${weekDist>0?weekDist.toLocaleString()+'m':'—'}</td>
+    </tr>`;
   });
-  tableHtml+=`</table></div>`;
+  html+=`</table></div>`;
 
-  // ── Period selector + charts ──
   if(!loadAth)loadAth=athletes[0].name;
   const athOpts=athletes.map(a=>`<option value="${a.name}" ${loadAth===a.name?'selected':''}>${a.name}</option>`).join('');
-  const chartHtml=`
-    <div class="sel-bar">
-      <select class="fsel" onchange="loadAth=this.value;renderLoad()">${athOpts}</select>
-      <button class="pb ${loadPeriod===7?'on':''}" onclick="loadPeriod=7;renderLoad()">7T</button>
-      <button class="pb ${loadPeriod===30?'on':''}" onclick="loadPeriod=30;renderLoad()">30T</button>
-      <button class="pb ${loadPeriod===90?'on':''}" onclick="loadPeriod=90;renderLoad()">90T</button>
-    </div>
-    <div class="g2">
-      <div class="card"><div class="card-t">🏋️ Weight Volume (kg)</div><div class="chart-sm"><canvas id="ch-vol"></canvas></div></div>
-      <div class="card"><div class="card-t">⚡ Sprint Distance (m)</div><div class="chart-sm"><canvas id="ch-spr"></canvas></div></div>
-    </div>`;
+  html+=`<div class="sel-bar">
+    <select class="fsel" onchange="loadAth=this.value;renderLoad()">${athOpts}</select>
+    <button class="seg-btn ${loadPeriod===7?'on':''}" onclick="loadPeriod=7;renderLoad()">7 Days</button>
+    <button class="seg-btn ${loadPeriod===30?'on':''}" onclick="loadPeriod=30;renderLoad()">30 Days</button>
+    <button class="seg-btn ${loadPeriod===90?'on':''}" onclick="loadPeriod=90;renderLoad()">90 Days</button>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-hd">🏋️ Weight Volume</div><div class="chart-sm"><canvas id="ch-vol"></canvas></div></div>
+    <div class="card"><div class="card-hd">⚡ Sprint Distance</div><div class="chart-sm"><canvas id="ch-spr"></canvas></div></div>
+  </div>`;
 
-  wrap.innerHTML=tableHtml+chartHtml;
-
+  wrap.innerHTML=html;
   const logs=getLogsByName(loadAth);
   const dates=getLast(loadPeriod).reverse();
   const ds=new Set(dates);
   const myLogs=logs.filter(l=>ds.has(l.date));
   setTimeout(()=>{
-    buildBarChart('vol',dates,dates.map(d=>vol(myLogs.filter(l=>l.date===d))),'rgba(247,169,79,.5)','#f7a94f');
-    buildBarChart('spr',dates,dates.map(d=>myLogs.filter(l=>l.date===d&&l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0)),'rgba(62,207,142,.5)','#3ecf8e');
+    buildBarChart('vol',dates,dates.map(d=>vol(myLogs.filter(l=>l.date===d))),'rgba(247,169,79,.45)','#f7a94f');
+    buildBarChart('spr',dates,dates.map(d=>myLogs.filter(l=>l.date===d&&l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0)),'rgba(62,207,142,.45)','#3ecf8e');
   },50);
 }
 
 function buildBarChart(id,dates,data,bg,border){
   killChart(id);
   const c=document.getElementById('ch-'+id);if(!c)return;
-  charts[id]=new Chart(c,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:true}}}});
+  charts[id]=new Chart(c,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9}},beginAtZero:true}}}});
 }
 
 // ══════════════════════════════════════
-//  MUSKELKATER — Soreness heatmap
+//  SORENESS
 // ══════════════════════════════════════
 const BODY_PARTS=['Neck','Shoulder','Chest','Back','Lower Back','Abs','Oblique','Hip','Quad','Glute','Hamstring','Adductor','Calf','Ankle','Foot','Arm'];
 
 function renderSoreness(){
   const wrap=document.getElementById('tab-soreness');
   const athletes=coachData.athletes||[];
-  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+  if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
   if(!soreAth)soreAth=athletes[0].name;
-  document.getElementById('tb-sub').textContent=soreAth+' · last 14 days';
+  document.getElementById('tb-sub').textContent=soreAth+' · Last 14 days';
 
   const athOpts=athletes.map(a=>`<option value="${a.name}" ${soreAth===a.name?'selected':''}>${a.name}</option>`).join('');
   const dates=getLast(14).reverse();
   const logs=getLogsByName(soreAth);
-
   const map={};
   logs.filter(l=>l.type==='condition'&&(l.soreness||[]).length).forEach(l=>{
     if(!dates.includes(l.date))return;
     if(!map[l.date])map[l.date]={};
-    (l.soreness||[]).forEach(s=>{ if(!map[l.date][s.part]||map[l.date][s.part]<s.intensity) map[l.date][s.part]=s.intensity; });
+    (l.soreness||[]).forEach(s=>{if(!map[l.date][s.part]||map[l.date][s.part]<s.intensity)map[l.date][s.part]=s.intensity;});
   });
 
-  let tableHtml=`<div class="sel-bar"><select class="fsel" onchange="soreAth=this.value;renderSoreness()">${athOpts}</select></div>
-    <div class="card"><div class="card-t">🔴 Soreness Heatmap<span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">
-      &nbsp;&nbsp;<span style="color:var(--green)">●</span> mild (1–3)
-      &nbsp;<span style="color:var(--gold)">●</span> moderate (4–6)
-      &nbsp;<span style="color:var(--red)">●</span> severe (7–10)
-    </span></div>
+  let html=`<div class="sel-bar"><select class="fsel" onchange="soreAth=this.value;renderSoreness()">${athOpts}</select></div>
+  <div class="card">
+    <div class="card-hd">Soreness Heatmap
+      <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">
+        <span style="color:var(--green)">●</span> mild (1–3) &nbsp;
+        <span style="color:var(--gold)">●</span> moderate (4–6) &nbsp;
+        <span style="color:var(--red)">●</span> severe (7–10)
+      </span>
+    </div>
     <div class="heatmap-wrap"><table class="heatmap">
-      <tr><th class="part-hdr">Body Part</th>${dates.map(d=>`<th>${fmt(d)}</th>`).join('')}</tr>`;
+      <tr><th class="part-col">Body Part</th>${dates.map(d=>`<th>${fmt(d)}</th>`).join('')}</tr>`;
 
   BODY_PARTS.forEach(part=>{
     const hasData=dates.some(d=>map[d]?.[part]);
-    tableHtml+=`<tr ${!hasData?'style="opacity:.35"':''}><td class="part-label">${part}</td>`;
+    html+=`<tr ${!hasData?'style="opacity:.3"':''}><td class="part-label">${part}</td>`;
     dates.forEach(d=>{
       const v=map[d]?.[part];
-      if(!v){tableHtml+=`<td></td>`;return;}
-      const c=v>=7?'233,69,96':v>=4?'247,169,79':'62,207,142';
-      const alpha=0.15+((v-1)/9)*0.6;
-      tableHtml+=`<td><div class="hm-cell" style="background:rgba(${c},${alpha.toFixed(2)});color:rgba(${c},1);width:100%">${v}</div></td>`;
+      if(!v){html+=`<td></td>`;return;}
+      const c=v>=7?'248,81,73':v>=4?'247,169,79':'62,207,142';
+      const a=.15+((v-1)/9)*.6;
+      html+=`<td><div class="hm-cell" style="background:rgba(${c},${a.toFixed(2)});color:rgba(${c},1)">${v}</div></td>`;
     });
-    tableHtml+=`</tr>`;
+    html+=`</tr>`;
   });
-
-  tableHtml+=`</table></div></div>`;
-  wrap.innerHTML=tableHtml;
+  html+=`</table></div></div>`;
+  wrap.innerHTML=html;
 }
 
 // ══════════════════════════════════════
-//  CONDITION — Trend charts
+//  CONDITION
 // ══════════════════════════════════════
 function renderCondition(){
   const wrap=document.getElementById('tab-condition');
   const athletes=coachData.athletes||[];
-  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+  if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
   if(!condAth)condAth=athletes[0].name;
 
   const athOpts=athletes.map(a=>`<option value="${a.name}" ${condAth===a.name?'selected':''}>${a.name}</option>`).join('');
-  const pOpts=[7,14,30,60].map(n=>`<button class="pb ${loadPeriod===n?'on':''}" onclick="loadPeriod=${n};renderCondition()">${n}T</button>`).join('');
+  const pOpts=[7,14,30,60].map(n=>`<button class="seg-btn ${loadPeriod===n?'on':''}" onclick="loadPeriod=${n};renderCondition()">${n} Days</button>`).join('');
 
   wrap.innerHTML=`
     <div class="sel-bar">
       <select class="fsel" onchange="condAth=this.value;renderCondition()">${athOpts}</select>
       ${pOpts}
     </div>
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-t">⚡ Fatigue · 😊 Mood · 😴 Sleep Quality</div>
-      <div class="chart-wrap"><canvas id="ch-cond-main"></canvas></div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-hd">Fatigue · Mood · Sleep Quality</div>
+      <div class="chart-h"><canvas id="ch-cond-main"></canvas></div>
     </div>
     <div class="g2">
-      <div class="card">
-        <div class="card-t">😴 Sleep Duration (hours)</div>
-        <div class="chart-sm"><canvas id="ch-sleep-h"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-t" id="cond-stats-title">7-Day Average</div>
-        <div id="cond-stats"></div>
-      </div>
+      <div class="card"><div class="card-hd">Sleep Duration (hours)</div><div class="chart-sm"><canvas id="ch-sleep-h"></canvas></div></div>
+      <div class="card"><div class="card-hd" id="cond-stats-title">Average (${loadPeriod} Days)</div><div id="cond-stats" style="margin-top:8px"></div></div>
     </div>`;
 
   document.getElementById('tb-sub').textContent=condAth+' · '+loadPeriod+' days';
-
   const logs=getLogsByName(condAth);
   const dates=getLast(loadPeriod).reverse();
   const get=(d,k)=>{const l=logs.find(l=>l.date===d&&l.type==='condition');return l?l[k]:null;};
-  const condLogs=logs.filter(l=>l.type==='condition'&&dates.includes(l.date));
+  const cLogs=logs.filter(l=>l.type==='condition'&&dates.includes(l.date));
+  const avg=k=>cLogs.length?(cLogs.reduce((s,l)=>s+(l[k]||0),0)/cLogs.length).toFixed(1):null;
 
-  const avg=k=>condLogs.length?(condLogs.reduce((s,l)=>s+(l[k]||0),0)/condLogs.length).toFixed(1):null;
-  const avgFat=avg('fatigue'),avgMood=avg('mood'),avgSQ=avg('sleepQuality'),avgSH=avg('sleepHours');
-  document.getElementById('cond-stats').innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-      ${cBar2('Ø Fatigue',avgFat,10,false)}
-      ${cBar2('Ø Mood',avgMood,10,true)}
-      ${cBar2('Ø Sleep Q',avgSQ,10,true)}
-      ${cBar2('Ø Sleep h',avgSH,12,true)}
-    </div>`;
+  document.getElementById('cond-stats').innerHTML=`<div style="display:flex;flex-direction:column;gap:6px">
+    ${cBar2('Ø Fatigue',avg('fatigue'),10,false)}
+    ${cBar2('Ø Mood',avg('mood'),10,true)}
+    ${cBar2('Ø Sleep Q',avg('sleepQuality'),10,true)}
+    ${cBar2('Ø Sleep h',avg('sleepHours'),12,true)}
+  </div>`;
 
   setTimeout(()=>{
     killChart('cond-main');
     const cMain=document.getElementById('ch-cond-main');
     if(cMain)charts['cond-main']=new Chart(cMain,{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[
-      {label:'Fatigue',data:dates.map(d=>get(d,'fatigue')),borderColor:'#e94560',backgroundColor:'rgba(233,69,96,.08)',fill:true,pointRadius:3,spanGaps:true,tension:.35},
-      {label:'Mood',data:dates.map(d=>get(d,'mood')),borderColor:'#3ecf8e',backgroundColor:'rgba(62,207,142,.08)',fill:true,pointRadius:3,spanGaps:true,tension:.35},
-      {label:'Sleep Q',data:dates.map(d=>get(d,'sleepQuality')),borderColor:'#a78bfa',backgroundColor:'transparent',pointRadius:3,spanGaps:true,tension:.35},
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.45)',font:{size:11},boxWidth:12}}},scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},min:0,max:10}}}});
-
+      {label:'Fatigue',data:dates.map(d=>get(d,'fatigue')),borderColor:'#f85149',backgroundColor:'rgba(248,81,73,.06)',fill:true,pointRadius:3,spanGaps:true,tension:.35},
+      {label:'Mood',data:dates.map(d=>get(d,'mood')),borderColor:'#3ecf8e',backgroundColor:'rgba(62,207,142,.06)',fill:true,pointRadius:3,spanGaps:true,tension:.35},
+      {label:'Sleep Q',data:dates.map(d=>get(d,'sleepQuality')),borderColor:'#bc8cff',pointRadius:3,spanGaps:true,tension:.35},
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'var(--muted)',font:{size:11},boxWidth:10}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9}},min:0,max:10}}}});
     killChart('sleep-h');
     const cSH=document.getElementById('ch-sleep-h');
-    if(cSH)charts['sleep-h']=new Chart(cSH,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data:dates.map(d=>get(d,'sleepHours')),backgroundColor:'rgba(167,139,250,.4)',borderColor:'#a78bfa',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:false,min:4,max:12}}}});
+    if(cSH)charts['sleep-h']=new Chart(cSH,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data:dates.map(d=>get(d,'sleepHours')),backgroundColor:'rgba(188,140,255,.35)',borderColor:'#bc8cff',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'var(--muted)',font:{size:9}},beginAtZero:false,min:4,max:12}}}});
   },50);
 }
 
 function cBar2(label,val,max,hg){
-  if(val==null)return`<div class="cb-row"><span class="cb-lbl">${label}</span><span style="font-size:11px;color:var(--hint)">—</span></div>`;
-  const pct=Math.min(100,Math.round((val/max)*100));
+  if(val==null)return`<div class="cb-row"><span class="cb-lbl">${label}</span><span style="color:var(--hint)">—</span></div>`;
+  const pct=Math.min(100,Math.round((parseFloat(val)/max)*100));
   const c=iCol(parseFloat(val),hg);
   return`<div class="cb-row"><span class="cb-lbl">${label}</span><div class="cb-track"><div class="cb-fill" style="width:${pct}%;background:${c}"></div></div><span class="cb-val" style="color:${c}">${val}</span></div>`;
 }
 
 // ══════════════════════════════════════
-//  ATHLETEN — Individual detail
+//  ATHLETES
 // ══════════════════════════════════════
 function renderAthletes(){
   const wrap=document.getElementById('tab-athletes');
   const athletes=coachData.athletes||[];
-  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
-  document.getElementById('tb-sub').textContent='7-Day Overview';
+  if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
+  document.getElementById('tb-sub').textContent='Last 7 days';
 
   let html='<div class="g2">';
   athletes.forEach(ath=>{
@@ -748,27 +951,41 @@ function renderAthletes(){
     const avgM=cL.length?(cL.reduce((s,l)=>s+l.mood,0)/cL.length).toFixed(1):null;
     const sess7=my7.filter(l=>l.type!=='condition').length;
     const recent=logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
-    const sore=logs.filter(l=>l.type==='condition'&&(l.soreness||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);
+    const sore=logs.filter(l=>l.type==='condition'&&(l.soreness||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+    const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
+    const grpBg=ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)';
 
     html+=`<div class="card" style="padding:0;overflow:hidden">
-      <div style="padding:14px 18px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
-        <div style="width:40px;height:40px;border-radius:50%;background:${ath.group==='A'?'rgba(79,142,247,.2)':'rgba(62,207,142,.2)'};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0">${ath.name[0]}</div>
-        <div><div style="font-size:14px;font-weight:800">${ath.name}</div><span class="badge b${ath.group.toLowerCase()}">Group ${ath.group}</span>${ath.dob?`<span style="font-size:10px;color:var(--muted);margin-left:6px">${ath.dob}</span>`:''}</div>
-      </div>
-      <div style="padding:14px 18px">
-        <div class="g3" style="margin-bottom:12px">
-          <div class="sm"><div class="sv" style="color:var(--gold)">${sess7}</div><div class="sl">Sessions</div></div>
-          <div class="sm"><div class="sv" style="color:var(--gold)">${wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—'}</div><div class="sl">Volume</div></div>
-          <div class="sm"><div class="sv" style="color:var(--green)">${sDist>0?sDist.toLocaleString()+'m':'—'}</div><div class="sl">Sprint</div></div>
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px">
+        <div style="width:38px;height:38px;border-radius:8px;background:${grpBg};color:${grpColor};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">${ath.name[0]}</div>
+        <div>
+          <div style="font-size:13px;font-weight:700">${ath.name}</div>
+          <div style="margin-top:2px">
+            <span class="type-pill" style="background:${grpBg};color:${grpColor}">Group ${ath.group}</span>
+            ${ath.dob?`<span style="font-size:10px;color:var(--muted);margin-left:6px">${ath.dob}</span>`:''}
+          </div>
         </div>
-        ${avgF?`<div style="margin-bottom:10px">${cBar2('Ø Fatigue',avgF,10,false)}${cBar2('Ø Mood',avgM,10,true)}</div>`:''}
-        <div class="sh" style="margin-top:0">Recent Logs</div>
+      </div>
+      <div style="padding:14px 16px">
+        <div class="g3" style="margin-bottom:12px">
+          <div class="stat-chip"><div class="sv" style="color:var(--gold)">${sess7}</div><div class="sl">Sessions</div></div>
+          <div class="stat-chip"><div class="sv" style="color:var(--gold)">${wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—'}</div><div class="sl">Volume</div></div>
+          <div class="stat-chip"><div class="sv" style="color:var(--green)">${sDist>0?sDist.toLocaleString()+'m':'—'}</div><div class="sl">Sprint</div></div>
+        </div>
+        ${avgF?`<div style="margin-bottom:12px">${cBar2('Ø Fatigue',avgF,10,false)}${cBar2('Ø Mood',avgM,10,true)}</div>`:''}
+        <div class="sec"><span class="sec-title">Recent Logs</span><div class="sec-line"></div></div>
         ${recent.length?recent.map(l=>{
           const c=tc(l.type);
           const v=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='condition'?`F${l.fatigue||'—'} M${l.mood||'—'}`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
-          return`<div class="lr"><span class="ld">${fmt(l.date)}</span><span class="lt" style="color:${c}">${l.type}</span><span class="lv">${v}</span>${l.rpe?`<span class="lrpe">RPE ${l.rpe}</span>`:''}<button class="ldel" onclick="delLog('${l.id}','${athId}',event)">🗑</button></div>`;
-        }).join(''):'<div class="empty" style="padding:12px 0">Keine Logs</div>'}
-        ${sore.length?`<div class="sh">🔴 Soreness</div>`+sore.map(l=>`<div style="margin-bottom:7px"><div style="font-size:10px;color:var(--muted);margin-bottom:3px">${fmt(l.date)}</div>${l.soreness.map(s=>{const n=s.intensity;const c=n>=7?'var(--red)':n>=4?'var(--gold)':'var(--green)';return`<span style="display:inline-block;padding:2px 7px;border-radius:10px;background:${c}22;border:1px solid ${c}44;color:${c};font-size:10px;font-weight:700;margin:1px 2px">${s.part} ${s.intensity}</span>`}).join('')}</div>`).join(''):''}
+          return`<div class="lr">
+            <span class="ld">${fmt(l.date)}</span>
+            <span class="lt" style="color:${c}">${l.type}</span>
+            <span class="lv">${v}</span>
+            ${l.rpe?`<span class="lrpe">RPE ${l.rpe}</span>`:''}
+            <button class="ldel" onclick="delLog('${l.id}','${athId}',event)">🗑</button>
+          </div>`;
+        }).join(''):'<div style="color:var(--muted);font-size:11px;padding:8px 0">No logs</div>'}
+        ${sore.length?`<div class="sec" style="margin-top:14px"><span class="sec-title">Soreness</span><div class="sec-line"></div></div>`+sore.map(l=>`<div style="margin-bottom:6px"><div style="font-size:10px;color:var(--muted);margin-bottom:4px">${fmt(l.date)}</div><div style="display:flex;flex-wrap:wrap;gap:3px">${l.soreness.map(s=>{const n=s.intensity;const c=n>=7?'248,81,73':n>=4?'247,169,79':'62,207,142';return`<span class="sore-tag" style="background:rgba(${c},.15);color:rgba(${c},1)">${s.part} ${s.intensity}</span>`}).join('')}</div></div>`).join(''):''}
       </div>
     </div>`;
   });
@@ -777,339 +994,197 @@ function renderAthletes(){
 }
 
 // ══════════════════════════════════════
-//  EXPORT & DOWNLOAD
+//  EXPORT
 // ══════════════════════════════════════
 function renderExport(){
   const wrap=document.getElementById('tab-export');
   const athletes=coachData?.athletes||[];
-  const allLogs=getAllLogs();
-  const totalLogs=allLogs.length;
-  document.getElementById('tb-sub').textContent=`총 ${athletes.length}명 · ${totalLogs}개 로그`;
+  const total=getAllLogs().length;
+  document.getElementById('tb-sub').textContent=`${athletes.length} athletes · ${total} total logs`;
 
   wrap.innerHTML=`
-    <div style="margin-bottom:20px">
-      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
-        전체 데이터를 다운로드합니다. PDF 리포트는 새 탭에서 열린 후 인쇄(Ctrl+P) → PDF 저장으로 저장하세요.
+    <div style="max-width:680px">
+      <div class="sec" style="margin-bottom:16px">
+        <span class="sec-title">Reports (PDF)</span><div class="sec-line"></div>
       </div>
-
-      <div class="exp-section">
-        <div class="sh">📊 리포트 (PDF)</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="exp-btn" onclick="genWeeklyReport()">
-            <span class="exp-icon">📋</span>
-            <div>
-              <div>주간 리포트</div>
-              <div class="exp-desc">선택된 주간의 선수별 훈련·컨디션 전체 요약</div>
-            </div>
-          </button>
-          <button class="exp-btn exp-btn-blue" onclick="genFullReport()">
-            <span class="exp-icon">📈</span>
-            <div>
-              <div>전체 기간 리포트</div>
-              <div class="exp-desc">모든 선수의 누적 훈련 데이터 종합 리포트</div>
-            </div>
-          </button>
-        </div>
+      <div class="exp-grid">
+        <button class="exp-btn" onclick="genWeeklyReport()">
+          <span class="exp-icon">📋</span>
+          <div><div class="exp-label">Weekly Report</div><div class="exp-desc">선택된 주간 선수별 훈련·컨디션 전체 요약. 새 탭에서 인쇄(Ctrl+P) → PDF 저장</div></div>
+        </button>
+        <button class="exp-btn blue" onclick="genFullReport()">
+          <span class="exp-icon">📈</span>
+          <div><div class="exp-label">Full Report</div><div class="exp-desc">모든 선수의 누적 훈련 데이터 종합 리포트</div></div>
+        </button>
       </div>
-
-      <div class="exp-section">
-        <div class="sh">📋 데이터 파일</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="exp-btn exp-btn-green" onclick="downloadCSV('all')">
-            <span class="exp-icon">📄</span>
-            <div>
-              <div>훈련 로그 CSV</div>
-              <div class="exp-desc">날짜·선수·종류·볼륨·거리·RPE 전체 (Excel에서 열기 가능)</div>
-            </div>
-          </button>
-          <button class="exp-btn exp-btn-green" onclick="downloadCSV('condition')">
-            <span class="exp-icon">😴</span>
-            <div>
-              <div>컨디션 로그 CSV</div>
-              <div class="exp-desc">수면·피로도·기분·근육통 기록 전체</div>
-            </div>
-          </button>
-          <button class="exp-btn" onclick="downloadJSON()">
-            <span class="exp-icon">💾</span>
-            <div>
-              <div>전체 데이터 JSON</div>
-              <div class="exp-desc">원본 데이터 백업용 (모든 필드 포함)</div>
-            </div>
-          </button>
-        </div>
+      <div class="sec" style="margin:20px 0 16px">
+        <span class="sec-title">Data Files</span><div class="sec-line"></div>
+      </div>
+      <div class="exp-grid">
+        <button class="exp-btn green" onclick="downloadCSV('all')">
+          <span class="exp-icon">📄</span>
+          <div><div class="exp-label">Training Log CSV</div><div class="exp-desc">날짜·선수·종류·볼륨·거리·RPE 전체. Excel에서 바로 열기 가능</div></div>
+        </button>
+        <button class="exp-btn green" onclick="downloadCSV('condition')">
+          <span class="exp-icon">😴</span>
+          <div><div class="exp-label">Condition Log CSV</div><div class="exp-desc">수면·피로도·기분·근육통 기록 전체</div></div>
+        </button>
+        <button class="exp-btn" onclick="downloadJSON()">
+          <span class="exp-icon">💾</span>
+          <div><div class="exp-label">Full Backup JSON</div><div class="exp-desc">원본 데이터 백업용 (모든 필드 포함)</div></div>
+        </button>
       </div>
     </div>`;
 }
 
-// ── 주간 리포트 (PDF) ──
+// ── Reports ──
 function genWeeklyReport(){
   const athletes=coachData?.athletes||[];
   const wk=getWeekDates(weekOffset);
-  const mon=wk[0].d, sun=wk[6].d;
-  const DN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const today=todayStr();
-
+  const DN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   let rows='';
   athletes.forEach(ath=>{
     const logs=getLogsByName(ath.name);
-    let weekVol=0, weekDist=0, sessCount=0;
-
-    const dayCells=wk.map(({ds},i)=>{
+    let weekVol=0,weekDist=0,sessCount=0;
+    const cells=wk.map(({ds,d},i)=>{
       const dayLogs=logs.filter(l=>l.date===ds);
       const trains=dayLogs.filter(l=>l.type!=='condition');
       const cond=dayLogs.find(l=>l.type==='condition');
-      const isToday=ds===today;
-      let cell=`<td style="padding:8px 6px;border:1px solid #e2e8f0;vertical-align:top;min-width:80px;${isToday?'background:#fffbeb':''}">`;
-      if(!trains.length&&!cond){cell+='<span style="color:#94a3b8;font-size:10px">—</span>';}
+      const isT=ds===today;
+      let cell=`<td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;min-width:80px;${isT?'background:#fefce8':''}">`;
+      if(!trains.length&&!cond){cell+='<span style="color:#9ca3af;font-size:10px">Rest</span>';}
       trains.forEach(l=>{
-        const typeColors={weight:'#f59e0b',sprint:'#10b981',plyo:'#8b5cf6',tabata:'#ef4444'};
-        const c=typeColors[l.type]||'#64748b';
-        const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`
-          :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`
-          :l.type==='plyo'?`${l.totalReps||0}r`:'—';
+        const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626'}[l.type]||'#64748b';
+        const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
         sessCount++;
-        cell+=`<div style="font-size:10px;font-weight:700;color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'} ${val}</div>`;
-        if(l.rpe)cell+=`<div style="font-size:9px;color:#64748b">RPE ${l.rpe}</div>`;
+        cell+=`<div style="font-size:10px;font-weight:700;color:${c};margin-bottom:1px">${l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':'Tabata'} ${val}</div>`;
+        if(l.rpe)cell+=`<div style="font-size:9px;color:#9ca3af">RPE ${l.rpe}</div>`;
       });
       if(cond){
-        const fc=cond.fatigue>=7?'#ef4444':cond.fatigue>=4?'#f59e0b':'#10b981';
-        const mc=cond.mood>=7?'#10b981':cond.mood>=4?'#f59e0b':'#ef4444';
-        cell+=`<div style="font-size:9px;margin-top:3px;border-top:1px solid #f1f5f9;padding-top:2px">
+        const fc=cond.fatigue>=7?'#dc2626':cond.fatigue>=4?'#d97706':'#059669';
+        const mc=cond.mood>=7?'#059669':cond.mood>=4?'#d97706':'#dc2626';
+        cell+=`<div style="font-size:9px;margin-top:3px;border-top:1px solid #f3f4f6;padding-top:2px">
           <span style="color:${fc}">⚡${cond.fatigue||'—'}</span>
           <span style="color:${mc};margin-left:3px">😊${cond.mood||'—'}</span>
-          <span style="color:#64748b;margin-left:3px">😴${cond.sleepHours||'—'}h</span>
+          <span style="color:#9ca3af;margin-left:3px">😴${cond.sleepHours||'—'}h</span>
         </div>`;
-        if((cond.soreness||[]).length){
-          cell+=`<div style="font-size:8px;color:#ef4444;margin-top:2px">${cond.soreness.map(s=>s.part+'('+s.intensity+')').join(', ')}</div>`;
-        }
+        if((cond.soreness||[]).length)cell+=`<div style="font-size:8px;color:#dc2626;margin-top:2px">${cond.soreness.map(s=>s.part+'('+s.intensity+')').join(', ')}</div>`;
       }
-      cell+='</td>';
-      return cell;
+      return cell+'</td>';
     }).join('');
-
-    rows+=`
-      <tr style="background:#f8fafc">
-        <td colspan="10" style="padding:10px 12px;border:1px solid #e2e8f0;font-weight:700;font-size:13px;background:${ath.group==='A'?'#eff6ff':'#f0fdf4'}">
-          ${ath.name} &nbsp;<span style="font-size:10px;font-weight:400;color:#64748b">Group ${ath.group}${ath.dob?' · '+ath.dob:''}</span>
-          &nbsp;&nbsp;<span style="font-size:11px;color:#94a3b8">${sessCount}회 훈련 · ${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'} · ${weekDist>0?weekDist.toLocaleString()+'m':'—'}</span>
-        </td>
-      </tr>
-      <tr>${dayCells}</tr>`;
+    const gc=ath.group==='A'?'#1d4ed8':'#065f46';
+    const gb=ath.group==='A'?'#eff6ff':'#f0fdf4';
+    rows+=`<tr style="background:${gb}"><td colspan="8" style="padding:10px 12px;border:1px solid #e5e7eb;font-weight:700;font-size:13px">
+      ${ath.name} <span style="font-size:10px;font-weight:400;color:#64748b">Group ${ath.group}${ath.dob?' · '+ath.dob:''}</span>
+      <span style="font-size:11px;color:#94a3b8;margin-left:8px">${sessCount} sessions · ${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'} · ${weekDist>0?weekDist.toLocaleString()+'m':'—'}</span>
+    </td></tr><tr>${cells}</tr>`;
   });
-
-  const html=`<!DOCTYPE html><html lang="ko"><head>
-<meta charset="UTF-8">
-<title>TrainLog Weekly Report · ${fmtFull(mon)} ~ ${fmtFull(sun)}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#1e293b;padding:28px 32px;font-size:12px}
-  @media print{body{padding:16px 20px}@page{size:A4 landscape;margin:12mm}}
-  h1{font-size:20px;font-weight:800;color:#0f172a;margin-bottom:4px}
-  .sub{font-size:12px;color:#64748b;margin-bottom:20px}
-  .legend{display:flex;gap:16px;margin-bottom:14px;font-size:11px;flex-wrap:wrap}
-  .legend span{display:flex;align-items:center;gap:4px}
-  table{width:100%;border-collapse:collapse;font-size:11px}
-  th{padding:8px 6px;background:#1e293b;color:#fff;font-size:10px;font-weight:700;text-align:center;border:1px solid #334155}
-  th.ath-col{min-width:100px}
-  .footer{margin-top:20px;font-size:10px;color:#94a3b8;text-align:right}
-</style>
-</head><body>
-<h1>🏋️ Bayern Skeleton TrainLog</h1>
-<div class="sub">📅 Weekly Report &nbsp;·&nbsp; ${fmtFull(mon)} ~ ${fmtFull(sun)} &nbsp;·&nbsp; 출력일: ${fmtFull(todayStr())}</div>
-<div class="legend">
-  <span><b style="color:#f59e0b">W</b> Weight Training</span>
-  <span><b style="color:#10b981">S</b> Sprint</span>
-  <span><b style="color:#8b5cf6">P</b> Plyometric</span>
-  <span><b style="color:#ef4444">T</b> Tabata</span>
-  <span>⚡ Fatigue (낮을수록 good)</span>
-  <span>😊 Mood (높을수록 good)</span>
-  <span>😴 Sleep hours</span>
-</div>
-<table>
-  <tr>
-    ${wk.map(({ds,d},i)=>`<th>${DN[i]}<br><span style="font-weight:400;opacity:.75">${d.getDate()}.${d.getMonth()+1}.</span></th>`).join('')}
-  </tr>
-  ${rows}
-</table>
-<div class="footer">Generated by TrainLog Coach Dashboard · ${new Date().toLocaleString('ko-KR')}</div>
+  const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+<title>TrainLog Weekly · ${fmtFull(wk[0].ds||wk[0].d&&dsFromDate(wk[0].d))}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;padding:24px 28px;color:#1e293b;font-size:12px}
+h1{font-size:18px;font-weight:800;margin-bottom:3px}
+.sub{font-size:11px;color:#64748b;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}
+th{padding:8px;background:#1e293b;color:#fff;font-size:10px;font-weight:600;border:1px solid #334155;text-align:center}
+.footer{margin-top:16px;font-size:10px;color:#94a3b8;text-align:right}
+@media print{@page{size:A4 landscape;margin:10mm}}</style></head><body>
+<h1>🏋️ Bayern Skeleton TrainLog — Weekly Report</h1>
+<div class="sub">${fmtFull(dsFromDate(wk[0].d))} – ${fmtFull(dsFromDate(wk[6].d))} · 출력: ${fmtFull(today)}</div>
+<table><thead><tr>${wk.map(({d},i)=>`<th>${DN[i]}<br><span style="font-weight:400;opacity:.7">${d.getDate()}.${d.getMonth()+1}.</span></th>`).join('')}</tr></thead>
+<tbody>${rows}</tbody></table>
+<div class="footer">TrainLog Coach Dashboard · ${new Date().toLocaleString('ko-KR')}</div>
 </body></html>`;
-
-  const w=window.open('','_blank');
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>w.print(),400);
+  const w=window.open('','_blank');w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);
 }
 
-// ── 전체 기간 리포트 ──
 function genFullReport(){
   const athletes=coachData?.athletes||[];
   const today=todayStr();
-
   let body='';
   athletes.forEach(ath=>{
     const logs=getLogsByName(ath.name).slice().sort((a,b)=>b.date.localeCompare(a.date));
-    const trainLogs=logs.filter(l=>l.type!=='condition');
-    const condLogs=logs.filter(l=>l.type==='condition');
-    const wLogs=trainLogs.filter(l=>l.type==='weight');
-    const sLogs=trainLogs.filter(l=>l.type==='sprint');
-    const totalVol=vol(wLogs);
-    const totalDist=sLogs.reduce((s,l)=>s+(l.totalDistance||0),0);
-    const avgFat=condLogs.length?(condLogs.reduce((s,l)=>s+(l.fatigue||0),0)/condLogs.length).toFixed(1):null;
-    const avgMood=condLogs.length?(condLogs.reduce((s,l)=>s+(l.mood||0),0)/condLogs.length).toFixed(1):null;
-
-    // Recent 20 training logs table
-    const recentRows=trainLogs.slice(0,20).map(l=>{
-      const val=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`
-        :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
-        :l.type==='plyo'?`${l.totalReps||0} reps`:'—';
-      return`<tr>
-        <td style="padding:5px 8px;border:1px solid #e2e8f0">${fmtFull(l.date)}</td>
-        <td style="padding:5px 8px;border:1px solid #e2e8f0;font-weight:700;color:${l.type==='weight'?'#f59e0b':l.type==='sprint'?'#10b981':'#8b5cf6'}">${l.type}</td>
-        <td style="padding:5px 8px;border:1px solid #e2e8f0">${val}</td>
-        <td style="padding:5px 8px;border:1px solid #e2e8f0;color:#64748b">${l.rpe||'—'}</td>
-        <td style="padding:5px 8px;border:1px solid #e2e8f0;font-size:10px;color:#64748b">${l.notes||''}</td>
-      </tr>`;
+    const tLogs=logs.filter(l=>l.type!=='condition');
+    const cLogs=logs.filter(l=>l.type==='condition');
+    const tVol=vol(tLogs);const tDist=tLogs.filter(l=>l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0);
+    const avgF=cLogs.length?(cLogs.reduce((s,l)=>s+(l.fatigue||0),0)/cLogs.length).toFixed(1):null;
+    const avgM=cLogs.length?(cLogs.reduce((s,l)=>s+(l.mood||0),0)/cLogs.length).toFixed(1):null;
+    const rows=tLogs.slice(0,20).map(l=>{
+      const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626'}[l.type]||'#64748b';
+      const v=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+      return`<tr><td style="padding:5px 8px;border:1px solid #e5e7eb">${fmtFull(l.date)}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:700;color:${c}">${l.type}</td><td style="padding:5px 8px;border:1px solid #e5e7eb">${v}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;color:#64748b">${l.rpe||'—'}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;color:#64748b">${l.notes||''}</td></tr>`;
     }).join('');
-
-    // Soreness summary
-    const soreMap={};
-    condLogs.forEach(l=>(l.soreness||[]).forEach(s=>{
-      if(!soreMap[s.part])soreMap[s.part]={count:0,total:0};
-      soreMap[s.part].count++;soreMap[s.part].total+=s.intensity;
-    }));
-    const soreSummary=Object.entries(soreMap).sort((a,b)=>b[1].total-a[1].total).slice(0,6)
-      .map(([part,v])=>`<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#dc2626;font-size:10px;margin:2px">${part} (avg ${(v.total/v.count).toFixed(1)})</span>`).join('');
-
-    body+=`
-      <div style="margin-bottom:32px;page-break-inside:avoid">
-        <div style="background:${ath.group==='A'?'#1e40af':'#065f46'};color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div style="font-size:16px;font-weight:800">${ath.name}</div>
-            <div style="font-size:11px;opacity:.8">Group ${ath.group}${ath.dob?' · '+ath.dob:''}</div>
-          </div>
-          <div style="text-align:right;font-size:11px;opacity:.85">
-            총 ${trainLogs.length}회 훈련 · 컨디션 ${condLogs.length}회
-          </div>
+    const gc=ath.group==='A'?'#1d4ed8':'#065f46';
+    body+=`<div style="margin-bottom:28px;page-break-inside:avoid">
+      <div style="background:${gc};color:#fff;padding:12px 16px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:15px;font-weight:800">${ath.name}</div><div style="font-size:10px;opacity:.75">Group ${ath.group}${ath.dob?' · '+ath.dob:''}</div></div>
+        <div style="font-size:11px;opacity:.8">${tLogs.length} sessions · ${cLogs.length} condition logs</div>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;padding:14px 16px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+          ${[['Volume',tVol>=1000?(tVol/1000).toFixed(1)+'t':tVol.toLocaleString()+'kg','#d97706'],['Sprint',tDist>=1000?(tDist/1000).toFixed(1)+'km':tDist.toLocaleString()+'m','#059669'],['Ø Fatigue',avgF||'—','#dc2626'],['Ø Mood',avgM||'—','#059669']].map(([l,v,c])=>`<div style="text-align:center;padding:8px;background:#f8fafc;border-radius:6px"><div style="font-size:17px;font-weight:800;color:${c}">${v}</div><div style="font-size:10px;color:#94a3b8">${l}</div></div>`).join('')}
         </div>
-        <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:14px 16px">
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
-            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px">
-              <div style="font-size:20px;font-weight:800;color:#f59e0b">${totalVol>=1000?(totalVol/1000).toFixed(1)+'t':totalVol.toLocaleString()+'kg'}</div>
-              <div style="font-size:10px;color:#94a3b8">누적 Volume</div>
-            </div>
-            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px">
-              <div style="font-size:20px;font-weight:800;color:#10b981">${totalDist>=1000?(totalDist/1000).toFixed(1)+'km':totalDist.toLocaleString()+'m'}</div>
-              <div style="font-size:10px;color:#94a3b8">누적 Sprint</div>
-            </div>
-            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px">
-              <div style="font-size:20px;font-weight:800;color:#ef4444">${avgFat||'—'}</div>
-              <div style="font-size:10px;color:#94a3b8">평균 Fatigue</div>
-            </div>
-            <div style="text-align:center;padding:10px;background:#f8fafc;border-radius:8px">
-              <div style="font-size:20px;font-weight:800;color:#10b981">${avgMood||'—'}</div>
-              <div style="font-size:10px;color:#94a3b8">평균 Mood</div>
-            </div>
-          </div>
-          ${soreSummary?`<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">주요 근육통 부위</div>${soreSummary}</div>`:''}
-          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">최근 훈련 로그 (최대 20개)</div>
-          ${recentRows?`<table style="width:100%;border-collapse:collapse;font-size:11px">
-            <tr><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">날짜</th><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">종류</th><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">볼륨/거리</th><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">RPE</th><th style="padding:6px 8px;background:#f1f5f9;text-align:left;border:1px solid #e2e8f0;font-size:10px">메모</th></tr>
-            ${recentRows}</table>`:'<div style="color:#94a3b8;font-size:11px">훈련 데이터 없음</div>'}
-        </div>
-      </div>`;
+        ${rows?`<table style="width:100%;border-collapse:collapse;font-size:11px"><tr>${['Date','Type','Value','RPE','Notes'].map(h=>`<th style="padding:5px 8px;background:#f1f5f9;text-align:left;border:1px solid #e5e7eb;font-size:10px">${h}</th>`).join('')}</tr>${rows}</table>`:'<div style="color:#94a3b8;font-size:11px">No training data</div>'}
+      </div>
+    </div>`;
   });
-
-  const html=`<!DOCTYPE html><html lang="ko"><head>
-<meta charset="UTF-8">
-<title>TrainLog Full Report · ${fmtFull(today)}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#1e293b;padding:28px 32px;font-size:12px}
-  @media print{body{padding:16px 20px}@page{size:A4;margin:14mm}}
-  h1{font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px}
-  .sub{font-size:12px;color:#64748b;margin-bottom:24px}
-  .footer{margin-top:24px;font-size:10px;color:#94a3b8;text-align:right;border-top:1px solid #e2e8f0;padding-top:10px}
-</style>
-</head><body>
-<h1>🏋️ Bayern Skeleton TrainLog</h1>
-<div class="sub">📈 Full Training Report &nbsp;·&nbsp; 출력일: ${fmtFull(today)}&nbsp;·&nbsp; 선수 ${athletes.length}명</div>
-${body}
-<div class="footer">Generated by TrainLog Coach Dashboard · ${new Date().toLocaleString('ko-KR')}</div>
+  const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>TrainLog Full Report</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;padding:24px 28px;color:#1e293b;font-size:12px}
+h1{font-size:20px;font-weight:800;margin-bottom:3px}.sub{font-size:11px;color:#64748b;margin-bottom:22px}
+.footer{margin-top:20px;font-size:10px;color:#94a3b8;text-align:right;border-top:1px solid #e5e7eb;padding-top:10px}
+@media print{@page{size:A4;margin:12mm}}</style></head><body>
+<h1>🏋️ Bayern Skeleton TrainLog — Full Report</h1>
+<div class="sub">출력일: ${fmtFull(today)} · ${athletes.length} athletes</div>
+${body}<div class="footer">TrainLog Coach Dashboard · ${new Date().toLocaleString('ko-KR')}</div>
 </body></html>`;
-
-  const w=window.open('','_blank');
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>w.print(),400);
+  const w=window.open('','_blank');w.document.write(html);w.document.close();setTimeout(()=>w.print(),400);
 }
 
-// ── CSV 다운로드 ──
 function downloadCSV(type='all'){
   const athletes=coachData?.athletes||[];
-  let rows=[], filename='';
-
+  let rows=[],filename='';
   if(type==='condition'){
     filename=`trainlog_condition_${todayStr()}.csv`;
     rows.push(['날짜','선수','그룹','수면시간','수면질','피로도','기분','근육통']);
     athletes.forEach(ath=>{
-      const logs=getLogsByName(ath.name).filter(l=>l.type==='condition').sort((a,b)=>a.date.localeCompare(b.date));
-      logs.forEach(l=>{
-        const sore=(l.soreness||[]).map(s=>s.part+'('+s.intensity+')').join(' / ');
-        rows.push([l.date,ath.name,ath.group,l.sleepHours||'',l.sleepQuality||'',l.fatigue||'',l.mood||'',sore]);
+      getLogsByName(ath.name).filter(l=>l.type==='condition').sort((a,b)=>a.date.localeCompare(b.date)).forEach(l=>{
+        rows.push([l.date,ath.name,ath.group,l.sleepHours||'',l.sleepQuality||'',l.fatigue||'',l.mood||'',(l.soreness||[]).map(s=>s.part+'('+s.intensity+')').join(' / ')]);
       });
     });
-  } else {
+  }else{
     filename=`trainlog_training_${todayStr()}.csv`;
-    rows.push(['날짜','선수','그룹','종류','볼륨(kg)','거리(m)','총_렙','RPE','Phase','Week','메모']);
+    rows.push(['날짜','선수','그룹','종류','볼륨(kg)','거리(m)','총렙','RPE','Phase','Week','메모']);
     athletes.forEach(ath=>{
-      const logs=getLogsByName(ath.name).filter(l=>l.type!=='condition').sort((a,b)=>a.date.localeCompare(b.date));
-      logs.forEach(l=>{
-        const wv=l.type==='weight'?(l.totalVolume||vol([l])):0;
-        const dist=l.type==='sprint'?(l.totalDistance||0):0;
-        const reps=l.type==='plyo'?(l.totalReps||0):0;
-        rows.push([l.date,ath.name,ath.group,l.type,wv||'',dist||'',reps||'',l.rpe||'',l.phase||'',l.week||'',l.notes||'']);
+      getLogsByName(ath.name).filter(l=>l.type!=='condition').sort((a,b)=>a.date.localeCompare(b.date)).forEach(l=>{
+        rows.push([l.date,ath.name,ath.group,l.type,l.type==='weight'?(l.totalVolume||vol([l])):0,l.type==='sprint'?(l.totalDistance||0):0,l.type==='plyo'?(l.totalReps||0):0,l.rpe||'',l.phase||'',l.week||'',l.notes||'']);
       });
     });
   }
-
-  const bom='﻿'; // UTF-8 BOM for Excel
-  const csv=bom+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const blob=new Blob(['﻿'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=filename;a.click();
-  URL.revokeObjectURL(url);
+  const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
 }
 
-// ── JSON 백업 다운로드 ──
 function downloadJSON(){
-  const athletes=coachData?.athletes||[];
-  const data={
-    exportedAt:new Date().toISOString(),
-    athletes:athletes.map(ath=>({
-      ...ath,
-      logs:getLogsByName(ath.name)
-    }))
-  };
+  const data={exportedAt:new Date().toISOString(),athletes:(coachData?.athletes||[]).map(ath=>({...ath,logs:getLogsByName(ath.name)}))};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=`trainlog_backup_${todayStr()}.json`;a.click();
-  URL.revokeObjectURL(url);
+  const a=document.createElement('a');a.href=url;a.download=`trainlog_backup_${todayStr()}.json`;a.click();URL.revokeObjectURL(url);
 }
 
-// ══ DELETE LOG ══
+// ══ DELETE ══
 async function delLog(logId,athId,event){
   event?.stopPropagation();
   if(!confirm('Delete this log?'))return;
   try{
     const ref=db.collection('trainlog').doc('athlete_'+athId);
     const snap=await ref.get();if(!snap.exists)return;
-    const newLogs=(snap.data().logs||[]).filter(l=>l.id!==logId);
-    await ref.update({logs:newLogs});
+    await ref.update({logs:(snap.data().logs||[]).filter(l=>l.id!==logId)});
     athLogs[athId]=(athLogs[athId]||[]).filter(l=>l.id!==logId);
     renderCurrent();
-  }catch(e){alert('Fehler: '+e.message);}
+  }catch(e){alert('Error: '+e.message);}
 }
 
 // ══ INIT ══
