@@ -899,18 +899,18 @@ function renderLoad(){
           const sets=ex.setRows?.length||ex.sets||0;
           const reps=ex.setRows?.[0]?.reps||ex.reps||0;
           const slLabel=ex.isSL?'SL ':ex.isSA?'SA ':'';
-          // effort indicators
-          const intVal=ex.intensity!=null?parseFloat(ex.intensity):null;
-          const effortVal=ex.effort!=null&&ex.effort!==''?parseFloat(ex.effort):null;
-          const vbt=ex.meanV?`<span style="color:#bc8cff;margin-left:4px">v${parseFloat(ex.meanV).toFixed(2)}</span>`:''
-            +(ex.velLoss?`<span style="color:#bc8cff;margin-left:2px">VL${parseFloat(ex.velLoss).toFixed(0)}%</span>`:'');
-          const intBadge=intVal?`<span style="color:var(--gold);margin-left:4px">@${intVal}%</span>`:
-            effortVal?`<span style="color:var(--gold);margin-left:4px">@${effortVal}%</span>`:'';
-          html+=`<div style="font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-            <div style="display:flex;justify-content:space-between;gap:4px">
-              <span style="color:#c9d1d9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${slLabel}${ex.name||'?'}</span>
-              <span style="color:#8b949e;white-space:nowrap;flex-shrink:0">${maxKg>0?maxKg+'kg':''} ${sets}×${reps}${intBadge}${vbt}</span>
-            </div>
+          // Effort badge (Low/Medium/High)
+          const ECOL={Low:'62,207,142',Medium:'247,169,79',High:'233,69,96'};
+          const eff=ex.effort;
+          const effortBadge=eff&&ECOL[eff]
+            ?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:5px;background:rgba(${ECOL[eff]},.18);color:rgba(${ECOL[eff]},1)">${eff}</span>`
+            :'';
+          // VBT
+          const vbt=(ex.meanV?`<span style="font-size:9px;color:#bc8cff;margin-left:4px">v${parseFloat(ex.meanV).toFixed(2)}</span>`:'')
+            +(ex.velLoss?`<span style="font-size:9px;color:#bc8cff;margin-left:2px">VL${parseFloat(ex.velLoss).toFixed(0)}%</span>`:'');
+          html+=`<div style="font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;justify-content:space-between;align-items:center;gap:4px">
+            <span style="color:#c9d1d9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${slLabel}${ex.name||'?'}</span>
+            <span style="color:#8b949e;white-space:nowrap;flex-shrink:0;display:flex;align-items:center">${maxKg>0?maxKg+'kg':''} ${sets}×${reps}${effortBadge}${vbt}</span>
           </div>`;
         });
         // BW exercises (compact)
