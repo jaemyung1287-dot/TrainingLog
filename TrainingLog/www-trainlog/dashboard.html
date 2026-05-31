@@ -802,71 +802,183 @@ function renderLoad(){
   const athletes=coachData.athletes||[];
   if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
   document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}`;
+  if(!loadAth)loadAth=athletes[0].name;
 
   const DN=['Mo','Di','Mi','Do','Fr','Sa','So'];
+  const today=todayStr();
 
-  let html=`<div class="card" style="margin-bottom:16px;overflow-x:auto">
-    <div class="card-hd">Weekly Load Summary</div>
+  // ── 1. Weekly Load Summary (팀 전체) ──
+  let html=`<div class="card" style="margin-bottom:20px;overflow-x:auto">
+    <div class="card-hd">Team Weekly Summary</div>
     <table class="data-table">
-      <tr><th>Athlete</th>${DN.map((d,i)=>`<th style="text-align:center">${d} ${wk[i].d.getDate()}.</th>`).join('')}<th>Volume</th><th>Distance</th></tr>`;
+      <tr><th>Athlete</th>${DN.map((d,i)=>`<th style="text-align:center">${d}<br><span style="font-weight:400;font-size:10px;opacity:.6">${wk[i].d.getDate()}.</span></th>`).join('')}<th>Vol.</th><th>Dist.</th></tr>`;
 
   athletes.forEach(ath=>{
     const logs=getLogsByName(ath.name);
-    let weekVol=0, weekDist=0;
-    const cells=wk.map(({ds})=>{
+    let weekVol=0,weekDist=0;
+    const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
+    const cells=wk.map(({ds,d})=>{
+      const isToday=ds===today;
       const dayLogs=logs.filter(l=>l.date===ds);
       const trains=dayLogs.filter(l=>l.type!=='condition');
       const cond=dayLogs.find(l=>l.type==='condition');
-      if(!trains.length&&!cond)return`<td style="text-align:center"><span style="color:var(--hint)">—</span></td>`;
-      let cell='<td style="text-align:center">';
+      if(!trains.length&&!cond)return`<td style="text-align:center;${isToday?'background:rgba(88,166,255,.04)':''}"><span style="color:var(--hint)">—</span></td>`;
+      let cell=`<td style="text-align:center;vertical-align:top;${isToday?'background:rgba(88,166,255,.04)':''}">`;
       trains.forEach(l=>{
         const c=tc(l.type);
-        const val=l.type==='weight'?`${vol([l]).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:l.type==='tabata'?'Tabata':'—';
+        const val=l.type==='weight'?`${vol([l]).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0)}m`:l.type==='tabata'?'Tabata':'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
-        cell+=`<div><span class="type-pill" style="background:${tcBg(l.type)};color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'}</span> <span style="font-weight:700;font-size:12px">${val}</span>${l.rpe?`<span style="font-size:10px;color:var(--muted)"> ·${l.rpe}</span>`:''}</div>`;
+        cell+=`<div style="white-space:nowrap"><span class="type-pill" style="background:${tcBg(l.type)};color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'}</span> <b style="font-size:12px">${val}</b>${l.rpe?`<span style="font-size:10px;color:#8b949e"> ·${l.rpe}</span>`:''}</div>`;
       });
       if(cond){
         const fc=iCol(cond.fatigue,false),mc=iCol(cond.mood,true);
-        cell+=`<div style="font-size:10px;margin-top:3px"><span style="color:${fc}">⚡${cond.fatigue||'—'}</span> <span style="color:${mc}">😊${cond.mood||'—'}</span></div>`;
+        cell+=`<div style="font-size:10px;margin-top:2px"><span style="color:${fc}">⚡${cond.fatigue||'—'}</span> <span style="color:${mc}">😊${cond.mood||'—'}</span></div>`;
       }
       return cell+'</td>';
     });
-    const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
-    html+=`<tr>
-      <td style="font-weight:600;white-space:nowrap">
-        ${ath.name}
-        <span class="type-pill" style="margin-left:4px;background:${ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)'};color:${grpColor}">Grp ${ath.group}</span>
+    html+=`<tr style="cursor:pointer" onclick="loadAth='${ath.name.replace(/'/g,"\\'")}';renderLoad()" title="Click for detail">
+      <td style="font-weight:600;white-space:nowrap;border-left:2px solid ${loadAth===ath.name?grpColor:'transparent'}">
+        ${ath.name} <span class="type-pill" style="background:${ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)'};color:${grpColor}">Grp ${ath.group}</span>
       </td>
       ${cells.join('')}
-      <td style="font-weight:700;color:var(--gold)">${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'}</td>
-      <td style="font-weight:700;color:var(--green)">${weekDist>0?weekDist.toLocaleString()+'m':'—'}</td>
+      <td style="font-weight:700;color:var(--gold);white-space:nowrap">${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'}</td>
+      <td style="font-weight:700;color:var(--green);white-space:nowrap">${weekDist>0?weekDist+'m':'—'}</td>
     </tr>`;
   });
-  html+=`</table></div>`;
+  html+=`</table><div style="font-size:10px;color:#484f58;margin-top:8px;text-align:right">Click an athlete row to see session detail ↓</div></div>`;
 
-  if(!loadAth)loadAth=athletes[0].name;
-  const athOpts=athletes.map(a=>`<option value="${a.name}" ${loadAth===a.name?'selected':''}>${a.name}</option>`).join('');
-  html+=`<div class="sel-bar">
-    <select class="fsel" onchange="loadAth=this.value;renderLoad()">${athOpts}</select>
-    <button class="seg-btn ${loadPeriod===7?'on':''}" onclick="loadPeriod=7;renderLoad()">7 Days</button>
-    <button class="seg-btn ${loadPeriod===30?'on':''}" onclick="loadPeriod=30;renderLoad()">30 Days</button>
-    <button class="seg-btn ${loadPeriod===90?'on':''}" onclick="loadPeriod=90;renderLoad()">90 Days</button>
-  </div>
-  <div class="g2">
-    <div class="card"><div class="card-hd">🏋️ Weight Volume</div><div class="chart-sm"><canvas id="ch-vol"></canvas></div></div>
-    <div class="card"><div class="card-hd">⚡ Sprint Distance</div><div class="chart-sm"><canvas id="ch-spr"></canvas></div></div>
+  // ── 2. Session Detail (선택된 선수, 이번 주 상세) ──
+  const selAth=athletes.find(a=>a.name===loadAth)||athletes[0];
+  const selLogs=getLogsByName(selAth.name);
+  const grpColor=selAth.group==='A'?'#58a6ff':'#3ecf8e';
+
+  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;border-radius:8px;background:${selAth.group==='A'?'rgba(88,166,255,.15)':'rgba(62,207,142,.15)'};color:${grpColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${selAth.name[0]}</div>
+      <div>
+        <div style="font-weight:700;font-size:14px">${selAth.name}</div>
+        <div style="font-size:11px;color:#8b949e">Session Detail · ${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}</div>
+      </div>
+    </div>
+    <select class="fsel" onchange="loadAth=this.value;renderLoad()">
+      ${athletes.map(a=>`<option value="${a.name}" ${loadAth===a.name?'selected':''}>${a.name}</option>`).join('')}
+    </select>
   </div>`;
 
+  // 7일 세션 카드
+  html+=`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;min-width:0">`;
+
+  wk.forEach(({ds,d},i)=>{
+    const isToday=ds===today;
+    const dayLogs=selLogs.filter(l=>l.date===ds);
+    const trains=dayLogs.filter(l=>l.type!=='condition');
+    const cond=dayLogs.find(l=>l.type==='condition');
+
+    html+=`<div style="background:var(--card);border:1px solid ${isToday?'rgba(88,166,255,.4)':'var(--border)'};border-radius:8px;padding:10px;${isToday?'background:rgba(88,166,255,.04)':''}">
+      <div style="font-size:10px;font-weight:700;color:#8b949e;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <span>${DN[i]}</span>
+        <span style="color:${isToday?'var(--blue)':'#484f58'}">${d.getDate()}.${d.getMonth()+1}.${isToday?'<span style="margin-left:3px;font-size:8px;padding:1px 3px;border-radius:2px;background:rgba(88,166,255,.2);color:var(--blue)">TODAY</span>':''}</span>
+      </div>`;
+
+    if(!trains.length&&!cond){
+      html+=`<div style="font-size:10px;color:#484f58;padding:4px 0">Rest</div>`;
+    }
+
+    trains.forEach(l=>{
+      const c=tc(l.type);
+      const bg=tcBg(l.type);
+
+      if(l.type==='weight'){
+        const exs=l.exercises||[];
+        const nonBW=exs.filter(e=>!e.isBodyweight);
+        const bwExs=exs.filter(e=>e.isBodyweight);
+        html+=`<div style="margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+            <span class="type-pill" style="background:${bg};color:${c}">Weight</span>
+            <span style="font-size:11px;font-weight:700">${vol([l]).toLocaleString()} kg</span>
+            ${l.rpe?`<span style="font-size:10px;color:#8b949e;margin-left:auto">RPE ${l.rpe}</span>`:''}
+          </div>`;
+        // Non-BW exercises
+        nonBW.slice(0,6).forEach(ex=>{
+          const maxKg=ex.setRows?.length
+            ?Math.max(...ex.setRows.map(sr=>parseFloat(sr.kg)||0))
+            :(parseFloat(ex.weight)||0);
+          const sets=ex.setRows?.length||ex.sets||0;
+          const reps=ex.setRows?.[0]?.reps||ex.reps||0;
+          const slLabel=ex.isSL?'SL ':ex.isSA?'SA ':'';
+          html+=`<div style="font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;justify-content:space-between;gap:4px">
+            <span style="color:#c9d1d9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${slLabel}${ex.name||'?'}</span>
+            <span style="color:#8b949e;white-space:nowrap;flex-shrink:0">${maxKg>0?maxKg+'kg':''} ${sets}×${reps}</span>
+          </div>`;
+        });
+        // BW exercises (compact)
+        if(bwExs.length){
+          html+=`<div style="font-size:9px;color:#484f58;margin-top:3px">${bwExs.map(e=>e.name).filter(Boolean).slice(0,3).join(', ')}${bwExs.length>3?` +${bwExs.length-3}`:''} (BW)</div>`;
+        }
+        if(nonBW.length>6){
+          html+=`<div style="font-size:9px;color:#484f58;margin-top:2px">+${nonBW.length-6} more exercises</div>`;
+        }
+        html+=`</div>`;
+
+      } else if(l.type==='sprint'){
+        const sets=l.sets||[];
+        html+=`<div style="margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+            <span class="type-pill" style="background:${bg};color:${c}">Sprint</span>
+            <span style="font-size:11px;font-weight:700">${l.totalDistance||0} m</span>
+            ${l.rpe?`<span style="font-size:10px;color:#8b949e;margin-left:auto">RPE ${l.rpe}</span>`:''}
+          </div>`;
+        sets.slice(0,5).forEach(s=>{
+          const dist=s.distance||'?';
+          const reps=s.reps||s.sets||1;
+          const intensity=s.intensity?` @ ${s.intensity}%`:'';
+          const rest=s.rest?` / ${s.rest}s rest`:'';
+          html+=`<div style="font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;justify-content:space-between">
+            <span style="color:#c9d1d9">${dist}m × ${reps}r</span>
+            <span style="color:#8b949e">${intensity}${rest}</span>
+          </div>`;
+        });
+        if(sets.length>5)html+=`<div style="font-size:9px;color:#484f58;margin-top:2px">+${sets.length-5} more sets</div>`;
+        html+=`</div>`;
+
+      } else if(l.type==='tabata'){
+        html+=`<div style="margin-bottom:8px">
+          <span class="type-pill" style="background:${bg};color:${c}">Tabata</span>
+          <div style="font-size:10px;color:#8b949e;margin-top:4px">8 rounds · 20s/10s${l.rpe?` · RPE ${l.rpe}`:''}</div>
+        </div>`;
+      } else if(l.type==='plyo'){
+        html+=`<div style="margin-bottom:8px">
+          <span class="type-pill" style="background:${bg};color:${c}">Plyo</span>
+          <div style="font-size:10px;color:#8b949e;margin-top:4px">${l.totalReps||0} reps${l.rpe?` · RPE ${l.rpe}`:''}</div>
+        </div>`;
+      }
+    });
+
+    // Condition
+    if(cond){
+      const fc=iCol(cond.fatigue,false),mc=iCol(cond.mood,true);
+      html+=`<div style="border-top:1px solid rgba(255,255,255,.06);padding-top:6px;margin-top:4px;font-size:10px;display:flex;flex-wrap:wrap;gap:5px">
+        <span>😴 ${cond.sleepHours||'—'}h</span>
+        <span style="color:${fc}">⚡${cond.fatigue||'—'}</span>
+        <span style="color:${mc}">😊${cond.mood||'—'}</span>
+      </div>`;
+      if((cond.soreness||[]).length){
+        html+=`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:2px">`;
+        cond.soreness.forEach(s=>{
+          const n=s.intensity;
+          const cl=n>=7?'248,81,73':n>=4?'247,169,79':'62,207,142';
+          html+=`<span style="font-size:9px;font-weight:600;padding:1px 4px;border-radius:3px;background:rgba(${cl},.15);color:rgba(${cl},1)">${s.part} ${s.intensity}</span>`;
+        });
+        html+=`</div>`;
+      }
+    }
+
+    html+=`</div>`;
+  });
+
+  html+=`</div>`;
   wrap.innerHTML=html;
-  const logs=getLogsByName(loadAth);
-  const dates=getLast(loadPeriod).reverse();
-  const ds=new Set(dates);
-  const myLogs=logs.filter(l=>ds.has(l.date));
-  setTimeout(()=>{
-    buildBarChart('vol',dates,dates.map(d=>vol(myLogs.filter(l=>l.date===d))),'rgba(247,169,79,.45)','#f7a94f');
-    buildBarChart('spr',dates,dates.map(d=>myLogs.filter(l=>l.date===d&&l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0)),'rgba(62,207,142,.45)','#3ecf8e');
-  },50);
 }
 
 function buildBarChart(id,dates,data,bg,border){
