@@ -228,7 +228,7 @@ const auth=firebase.auth();
 const ALLOWED='jaemyung1287@gmail.com';
 
 // ══ STATE ══
-let coachData=null, athLogs={}, unsubs=[], curTab='today', loadPeriod=7, loadAth=null, progWeek=0, progGroup='A';
+let coachData=null, athLogs={}, unsubs=[], athUnsubs=[], curTab='today', loadPeriod=7, loadAth=null, progWeek=0, progGroup='A';
 
 // ══ AUTH ══
 function doGoogleLogin(){
@@ -248,6 +248,7 @@ auth.onAuthStateChanged(u=>{
     document.getElementById('login-screen').style.display='flex';
     document.getElementById('app').style.display='none';
     unsubs.forEach(u=>u()); unsubs=[];
+    athUnsubs.forEach(u=>u()); athUnsubs=[];
   }
 });
 
@@ -255,13 +256,26 @@ auth.onAuthStateChanged(u=>{
 function startListen(){
   unsubs.forEach(u=>u()); unsubs=[];
   unsubs.push(db.collection('trainlog').doc('coach').onSnapshot(snap=>{
-    if(snap.exists){coachData=snap.data(); if(!loadAth&&coachData.athletes?.length) loadAth=coachData.athletes[0].name; renderCurrent();}
+    if(!snap.exists) return;
+    const prev=coachData;
+    coachData=snap.data();
+    if(!loadAth&&coachData.athletes?.length) loadAth=coachData.athletes[0].name;
+    // athlete IDs가 바뀐 경우에만 리스너 재설정
+    const ids=(coachData.athletes||[]).map(a=>a.id).filter(Boolean);
+    const prevIds=(prev?.athletes||[]).map(a=>a.id).filter(Boolean);
+    if(JSON.stringify(ids)!==JSON.stringify(prevIds)) setupAthListeners(ids);
+    renderCurrent();
   }));
-  ['a1','a2'].forEach(id=>{
-    unsubs.push(db.collection('trainlog').doc('athlete_'+id).onSnapshot(snap=>{
+}
+
+function setupAthListeners(ids){
+  athUnsubs.forEach(u=>u()); athUnsubs=[];
+  ids.forEach(id=>{
+    const u=db.collection('trainlog').doc('athlete_'+id).onSnapshot(snap=>{
       athLogs[id]=snap.exists?(snap.data().logs||[]):[];
       renderCurrent();
-    }));
+    });
+    athUnsubs.push(u);
   });
 }
 
@@ -289,7 +303,14 @@ function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.get
 function getLast(n){const a=[];for(let i=0;i<n;i++){const d=new Date();d.setDate(d.getDate()-i);a.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);}return a;}
 function fmt(ds){if(!ds)return'—';const p=ds.split('-');return`${p[2]}.${p[1]}.`;}
 function fmtLong(ds){if(!ds)return'';return new Date(ds+'T00:00:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'short'});}
-function getLogsByName(name){for(const[,logs]of Object.entries(athLogs)){if(logs.some(l=>l.athleteName===name))return logs;}return[];}
+function getLogsByName(name){
+  // 이름으로 athlete ID 찾기
+  const ath=(coachData?.athletes||[]).find(a=>a.name===name);
+  if(ath?.id && athLogs[ath.id]) return athLogs[ath.id];
+  // fallback: 모든 log에서 이름 검색
+  for(const[,logs]of Object.entries(athLogs)){if(logs.some(l=>l.athleteName===name))return logs;}
+  return[];
+}
 function getAllLogs(){return Object.values(athLogs).flat();}
 function vol(logs){
   return logs.filter(l=>l.type==='weight'||l.type==='plyo').reduce((s,log)=>{
