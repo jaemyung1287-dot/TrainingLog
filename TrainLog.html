@@ -979,7 +979,6 @@ const APP_VERSION = '20260527-7';
   <div id="detail-profile-card"></div>
   <div id="detail-summary"></div>
   <div id="detail-performance"></div>
-  <div id="detail-ex-pb"></div>
   <div class="sec-ttl" style="margin-top:16px">Recent Logs</div>
   <div id="detail-log-filter" style="margin-bottom:8px"></div>
   <div id="detail-logs"></div>
@@ -4951,9 +4950,6 @@ function openAthDetail(name){
 
   // ── Summary card ──
   document.getElementById('detail-summary').innerHTML = _buildDetailSummary(name, d);
-
-  // ── Auto exercise PBs ──
-  document.getElementById('detail-ex-pb').innerHTML = _buildExPBHtml(name, d);
 
   // ── Recent logs + search filter ──
   document.getElementById('detail-log-filter').innerHTML =
