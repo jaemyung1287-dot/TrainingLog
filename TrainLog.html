@@ -401,6 +401,9 @@ const APP_VERSION = '20260527-7';
   </div>
   <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:6px">Morgen-Check</div>
   <div style="color:rgba(255,255,255,.55);font-size:10px;margin-bottom:12px;line-height:1.6">Bewerte deinen heutigen Zustand mit einem Schieberegler. Schlaf und Stimmung: 10 = sehr gut. Erschöpfung: 10 = extrem erschöpft.</div>
+  <div id="condition-edit-notice" style="display:none;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.35);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#f7a94f;font-weight:600">
+    ✏️ 오늘 이미 작성한 컨디션이 있어요. 수정 후 저장하면 기존 내용이 교체됩니다.
+  </div>
   <div class="fg" style="margin-bottom:16px">
     <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600;margin-bottom:8px">📅 Datum</label>
     <input type="date" class="fi" id="condition-date" style="color-scheme:dark">
@@ -1823,7 +1826,7 @@ function fmtDate(s){ const p=s.split('-'); return `${p[1]}/${p[2]}`; }
 // ════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════
-const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_skipped:{},_sessExpanded:new Set()};
+const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_skipped:{},_sessExpanded:new Set(),_editingConditionId:null};
 let loadPeriod='week';
 
 // ════════════════════════════════════════════════
@@ -1971,7 +1974,47 @@ function goTodayPlan(){
   else selectType('sprint');
 }
 function goMissedTraining(){ ST._logDate=yesterdayStr(); goLogTraining(); }
-function goCondition(){ ST.selectedParts={}; renderBodyParts(); document.getElementById('condition-date').value=todayStr(); showScreen('s-condition'); }
+function goCondition(){
+  ST.selectedParts={};
+  ST._editingConditionId=null;
+  const today=todayStr();
+  const d=getData();
+  const existing=d.logs.find(l=>l.type==='condition'&&l.athleteName===ST.athlete.name&&l.date===today);
+  const notice=document.getElementById('condition-edit-notice');
+  if(existing){
+    ST._editingConditionId=existing.id;
+    // Pre-fill sliders
+    document.getElementById('condition-date').value=existing.date;
+    document.getElementById('sl-sleep').value=existing.sleepHours||7;
+    document.getElementById('sl-squality').value=existing.sleepQuality||7;
+    document.getElementById('sl-fatigue').value=existing.fatigue||3;
+    document.getElementById('sl-mood').value=existing.mood||7;
+    document.getElementById('condition-notes').value=existing.notes||'';
+    updateSlider('sl-sleep','sv-sleep','neutral');
+    updateSlider('sl-squality','sv-squality','high-good');
+    updateSlider('sl-fatigue','sv-fatigue','high-bad');
+    updateSlider('sl-mood','sv-mood','high-good');
+    // Pre-fill soreness
+    const _PART_GRP={};
+    Object.entries(BODY_PARTS).forEach(([g,ps])=>ps.forEach(p=>_PART_GRP[p]=g));
+    (existing.soreness||[]).forEach(s=>{ const g=_PART_GRP[s.part]; if(g) ST.selectedParts[`${g}:${s.part}`]=s.intensity||5; });
+    if(notice) notice.style.display='block';
+  } else {
+    document.getElementById('condition-date').value=today;
+    document.getElementById('sl-sleep').value=7;
+    document.getElementById('sl-squality').value=7;
+    document.getElementById('sl-fatigue').value=3;
+    document.getElementById('sl-mood').value=7;
+    document.getElementById('condition-notes').value='';
+    updateSlider('sl-sleep','sv-sleep','neutral');
+    updateSlider('sl-squality','sv-squality','high-good');
+    updateSlider('sl-fatigue','sv-fatigue','high-bad');
+    updateSlider('sl-mood','sv-mood','high-good');
+    if(notice) notice.style.display='none';
+  }
+  renderBodyParts();
+  showScreen('s-condition');
+}
 function goProgram(){ renderProgram(); showScreen('s-program'); }
 function _toggleProgDay(ds){
   const body=document.getElementById('prog-body-'+ds);
@@ -2889,8 +2932,13 @@ function renderSorenessSliders(){
 //  SAVE CONDITION
 // ════════════════════════════════════════════════
 function saveCondition(){
+  const logDate=document.getElementById('condition-date').value||todayStr();
+  const d=getData();
+  // Find existing log for the same date (edit mode or duplicate)
+  const existingIdx=d.logs.findIndex(l=>l.type==='condition'&&l.athleteName===ST.athlete.name&&l.date===logDate);
   const log={
-    id:genId(),date:document.getElementById('condition-date').value||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'condition',
+    id:ST._editingConditionId||(existingIdx>=0?d.logs[existingIdx].id:genId()),
+    date:logDate,athleteName:ST.athlete.name,group:ST.athlete.group,type:'condition',
     sleepHours:parseFloat(document.getElementById('sl-sleep').value),
     sleepQuality:parseInt(document.getElementById('sl-squality').value),
     fatigue:parseInt(document.getElementById('sl-fatigue').value),
@@ -2898,7 +2946,10 @@ function saveCondition(){
     soreness:Object.entries(ST.selectedParts).map(([k,v])=>({part:k.split(':')[1],intensity:v})),
     notes:document.getElementById('condition-notes').value
   };
-  const d=getData(); d.logs.push(log); saveData(d);
+  if(existingIdx>=0) d.logs.splice(existingIdx,1,log);
+  else d.logs.push(log);
+  ST._editingConditionId=null;
+  saveData(d);
   document.getElementById('success-msg').textContent='Morning check saved! 🌅';
   showScreen('s-success');
 }
