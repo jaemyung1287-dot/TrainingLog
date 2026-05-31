@@ -4860,7 +4860,7 @@ function _renderLoadRecent(logs, wrapId){
   };
   const _moreBtn = (hiddenId) =>
     `<button id="${hiddenId}-btn" onclick="(function(btn,hid){const el=document.getElementById(hid);const open=el.style.display!=='none';el.style.display=open?'none':'';btn.style.transform=open?'rotate(0deg)':'rotate(180deg)'})(this,'${hiddenId}')"
-      style="display:block;margin:4px auto 0;padding:2px 20px;background:none;border:none;color:rgba(255,255,255,.25);font-size:11px;cursor:pointer;font-family:inherit">
+      style="width:100%;margin-top:5px;padding:5px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.35);font-size:12px;cursor:pointer;font-family:inherit">
       ▼
     </button>`;
 
@@ -4926,7 +4926,7 @@ function _renderLoadSoreness(logs, wrapId){
   if(hidden.length){
     html += `<div id="lr-sore-extra" style="display:none">${hidden.map(_renderCard).join('')}</div>`;
     html += `<button id="lr-sore-extra-btn" onclick="(function(btn,hid){const el=document.getElementById(hid);const open=el.style.display!=='none';el.style.display=open?'none':'';btn.style.transform=open?'rotate(0deg)':'rotate(180deg)'})(this,'lr-sore-extra')"
-      style="display:block;margin:4px auto 0;padding:2px 20px;background:none;border:none;color:rgba(255,255,255,.25);font-size:11px;cursor:pointer;font-family:inherit">
+      style="width:100%;margin-top:5px;padding:5px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.35);font-size:12px;cursor:pointer;font-family:inherit">
       ▼
     </button>`;
   }
