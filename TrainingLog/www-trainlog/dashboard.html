@@ -819,10 +819,8 @@ function renderLoad(){
     const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
     const cells=wk.map(({ds,d})=>{
       const isToday=ds===today;
-      const dayLogs=logs.filter(l=>l.date===ds);
-      const trains=dayLogs.filter(l=>l.type!=='condition');
-      const cond=dayLogs.find(l=>l.type==='condition');
-      if(!trains.length&&!cond)return`<td style="text-align:center;${isToday?'background:rgba(88,166,255,.04)':''}"><span style="color:var(--hint)">—</span></td>`;
+      const trains=logs.filter(l=>l.date===ds&&l.type!=='condition');
+      if(!trains.length)return`<td style="text-align:center;${isToday?'background:rgba(88,166,255,.04)':''}"><span style="color:var(--hint)">—</span></td>`;
       let cell=`<td style="text-align:center;vertical-align:top;${isToday?'background:rgba(88,166,255,.04)':''}">`;
       trains.forEach(l=>{
         const c=tc(l.type);
@@ -831,10 +829,6 @@ function renderLoad(){
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
         cell+=`<div style="white-space:nowrap"><span class="type-pill" style="background:${tcBg(l.type)};color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'}</span> <b style="font-size:12px">${val}</b>${l.rpe?`<span style="font-size:10px;color:#8b949e"> ·${l.rpe}</span>`:''}</div>`;
       });
-      if(cond){
-        const fc=iCol(cond.fatigue,false),mc=iCol(cond.mood,true);
-        cell+=`<div style="font-size:10px;margin-top:2px"><span style="color:${fc}">⚡${cond.fatigue||'—'}</span> <span style="color:${mc}">😊${cond.mood||'—'}</span></div>`;
-      }
       return cell+'</td>';
     });
     html+=`<tr style="cursor:pointer" onclick="loadAth='${ath.name.replace(/'/g,"\\'")}';renderLoad()" title="Click for detail">
@@ -871,9 +865,7 @@ function renderLoad(){
 
   wk.forEach(({ds,d},i)=>{
     const isToday=ds===today;
-    const dayLogs=selLogs.filter(l=>l.date===ds);
-    const trains=dayLogs.filter(l=>l.type!=='condition');
-    const cond=dayLogs.find(l=>l.type==='condition');
+    const trains=selLogs.filter(l=>l.date===ds&&l.type!=='condition');
 
     html+=`<div style="background:var(--card);border:1px solid ${isToday?'rgba(88,166,255,.4)':'var(--border)'};border-radius:8px;padding:10px;${isToday?'background:rgba(88,166,255,.04)':''}">
       <div style="font-size:10px;font-weight:700;color:#8b949e;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
@@ -881,7 +873,7 @@ function renderLoad(){
         <span style="color:${isToday?'var(--blue)':'#484f58'}">${d.getDate()}.${d.getMonth()+1}.${isToday?'<span style="margin-left:3px;font-size:8px;padding:1px 3px;border-radius:2px;background:rgba(88,166,255,.2);color:var(--blue)">TODAY</span>':''}</span>
       </div>`;
 
-    if(!trains.length&&!cond){
+    if(!trains.length){
       html+=`<div style="font-size:10px;color:#484f58;padding:4px 0">Rest</div>`;
     }
 
@@ -954,25 +946,6 @@ function renderLoad(){
         </div>`;
       }
     });
-
-    // Condition
-    if(cond){
-      const fc=iCol(cond.fatigue,false),mc=iCol(cond.mood,true);
-      html+=`<div style="border-top:1px solid rgba(255,255,255,.06);padding-top:6px;margin-top:4px;font-size:10px;display:flex;flex-wrap:wrap;gap:5px">
-        <span>😴 ${cond.sleepHours||'—'}h</span>
-        <span style="color:${fc}">⚡${cond.fatigue||'—'}</span>
-        <span style="color:${mc}">😊${cond.mood||'—'}</span>
-      </div>`;
-      if((cond.soreness||[]).length){
-        html+=`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:2px">`;
-        cond.soreness.forEach(s=>{
-          const n=s.intensity;
-          const cl=n>=7?'248,81,73':n>=4?'247,169,79':'62,207,142';
-          html+=`<span style="font-size:9px;font-weight:600;padding:1px 4px;border-radius:3px;background:rgba(${cl},.15);color:rgba(${cl},1)">${s.part} ${s.intensity}</span>`;
-        });
-        html+=`</div>`;
-      }
-    }
 
     html+=`</div>`;
   });
