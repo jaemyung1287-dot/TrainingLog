@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TrainLog · Coach Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--bg2:#13151c;--card:#161b22;--border:#21262d;
+  --text:#e6edf3;--muted:rgba(230,237,243,.45);--hint:rgba(230,237,243,.25);
+  --gold:#f7a94f;--green:#3ecf8e;--red:#e94560;--purple:#a78bfa;--blue:#4f8ef7;
+  --sidebar:220px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;height:100vh;overflow:hidden}
+
+/* ── Login ── */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:20px}
+.login-logo{font-size:52px}
+.login-title{font-size:26px;font-weight:800}
+.login-sub{font-size:13px;color:var(--muted)}
+#google-btn{display:flex;align-items:center;gap:12px;padding:13px 28px;border-radius:12px;background:#fff;color:#222;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-top:8px}
+#google-btn:hover{opacity:.92}
+#google-btn img{width:20px}
+#auth-err{color:var(--red);font-size:12px;display:none;margin-top:4px}
+
+/* ── App shell ── */
+#app{display:none;height:100vh;flex-direction:row}
+
+/* ── Sidebar ── */
+#sidebar{width:var(--sidebar);flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.sb-logo{padding:20px 20px 16px;font-size:16px;font-weight:800;color:var(--gold);border-bottom:1px solid var(--border)}
+.sb-logo span{font-size:22px;margin-right:6px}
+nav{padding:8px 0}
+.nb{display:flex;align-items:center;gap:9px;width:100%;padding:10px 18px;background:none;border:none;border-left:3px solid transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;text-align:left;transition:all .12s;font-family:inherit}
+.nb:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.nb.on{background:rgba(247,169,79,.08);color:var(--gold);border-left-color:var(--gold)}
+.nb .ni{font-size:15px;width:20px;flex-shrink:0}
+.sb-foot{margin-top:auto;padding:14px 18px;border-top:1px solid var(--border)}
+.sb-user{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.sb-avatar{width:30px;height:30px;border-radius:50%;background:var(--border);overflow:hidden;flex-shrink:0}
+.sb-avatar img{width:100%;height:100%;object-fit:cover}
+.sb-name{font-size:12px;font-weight:600;color:var(--text)}
+.sb-sync{font-size:10px;color:var(--green)}
+.sb-out{width:100%;padding:7px;border-radius:8px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.22);color:var(--red);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+
+/* ── Main ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#topbar{padding:14px 28px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.tb-title{font-size:18px;font-weight:800}
+.tb-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--green);font-weight:700}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Content ── */
+#content{flex:1;overflow-y:auto;padding:24px 28px}
+.tab{display:none}.tab.on{display:block}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+.card-t{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px}
+
+/* ── Grids ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.g7{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+
+/* ── Section header ── */
+.sh{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:8px;margin:18px 0 10px}
+.sh::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Stats mini ── */
+.stat-mini{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center}
+.stat-mini .sv{font-size:17px;font-weight:800;line-height:1.2}
+.stat-mini .sl{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.3px}
+
+/* ── Log rows ── */
+.lr{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+.lr:last-child{border-bottom:none}
+.lr .ld{color:var(--muted);min-width:50px;flex-shrink:0}
+.lr .lt{font-weight:700;min-width:58px;flex-shrink:0}
+.lr .lv{flex:1;color:var(--text)}
+.lr .lrpe{color:var(--muted);font-size:11px;flex-shrink:0}
+.lr .ldel{padding:2px 7px;border-radius:5px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:var(--red);font-size:10px;cursor:pointer;opacity:0;transition:opacity .12s;flex-shrink:0}
+.lr:hover .ldel{opacity:1}
+
+/* ── Condition bar ── */
+.cb-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.cb-lbl{font-size:11px;color:var(--muted);min-width:58px;flex-shrink:0}
+.cb-track{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}
+.cb-fill{height:100%;border-radius:2px}
+.cb-val{font-size:11px;font-weight:700;min-width:20px;text-align:right;flex-shrink:0}
+
+/* ── Soreness chips ── */
+.sc{display:inline-flex;padding:3px 9px;border-radius:14px;font-size:11px;font-weight:700;margin:2px 3px 2px 0}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700}
+.ba{background:rgba(79,142,247,.2);color:var(--blue)}
+.bb{background:rgba(62,207,142,.2);color:var(--green)}
+
+/* ── Program day card ── */
+.pd{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;min-height:120px;display:flex;flex-direction:column}
+.pd.today{border-color:rgba(79,142,247,.4);background:rgba(79,142,247,.05)}
+.pd-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.pd-name{font-size:11px;font-weight:800}
+.pd-date{font-size:10px;color:var(--muted)}
+.pd-ex{font-size:10px;color:var(--muted);line-height:1.5}
+.pd-ex b{color:var(--text)}
+.pd-edit{padding:2px 8px;border-radius:5px;background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.25);color:var(--blue);font-size:10px;cursor:pointer;flex-shrink:0}
+.rest-tag{font-size:10px;color:rgba(255,255,255,.15)}
+
+/* ── Session label (AM/PM) ── */
+.sess-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin:5px 0 2px}
+
+/* ── Today logged pills ── */
+.log-pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;margin:2px 3px 2px 0}
+
+/* ── Modal ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;width:680px;max-height:85vh;overflow-y:auto;max-width:100%}
+.modal-title{font-size:15px;font-weight:800;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0;line-height:1}
+.fl{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.fi{width:100%;padding:8px 11px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.fi:focus{border-color:rgba(79,142,247,.6)}
+.frow{margin-bottom:12px}
+.ex-row{display:grid;grid-template-columns:2fr 55px 55px 55px 28px;gap:7px;align-items:center;margin-bottom:6px}
+.btn-p{padding:10px 20px;border-radius:10px;background:var(--blue);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-s{padding:10px 18px;border-radius:10px;background:none;border:1px solid var(--border);color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit}
+.btn-d{padding:10px 18px;border-radius:10px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.25);color:var(--red);font-size:13px;cursor:pointer;font-family:inherit}
+.btn-sm{padding:5px 12px;border-radius:7px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);font-size:12px;cursor:pointer;font-family:inherit}
+.btn-xs{padding:4px 9px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);font-size:11px;cursor:pointer;font-family:inherit}
+#save-ok{font-size:12px;color:var(--green);display:none;margin-top:8px}
+
+/* ── Period buttons ── */
+.period-bar{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.pb{padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-family:inherit}
+.pb.on{background:rgba(247,169,79,.12);border-color:rgba(247,169,79,.4);color:var(--gold)}
+
+/* ── Charts ── */
+.chart-wrap{position:relative;height:200px}
+
+/* ── Nav buttons ── */
+.nav-arrow{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:16px;cursor:pointer;line-height:1}
+.this-week-btn{font-size:11px;color:var(--blue);background:none;border:none;cursor:pointer;margin-top:4px;display:block;font-family:inherit}
+
+/* ── Empty/loading ── */
+.empty{color:var(--muted);font-size:13px;padding:28px;text-align:center}
+.loading{color:var(--muted);font-size:13px;padding:40px;text-align:center}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+
+@media(max-width:1100px){.g4{grid-template-columns:1fr 1fr}.g7{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:800px){.g2{grid-template-columns:1fr}#sidebar{width:180px}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-logo">🏋️</div>
+  <div class="login-title">TrainLog Coach</div>
+  <div class="login-sub">Bayern Skeleton · Coach Dashboard</div>
+  <button id="google-btn" onclick="doGoogleLogin()">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+    Mit Google anmelden
+  </button>
+  <div id="auth-err"></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sb-logo"><span>🏋️</span>TrainLog</div>
+    <nav>
+      <button class="nb on" onclick="switchTab('today',this)"><span class="ni">📅</span>Today</button>
+      <button class="nb" onclick="switchTab('athletes',this)"><span class="ni">👥</span>Athletes</button>
+      <button class="nb" onclick="switchTab('load',this)"><span class="ni">📊</span>Load</button>
+      <button class="nb" onclick="switchTab('program',this)"><span class="ni">📋</span>Program</button>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-user">
+        <div class="sb-avatar"><img id="user-photo" src="" alt=""></div>
+        <div>
+          <div class="sb-name" id="user-name">—</div>
+          <div class="sb-sync">● Live sync</div>
+        </div>
+      </div>
+      <button class="sb-out" onclick="firebase.auth().signOut()">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="topbar">
+      <div>
+        <div class="tb-title" id="tb-title">Today</div>
+        <div class="tb-sub" id="tb-sub"></div>
+      </div>
+      <div class="live"><div class="live-dot"></div>Live</div>
+    </div>
+    <div id="content">
+      <div class="tab on" id="tab-today"></div>
+      <div class="tab" id="tab-athletes"></div>
+      <div class="tab" id="tab-load"></div>
+      <div class="tab" id="tab-program"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ FIREBASE ══
+const FB={apiKey:"AIzaSyBF_F7ANEj4n9E5O5-x9YWn9mOBunl8Ze8",authDomain:"traininglogskeleton.firebaseapp.com",projectId:"traininglogskeleton",storageBucket:"traininglogskeleton.firebasestorage.app",messagingSenderId:"467243804287",appId:"1:467243804287:web:8808291abb44de59b7c1a4"};
+firebase.initializeApp(FB);
+const db=firebase.firestore();
+const auth=firebase.auth();
+const ALLOWED='jaemyung1287@gmail.com';
+
+// ══ STATE ══
+let coachData=null, athLogs={}, unsubs=[], curTab='today', loadPeriod=7, loadAth=null, progWeek=0, progGroup='A';
+
+// ══ AUTH ══
+function doGoogleLogin(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{showErr(e.message)});
+}
+function showErr(msg){const el=document.getElementById('auth-err');el.textContent=msg;el.style.display='block';}
+
+auth.onAuthStateChanged(u=>{
+  if(u){
+    if(u.email!==ALLOWED){auth.signOut();showErr('No access: '+u.email);return;}
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('user-name').textContent=u.displayName||u.email;
+    if(u.photoURL) document.getElementById('user-photo').src=u.photoURL;
+    startListen();
+  } else {
+    document.getElementById('login-screen').style.display='flex';
+    document.getElementById('app').style.display='none';
+    unsubs.forEach(u=>u()); unsubs=[];
+  }
+});
+
+// ══ REALTIME LISTENERS ══
+function startListen(){
+  unsubs.forEach(u=>u()); unsubs=[];
+  unsubs.push(db.collection('trainlog').doc('coach').onSnapshot(snap=>{
+    if(snap.exists){coachData=snap.data(); if(!loadAth&&coachData.athletes?.length) loadAth=coachData.athletes[0].name; renderCurrent();}
+  }));
+  ['a1','a2'].forEach(id=>{
+    unsubs.push(db.collection('trainlog').doc('athlete_'+id).onSnapshot(snap=>{
+      athLogs[id]=snap.exists?(snap.data().logs||[]):[];
+      renderCurrent();
+    }));
+  });
+}
+
+// ══ NAV ══
+const TAB_TITLES={today:'Today · Heute',athletes:'Athletes · Athleten',load:'Training Load',program:'Program · Wochenplan'};
+function switchTab(id,btn){
+  curTab=id;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  document.getElementById('tb-title').textContent=TAB_TITLES[id]||id;
+  renderCurrent();
+}
+function renderCurrent(){
+  if(!coachData) return;
+  if(curTab==='today') renderToday();
+  else if(curTab==='athletes') renderAthletes();
+  else if(curTab==='load') renderLoad();
+  else if(curTab==='program') renderProgram();
+}
+
+// ══ HELPERS ══
+function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function getLast(n){const a=[];for(let i=0;i<n;i++){const d=new Date();d.setDate(d.getDate()-i);a.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);}return a;}
+function fmt(ds){if(!ds)return'—';const p=ds.split('-');return`${p[2]}.${p[1]}.`;}
+function fmtLong(ds){if(!ds)return'';return new Date(ds+'T00:00:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'short'});}
+function getLogsByName(name){for(const[,logs]of Object.entries(athLogs)){if(logs.some(l=>l.athleteName===name))return logs;}return[];}
+function getAllLogs(){return Object.values(athLogs).flat();}
+function vol(logs){
+  return logs.filter(l=>l.type==='weight'||l.type==='plyo').reduce((s,log)=>{
+    return s+(log.exercises||[]).reduce((ss,e)=>{
+      if(e.isBodyweight)return ss;
+      if(e.setRows?.length) return ss+e.setRows.reduce((r,sr)=>r+(parseFloat(sr.kg)||0)*(parseFloat(sr.reps)||0),0);
+      return ss+(parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
+    },0);
+  },0);
+}
+function planGrp(plan,ath){if(!plan)return null;if(plan.groups)return plan.groups[ath.group]||null;return plan;}
+function sessExs(gd,sess){
+  if(!gd)return[];
+  if(gd[sess]&&Array.isArray(gd[sess].exercises))return gd[sess].exercises;
+  if(sess==='am'&&Array.isArray(gd.exercises))return gd.exercises;
+  return[];
+}
+function iCol(v,hg){
+  if(v==null)return'var(--muted)';
+  if(hg)return v>=7?'var(--green)':v>=4?'var(--gold)':'var(--red)';
+  return v>=7?'var(--red)':v>=4?'var(--gold)':'var(--green)';
+}
+function typeColor(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#a78bfa',tabata:'#e94560'}[t]||'var(--muted)';}
+
+// ══ TODAY TAB ══
+function renderToday(){
+  const wrap=document.getElementById('tab-today');
+  const today=todayStr();
+  const d=new Date();
+  document.getElementById('tb-sub').textContent=d.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const athletes=coachData.athletes||[];
+  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+
+  let html=`<div class="g2" style="margin-bottom:24px">`;
+  athletes.forEach(ath=>{
+    const logs=getLogsByName(ath.name);
+    const todayLogs=logs.filter(l=>l.date===today);
+    const lastCond=logs.filter(l=>l.type==='condition').sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const plan=coachData.sessionPlans?.[today];
+    const gd=planGrp(plan,ath);
+    const amExs=sessExs(gd,'am'); const pmExs=sessExs(gd,'pm');
+    const hasPlan=amExs.length>0||pmExs.length>0;
+
+    const logPills=todayLogs.length?todayLogs.map(l=>{
+      const c=typeColor(l.type);
+      const v=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:l.type==='condition'?`F${l.fatigue} M${l.mood}`:l.type;
+      return`<span class="log-pill" style="background:${c}22;border:1px solid ${c}55;color:${c}">${l.type} · ${v}${l.rpe?` RPE${l.rpe}`:''}</span>`;
+    }).join(''):`<span style="font-size:11px;color:var(--hint)">Noch nicht geloggt</span>`;
+
+    const condBlock=lastCond?`
+      <div style="margin-top:14px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Letzte Condition · ${fmt(lastCond.date)}</div>
+        ${cBar('Fatigue',lastCond.fatigue,10,false)}
+        ${cBar('Mood',lastCond.mood,10,true)}
+        ${cBar('Sleep Q',lastCond.sleepQuality,10,true)}
+        ${lastCond.sleepHours?`<div style="font-size:11px;color:var(--muted);margin-top:5px">😴 ${lastCond.sleepHours}h</div>`:''}
+      </div>`:'<div style="font-size:11px;color:var(--hint);margin-top:10px">Keine Condition Daten</div>';
+
+    const planBlock=hasPlan?[
+      amExs.length?`<div style="margin-bottom:6px"><div class="sess-lbl" style="color:var(--gold)">🌅 AM</div>${amExs.slice(0,4).map(e=>`<div style="font-size:11px;color:var(--muted);padding:1px 0">· ${e.name}${e.planSets&&e.planReps?` ${e.planSets}×${e.planReps}`:''}</div>`).join('')}${amExs.length>4?`<div style="font-size:10px;color:var(--hint)">+${amExs.length-4} more</div>`:''}</div>`:'',
+      pmExs.length?`<div><div class="sess-lbl" style="color:var(--purple)">🌇 PM</div>${pmExs.slice(0,4).map(e=>`<div style="font-size:11px;color:var(--muted);padding:1px 0">· ${e.name}${e.planSets&&e.planReps?` ${e.planSets}×${e.planReps}`:''}</div>`).join('')}${pmExs.length>4?`<div style="font-size:10px;color:var(--hint)">+${pmExs.length-4} more</div>`:''}</div>`:''
+    ].join(''):`<div style="font-size:11px;color:var(--hint)">Rest Day · Ruhetag</div>`;
+
+    html+=`<div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:44px;height:44px;border-radius:50%;background:${ath.group==='A'?'rgba(79,142,247,.2)':'rgba(62,207,142,.2)'};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0">${ath.name[0]}</div>
+        <div><div style="font-size:16px;font-weight:800">${ath.name}</div><span class="badge b${ath.group.toLowerCase()}">Group ${ath.group}</span></div>
+      </div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Heutige Sessions</div>
+      <div style="margin-bottom:12px">${logPills}</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Heutiger Plan</div>
+      ${planBlock}
+      ${condBlock}
+    </div>`;
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+function cBar(label,val,max,hg){
+  if(val==null)return'';
+  const pct=Math.min(100,Math.round((val/max)*100));
+  const c=iCol(val,hg);
+  return`<div class="cb-row"><span class="cb-lbl">${label}</span><div class="cb-track"><div class="cb-fill" style="width:${pct}%;background:${c}"></div></div><span class="cb-val" style="color:${c}">${val}</span></div>`;
+}
+
+// ══ ATHLETES TAB ══
+function renderAthletes(){
+  const wrap=document.getElementById('tab-athletes');
+  const athletes=coachData.athletes||[];
+  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+  document.getElementById('tb-sub').textContent='7-Tage Übersicht';
+
+  let html='<div class="g2">';
+  athletes.forEach(ath=>{
+    const athId=ath.id||(ath.name.includes('정')&&ath.name.includes('기')?'a1':'a2');
+    const logs=getLogsByName(ath.name);
+    const last7=new Set(getLast(7));
+    const my7=logs.filter(l=>last7.has(l.date));
+    const wVol=vol(my7.filter(l=>l.type==='weight'||l.type==='plyo'));
+    const sDist=my7.filter(l=>l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0);
+    const cLogs=my7.filter(l=>l.type==='condition');
+    const avgFat=cLogs.length?(cLogs.reduce((s,l)=>s+l.fatigue,0)/cLogs.length).toFixed(1):null;
+    const avgMood=cLogs.length?(cLogs.reduce((s,l)=>s+l.mood,0)/cLogs.length).toFixed(1):null;
+    const sess7=my7.filter(l=>l.type!=='condition').length;
+    const recent=logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12);
+    const sore=logs.filter(l=>l.type==='condition'&&(l.soreness||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+
+    const statsHtml=`<div class="g4" style="margin-bottom:16px">
+      ${sMini('Sessions',sess7,'var(--gold)')}
+      ${sMini('Volume',wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—','var(--gold)')}
+      ${sMini('Sprint',sDist>0?sDist.toLocaleString()+'m':'—','var(--green)')}
+      ${sMini('Ø Fatigue',avgFat??'—',avgFat?iCol(parseFloat(avgFat),false):'var(--muted)')}
+    </div>`;
+
+    const logsHtml=recent.length?recent.map(l=>{
+      const c=typeColor(l.type);
+      const v=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='condition'?`F${l.fatigue||'—'} M${l.mood||'—'}`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+      return`<div class="lr"><span class="ld">${fmt(l.date)}</span><span class="lt" style="color:${c}">${l.type}</span><span class="lv">${v}</span>${l.rpe?`<span class="lrpe">RPE ${l.rpe}</span>`:''}<button class="ldel" onclick="delLogDash('${l.id}','${athId}',event)">🗑</button></div>`;
+    }).join(''):'<div class="empty" style="padding:16px 0">Keine Logs</div>';
+
+    const soreHtml=sore.length?`<div class="sh">🔴 Soreness</div>`+sore.map(l=>`
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">${fmtLong(l.date)}</div>
+        ${l.soreness.map(s=>{const n=s.intensity;const c=n>=7?'var(--red)':n>=4?'var(--gold)':'var(--green)';return`<span class="sc" style="background:${c}22;border:1px solid ${c}55;color:${c}">${s.part} ${s.intensity}</span>`}).join('')}
+      </div>`).join(''):'';
+
+    html+=`<div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:16px 20px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+        <div style="width:44px;height:44px;border-radius:50%;background:${ath.group==='A'?'rgba(79,142,247,.2)':'rgba(62,207,142,.2)'};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0">${ath.name[0]}</div>
+        <div><div style="font-size:16px;font-weight:800">${ath.name}</div><span class="badge b${ath.group.toLowerCase()}">Group ${ath.group}</span>${ath.dob?`<span style="font-size:11px;color:var(--muted);margin-left:8px">${ath.dob}</span>`:''}</div>
+      </div>
+      <div style="padding:16px 20px">
+        ${statsHtml}
+        <div class="sh">Recent Logs</div>
+        ${logsHtml}
+        ${soreHtml}
+      </div>
+    </div>`;
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+function sMini(label,val,color){return`<div class="stat-mini"><div class="sv" style="color:${color}">${val}</div><div class="sl">${label}</div></div>`;}
+
+// ══ LOAD TAB ══
+const charts={};
+function killChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function renderLoad(){
+  const wrap=document.getElementById('tab-load');
+  const athletes=coachData.athletes||[];
+  if(!athletes.length){wrap.innerHTML='<div class="empty">Keine Athleten</div>';return;}
+  if(!loadAth) loadAth=athletes[0].name;
+
+  const athOpts=athletes.map(a=>`<option value="${a.name}" ${loadAth===a.name?'selected':''}>${a.name}</option>`).join('');
+  wrap.innerHTML=`
+    <div class="period-bar">
+      <select style="padding:6px 10px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none;cursor:pointer;margin-right:4px" onchange="loadAth=this.value;renderLoad()">${athOpts}</select>
+      <button class="pb ${loadPeriod===7?'on':''}" onclick="loadPeriod=7;renderLoad()">7 Tage</button>
+      <button class="pb ${loadPeriod===30?'on':''}" onclick="loadPeriod=30;renderLoad()">30 Tage</button>
+      <button class="pb ${loadPeriod===90?'on':''}" onclick="loadPeriod=90;renderLoad()">90 Tage</button>
+    </div>
+    <div class="g2" style="margin-bottom:16px">
+      <div class="card"><div class="card-t">🏋️ Gewichtsvolumen (kg)</div><div class="chart-wrap"><canvas id="ch-vol"></canvas></div></div>
+      <div class="card"><div class="card-t">⚡ Sprintdistanz (m)</div><div class="chart-wrap"><canvas id="ch-spr"></canvas></div></div>
+    </div>
+    <div class="card"><div class="card-t">😴 Condition Trend · Fatigue / Mood / Sleep Quality</div><div class="chart-wrap" style="height:180px"><canvas id="ch-cond"></canvas></div></div>
+  `;
+  document.getElementById('tb-sub').textContent=loadAth+' · '+loadPeriod+' Tage';
+  const logs=getLogsByName(loadAth);
+  const dates=getLast(loadPeriod).reverse();
+  const ds=new Set(dates);
+  const myLogs=logs.filter(l=>ds.has(l.date));
+  setTimeout(()=>{
+    buildChart('vol',dates,dates.map(d=>vol(myLogs.filter(l=>l.date===d))),'bar','rgba(247,169,79,.5)','#f7a94f');
+    buildChart('spr',dates,dates.map(d=>myLogs.filter(l=>l.date===d&&l.type==='sprint').reduce((s,l)=>s+(l.totalDistance||0),0)),'bar','rgba(62,207,142,.5)','#3ecf8e');
+    buildCondChart(dates,myLogs);
+  },50);
+}
+
+function buildChart(id,dates,data,type,bg,border){
+  killChart(id);
+  const c=document.getElementById('ch-'+id);
+  if(!c)return;
+  charts[id]=new Chart(c,{type,data:{labels:dates.map(d=>fmt(d)),datasets:[{data,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'rgba(230,237,243,.35)',font:{size:10},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'rgba(230,237,243,.35)',font:{size:10}},beginAtZero:true}}}});
+}
+
+function buildCondChart(dates,logs){
+  killChart('cond');
+  const c=document.getElementById('ch-cond');if(!c)return;
+  const get=(d,k)=>{const l=logs.find(l=>l.date===d&&l.type==='condition');return l?l[k]:null;};
+  charts['cond']=new Chart(c,{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[
+    {label:'Fatigue',data:dates.map(d=>get(d,'fatigue')),borderColor:'#e94560',backgroundColor:'transparent',pointRadius:3,spanGaps:true,tension:.3},
+    {label:'Mood',data:dates.map(d=>get(d,'mood')),borderColor:'#3ecf8e',backgroundColor:'transparent',pointRadius:3,spanGaps:true,tension:.3},
+    {label:'Sleep Q',data:dates.map(d=>get(d,'sleepQuality')),borderColor:'#a78bfa',backgroundColor:'transparent',pointRadius:3,spanGaps:true,tension:.3},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.45)',font:{size:11},boxWidth:12}}},scales:{x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'rgba(230,237,243,.35)',font:{size:10},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'rgba(230,237,243,.35)',font:{size:10}},min:0,max:10}}}});
+}
+
+// ══ PROGRAM TAB ══
+function renderProgram(){
+  const wrap=document.getElementById('tab-program');
+  const now=new Date();
+  const dow=now.getDay();
+  const mon=new Date(now);
+  mon.setDate(now.getDate()-(dow===0?6:dow-1)+progWeek*7);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const fmt2=dt=>`${dt.toLocaleString('de',{month:'short'})} ${dt.getDate()}`;
+  const today=todayStr();
+  const DN_DE=['Mo','Di','Mi','Do','Fr','Sa','So'];
+  const DN_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  document.getElementById('tb-sub').textContent=fmt2(mon)+' – '+fmt2(sun)+', '+sun.getFullYear();
+
+  const grpBtns=['A','B'].map(g=>`<button onclick="progGroup='${g}';renderProgram()" style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid ${progGroup===g?'rgba(79,142,247,.4)':'var(--border)'};background:${progGroup===g?'rgba(79,142,247,.12)':'none'};color:${progGroup===g?'var(--blue)':'var(--muted)'};font-family:inherit">Gruppe ${g}</button>`).join('');
+
+  let html=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="nav-arrow" onclick="progWeek--;renderProgram()">‹</button>
+        <div style="text-align:center;min-width:170px">
+          <div style="font-size:14px;font-weight:700">${fmt2(mon)} – ${fmt2(sun)}, ${sun.getFullYear()}</div>
+          ${progWeek!==0?`<button class="this-week-btn" onclick="progWeek=0;renderProgram()">← Diese Woche</button>`:''}
+        </div>
+        <button class="nav-arrow" onclick="progWeek++;renderProgram()">›</button>
+      </div>
+      <div style="display:flex;gap:8px">${grpBtns}</div>
+    </div>
+    <div class="g7">`;
+
+  for(let i=0;i<7;i++){
+    const day=new Date(mon); day.setDate(mon.getDate()+i);
+    const ds=`${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
+    const isTod=ds===today;
+    const plan=coachData.sessionPlans?.[ds];
+    const gd=plan?.groups?.[progGroup]||(plan&&!plan.groups?plan:null);
+    const amExs=sessExs(gd,'am'); const pmExs=sessExs(gd,'pm');
+    const phase=plan?[plan.phase,plan.week?'Wk '+plan.week:''].filter(Boolean).join(' · '):'';
+
+    const exBlock=(exs,sess,color)=>exs.length?`<div style="margin-bottom:4px"><div class="sess-lbl" style="color:${color}">${sess}</div>${exs.map(e=>`<div class="pd-ex">· <b>${e.name}</b>${e.planSets&&e.planReps?` ${e.planSets}×${e.planReps}`:''}</div>`).join('')}</div>`:'';
+
+    html+=`<div class="pd ${isTod?'today':''}">
+      <div class="pd-hdr">
+        <div>
+          <div class="pd-name" style="color:${isTod?'var(--blue)':'var(--text)'}">${DN_DE[i]} · ${DN_EN[i]}</div>
+          <div class="pd-date">${day.getDate()}.${day.getMonth()+1}. ${phase?'· '+phase:''}</div>
+        </div>
+        <button class="pd-edit" onclick="openEditor('${ds}')">✏️</button>
+      </div>
+      ${isTod?'<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(79,142,247,.2);color:var(--blue);font-weight:700;display:inline-block;margin-bottom:5px">TODAY</span>':''}
+      ${amExs.length||pmExs.length
+        ? exBlock(amExs,'AM','var(--gold)')+exBlock(pmExs,'PM','var(--purple)')
+        : '<div class="rest-tag">Rest · Ruhetag</div>'}
+    </div>`;
+  }
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+// ══ PLAN EDITOR ══
+function openEditor(ds){
+  const plan=coachData?.sessionPlans?.[ds];
+  const gd=plan?.groups?.[progGroup]||(plan&&!plan.groups?plan:null);
+  const amSd=gd?.am||gd||{};
+  const pmSd=gd?.pm||{};
+  const amExs=sessExs(gd,'am');
+  const pmExs=sessExs(gd,'pm');
+  const d=new Date(ds+'T00:00:00');
+  const dayName=d.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long'});
+
+  const modal=document.createElement('div');
+  modal.className='modal-bg'; modal.id='plan-modal';
+  modal.innerHTML=`<div class="modal">
+    <div class="modal-title">
+      <span>✏️ ${dayName} · Gruppe ${progGroup}</span>
+      <button class="modal-close" onclick="closeEditor()">×</button>
+    </div>
+    <div class="g2" style="gap:12px;margin-bottom:14px">
+      <div class="frow"><label class="fl">Phase</label><input class="fi" id="ed-phase" value="${plan?.phase||''}" placeholder="z.B. Mesocycle 1"></div>
+      <div class="frow"><label class="fl">Woche</label><input class="fi" id="ed-week" value="${plan?.week||''}" placeholder="z.B. 26.05.25 ~ 26.06.01"></div>
+    </div>
+    <div class="sh" style="margin-top:0">🌅 AM Session</div>
+    <div class="frow"><label class="fl">Warm-up</label><input class="fi" id="ed-am-wu" value="${amSd?.warmup||''}" placeholder="Warm-up Notizen..."></div>
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Name · Sets · Reps · Int%</div>
+    <div id="ed-am-rows">${exRows(amExs,'am')}</div>
+    <button class="btn-xs" onclick="addRow('am')" style="margin-bottom:16px">+ Übung hinzufügen</button>
+    <div class="sh">🌇 PM Session</div>
+    <div class="frow"><label class="fl">Warm-up</label><input class="fi" id="ed-pm-wu" value="${pmSd?.warmup||''}" placeholder="Warm-up Notizen..."></div>
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Name · Sets · Reps · Int%</div>
+    <div id="ed-pm-rows">${exRows(pmExs,'pm')}</div>
+    <button class="btn-xs" onclick="addRow('pm')" style="margin-bottom:20px">+ Übung hinzufügen</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-p" onclick="savePlan('${ds}')">💾 Speichern</button>
+      <button class="btn-d" onclick="clearDay('${ds}')">🗑 Tag leeren</button>
+      <button class="btn-s" onclick="closeEditor()">Abbrechen</button>
+    </div>
+    <div id="save-ok">✓ Erfolgreich gespeichert!</div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.onclick=e=>{if(e.target===modal)closeEditor();};
+}
+
+function exRows(exs,sess){
+  if(!exs.length)return'';
+  return exs.map((e,i)=>`<div class="ex-row" id="ex-${sess}-${i}">
+    <input class="fi" id="ex-${sess}-${i}-n" value="${e.name||''}" placeholder="Übungsname">
+    <input class="fi" id="ex-${sess}-${i}-s" value="${e.planSets||''}" placeholder="Sets" style="text-align:center">
+    <input class="fi" id="ex-${sess}-${i}-r" value="${e.planReps||''}" placeholder="Reps" style="text-align:center">
+    <input class="fi" id="ex-${sess}-${i}-i" value="${e.planIntensity||''}" placeholder="Int%" style="text-align:center">
+    <button onclick="this.closest('.ex-row').remove()" style="padding:5px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:var(--red);cursor:pointer;font-size:13px">×</button>
+  </div>`).join('');
+}
+
+function addRow(sess){
+  const wrap=document.getElementById('ed-'+sess+'-rows');
+  const n=wrap.querySelectorAll('.ex-row').length;
+  const div=document.createElement('div');
+  div.className='ex-row'; div.id=`ex-${sess}-${n}`;
+  div.innerHTML=`<input class="fi" id="ex-${sess}-${n}-n" placeholder="Übungsname"><input class="fi" id="ex-${sess}-${n}-s" placeholder="Sets" style="text-align:center"><input class="fi" id="ex-${sess}-${n}-r" placeholder="Reps" style="text-align:center"><input class="fi" id="ex-${sess}-${n}-i" placeholder="Int%" style="text-align:center"><button onclick="this.closest('.ex-row').remove()" style="padding:5px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:var(--red);cursor:pointer;font-size:13px">×</button>`;
+  wrap.appendChild(div);
+  div.querySelector('input').focus();
+}
+
+function collectExs(sess){
+  const rows=document.querySelectorAll(`#ed-${sess}-rows .ex-row`);
+  return Array.from(rows).map(row=>{
+    const n=row.querySelector('[id$="-n"]')?.value?.trim()||'';
+    const s=row.querySelector('[id$="-s"]')?.value?.trim()||'';
+    const r=row.querySelector('[id$="-r"]')?.value?.trim()||'';
+    const int=row.querySelector('[id$="-i"]')?.value?.trim()||'';
+    if(!n)return null;
+    return{name:n,trainingType:null,subCategory:null,planSets:s,planReps:r,planIntensity:int,isBW:false,planLegMode:'DL',planRepType:'reps',planRestUnit:'s',planRestUnitReps:'s'};
+  }).filter(Boolean);
+}
+
+async function savePlan(ds){
+  const phase=document.getElementById('ed-phase')?.value?.trim()||'';
+  const week=document.getElementById('ed-week')?.value?.trim()||'';
+  const amWu=document.getElementById('ed-am-wu')?.value?.trim()||'';
+  const pmWu=document.getElementById('ed-pm-wu')?.value?.trim()||'';
+  const amExs=collectExs('am'); const pmExs=collectExs('pm');
+
+  const existing=coachData?.sessionPlans?.[ds]||{};
+  const existGrps=existing.groups||{};
+  const newGrps={...existGrps};
+  newGrps[progGroup]={
+    am:{exercises:amExs,warmup:amWu,cooldown:existGrps[progGroup]?.am?.cooldown||'',conditioningText:existGrps[progGroup]?.am?.conditioningText||''},
+    pm:{exercises:pmExs,warmup:pmWu,cooldown:existGrps[progGroup]?.pm?.cooldown||'',conditioningText:existGrps[progGroup]?.pm?.conditioningText||''}
+  };
+
+  const sessionPlans={...(coachData?.sessionPlans||{}),[ds]:{...existing,phase,week,groups:newGrps}};
+  try{
+    await db.collection('trainlog').doc('coach').update({sessionPlans,_lastUpdated:Date.now()});
+    const ok=document.getElementById('save-ok');
+    if(ok){ok.style.display='block';setTimeout(()=>ok.style.display='none',2500);}
+  }catch(e){alert('Fehler: '+e.message);}
+}
+
+async function clearDay(ds){
+  if(!confirm(`Plan für ${ds} (Gruppe ${progGroup}) löschen?`))return;
+  try{
+    const sp={...(coachData?.sessionPlans||{})};
+    if(sp[ds]?.groups){delete sp[ds].groups[progGroup];if(!Object.keys(sp[ds].groups).length)delete sp[ds];}
+    else delete sp[ds];
+    await db.collection('trainlog').doc('coach').update({sessionPlans:sp,_lastUpdated:Date.now()});
+    closeEditor();
+  }catch(e){alert('Fehler: '+e.message);}
+}
+
+function closeEditor(){const m=document.getElementById('plan-modal');if(m)m.remove();}
+
+// ══ DELETE LOG ══
+async function delLogDash(logId,athId,event){
+  event?.stopPropagation();
+  if(!confirm('Log löschen?'))return;
+  try{
+    const docRef=db.collection('trainlog').doc('athlete_'+athId);
+    const snap=await docRef.get();
+    if(!snap.exists)return;
+    const newLogs=(snap.data().logs||[]).filter(l=>l.id!==logId);
+    await docRef.update({logs:newLogs});
+    athLogs[athId]=(athLogs[athId]||[]).filter(l=>l.id!==logId);
+    renderCurrent();
+  }catch(e){alert('Fehler: '+e.message);}
+}
+
+// ══ INIT ══
+document.getElementById('tb-sub').textContent=new Date().toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+</script>
+</body>
+</html>
