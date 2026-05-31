@@ -466,8 +466,17 @@ const APP_VERSION = '20260527-7';
     <button class="back" onclick="backToAthleteMenu()">← Back</button>
     <span class="logo">📅 Weekly Plan</span>
   </div>
-  <div class="ttl" id="prog-title">This Week</div>
-  <div class="sub" id="prog-sub" style="margin-bottom:16px"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <button onclick="shiftWeek(-1)" style="padding:6px 14px;border-radius:10px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:18px;font-weight:700;cursor:pointer;line-height:1">‹</button>
+    <div style="text-align:center;flex:1;padding:0 10px">
+      <div class="ttl" id="prog-title" style="margin:0;font-size:20px">Weekly Plan</div>
+      <div class="sub" id="prog-sub" style="margin:2px 0 0"></div>
+    </div>
+    <button onclick="shiftWeek(1)" style="padding:6px 14px;border-radius:10px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:18px;font-weight:700;cursor:pointer;line-height:1">›</button>
+  </div>
+  <div style="margin-bottom:12px;text-align:center">
+    <button id="prog-today-btn" onclick="shiftWeek(0,true)" style="display:none;padding:4px 14px;border-radius:20px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.35);color:var(--blue);font-size:11px;font-weight:700;cursor:pointer">이번 주로 돌아가기</button>
+  </div>
   <div id="prog-content"></div>
 </div>
 
@@ -1832,7 +1841,7 @@ function fmtDate(s){ const p=s.split('-'); return `${p[1]}/${p[2]}`; }
 // ════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════
-const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_skipped:{},_sessExpanded:new Set(),_editingConditionId:null};
+const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_skipped:{},_sessExpanded:new Set(),_editingConditionId:null,_weekOffset:0};
 let loadPeriod='week';
 
 // ════════════════════════════════════════════════
@@ -2021,7 +2030,7 @@ function goCondition(){
   renderBodyParts();
   showScreen('s-condition');
 }
-function goProgram(){ renderProgram(); showScreen('s-program'); }
+function goProgram(){ ST._weekOffset=0; renderProgram(); showScreen('s-program'); }
 function _toggleProgDay(ds){
   const body=document.getElementById('prog-body-'+ds);
   const chev=document.getElementById('prog-chev-'+ds);
@@ -3692,15 +3701,24 @@ function saveSprint(dupMode){
 // ════════════════════════════════════════════════
 function typeLabel(t){ return {weight:'🏋️ Weight Training',sprint:'⚡ Sprint Training',conditioning:'🔄 Conditioning',rest:'😴 Rest',tbt:'🎯 TBT'}[t]||t; }
 
+function shiftWeek(delta, reset=false){
+  if(reset) ST._weekOffset=0;
+  else ST._weekOffset=(ST._weekOffset||0)+delta;
+  renderProgram();
+}
 function renderProgram(){
   const d=getData(); const grp=ST.athlete.group;
-  // Week range: Mon–Sun of current week
+  // Week range: Mon–Sun with offset
+  const offset=ST._weekOffset||0;
   const now=new Date(); const dow=now.getDay();
-  const monday=new Date(now); monday.setDate(now.getDate()-(dow===0?6:dow-1));
+  const monday=new Date(now); monday.setDate(now.getDate()-(dow===0?6:dow-1)+offset*7);
   const sunday=new Date(monday); sunday.setDate(monday.getDate()+6);
   const fmtShort=dt=>`${dt.toLocaleString('en',{month:'short'})} ${dt.getDate()}`;
   document.getElementById('prog-title').textContent='Weekly Plan · Wochenplan';
   document.getElementById('prog-sub').textContent=`${fmtShort(monday)} – ${fmtShort(sunday)}, ${sunday.getFullYear()}`;
+  // 이번 주 돌아가기 버튼 표시 여부
+  const todayBtn=document.getElementById('prog-today-btn');
+  if(todayBtn) todayBtn.style.display=offset!==0?'inline-block':'none';
 
   const wrap=document.getElementById('prog-content'); wrap.innerHTML='';
   const dayNamesEN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
