@@ -981,6 +981,230 @@ function renderLoad(){
   wrap.innerHTML=html;
 }
 
+// ══════════════════════════════════════
+//  ATHLETE INSIGHTS
+// ══════════════════════════════════════
+function _renderInsights(ath){
+  const logs=getLogsByName(ath.name).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const trainLogs=logs.filter(l=>l.type!=='condition');
+  const condLogs=logs.filter(l=>l.type==='condition');
+  if(!trainLogs.length&&!condLogs.length)
+    return`<div class="empty" style="padding:20px 0">분석하기에 데이터가 부족합니다</div>`;
+
+  // ── 공통 헬퍼 ──
+  const avgV=(arr,k)=>arr.length?(arr.reduce((s,l)=>s+(parseFloat(l[k])||0),0)/arr.length):null;
+  const dateToTraining={};
+  trainLogs.forEach(l=>{if(!dateToTraining[l.date])dateToTraining[l.date]=[];dateToTraining[l.date].push(l);});
+  const dateToCondition={};
+  condLogs.forEach(l=>{dateToCondition[l.date]=l;});
+
+  // ── 1. RPE by Type ──
+  const rpeByType={};
+  trainLogs.forEach(l=>{
+    if(!l.rpe)return;
+    if(!rpeByType[l.type])rpeByType[l.type]=[];
+    rpeByType[l.type].push(parseInt(l.rpe));
+  });
+  const rpeEntries=Object.entries(rpeByType).map(([t,vals])=>({
+    type:t,avg:vals.reduce((s,v)=>s+v,0)/vals.length,max:Math.max(...vals),count:vals.length
+  })).sort((a,b)=>b.avg-a.avg);
+
+  let rpeCard=`<div class="card"><div class="card-hd">🎯 훈련 강도 (Session RPE)</div>`;
+  if(rpeEntries.length){
+    rpeEntries.forEach(({type,avg,max,count})=>{
+      const c=tc(type);
+      const col=avg>=8?'var(--red)':avg>=6.5?'var(--gold)':'var(--green)';
+      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[type]||type;
+      rpeCard+=`<div style="margin-bottom:11px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:11px;font-weight:600;color:${c}">${label}</span>
+          <span style="font-size:12px;font-weight:800;color:${col}">avg ${avg.toFixed(1)}</span>
+        </div>
+        <div style="background:rgba(255,255,255,.07);border-radius:4px;height:6px;overflow:hidden">
+          <div style="width:${avg/10*100}%;background:${col};height:100%;border-radius:4px"></div>
+        </div>
+        <div style="font-size:10px;color:#8b949e;margin-top:3px">${count}회 · 최고 RPE ${max}</div>
+      </div>`;
+    });
+    if(rpeEntries.length>=2){
+      const h=rpeEntries[0];
+      const hLabel={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[h.type]||h.type;
+      const col=h.avg>=8?'var(--red)':h.avg>=6.5?'var(--gold)':'var(--green)';
+      rpeCard+=`<div style="padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);font-size:11px;color:#8b949e">
+        💡 <span style="color:${col};font-weight:600">${hLabel}</span>이 가장 힘든 훈련 유형 (avg RPE ${h.avg.toFixed(1)})
+      </div>`;
+    }
+  }else{rpeCard+=`<div style="color:#484f58;font-size:11px">RPE 기록 없음</div>`;}
+  rpeCard+=`</div>`;
+
+  // ── 2. Soreness Profile ──
+  const soreMap={};
+  condLogs.forEach(l=>{
+    (l.soreness||[]).forEach(s=>{
+      if(!soreMap[s.part])soreMap[s.part]={count:0,total:0,max:0};
+      soreMap[s.part].count++;soreMap[s.part].total+=s.intensity;
+      soreMap[s.part].max=Math.max(soreMap[s.part].max,s.intensity);
+    });
+  });
+  const soreEntries=Object.entries(soreMap).map(([part,v])=>({part,...v,avg:v.total/v.count})).sort((a,b)=>b.count-a.count);
+
+  let soreCard=`<div class="card"><div class="card-hd">🔴 근육통 빈도</div>`;
+  if(soreEntries.length){
+    soreEntries.slice(0,7).forEach(({part,count,avg,max})=>{
+      const c=avg>=7?'248,81,73':avg>=4?'247,169,79':'62,207,142';
+      soreCard+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:11px;font-weight:600;color:rgba(${c},1)">${part}</span>
+            <span style="font-size:10px;color:#8b949e">${count}회 · avg ${avg.toFixed(1)}</span>
+          </div>
+          <div style="background:rgba(255,255,255,.07);border-radius:4px;height:5px;overflow:hidden">
+            <div style="width:${count/soreEntries[0].count*100}%;background:rgba(${c},.7);height:100%;border-radius:4px"></div>
+          </div>
+        </div>
+        <div style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(${c},.15);color:rgba(${c},1)">max ${max}</div>
+      </div>`;
+    });
+    if(soreEntries.length>0){
+      const w=soreEntries[0];
+      soreCard+=`<div style="margin-top:4px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);font-size:11px;color:#8b949e">
+        💡 <span style="color:var(--red);font-weight:600">${w.part}</span> 가장 자주 통증 (${w.count}회, 평균 ${w.avg.toFixed(1)}/10)
+      </div>`;
+    }
+  }else{soreCard+=`<div style="color:#484f58;font-size:11px">근육통 기록 없음</div>`;}
+  soreCard+=`</div>`;
+
+  // ── 3. Training → 다음날 근육통 상관관계 ──
+  const typeCorr={};
+  trainLogs.forEach(l=>{
+    const t=l.type;
+    if(!typeCorr[t])typeCorr[t]={total:0,sore:0};
+    typeCorr[t].total++;
+    const nextDs=dsFromDate(new Date(new Date(l.date).setDate(new Date(l.date).getDate()+1)));
+    const nc=dateToCondition[nextDs];
+    if(nc&&(nc.soreness||[]).length)typeCorr[t].sore++;
+  });
+  const corrEntries=Object.entries(typeCorr).filter(([,v])=>v.total>=2).sort((a,b)=>(b[1].sore/b[1].total)-(a[1].sore/a[1].total));
+
+  let corrCard=`<div class="card"><div class="card-hd">📊 훈련 후 근육통 발생률</div>
+    <div style="font-size:10px;color:#484f58;margin-bottom:10px">훈련 다음날 근육통 보고 비율</div>`;
+  if(corrEntries.length){
+    corrEntries.forEach(([type,{total,sore}])=>{
+      const pct=Math.round(sore/total*100);
+      const c=tc(type);
+      const col=pct>=60?'var(--red)':pct>=35?'var(--gold)':'var(--green)';
+      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[type]||type;
+      corrCard+=`<div style="margin-bottom:11px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:11px;font-weight:600;color:${c}">${label}</span>
+          <span style="font-size:12px;font-weight:800;color:${col}">${pct}%</span>
+        </div>
+        <div style="background:rgba(255,255,255,.07);border-radius:4px;height:6px;overflow:hidden">
+          <div style="width:${pct}%;background:${col};height:100%;border-radius:4px"></div>
+        </div>
+        <div style="font-size:10px;color:#8b949e;margin-top:3px">${sore}/${total}회</div>
+      </div>`;
+    });
+  }else{corrCard+=`<div style="color:#484f58;font-size:11px">데이터 부족 (종류별 2회 이상 필요)</div>`;}
+  corrCard+=`</div>`;
+
+  // ── 4. 컨디션 반응 패턴 ──
+  const postTrain=[],baseline=[];
+  condLogs.forEach(c=>{
+    const prev=_prevDate(c.date);
+    if((dateToTraining[prev]||[]).length)postTrain.push(c);else baseline.push(c);
+  });
+
+  let recCard=`<div class="card"><div class="card-hd">😴 컨디션 반응 패턴</div>
+    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 12px;align-items:center;margin-bottom:10px">
+      <div></div>
+      <div style="font-size:9px;font-weight:700;color:#8b949e;text-align:center">훈련 다음날</div>
+      <div style="font-size:9px;font-weight:700;color:#8b949e;text-align:center">휴식 다음날</div>`;
+  [{key:'fatigue',label:'피로도',hg:false},{key:'mood',label:'기분',hg:true},{key:'sleepQuality',label:'수면질',hg:true},{key:'sleepHours',label:'수면시간',hg:true}].forEach(({key,label,hg})=>{
+    const pv=avgV(postTrain,key);const bv=avgV(baseline,key);
+    const pc=pv!=null?iCol(pv,hg):'#484f58';const bc=bv!=null?iCol(bv,hg):'#484f58';
+    recCard+=`<div style="font-size:10px;color:#8b949e">${label}</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:${pc}">${pv!=null?pv.toFixed(1):'—'}</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:${bc}">${bv!=null?bv.toFixed(1):'—'}</div>`;
+  });
+  recCard+=`</div>`;
+  if(postTrain.length&&baseline.length){
+    const pf=avgV(postTrain,'fatigue'),bf=avgV(baseline,'fatigue');
+    if(pf!=null&&bf!=null){
+      const diff=(pf-bf);
+      const col=Math.abs(diff)<0.5?'var(--green)':diff>0?'var(--red)':'var(--green)';
+      recCard+=`<div style="padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);font-size:11px;color:#8b949e">
+        💡 훈련 다음날 피로도 <span style="color:${col};font-weight:700">${diff>0?'+':''}${diff.toFixed(1)}</span> (휴식 다음날 대비)
+      </div>`;
+    }
+  }
+  recCard+=`</div>`;
+
+  // ── 5. Struggle Signals ──
+  const HARD=['difficult','hard','tough','schwer','힘들','어렵','struggled','pain','brutal','못'];
+  const hardSessions=trainLogs.filter(l=>parseInt(l.rpe)>=8||(l.notes&&HARD.some(k=>l.notes.toLowerCase().includes(k)))).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+
+  let struggleCard='';
+  if(hardSessions.length){
+    struggleCard=`<div class="card" style="margin-top:12px"><div class="card-hd">⚠️ Struggle Signals (RPE ≥ 8 또는 어려움 언급)</div>`;
+    hardSessions.forEach(l=>{
+      const c=tc(l.type);
+      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[l.type]||l.type;
+      const v=l.type==='weight'?`${vol([l]).toLocaleString()} kg`:l.type==='sprint'?`${l.totalDistance||0} m`:'';
+      struggleCard+=`<div class="lr">
+        <span class="ld">${fmt(l.date)}</span>
+        <span class="lt" style="color:${c}">${label}</span>
+        <span class="lv">${v}</span>
+        ${l.rpe?`<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;background:${parseInt(l.rpe)>=8?'rgba(248,81,73,.15)':'rgba(247,169,79,.1)'};color:${parseInt(l.rpe)>=8?'var(--red)':'var(--gold)'};flex-shrink:0">RPE ${l.rpe}</span>`:''}
+      </div>
+      ${l.notes&&HARD.some(k=>l.notes.toLowerCase().includes(k))?`<div style="font-size:10px;color:#8b949e;padding:2px 0 6px 50px;font-style:italic">"${l.notes.slice(0,90)}${l.notes.length>90?'…':''}"</div>`:''}`;
+    });
+    struggleCard+=`</div>`;
+  }
+
+  // ── 6. 종목별 강도 추세 ──
+  const exProg={};
+  trainLogs.filter(l=>l.type==='weight').forEach(l=>{
+    (l.exercises||[]).filter(e=>!e.isBodyweight).forEach(e=>{
+      const maxKg=e.setRows?.length?Math.max(...e.setRows.map(sr=>parseFloat(sr.kg)||0)):(parseFloat(e.weight)||0);
+      if(maxKg<=0)return;
+      if(!exProg[e.name])exProg[e.name]=[];
+      exProg[e.name].push({date:l.date,maxKg});
+    });
+  });
+  const exTrends=Object.entries(exProg).filter(([,e])=>e.length>=3).map(([name,entries])=>{
+    const s=entries.sort((a,b)=>a.date.localeCompare(b.date));
+    const first=s[0].maxKg,last=s[s.length-1].maxKg,diff=last-first;
+    return{name,first,last,diff,trend:diff>0?'up':diff<0?'down':'flat',count:s.length};
+  }).sort((a,b)=>b.count-a.count).slice(0,8);
+
+  let trendCard='';
+  if(exTrends.length){
+    trendCard=`<div class="card" style="margin-top:12px"><div class="card-hd">📈 주요 종목 중량 추세 (3회 이상 기록된 종목)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`;
+    exTrends.forEach(({name,first,last,diff,trend,count})=>{
+      const arrow=trend==='up'?'↑':trend==='down'?'↓':'→';
+      const col=trend==='up'?'var(--green)':trend==='down'?'var(--red)':'#8b949e';
+      trendCard+=`<div style="padding:9px 11px;background:rgba(255,255,255,.03);border-radius:6px;border:1px solid rgba(255,255,255,.06)">
+        <div style="font-size:10px;font-weight:600;color:#c9d1d9;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span style="font-size:11px;color:#8b949e">${first}→${last}kg</span>
+          <span style="font-size:14px;font-weight:800;color:${col}">${arrow}${Math.abs(diff)>0?' '+Math.abs(diff)+'kg':''}</span>
+        </div>
+        <div style="font-size:9px;color:#484f58;margin-top:3px">${count}회 기록</div>
+      </div>`;
+    });
+    trendCard+=`</div></div>`;
+  }
+
+  return`<div style="margin-top:20px">
+    <div class="sec"><span class="sec-title">Performance Insights · ${ath.name}</span><div class="sec-line"></div></div>
+    <div class="g2" style="gap:12px">${rpeCard}${soreCard}</div>
+    <div class="g2" style="gap:12px;margin-top:12px">${corrCard}${recCard}</div>
+    ${struggleCard}${trendCard}
+  </div>`;
+}
+
 function buildBarChart(id,dates,data,bg,border){
   killChart(id);
   const c=document.getElementById('ch-'+id);if(!c)return;
@@ -1280,7 +1504,11 @@ function renderAthletes(){
   });
   cardsHtml+='</div>';
 
-  wrap.innerHTML=fb+comparePanelHtml+cardsHtml;
+  // 개별 선수 선택 시 → Insights 패널 추가
+  let insightsHtml='';
+  if(athletes.length===1) insightsHtml=_renderInsights(athletes[0]);
+
+  wrap.innerHTML=fb+comparePanelHtml+cardsHtml+insightsHtml;
 }
 
 // ══════════════════════════════════════
