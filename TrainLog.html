@@ -5158,8 +5158,8 @@ function _buildDetailSummary(name, d){
     condLine=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:11px;color:var(--muted)">Last condition · ${lastCond.date.slice(5)}</span>
       <span style="font-size:12px">😴 <b>${lastCond.sleepHours||'—'}h</b> · Q${lastCond.sleepQuality||'—'}</span>
-      <span style="font-size:12px;color:${fC}">⚡ 피로 <b>${lastCond.fatigue||'—'}</b></span>
-      <span style="font-size:12px;color:${mC}">😊 기분 <b>${lastCond.mood||'—'}</b></span>
+      <span style="font-size:12px;color:${fC}">⚡ Fatigue <b>${lastCond.fatigue||'—'}</b></span>
+      <span style="font-size:12px;color:${mC}">😊 Mood <b>${lastCond.mood||'—'}</b></span>
     </div>`;
   }
 
