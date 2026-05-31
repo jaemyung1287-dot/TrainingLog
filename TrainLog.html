@@ -4835,7 +4835,10 @@ function _renderLoadRecent(logs, wrapId){
             <div style="font-size:12.5px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_metaLine(l)}</div>
           </div>
         </div>
-        ${hasDetail?`<span id="${chevId}" style="font-size:14px;color:var(--muted);transition:transform .2s;flex-shrink:0">▼</span>`:''}
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${hasDetail?`<span id="${chevId}" style="font-size:14px;color:var(--muted);flex-shrink:0">▼</span>`:''}
+          <button onclick="event.stopPropagation();deleteLog('${l.id}','load')" style="padding:3px 8px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>
+        </div>
       </div>
       ${hasDetail?`<div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>`:''}
     </div>`;
