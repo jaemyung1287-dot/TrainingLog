@@ -3027,8 +3027,20 @@ function renderExList(){
     const headerHtml=fromPlan
       ? `<span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;flex:1;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
          <span style="font-size:10px;color:var(--muted)">📋</span>`
-      : `<input class="ex-name" placeholder="Exercise name" value="${ex.name}" oninput="ST.exercises[${i}].name=this.value">
-         <button class="del-btn" onclick="removeEx(${i})">×</button>`;
+      : ((!ex.name||ex._searching)
+        ? `<div style="position:relative;flex:1;min-width:0">
+             <input class="ex-name" id="exsearch-${i}" placeholder="운동 검색..." value="${ex._searchVal||''}" autocomplete="off"
+               oninput="ST.exercises[${i}]._searchVal=this.value;_filterAthleteSearch(${i},this.value)"
+               onkeydown="if(event.key==='Enter')_confirmAthleteEx(${i},this.value)">
+             <div id="exdrop-${i}" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;max-height:220px;overflow-y:auto;background:rgba(14,14,32,.98);border:1px solid rgba(79,142,247,.3);border-radius:10px;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>
+           </div>
+           <button class="del-btn" onclick="removeEx(${i})">×</button>`
+        : `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+             <span style="font-size:15px;font-weight:700;color:#D4D0E8">${ex.name}</span>
+             ${ex.subCategory?`<span style="font-size:9px;padding:2px 7px;background:${subColor};border:1px solid rgba(255,255,255,.1);border-radius:4px;color:rgba(255,255,255,.55);font-weight:600">${ex.subCategory}</span>`:''}
+           </div>
+           <button class="del-btn" onclick="removeEx(${i})">×</button>`
+      );
 
     // Parameter rows based on type
     let paramsHtml='';
@@ -3126,7 +3138,35 @@ function renderExList(){
           ${ST.exercises[i].setRows.length>1?`<button onclick="removeSetRow(${i},${j})" style="padding:4px 8px;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.07);color:rgba(255,100,100,.8);font-size:13px;font-weight:700;cursor:pointer;line-height:1" title="Delete set">×</button>`:''}
         </div>`;
       }).join('');
-      paramsHtml=`${liftPlanSummary}${contractionBadge}<div style="margin-top:10px">${setRowsHtml}</div>`;
+      // 선수 자유입력 전용 — 휴식시간 + 수축 타입
+      let freeRestHtml='', freeContrHtml='';
+      if(!fromPlan){
+        freeRestHtml=`<div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:7px 10px;background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.15);border-radius:9px">
+          <span style="font-size:10px;font-weight:700;color:rgba(79,142,247,.7);letter-spacing:.3px;white-space:nowrap">REST</span>
+          <input type="number" placeholder="—" value="${ex.restTime||''}" oninput="ST.exercises[${i}].restTime=this.value"
+            style="width:50px;padding:4px 8px;background:var(--input);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;font-weight:600;text-align:center">
+          <select onchange="ST.exercises[${i}].restUnit=this.value"
+            style="padding:4px 8px;background:var(--input);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;font-weight:600">
+            <option value="s" ${!ex.restUnit||ex.restUnit==='s'?'selected':''}>s · set</option>
+            <option value="min" ${ex.restUnit==='min'?'selected':''}>min · set</option>
+          </select>
+        </div>`;
+        const _cTypes=['','Concentric','Eccentric','Isometric'];
+        const _cTypeOpts=_cTypes.map(c=>`<option value="${c}" ${(ex.contractionType||'')===(c)?'selected':''}>${c||'Contraction Type'}</option>`).join('');
+        let _cValFreeHtml='';
+        if(ex.contractionType==='Concentric'){
+          const _tempos=['2-0-2','3-0-3','3-0-1','2-0-1','Explosive'];
+          const _tOpts=_tempos.map(t=>`<option value="${t}" ${(ex.contractionValue||'')===t?'selected':''}>${t}</option>`).join('');
+          _cValFreeHtml=`<select onchange="ST.exercises[${i}].contractionValue=this.value" style="padding:5px 8px;background:var(--input);border:1px solid rgba(167,139,250,.4);border-radius:8px;color:#a78bfa;font-size:11px;font-weight:600"><option value="">Tempo</option>${_tOpts}</select>`;
+        } else if(ex.contractionType){
+          _cValFreeHtml=`<input type="number" placeholder="sec" value="${ex.contractionValue||''}" oninput="ST.exercises[${i}].contractionValue=this.value" style="width:50px;padding:5px 8px;background:var(--input);border:1px solid rgba(167,139,250,.4);border-radius:8px;color:#a78bfa;font-size:12px;font-weight:600;text-align:center">`;
+        }
+        freeContrHtml=`<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <select onchange="ST.exercises[${i}].contractionType=this.value;renderExList()" style="flex:1;min-width:120px;padding:6px 10px;background:var(--input);border:1px solid ${ex.contractionType?'rgba(167,139,250,.35)':'var(--border)'};border-radius:8px;color:${ex.contractionType?'#a78bfa':'var(--muted)'};font-size:12px">${_cTypeOpts}</select>
+          ${_cValFreeHtml}
+        </div>`;
+      }
+      paramsHtml=`${liftPlanSummary}${contractionBadge}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -3242,17 +3282,31 @@ function renderExList(){
         </button>
       </div>
     </div>`;
-    // Training Mode badges
+    // Training Mode
     const _tmBW = ex.isBodyweight||false;
-    const _tmSL = ex.isSL || (ex.planLegMode === 'SL') || /\(SL\)/i.test(ex.name);
-    const _tmSA = ex.isSA || (ex.planLegMode === 'SA') || /\(SA\)/i.test(ex.name);
+    const _tmSL = ex.isSL||false;
+    const _tmSA = ex.isSA||false;
     let trainingModeHtml = '';
-    if(_tmBW || _tmSL || _tmSA){
-      let chips='';
-      if(_tmBW) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.3);color:#3ecf8e">BW</span>`;
-      if(_tmSL) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:#4f8ef7">SL</span>`;
-      if(_tmSA) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:#a78bfa">SA</span>`;
-      trainingModeHtml=`<div style="display:flex;align-items:center;gap:5px;margin-top:7px;flex-wrap:wrap">${chips}</div>`;
+    if(fromPlan){
+      // 코치 플랜에서 온 경우 — 읽기 전용 badge
+      const _pSL=ex.isSL||(ex.planLegMode==='SL')||/\(SL\)/i.test(ex.name);
+      const _pSA=ex.isSA||(ex.planLegMode==='SA')||/\(SA\)/i.test(ex.name);
+      if(_tmBW||_pSL||_pSA){
+        let chips='';
+        if(_tmBW) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.3);color:#3ecf8e">BW</span>`;
+        if(_pSL) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:#4f8ef7">SL</span>`;
+        if(_pSA) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:#a78bfa">SA</span>`;
+        trainingModeHtml=`<div style="display:flex;align-items:center;gap:5px;margin-top:7px;flex-wrap:wrap">${chips}</div>`;
+      }
+    } else if(ex.name && !ex._searching){
+      // 선수 자유입력 — 인터랙티브 토글 버튼
+      const _bS=(on,col,bg)=>`font-size:9px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit;border:1px solid ${on?col+'99':'rgba(255,255,255,.15)'};background:${on?bg:'transparent'};color:${on?col:'rgba(255,255,255,.38)'}`;
+      trainingModeHtml=`<div style="display:flex;align-items:center;gap:5px;margin-top:8px;flex-wrap:wrap">
+        <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.3px">훈련 모드</span>
+        <button style="${_bS(_tmBW,'#3ecf8e','rgba(62,207,142,.12)')}" onclick="toggleBW(${i})">BW</button>
+        <button style="${_bS(_tmSL,'#4f8ef7','rgba(79,142,247,.12)')}" onclick="toggleSL(${i})">SL</button>
+        <button style="${_bS(_tmSA,'#a78bfa','rgba(167,139,250,.12)')}" onclick="toggleSA(${i})">SA</button>
+      </div>`;
     }
     div.innerHTML=`<div class="ex-top">${headerHtml}</div>${trainingModeHtml}${paramsHtml}${vbtHtml}${effortHtml}${doneHtml}`;
     wrap.appendChild(div);
@@ -3285,7 +3339,80 @@ function toggleBW(i){
   renderExList();
 }
 function toggleSL(i){ ST.exercises[i].isSL=!ST.exercises[i].isSL; renderExList(); }
-function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:'',isSL:false}); renderExList(); }
+function toggleSA(i){ ST.exercises[i].isSA=!ST.exercises[i].isSA; renderExList(); }
+
+// ── 선수 운동 검색 자동완성 ─────────────────────────────────
+function _filterAthleteSearch(idx,query){
+  const drop=document.getElementById('exdrop-'+idx); if(!drop) return;
+  const q=query.trim().toLowerCase();
+  if(!q){ drop.style.display='none'; return; }
+  const customLib=(_getCustomExLib&&_getCustomExLib())||{};
+  const results=[];
+  // 전체 sub 순회
+  const allSubs=new Set([...Object.keys(EXERCISE_LIBRARY),...Object.keys(customLib)]);
+  allSubs.forEach(sub=>{
+    const builtin=EXERCISE_LIBRARY[sub]||[];
+    const custom=customLib[sub]||[];
+    const customSet=new Set(custom);
+    const merged=[...builtin,...custom.filter(e=>!builtin.includes(e))];
+    const tType=Object.keys(TRAINING_STRUCTURE).find(t=>(TRAINING_STRUCTURE[t].subs||[]).includes(sub))||'Resistance Training';
+    merged.filter(ex=>ex.toLowerCase().includes(q)&&!results.find(r=>r.name===ex)).forEach(ex=>{
+      results.push({name:ex,sub,tType,isCustom:customSet.has(ex)});
+    });
+  });
+  drop.style.display='block';
+  if(!results.length){
+    drop.innerHTML=`<div style="padding:11px 14px;font-size:12px;color:var(--muted)">매칭 없음 — Enter로 <strong style="color:var(--text)">"${query.trim()}"</strong> 추가 (기타)</div>`;
+    return;
+  }
+  // sub 기준으로 그룹핑
+  const grouped={};
+  results.forEach(r=>{ if(!grouped[r.sub]) grouped[r.sub]=[]; grouped[r.sub].push(r); });
+  drop.innerHTML=Object.keys(grouped).map(sub=>{
+    const rows=grouped[sub].map(r=>{
+      const safeN=r.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<div onclick="_selectAthleteEx(${idx},'${safeN}','${r.tType}','${sub}')"
+        style="padding:9px 14px;font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);display:flex;justify-content:space-between;align-items:center"
+        onmouseover="this.style.background='rgba(79,142,247,.12)'" onmouseout="this.style.background=''">
+        <span>${r.name}</span>
+        ${r.isCustom?'<span style="font-size:10px;color:var(--muted);background:rgba(255,255,255,.07);padding:2px 6px;border-radius:4px">custom</span>':''}
+      </div>`;
+    }).join('');
+    return `<div style="padding:5px 12px 3px;font-size:9px;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid rgba(255,255,255,.06)">${sub}</div>${rows}`;
+  }).join('');
+}
+function _selectAthleteEx(idx,name,trainingType,subCategory){
+  ST.exercises[idx].name=name;
+  ST.exercises[idx].trainingType=trainingType;
+  ST.exercises[idx].subCategory=subCategory;
+  ST.exercises[idx]._searching=false;
+  ST.exercises[idx]._searchVal='';
+  if(typeof BW_EXERCISES!=='undefined'&&BW_EXERCISES.has(name)) ST.exercises[idx].isBodyweight=true;
+  renderExList();
+}
+function _confirmAthleteEx(idx,name){
+  const n=name.trim(); if(!n) return;
+  const customLib=(_getCustomExLib&&_getCustomExLib())||{};
+  let foundType=null,foundSub=null;
+  const allSubs=[...Object.keys(EXERCISE_LIBRARY),...Object.keys(customLib).filter(s=>!EXERCISE_LIBRARY[s])];
+  for(const sub of allSubs){
+    const all=[...(EXERCISE_LIBRARY[sub]||[]),...(customLib[sub]||[])];
+    if(all.find(e=>e.toLowerCase()===n.toLowerCase())){
+      foundSub=sub;
+      foundType=Object.keys(TRAINING_STRUCTURE).find(t=>(TRAINING_STRUCTURE[t].subs||[]).includes(sub))||'Resistance Training';
+      break;
+    }
+  }
+  if(foundSub){
+    _selectAthleteEx(idx,n,foundType,foundSub);
+  } else {
+    // 라이브러리에 없음 → 기타 버킷에 저장
+    if(typeof _saveCustomEx==='function') _saveCustomEx('기타',n);
+    _selectAthleteEx(idx,n,'Resistance Training','기타');
+    showToast(`"${n}" → 기타로 추가됨`);
+  }
+}
+function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:'',isSL:false,isSA:false,restTime:'',restUnit:'s',contractionType:'',contractionValue:'',_searching:true,_searchVal:''}); renderExList(); }
 function removeEx(i){ ST.exercises.splice(i,1); if(!ST.exercises.length) ST.exercises.push({name:'',intensity:'',weight:'',sets:'',reps:'',effort:''}); renderExList(); }
 function addSetToEx(i){
   if(!ST.exercises[i].setRows) ST.exercises[i].setRows=[];
@@ -3395,7 +3522,9 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
           setRows:e.setRows||null,
           effort:e.effort||null, fromPlan:e.fromPlan||false,
           meanV:e.meanV?parseFloat(e.meanV):null, peakV:e.peakV?parseFloat(e.peakV):null, velLoss:e.velLoss?parseFloat(e.velLoss):null,
-          planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null, planRestType:e.planRestType||[]
+          planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null, planRestType:e.planRestType||[],
+          restTime:e.restTime||null, restUnit:e.restUnit||'s',
+          contractionType:e.contractionType||null, contractionValue:e.contractionValue||null
         };
       }),
       totalVolume:Math.round(totalVol), rpe, notes,
