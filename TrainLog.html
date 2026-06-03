@@ -948,18 +948,23 @@ const APP_VERSION = '20260527-7';
   <!-- SETTINGS -->
   <div class="tab-pane" id="tab-settings">
     <div class="ttl" style="font-size:22px">Settings</div>
-    <div class="sec-ttl">Athlete Management</div>
-    <div id="settings-ath-list"></div>
-    <div class="fg" style="margin-top:16px">
-      <label class="fl">Add New Athlete</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input class="fi" id="coach-new-name" placeholder="Name" style="flex:1;min-width:120px" onkeydown="if(event.key==='Enter')coachAddAthlete()">
-        <select class="fi" id="coach-new-group" style="width:120px;flex:none">
-          <option value="A">Group A</option>
-          <option value="B">Group B</option>
-        </select>
+    <div onclick="_toggleAthMgmt()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0;margin-bottom:8px">
+      <div class="sec-ttl" style="margin:0">Athlete Management</div>
+      <span id="ath-mgmt-chevron" style="font-size:14px;color:var(--muted);transition:transform .2s">▾</span>
+    </div>
+    <div id="ath-mgmt-body">
+      <div id="settings-ath-list"></div>
+      <div class="fg" style="margin-top:16px">
+        <label class="fl">Add New Athlete</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input class="fi" id="coach-new-name" placeholder="Name" style="flex:1;min-width:120px" onkeydown="if(event.key==='Enter')coachAddAthlete()">
+          <select class="fi" id="coach-new-group" style="width:120px;flex:none">
+            <option value="A">Group A</option>
+            <option value="B">Group B</option>
+          </select>
+        </div>
+        <button class="btn btn-p" onclick="coachAddAthlete()" style="margin-top:8px">Add</button>
       </div>
-      <button class="btn btn-p" onclick="coachAddAthlete()" style="margin-top:8px">Add</button>
     </div>
     <div class="sec-ttl">Change PIN</div>
     <div style="display:flex;gap:8px">
@@ -5558,8 +5563,19 @@ function remProgSes(dow,si){ const d=getData(); ensureDay(d,dow).sessions.splice
 function updProgSes(dow,si,field,val){ const d=getData(); ensureDay(d,dow).sessions[si][field]=val; saveData(d); }
 
 // ── SETTINGS ──
+let _athMgmtOpen=false;
+function _toggleAthMgmt(){
+  _athMgmtOpen=!_athMgmtOpen;
+  const body=document.getElementById('ath-mgmt-body');
+  const chev=document.getElementById('ath-mgmt-chevron');
+  if(body) body.style.display=_athMgmtOpen?'block':'none';
+  if(chev) chev.style.transform=_athMgmtOpen?'rotate(180deg)':'rotate(0deg)';
+}
 function renderSettings(){
   const d=getData(); const wrap=document.getElementById('settings-ath-list'); wrap.innerHTML='';
+  // 초기 접힘 상태 적용
+  const _body=document.getElementById('ath-mgmt-body');
+  if(_body) _body.style.display=_athMgmtOpen?'block':'none';
   // Show last sync time
   const syncBar=document.getElementById('sync-status-bar');
   if(syncBar){
