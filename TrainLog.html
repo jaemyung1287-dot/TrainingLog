@@ -2505,8 +2505,20 @@ function selectType(t){
     } else {
       ST.exercises=[]; addBtn.style.display='block';
       banner.style.display='none';
-      document.getElementById('w-phase').value=prog.phase||'';
-      document.getElementById('w-week').value=prog.week||'';
+      // Phase/Week: prog 설정 → 이번 주 다른 날 플랜에서 상속
+      let _ph=prog.phase||'', _wk=prog.week||'';
+      if(!_ph||!_wk){
+        const _td=new Date(today); const _dow=_td.getDay();
+        const _mon=new Date(_td); _mon.setDate(_td.getDate()-(_dow===0?6:_dow-1));
+        for(let _wi=0;_wi<7;_wi++){
+          const _wd=new Date(_mon); _wd.setDate(_mon.getDate()+_wi);
+          const _wds=`${_wd.getFullYear()}-${String(_wd.getMonth()+1).padStart(2,'0')}-${String(_wd.getDate()).padStart(2,'0')}`;
+          const _wp=d.sessionPlans[_wds];
+          if(_wp){ if(!_ph&&_wp.phase) _ph=_wp.phase; if(!_wk&&_wp.week) _wk=_wp.week; if(_ph&&_wk) break; }
+        }
+      }
+      document.getElementById('w-phase').value=_ph;
+      document.getElementById('w-week').value=_wk;
       // Still show warm-up / cool-down / conditioning if text is set, even with no exercises
       const _sbFallback=(()=>{
         if(!grpData) return null;
@@ -3029,7 +3041,7 @@ function renderExList(){
          <span style="font-size:10px;color:var(--muted)">📋</span>`
       : ((!ex.name||ex._searching)
         ? `<div style="position:relative;flex:1;min-width:0">
-             <input class="ex-name" id="exsearch-${i}" placeholder="운동 검색..." value="${ex._searchVal||''}" autocomplete="off"
+             <input class="ex-name" id="exsearch-${i}" placeholder="Übung suchen..." value="${ex._searchVal||''}" autocomplete="off"
                oninput="ST.exercises[${i}]._searchVal=this.value;_filterAthleteSearch(${i},this.value)"
                onkeydown="if(event.key==='Enter')_confirmAthleteEx(${i},this.value)">
              <div id="exdrop-${i}" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;max-height:220px;overflow-y:auto;background:rgba(14,14,32,.98);border:1px solid rgba(79,142,247,.3);border-radius:10px;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>
@@ -3302,7 +3314,7 @@ function renderExList(){
       // 선수 자유입력 — 인터랙티브 토글 버튼
       const _bS=(on,col,bg)=>`font-size:9px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit;border:1px solid ${on?col+'99':'rgba(255,255,255,.15)'};background:${on?bg:'transparent'};color:${on?col:'rgba(255,255,255,.38)'}`;
       trainingModeHtml=`<div style="display:flex;align-items:center;gap:5px;margin-top:8px;flex-wrap:wrap">
-        <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.3px">훈련 모드</span>
+        <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.3px">Modus</span>
         <button style="${_bS(_tmBW,'#3ecf8e','rgba(62,207,142,.12)')}" onclick="toggleBW(${i})">BW</button>
         <button style="${_bS(_tmSL,'#4f8ef7','rgba(79,142,247,.12)')}" onclick="toggleSL(${i})">SL</button>
         <button style="${_bS(_tmSA,'#a78bfa','rgba(167,139,250,.12)')}" onclick="toggleSA(${i})">SA</button>
@@ -3362,7 +3374,7 @@ function _filterAthleteSearch(idx,query){
   });
   drop.style.display='block';
   if(!results.length){
-    drop.innerHTML=`<div style="padding:11px 14px;font-size:12px;color:var(--muted)">매칭 없음 — Enter로 <strong style="color:var(--text)">"${query.trim()}"</strong> 추가 (기타)</div>`;
+    drop.innerHTML=`<div style="padding:11px 14px;font-size:12px;color:var(--muted)">Keine Treffer — Enter: <strong style="color:var(--text)">"${query.trim()}"</strong> als Sonstiges speichern</div>`;
     return;
   }
   // sub 기준으로 그룹핑
@@ -3409,7 +3421,7 @@ function _confirmAthleteEx(idx,name){
     // 라이브러리에 없음 → 기타 버킷에 저장
     if(typeof _saveCustomEx==='function') _saveCustomEx('기타',n);
     _selectAthleteEx(idx,n,'Resistance Training','기타');
-    showToast(`"${n}" → 기타로 추가됨`);
+    showToast(`"${n}" → Sonstiges`);
   }
 }
 function addExercise(){ ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',rest:'',effort:'',isBodyweight:false,extraKg:'',isSL:false,isSA:false,restTime:'',restUnit:'s',contractionType:'',contractionValue:'',_searching:true,_searchVal:''}); renderExList(); }
