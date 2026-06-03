@@ -971,6 +971,8 @@ const APP_VERSION = '20260527-7';
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-p btn-sm" onclick="forceSyncNow()">☁️ Force Sync Now</button>
     </div>
+    <div class="sec-ttl" style="margin-top:24px">Nicht kategorisierte Übungen</div>
+    <div id="uncat-review-section" style="margin-bottom:8px"></div>
     <div class="sec-ttl" style="margin-top:24px">Data</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-g btn-sm" onclick="exportExcel()">📊 Export Excel (.xlsx)</button>
@@ -5585,6 +5587,7 @@ function renderSettings(){
     </div>`;
     wrap.appendChild(div);
   });
+  renderUncatSection();
 }
 function setAthBodyWeight(id){
   const inp=document.getElementById('abw-'+id); const w=parseFloat(inp.value);
@@ -5611,6 +5614,102 @@ function setAthPin(id){
   if(!/^\d{4}$/.test(pin)){ showToast('PIN must be 4 digits'); return; }
   ath.pin=pin; saveData(d); inp.value=''; renderSettings(); showToast(`${ath.name} PIN set!`);
 }
+
+// ── 미분류 운동 카테고리 지정 ──────────────────────────────
+function renderUncatSection(){
+  const wrap=document.getElementById('uncat-review-section'); if(!wrap) return;
+  const d=getData();
+  // 미분류 운동 수집: trainingType 없거나 subCategory가 '기타'/null
+  const uncatMap={}; // name → {count, athlete}
+  d.logs.forEach(l=>{
+    (l.exercises||[]).forEach(e=>{
+      if(e.name&&(!e.trainingType||!e.subCategory||e.subCategory==='기타')){
+        if(!uncatMap[e.name]) uncatMap[e.name]={count:0,athletes:new Set()};
+        uncatMap[e.name].count++;
+        if(l.athleteName) uncatMap[e.name].athletes.add(l.athleteName);
+      }
+    });
+  });
+  // customExercises['기타']도 추가
+  const customLib=(d.customExercises)||{};
+  (customLib['기타']||[]).forEach(n=>{ if(!uncatMap[n]) uncatMap[n]={count:0,athletes:new Set()}; });
+
+  const names=Object.keys(uncatMap).sort();
+  if(!names.length){
+    wrap.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:rgba(62,207,142,.07);border:1px solid rgba(62,207,142,.2);border-radius:10px;font-size:12px;color:#3ecf8e;font-weight:600">✅ Alle Übungen sind kategorisiert</div>`;
+    return;
+  }
+
+  const typeOpts=['','Resistance Training','Power Development','Plyometric Training']
+    .map(t=>`<option value="${t}">${t||'Training Type...'}</option>`).join('');
+
+  wrap.innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${names.length}개 운동이 분류되지 않았습니다. Trainingtyp und Subkategorie auswählen → Zuweisen.</div>
+    ${names.map(name=>{
+      const info=uncatMap[name];
+      const safeId=name.replace(/[^a-zA-Z0-9]/g,'_');
+      const athStr=info.athletes.size?[...info.athletes].join(', '):'';
+      return `<div style="padding:12px 14px;background:var(--card);border:1px solid rgba(255,165,0,.25);border-radius:10px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap">
+          <div>
+            <span style="font-size:14px;font-weight:700;color:var(--text)">${name}</span>
+            ${athStr?`<span style="font-size:10px;color:var(--muted);margin-left:8px">${athStr} · ${info.count}×</span>`:''}
+          </div>
+          <span style="font-size:10px;padding:2px 8px;background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3);border-radius:12px;color:#ffa500;font-weight:700">미분류</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select id="ucat-type-${safeId}" onchange="_renderSubSelect('${safeId}')"
+            style="flex:1;min-width:140px;padding:7px 10px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px">
+            ${typeOpts}
+          </select>
+          <select id="ucat-sub-${safeId}"
+            style="flex:1;min-width:140px;padding:7px 10px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px">
+            <option value="">Subkategorie...</option>
+          </select>
+          <button onclick="_applyExCategory('${name.replace(/'/g,"\\'").replace(/\\/g,'\\\\')}','${safeId}')"
+            style="padding:8px 16px;border-radius:8px;border:none;background:#3ecf8e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            ✓ Zuweisen
+          </button>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+function _renderSubSelect(safeId){
+  const typeEl=document.getElementById('ucat-type-'+safeId);
+  const subEl=document.getElementById('ucat-sub-'+safeId);
+  if(!typeEl||!subEl) return;
+  const subs=TRAINING_STRUCTURE[typeEl.value]?.subs||[];
+  subEl.innerHTML=`<option value="">Subkategorie...</option>`+subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+  subEl.style.color=subs.length?'var(--text)':'var(--muted)';
+}
+function _applyExCategory(name,safeId){
+  const typeEl=document.getElementById('ucat-type-'+safeId);
+  const subEl=document.getElementById('ucat-sub-'+safeId);
+  if(!typeEl||!subEl) return;
+  const trainingType=typeEl.value; const subCategory=subEl.value;
+  if(!trainingType||!subCategory){ showToast('Kategorie + Subkategorie auswählen'); return; }
+  const d=getData(); let count=0;
+  // 전체 로그에서 해당 운동 일괄 업데이트
+  d.logs.forEach(l=>{
+    (l.exercises||[]).forEach(e=>{
+      if(e.name===name&&(!e.trainingType||!e.subCategory||e.subCategory==='기타')){
+        e.trainingType=trainingType; e.subCategory=subCategory; count++;
+      }
+    });
+  });
+  // customExercises 이동: 기타 → 올바른 sub
+  if(!d.customExercises) d.customExercises={};
+  if(d.customExercises['기타']){
+    d.customExercises['기타']=d.customExercises['기타'].filter(n=>n!==name);
+    if(!d.customExercises['기타'].length) delete d.customExercises['기타'];
+  }
+  if(!d.customExercises[subCategory]) d.customExercises[subCategory]=[];
+  if(!d.customExercises[subCategory].includes(name)) d.customExercises[subCategory].push(name);
+  saveData(d);
+  showToast(`"${name}" → ${subCategory}${count?' · '+count+' Logs aktualisiert':''}`);
+  renderUncatSection();
+}
+
 function coachAddAthlete(){
   const name=document.getElementById('coach-new-name').value.trim(); if(!name)return;
   const d=getData();
