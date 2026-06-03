@@ -976,7 +976,7 @@ const APP_VERSION = '20260527-7';
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-p btn-sm" onclick="forceSyncNow()">☁️ Force Sync Now</button>
     </div>
-    <div class="sec-ttl" style="margin-top:24px">Nicht kategorisierte Übungen</div>
+    <div class="sec-ttl" style="margin-top:24px">Uncategorized Exercises</div>
     <div id="uncat-review-section" style="margin-bottom:8px"></div>
     <div class="sec-ttl" style="margin-top:24px">Data</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -5652,7 +5652,7 @@ function renderUncatSection(){
 
   const names=Object.keys(uncatMap).sort();
   if(!names.length){
-    wrap.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:rgba(62,207,142,.07);border:1px solid rgba(62,207,142,.2);border-radius:10px;font-size:12px;color:#3ecf8e;font-weight:600">✅ Alle Übungen sind kategorisiert</div>`;
+    wrap.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:rgba(62,207,142,.07);border:1px solid rgba(62,207,142,.2);border-radius:10px;font-size:12px;color:#3ecf8e;font-weight:600">✅ All exercises are categorized</div>`;
     return;
   }
 
@@ -5660,7 +5660,7 @@ function renderUncatSection(){
     .map(t=>`<option value="${t}">${t||'Training Type...'}</option>`).join('');
 
   wrap.innerHTML=`
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${names.length}개 운동이 분류되지 않았습니다. Trainingtyp und Subkategorie auswählen → Zuweisen.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${names.length} exercise${names.length>1?'s':''} need categorization. Select Training Type + Sub-category → Assign.</div>
     ${names.map(name=>{
       const info=uncatMap[name];
       const safeId=name.replace(/[^a-zA-Z0-9]/g,'_');
@@ -5680,11 +5680,11 @@ function renderUncatSection(){
           </select>
           <select id="ucat-sub-${safeId}"
             style="flex:1;min-width:140px;padding:7px 10px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px">
-            <option value="">Subkategorie...</option>
+            <option value="">Sub-category...</option>
           </select>
           <button onclick="_applyExCategory('${name.replace(/'/g,"\\'").replace(/\\/g,'\\\\')}','${safeId}')"
             style="padding:8px 16px;border-radius:8px;border:none;background:#3ecf8e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
-            ✓ Zuweisen
+            ✓ Assign
           </button>
         </div>
       </div>`;
@@ -5703,7 +5703,7 @@ function _applyExCategory(name,safeId){
   const subEl=document.getElementById('ucat-sub-'+safeId);
   if(!typeEl||!subEl) return;
   const trainingType=typeEl.value; const subCategory=subEl.value;
-  if(!trainingType||!subCategory){ showToast('Kategorie + Subkategorie auswählen'); return; }
+  if(!trainingType||!subCategory){ showToast('Select Training Type + Sub-category'); return; }
   const d=getData(); let count=0;
   // 전체 로그에서 해당 운동 일괄 업데이트
   d.logs.forEach(l=>{
@@ -5722,7 +5722,7 @@ function _applyExCategory(name,safeId){
   if(!d.customExercises[subCategory]) d.customExercises[subCategory]=[];
   if(!d.customExercises[subCategory].includes(name)) d.customExercises[subCategory].push(name);
   saveData(d);
-  showToast(`"${name}" → ${subCategory}${count?' · '+count+' Logs aktualisiert':''}`);
+  showToast(`"${name}" → ${subCategory}${count?' · '+count+' logs updated':''}`);
   renderUncatSection();
 }
 
