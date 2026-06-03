@@ -3312,12 +3312,19 @@ function renderExList(){
       }
     } else if(ex.name && !ex._searching){
       // 선수 자유입력 — 인터랙티브 토글 버튼
-      const _bS=(on,col,bg)=>`font-size:9px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit;border:1px solid ${on?col+'99':'rgba(255,255,255,.15)'};background:${on?bg:'transparent'};color:${on?col:'rgba(255,255,255,.38)'}`;
-      trainingModeHtml=`<div style="display:flex;align-items:center;gap:5px;margin-top:8px;flex-wrap:wrap">
-        <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.3px">Modus</span>
-        <button style="${_bS(_tmBW,'#3ecf8e','rgba(62,207,142,.12)')}" onclick="toggleBW(${i})">BW</button>
-        <button style="${_bS(_tmSL,'#4f8ef7','rgba(79,142,247,.12)')}" onclick="toggleSL(${i})">SL</button>
-        <button style="${_bS(_tmSA,'#a78bfa','rgba(167,139,250,.12)')}" onclick="toggleSA(${i})">SA</button>
+      const _bS=(on,col,bg)=>`font-size:10px;font-weight:700;padding:4px 10px;border-radius:7px;cursor:pointer;font-family:inherit;border:1px solid ${on?col+'99':'rgba(255,255,255,.15)'};background:${on?bg:'transparent'};color:${on?col:'rgba(255,255,255,.38)'}`;
+      trainingModeHtml=`<div style="margin-top:8px">
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          <span style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.3px">Modus</span>
+          <button style="${_bS(_tmBW,'#3ecf8e','rgba(62,207,142,.12)')}" onclick="toggleBW(${i})">BW</button>
+          <button style="${_bS(_tmSL,'#4f8ef7','rgba(79,142,247,.12)')}" onclick="toggleSL(${i})">SL</button>
+          <button style="${_bS(_tmSA,'#a78bfa','rgba(167,139,250,.12)')}" onclick="toggleSA(${i})">SA</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+          <span style="font-size:9px;color:rgba(255,255,255,.28)"><span style="color:#3ecf8e;font-weight:700">BW</span> Körpergewicht</span>
+          <span style="font-size:9px;color:rgba(255,255,255,.28)"><span style="color:#4f8ef7;font-weight:700">SL</span> Einbeinig</span>
+          <span style="font-size:9px;color:rgba(255,255,255,.28)"><span style="color:#a78bfa;font-weight:700">SA</span> Einarmig</span>
+        </div>
       </div>`;
     }
     div.innerHTML=`<div class="ex-top">${headerHtml}</div>${trainingModeHtml}${paramsHtml}${vbtHtml}${effortHtml}${doneHtml}`;
