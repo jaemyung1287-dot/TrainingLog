@@ -2458,7 +2458,8 @@ function selectType(t){
             bwBase:lg.bwBase!=null?String(lg.bwBase):'',
             distance:lg.distance?String(lg.distance):'',
             effort:lg.effort||null, done:true,
-            meanV:lg.meanV!=null?String(lg.meanV):'', peakV:lg.peakV!=null?String(lg.peakV):'', velLoss:lg.velLoss!=null?String(lg.velLoss):''
+            meanV:lg.meanV!=null?String(lg.meanV):'', peakV:lg.peakV!=null?String(lg.peakV):'', velLoss:lg.velLoss!=null?String(lg.velLoss):'',
+            ytUrl:e.ytUrl||''
           };
         } else {
           return {
@@ -2473,7 +2474,8 @@ function selectType(t){
             intensity:e.planIntensity||'', sets:e.planSets||'', reps:e.planReps||'',
             isBodyweight:e.isBW||false,
             weight:e.isBW&&athBW?String(athBW):'',
-            extraKg:'', distance:e.planDistance||'', effort:''
+            extraKg:'', distance:e.planDistance||'', effort:'',
+            ytUrl:e.ytUrl||''
           };
         }
       });
@@ -3045,6 +3047,7 @@ function renderExList(){
     const donePrefix=ex.done?`<span style="color:#3ecf8e;font-size:12px;font-weight:700;margin-right:6px">✓</span>`:'';
     const headerHtml=fromPlan
       ? `<span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;flex:1;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
+         ${ex.ytUrl?`<a href="${ex.ytUrl}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:13px;font-weight:800;text-decoration:none" onclick="event.stopPropagation()">▶</a>`:''}
          <span style="font-size:10px;color:var(--muted)">📋</span>`
       : ((!ex.name||ex._searching)
         ? `<div style="position:relative;flex:1;min-width:0">
@@ -7258,6 +7261,7 @@ function renderPlanAccordion(){
             </div>
             <div style="display:flex;flex-wrap:wrap">${_ovExDetail(e)}</div>
           </div>
+          ${e.ytUrl?`<a href="${e.ytUrl}" target="_blank" style="flex-shrink:0;padding:4px 9px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:12px;font-weight:800;text-decoration:none">▶</a>`:''}
           <button onclick="_deleteSinglePlanEx(${idx})" style="flex-shrink:0;padding:3px 6px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:#e94560;font-size:10px;cursor:pointer;line-height:1">🗑</button>
         </div>`;
       }
@@ -7434,7 +7438,14 @@ function renderPlanAccordion(){
               <button class="plan-ex-del" onclick="removePlanExercise(${globalIdx})">×</button>
             </div>
           </div>
-          ${fieldsHtml}`;
+          ${fieldsHtml}
+          <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+            <span style="font-size:10px;font-weight:700;color:rgba(255,60,60,.7);letter-spacing:.3px;flex-shrink:0">▶ YT</span>
+            <input type="url" placeholder="https://youtube.com/watch?v=..." value="${ex.ytUrl||''}"
+              oninput="_updatePlanEx(${globalIdx},'ytUrl',this.value)"
+              style="flex:1;padding:5px 10px;background:var(--input);border:1px solid rgba(255,60,60,.2);border-radius:8px;color:var(--text);font-size:11px;outline:none;min-width:0">
+            ${ex.ytUrl?`<a href="${ex.ytUrl}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:12px;font-weight:800;text-decoration:none">▶</a>`:''}
+          </div>`;
         subWrap.appendChild(item);
       });
 
