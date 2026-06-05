@@ -5174,7 +5174,7 @@ function openAthDetail(name){
         style="width:100%;box-sizing:border-box;padding:9px 12px 9px 32px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;-webkit-appearance:none"
         oninput="filterDetailLogs(this.value)">
     </div>`;
-  _renderDetailLogs(d.logs.filter(l=>l.athleteName===name).slice(-50).reverse());
+  _renderDetailLogs(d.logs.filter(l=>l.athleteName===name).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,50));
 
   document.getElementById('coach-tabbar').classList.remove('show');
   showScreen('s-ath-detail');
@@ -5275,7 +5275,7 @@ function _renderDetailLogs(logs){
 function filterDetailLogs(query){
   const d=getData(), name=ST._detailAthName;
   if(!name) return;
-  const all=d.logs.filter(l=>l.athleteName===name).slice(-50).reverse();
+  const all=d.logs.filter(l=>l.athleteName===name).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,50);
   const q=query.trim().toLowerCase();
   const filtered=q?all.filter(l=>{
     if(l.type==='weight'||l.type==='plyo') return (l.exercises||[]).some(e=>(e.name||'').toLowerCase().includes(q));
