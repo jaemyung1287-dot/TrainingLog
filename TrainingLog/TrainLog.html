@@ -1467,7 +1467,7 @@ async function initFirebase(){
       const _deletedIds=_getDeletedIds();
       const cloudIds=new Set(cloudData.logs.map(l=>l.id));
       const localOnly=(local?.logs||[]).filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
-      merged.logs=[...cloudData.logs,...localOnly];
+      merged.logs=[...cloudData.logs.filter(l=>!_deletedIds.has(l.id)),...localOnly];
       _backupLocal();
       localStorage.setItem(SK,JSON.stringify(merged));
       console.log(`[TrainLog] Loaded from Firebase ✓ (${merged.logs.length} logs)`);
@@ -1521,7 +1521,7 @@ function startCloudSync(){
         // Merge logs: cloud + local-only
         const cloudIds=new Set(cloudData.logs.map(l=>l.id));
         const localOnly=(local?.logs||[]).filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
-        merged.logs=[...cloudData.logs,...localOnly];
+        merged.logs=[...cloudData.logs.filter(l=>!_deletedIds.has(l.id)),...localOnly];
         localStorage.setItem(SK,JSON.stringify(merged));
         const coachEl=document.getElementById('s-coach');
         if(coachEl?.classList.contains('active')) renderToday();
