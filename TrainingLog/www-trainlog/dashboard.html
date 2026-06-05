@@ -252,14 +252,11 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .session-val{font-size:12px;font-weight:700;line-height:1.2}
 .session-rpe{font-size:10px;color:var(--muted);margin-top:1px}
 
-.cond-row{
-  display:flex;gap:7px;align-items:center;
-  padding-top:5px;border-top:1px solid var(--border2);
-  margin-top:4px;flex-wrap:wrap
-}
-.cond-item{font-size:10px;font-weight:500;white-space:nowrap}
+.cond-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:4px 7px;border-radius:5px;margin-bottom:4px;background:rgba(188,140,255,.08);border-left:2px solid rgba(188,140,255,.5)}
+.cond-item{font-size:10px;font-weight:600;white-space:nowrap}
+.cond-lbl{color:var(--hint);font-weight:500;font-size:9px}
 
-.sore-row{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.sore-row{display:flex;flex-wrap:wrap;gap:3px;margin:0 0 4px}
 .sore-tag{
   font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;white-space:nowrap
 }
@@ -269,6 +266,20 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
   padding:3px 6px;border-radius:4px;
   background:var(--blue-dim);display:inline-block;margin-bottom:4px
 }
+
+.session-block{cursor:pointer}
+.session-block:hover{filter:brightness(1.12)}
+.session-type{display:flex;align-items:center;gap:3px}
+.sb-caret{font-size:8px;opacity:.45;margin-left:auto}
+.sess-detail{display:none;margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.08)}
+.session-block.open .sess-detail{display:block}
+.sd-row{font-size:9px;color:#8b949e;line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sess-note{font-size:9px;color:#8b949e;font-style:italic;margin-top:4px;line-height:1.35;white-space:normal}
+.cond-note{margin-bottom:4px}
+.sess-hd{font-size:8px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.6px;margin:3px 0 2px}
+.sess-hd.am{color:#d8a657}
+.sess-hd.pm{color:#7aa2f7}
+.train-wrap.div-top{margin-top:6px;padding-top:6px;border-top:1px solid var(--border2)}
 
 /* ── Section header ── */
 .sec{margin:0 0 16px;display:flex;align-items:center;gap:10px}
@@ -659,6 +670,58 @@ function renderCurrent(){
 // ══════════════════════════════════════
 function setOverviewFilter(f){overviewFilter=f;renderOverview();}
 
+// ── Overview cell helpers (added) ──
+function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _ovEx(l){
+  let lines=[];
+  if(l.type==='weight'){
+    (l.exercises||[]).forEach(e=>{
+      if(!e||!e.name) return;
+      const maxKg=e.setRows&&e.setRows.length?Math.max(...e.setRows.map(sr=>parseFloat(sr.kg)||0)):(parseFloat(e.weight)||0);
+      const sets=(e.setRows&&e.setRows.length)||e.sets||0;
+      const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
+      const sl=e.isSL?'SL ':e.isSA?'SA ':'';
+      const kg=maxKg>0?' '+maxKg+'kg':'';
+      const sr=(sets&&reps)?' '+sets+'x'+reps:'';
+      lines.push(sl+e.name+kg+sr+(e.isBodyweight?' (BW)':''));
+    });
+  } else if(l.type==='sprint'){
+    (l.sets||[]).forEach(s=>{
+      if(!s||(!s.distance&&!s.name)) return;
+      const reps=s.reps||s.sets||1;
+      const inten=s.intensity?' @'+s.intensity+'%':'';
+      const t=s.actualTime?' ('+s.actualTime+'s)':'';
+      lines.push((s.distance||'?')+'m x'+reps+inten+t);
+    });
+  } else if(l.type==='plyo'){
+    lines.push((l.totalReps||0)+' reps');
+  } else if(l.type==='tabata'){
+    lines.push('8 rounds 20s/10s');
+  }
+  return lines;
+}
+function _ovBlock(l){
+  const c=tc(l.type), bg=tcBg(l.type);
+  const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
+  const val=l.type==='weight'?`${vol([l]).toLocaleString()} kg`
+    :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
+    :l.type==='plyo'?`${l.totalReps||0} reps`
+    :l.type==='tabata'?'8 rounds':'—';
+  const lines=_ovEx(l);
+  const tipParts=lines.slice();
+  if(l.notes) tipParts.push('- '+l.notes);
+  const tip=_esc(tipParts.join('\n'));
+  const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_esc(x)}</div>`).join('')}</div>`:'';
+  const note=l.notes?`<div class="sess-note">${_esc(l.notes)}</div>`:'';
+  const caret=lines.length?`<span class="sb-caret">&#9662;</span>`:'';
+  return `<div class="session-block" style="background:${bg};border-left-color:${c}" title="${tip}" onclick="this.classList.toggle('open')">
+    <div class="session-type" style="color:${c}">${typeLabel}${caret}</div>
+    <div class="session-val">${val}</div>
+    ${l.rpe?`<div class="session-rpe">RPE ${l.rpe}</div>`:''}
+    ${detail}${note}
+  </div>`;
+}
+
 function renderOverview(){
   const wrap=document.getElementById('tab-overview');
   const wk=getWeekDates(weekOffset);
@@ -742,46 +805,51 @@ function renderOverview(){
 
       table+=`<td class="td-day${isToday?' is-today':''}">`;
 
-      if(hasPlan&&!trainLogs.length){
-        const cnt=sessExs(gd,'am').length+sessExs(gd,'pm').length;
-        table+=`<div class="plan-hint">📋 ${cnt} planned</div>`;
-      }
-
-      if(trainLogs.length){
-        trainLogs.forEach(l=>{
-          const c=tc(l.type);
-          const bg=tcBg(l.type);
-          const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
-          const val=l.type==='weight'?`${vol([l]).toLocaleString()} kg`
-            :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
-            :l.type==='plyo'?`${l.totalReps||0} reps`
-            :l.type==='tabata'?'8 rounds':'—';
-          table+=`<div class="session-block" style="background:${bg};border-left-color:${c}">
-            <div class="session-type" style="color:${c}">${typeLabel}</div>
-            <div class="session-val">${val}</div>
-            ${l.rpe?`<div class="session-rpe">RPE ${l.rpe}</div>`:''}
-          </div>`;
-        });
-      } else if(!hasPlan){
-        table+=`<div class="day-rest">—</div>`;
-      }
-
+      // -- Condition (top) --
       if(condLog){
         const fc=iCol(condLog.fatigue,false), mc=iCol(condLog.mood,true);
         table+=`<div class="cond-row">
-          <span class="cond-item">😴 ${condLog.sleepHours||'—'}h</span>
-          <span class="cond-item" style="color:${fc}">⚡${condLog.fatigue||'—'}</span>
-          <span class="cond-item" style="color:${mc}">😊${condLog.mood||'—'}</span>
+          <span class="cond-item"><span class="cond-lbl">Sleep</span> ${condLog.sleepHours==null?'—':condLog.sleepHours}h</span>
+          <span class="cond-item" style="color:${fc}"><span class="cond-lbl">Fatigue</span> ${condLog.fatigue==null?'—':condLog.fatigue}</span>
+          <span class="cond-item" style="color:${mc}"><span class="cond-lbl">Mood</span> ${condLog.mood==null?'—':condLog.mood}</span>
         </div>`;
       }
+      // -- Soreness (below condition) --
       if(condLog&&(condLog.soreness||[]).length){
         table+=`<div class="sore-row">`;
         condLog.soreness.forEach(s=>{
           const n=s.intensity;
           const c=n>=7?'248,81,73':n>=4?'247,169,79':'62,207,142';
-          table+=`<span class="sore-tag" style="background:rgba(${c},.15);color:rgba(${c},1)">${s.part} ${s.intensity}</span>`;
+          table+=`<span class="sore-tag" style="background:rgba(${c},.15);color:rgba(${c},1)">${_esc(s.part)} ${s.intensity}</span>`;
         });
         table+=`</div>`;
+      }
+      if(condLog&&condLog.notes){
+        table+=`<div class="sess-note cond-note">${_esc(condLog.notes)}</div>`;
+      }
+
+      // -- Plan hint --
+      if(hasPlan&&!trainLogs.length){
+        const cnt=sessExs(gd,'am').length+sessExs(gd,'pm').length;
+        table+=`<div class="plan-hint">${cnt} planned</div>`;
+      }
+
+      // -- Training sessions (AM / PM split) --
+      if(trainLogs.length){
+        const amL=trainLogs.filter(l=>l.session==='am');
+        const pmL=trainLogs.filter(l=>l.session==='pm');
+        const noL=trainLogs.filter(l=>l.session!=='am'&&l.session!=='pm');
+        table+=`<div class="train-wrap${condLog?' div-top':''}">`;
+        if(amL.length||pmL.length){
+          if(amL.length) table+=`<div class="sess-hd am">AM</div>`+amL.map(_ovBlock).join('');
+          if(pmL.length) table+=`<div class="sess-hd pm">PM</div>`+pmL.map(_ovBlock).join('');
+          if(noL.length) table+=noL.map(_ovBlock).join('');
+        } else {
+          table+=noL.map(_ovBlock).join('');
+        }
+        table+=`</div>`;
+      } else if(!hasPlan&&!condLog){
+        table+=`<div class="day-rest">—</div>`;
       }
 
       table+=`</td>`;
