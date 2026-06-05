@@ -2740,13 +2740,15 @@ function _renderAthRecentLogs(targetId){
       const rpe=Number(l.rpe)||0;
       const rpeColor=rpe>=7?'#e94560':rpe>=4?'#f7a94f':'#3ecf8e';
       const rpeLabel=rpe>=9?'Max 🔴':rpe>=7?'Hard 🟠':rpe>=4?'Moderate 🟡':rpe>0?'Easy 🟢':'—';
+      // Per-exercise effort (Low/Medium/High) → chip colour
+      const _effStyle=(eff)=>eff==='Low'?'background:rgba(62,207,142,.18);color:#3ecf8e;border:1px solid rgba(62,207,142,.45)':eff==='Medium'?'background:rgba(247,169,79,.18);color:#f7a94f;border:1px solid rgba(247,169,79,.45)':eff==='High'?'background:rgba(233,69,96,.18);color:#e94560;border:1px solid rgba(233,69,96,.45)':'background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)';
       // Exercise chips (weight/plyo)
       const exChips=(l.type==='weight'||l.type==='plyo')&&Array.isArray(l.exercises)&&l.exercises.length
-        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.exercises.map(e=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${e.name||'?'}</span>`).join('')}</div>`
+        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.exercises.map(e=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;${_effStyle(e.effort)}">${e.name||'?'}</span>`).join('')}</div>`
         :'';
       // Sprint set summary chips
       const sprintChips=l.type==='sprint'&&Array.isArray(l.sets)&&l.sets.length
-        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.sets.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${s.name||s.distance+'m'||'?'}</span>`).join('')}</div>`
+        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.sets.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;${_effStyle(s.effort)}">${s.name||s.distance+'m'||'?'}</span>`).join('')}</div>`
         :'';
       html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
         <div class="detail-row">
@@ -2759,7 +2761,7 @@ function _renderAthRecentLogs(targetId){
         </div>
         <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
         ${rpe?`<div class="detail-row" style="align-items:center">
-          <span class="detail-key">Effort</span>
+          <span class="detail-key">Session RPE</span>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="width:80px;height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden">
               <div style="width:${rpe*10}%;height:100%;border-radius:3px;background:${rpeColor};transition:width .3s"></div>
