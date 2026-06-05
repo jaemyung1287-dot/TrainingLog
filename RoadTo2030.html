@@ -3071,6 +3071,8 @@ function setSprintEffort(i,val){
   _setSprintDone(i); // auto-check on effort selection
 }
 function setSprintCategory(cat){
+  // 같은 카테고리 다시 누르면 선택 취소 → 세부 유형도 접힘
+  if(ST.sprintCategory===cat){ cat=''; }
   ST.sprintCategory=cat;
   const ids={
     '가속 훈련':'sp-cat-accel',
@@ -3107,6 +3109,8 @@ const SPRINT_SUBCATS={
   '최대 스피드 훈련':['플라잉 스프린트','인 앤 아웃','플로팅 스프린트','오버 스피드 스프린트']
 };
 function setSprintSubCategory(sub){
+  // 같은 세부 유형 다시 누르면 선택 취소
+  if(ST.sprintSubCategory===sub){ sub=''; }
   ST.sprintSubCategory=sub;
   document.getElementById('sp-subcat-btns').querySelectorAll('button').forEach(btn=>{
     const on=btn.textContent===sub;
