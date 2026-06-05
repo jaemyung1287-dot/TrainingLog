@@ -275,9 +275,11 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .session-block.open .sess-detail{display:block}
 .sd-row{font-size:9px;color:#8b949e;line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sess-note{font-size:9px;color:#8b949e;font-style:italic;margin-top:4px;line-height:1.35;white-space:normal}
-.cmt-chip{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;margin-top:4px;cursor:help;white-space:nowrap}
-.cmt-chip:hover{color:var(--text2);background:rgba(255,255,255,.09)}
-.cmt-line{margin-bottom:4px}
+.cmt-wrap{margin:4px 0 2px;cursor:pointer}
+.cmt-chip{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;white-space:nowrap}
+.cmt-wrap:hover .cmt-chip,.cmt-wrap.show .cmt-chip{color:var(--text2);background:rgba(255,255,255,.1);border-color:var(--blue)}
+.cmt-text{display:none;font-size:9px;font-weight:400;color:#aab2bd;line-height:1.4;margin-top:3px;white-space:normal;background:rgba(255,255,255,.04);border-left:2px solid var(--border2);padding:4px 6px;border-radius:0 4px 4px 0}
+.cmt-wrap:hover .cmt-text,.cmt-wrap.show .cmt-text{display:block}
 .cond-note{margin-bottom:4px}
 .sess-hd{font-size:8px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.6px;margin:3px 0 2px}
 .sess-hd.am{color:#d8a657}
@@ -713,14 +715,14 @@ function _ovBlock(l){
   const lines=_ovEx(l);
   const tip=_esc(lines.join('\n'));
   const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_esc(x)}</div>`).join('')}</div>`:'';
-  const note=l.notes?`<span class="cmt-chip" title="${_esc(l.notes)}">💬 Comment</span>`:'';
+  const note=l.notes?`<div class="cmt-wrap" onclick="event.stopPropagation();this.classList.toggle('show')"><span class="cmt-chip">💬 Comment</span><div class="cmt-text">${_esc(l.notes)}</div></div>`:'';
   const caret=lines.length?`<span class="sb-caret">&#9662;</span>`:'';
   return `<div class="session-block" style="background:${bg};border-left-color:${c}" title="${tip}" onclick="this.classList.toggle('open')">
     <div class="session-type" style="color:${c}">${typeLabel}${caret}</div>
     <div class="session-val">${val}</div>
     ${l.rpe?`<div class="session-rpe">RPE ${l.rpe}</div>`:''}
-    ${detail}${note}
-  </div>`;
+    ${detail}
+  </div>${note}`;
 }
 
 function renderOverview(){
@@ -826,7 +828,7 @@ function renderOverview(){
         table+=`</div>`;
       }
       if(condLog&&condLog.notes){
-        table+=`<div class="cmt-line"><span class="cmt-chip" title="${_esc(condLog.notes)}">💬 Comment</span></div>`;
+        table+=`<div class="cmt-wrap" onclick="event.stopPropagation();this.classList.toggle('show')"><span class="cmt-chip">💬 Comment</span><div class="cmt-text">${_esc(condLog.notes)}</div></div>`;
       }
 
       // -- Plan hint --
