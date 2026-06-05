@@ -6436,6 +6436,7 @@ function _deleteAthLog(id){
     rm();
     _addDeletedId(id);
     const dd=getData();
+    const _dAth=(dd.athletes||[]).find(a=>a.name===log.athleteName); if(_dAth) _syncAthleteId=_dAth.id;
     dd.logs=dd.logs.filter(l=>l.id!==id);
     saveData(dd);
     showToast('Log deleted · Gelöscht');
