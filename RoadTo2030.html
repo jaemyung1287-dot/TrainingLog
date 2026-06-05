@@ -626,6 +626,10 @@ if ('serviceWorker' in navigator) {
       <button id="sp-cat-dist" onclick="setSprintCategory('거리주 훈련')" style="padding:9px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s">거리주 훈련</button>
     </div>
   </div>
+  <div class="fg" id="sp-subcat-wrap" style="margin-bottom:16px;display:none">
+    <label class="fl">세부 유형</label>
+    <div id="sp-subcat-btns" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
   <div id="sprint-sets-list"></div>
   <button class="btn btn-s" id="sp-add-btn" onclick="addSprintSet()" style="border-style:dashed;margin-bottom:16px">+ 세트 그룹 추가</button>
   <div class="fg">
@@ -2236,10 +2240,13 @@ function selectType(t){
       document.getElementById('sp-week').value=prog.week||'';
     }
     ST.sprintCategory='';
+    ST.sprintSubCategory='';
     ['sp-cat-accel','sp-cat-maxspeed','sp-cat-dist'].forEach(id=>{
       const b=document.getElementById(id); if(!b) return;
       b.style.borderColor='var(--border)'; b.style.background='var(--input)'; b.style.color='var(--muted)';
     });
+    const _subWrap=document.getElementById('sp-subcat-wrap'); if(_subWrap) _subWrap.style.display='none';
+    const _subBtns=document.getElementById('sp-subcat-btns'); if(_subBtns) _subBtns.innerHTML='';
     renderSprintSets();
     if(!ST.editingLogId){ document.getElementById('sprint-date').value=todayStr(); autoFillWeek('sprint-date','sp-week'); }
     showScreen('s-sprint');
@@ -3078,6 +3085,35 @@ function setSprintCategory(cat){
     btn.style.background=on?'rgba(62,207,142,.15)':'var(--input)';
     btn.style.color=on?'var(--green)':'var(--muted)';
   });
+  // 카테고리별 세부 유형 노출 (데이터 기반)
+  const subs=SPRINT_SUBCATS[cat];
+  const subWrap=document.getElementById('sp-subcat-wrap');
+  const subBtns=document.getElementById('sp-subcat-btns');
+  ST.sprintSubCategory='';
+  if(subWrap&&subBtns){
+    if(subs&&subs.length){
+      subWrap.style.display='block';
+      subBtns.innerHTML=subs.map(x=>
+        `<button onclick="setSprintSubCategory('${x}')" style="padding:9px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--input);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s">${x}</button>`
+      ).join('');
+    } else {
+      subWrap.style.display='none';
+      subBtns.innerHTML='';
+    }
+  }
+}
+const SPRINT_SUBCATS={
+  '가속 훈련':['스프린트','토잉 슬레드','업힐 스프린트'],
+  '최대 스피드 훈련':['플라잉 스프린트','인 앤 아웃','플로팅 스프린트','오버 스피드 스프린트']
+};
+function setSprintSubCategory(sub){
+  ST.sprintSubCategory=sub;
+  document.getElementById('sp-subcat-btns').querySelectorAll('button').forEach(btn=>{
+    const on=btn.textContent===sub;
+    btn.style.borderColor=on?'var(--green)':'var(--border)';
+    btn.style.background=on?'rgba(62,207,142,.15)':'var(--input)';
+    btn.style.color=on?'var(--green)':'var(--muted)';
+  });
 }
 function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',targetTime:'',restMin:''}); renderSprintSets(); }
 function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length) ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',targetTime:'',restMin:''}); renderSprintSets(); }
@@ -3127,7 +3163,8 @@ function saveSprint(dupMode){
     id:genId(),date:sprintLogDate,athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
     phase:document.getElementById('sp-phase').value,
     week:document.getElementById('sp-week').value,
-    sprintType:ST.sprintCategory||ST.sprintSets[0]?.subCategory||'스프린트 트레이닝',
+    sprintType:(ST.sprintCategory?(ST.sprintCategory+(ST.sprintSubCategory?' · '+ST.sprintSubCategory:'')):ST.sprintSets[0]?.subCategory)||'스프린트 트레이닝',
+    sprintSubCategory:ST.sprintSubCategory||null,
     sets:sets.map(s=>({name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,targetTime:parseFloat(s.targetTime)||null,actualTime:parseFloat(s.actualTime)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,restMin:parseFloat(s.restMin)||null,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]})),
     totalDistance:Math.round(totalDist),
     rpe:parseInt(document.getElementById('sl-srpe').value),
