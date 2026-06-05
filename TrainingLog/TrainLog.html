@@ -2750,15 +2750,16 @@ function _renderAthRecentLogs(targetId){
       const sprintChips=l.type==='sprint'&&Array.isArray(l.sets)&&l.sets.length
         ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.sets.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;${_effStyle(s.effort)}">${s.name||s.distance+'m'||'?'}</span>`).join('')}</div>`
         :'';
-      html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
+      html+=`<div class="detail-card" onclick="_toggleLogDetail('logbody-${l.id}','chev-${l.id}')" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5);cursor:pointer">
         <div class="detail-row">
-          <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span>
+          <span style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px"><span id="chev-${l.id}" style="font-size:10px;color:var(--muted);transition:transform .2s">▾</span><span>${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span></span>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge ${typeBadge[l.type]}">${l.type}</span>
-            <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
-            <button onclick="_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete</button>
+            <button onclick="event.stopPropagation();_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
+            <button onclick="event.stopPropagation();_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete</button>
           </div>
         </div>
+        <div id="logbody-${l.id}" style="display:none">
         <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
         ${rpe?`<div class="detail-row" style="align-items:center">
           <span class="detail-key">Session RPE</span>
@@ -2770,6 +2771,7 @@ function _renderAthRecentLogs(targetId){
           </div>
         </div>`:''}
         ${exChips}${sprintChips}
+        </div>
       </div>`;
     });
 
