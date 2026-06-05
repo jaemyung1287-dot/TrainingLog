@@ -275,6 +275,9 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .session-block.open .sess-detail{display:block}
 .sd-row{font-size:9px;color:#8b949e;line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sess-note{font-size:9px;color:#8b949e;font-style:italic;margin-top:4px;line-height:1.35;white-space:normal}
+.cmt-chip{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;margin-top:4px;cursor:help;white-space:nowrap}
+.cmt-chip:hover{color:var(--text2);background:rgba(255,255,255,.09)}
+.cmt-line{margin-bottom:4px}
 .cond-note{margin-bottom:4px}
 .sess-hd{font-size:8px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.6px;margin:3px 0 2px}
 .sess-hd.am{color:#d8a657}
@@ -708,11 +711,9 @@ function _ovBlock(l){
     :l.type==='plyo'?`${l.totalReps||0} reps`
     :l.type==='tabata'?'8 rounds':'—';
   const lines=_ovEx(l);
-  const tipParts=lines.slice();
-  if(l.notes) tipParts.push('- '+l.notes);
-  const tip=_esc(tipParts.join('\n'));
+  const tip=_esc(lines.join('\n'));
   const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_esc(x)}</div>`).join('')}</div>`:'';
-  const note=l.notes?`<div class="sess-note">${_esc(l.notes)}</div>`:'';
+  const note=l.notes?`<span class="cmt-chip" title="${_esc(l.notes)}">💬 Comment</span>`:'';
   const caret=lines.length?`<span class="sb-caret">&#9662;</span>`:'';
   return `<div class="session-block" style="background:${bg};border-left-color:${c}" title="${tip}" onclick="this.classList.toggle('open')">
     <div class="session-type" style="color:${c}">${typeLabel}${caret}</div>
@@ -825,7 +826,7 @@ function renderOverview(){
         table+=`</div>`;
       }
       if(condLog&&condLog.notes){
-        table+=`<div class="sess-note cond-note">${_esc(condLog.notes)}</div>`;
+        table+=`<div class="cmt-line"><span class="cmt-chip" title="${_esc(condLog.notes)}">💬 Comment</span></div>`;
       }
 
       // -- Plan hint --
