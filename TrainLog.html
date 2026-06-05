@@ -1915,10 +1915,12 @@ function _enterAthleteMenu(){
   const hasCond=_hasSessionText('am')||_hasSessionText('pm');
   // Check if today's planned sessions are already logged
   const todayLogs=data.logs.filter(l=>l.athleteName===ST.athlete.name&&l.date===today);
+  // Match planned exercise names against BOTH weight/plyo logs (exercises[]) and sprint logs (sets[])
+  const _logHasName=(l,nameSet)=>((l.exercises||[]).some(e=>nameSet.has(e.name)))||((l.sets||[]).some(e=>nameSet.has(e.name)));
   const amNames=new Set(amExs.map(e=>e.name));
   const pmNames=new Set(pmExs.map(e=>e.name));
-  const amLogged=amExs.length===0||todayLogs.some(l=>(l.exercises||[]).some(e=>amNames.has(e.name)));
-  const pmLogged=pmExs.length===0||todayLogs.some(l=>(l.exercises||[]).some(e=>pmNames.has(e.name)));
+  const amLogged=amExs.length===0||todayLogs.some(l=>_logHasName(l,amNames));
+  const pmLogged=pmExs.length===0||todayLogs.some(l=>_logHasName(l,pmNames));
   const todayAllLogged=amLogged&&pmLogged;
   if((totalExs>0||hasCond)&&!todayAllLogged){
     card.style.display='block';
@@ -1947,8 +1949,8 @@ function _enterAthleteMenu(){
     const yAmExs=_yExs(yGrpData,'am'); const yPmExs=_yExs(yGrpData,'pm');
     const yAmNames=new Set(yAmExs.map(e=>e.name));
     const yPmNames=new Set(yPmExs.map(e=>e.name));
-    const yAmLogged=yAmExs.length===0||yLogs.some(l=>(l.exercises||[]).some(e=>yAmNames.has(e.name)));
-    const yPmLogged=yPmExs.length===0||yLogs.some(l=>(l.exercises||[]).some(e=>yPmNames.has(e.name)));
+    const yAmLogged=yAmExs.length===0||yLogs.some(l=>_logHasName(l,yAmNames));
+    const yPmLogged=yPmExs.length===0||yLogs.some(l=>_logHasName(l,yPmNames));
     const yAllLogged=yAmLogged&&yPmLogged;
     const yUnlogged=[];
     if(!yAmLogged&&yAmExs.length) yUnlogged.push('AM');
