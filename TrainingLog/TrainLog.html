@@ -1467,7 +1467,7 @@ async function initFirebase(){
       const _deletedIds=_getDeletedIds();
       const cloudIds=new Set(cloudData.logs.map(l=>l.id));
       const localOnly=(local?.logs||[]).filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
-      merged.logs=[...cloudData.logs.filter(l=>!_deletedIds.has(l.id)),...localOnly];
+      merged.logs=[...cloudData.logs,...localOnly];
       _backupLocal();
       localStorage.setItem(SK,JSON.stringify(merged));
       console.log(`[TrainLog] Loaded from Firebase ✓ (${merged.logs.length} logs)`);
@@ -1521,7 +1521,7 @@ function startCloudSync(){
         // Merge logs: cloud + local-only
         const cloudIds=new Set(cloudData.logs.map(l=>l.id));
         const localOnly=(local?.logs||[]).filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
-        merged.logs=[...cloudData.logs.filter(l=>!_deletedIds.has(l.id)),...localOnly];
+        merged.logs=[...cloudData.logs,...localOnly];
         localStorage.setItem(SK,JSON.stringify(merged));
         const coachEl=document.getElementById('s-coach');
         if(coachEl?.classList.contains('active')) renderToday();
@@ -1620,7 +1620,8 @@ const EXERCISE_LIBRARY={
     'Good Morning','Romanian Deadlift','Nordic Curl','Leg Curl (Lying)','Leg Curl (Seated)','Deadlift',
     'Sumo Deadlift','Trap Bar Deadlift','Stiff Leg Deadlift','Snatch Grip Deadlift',
     'Rack Pull','Block Pull','Hip Thrust','Glute Bridge',
-    'Banded Hip Thrust','Single Leg Hip Thrust'
+    'Banded Hip Thrust','Single Leg Hip Thrust',
+    'GHD Single Leg Back Extension','45° Single Leg Back Extension'
   ],
   'Horizontal Push':[
     'Bench Press','Incline Bench Press','Decline Bench Press','Close Grip Bench Press',
@@ -1671,9 +1672,9 @@ const EXERCISE_LIBRARY={
     'Russian Twist','V-Up','Hollow Body Hold','L-Sit','Hanging Leg Raise',
     'Dragon Flag','Toes to Bar','Cable Crunch','Landmine Rotation',
     'Farmer\'s Carry','Suitcase Carry','Overhead Carry','Single Leg Dead Bug',
-    'GHD Back Extension','GHD Single Leg Back Extension',
+    'GHD Back Extension',
     'GHD Reverse Hyperextension','GHD Reverse Alternated Hyperextension',
-    '45° Back Extension','45° Single Leg Back Extension','Swimmer'
+    '45° Back Extension','Swimmer'
   ],
   // Power Development
   'Weightlifting':[
@@ -2385,7 +2386,7 @@ function selectType(t){
     const grpData=_planGrpData(plan,ST.athlete);
     // Determine which session block to use (set by goTodayPlan, or auto by time)
     const sess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
-    ST._todayPlanSession=null; ST._activeSession=sess; // clear after use
+    ST._todayPlanSession=null; // clear after use
     function _sessExs(gd,s){
       if(!gd) return [];
       if(gd[s]&&Array.isArray(gd[s].exercises)) return gd[s].exercises;
@@ -2565,7 +2566,7 @@ function selectType(t){
     const sprintAddBtn=document.getElementById('sp-add-btn');
     // Use selected AM/PM session (set by _selectLogSession)
     const sess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
-    ST._todayPlanSession=null; ST._activeSession=sess;
+    ST._todayPlanSession=null;
     function _sprintSessExs(gd,s){
       if(!gd) return [];
       const exs=(gd[s]?.exercises)||[];
@@ -2740,29 +2741,26 @@ function _renderAthRecentLogs(targetId){
       const rpe=Number(l.rpe)||0;
       const rpeColor=rpe>=7?'#e94560':rpe>=4?'#f7a94f':'#3ecf8e';
       const rpeLabel=rpe>=9?'Max 🔴':rpe>=7?'Hard 🟠':rpe>=4?'Moderate 🟡':rpe>0?'Easy 🟢':'—';
-      // Per-exercise effort (Low/Medium/High) → chip colour
-      const _effStyle=(eff)=>eff==='Low'?'background:rgba(62,207,142,.18);color:#3ecf8e;border:1px solid rgba(62,207,142,.45)':eff==='Medium'?'background:rgba(247,169,79,.18);color:#f7a94f;border:1px solid rgba(247,169,79,.45)':eff==='High'?'background:rgba(233,69,96,.18);color:#e94560;border:1px solid rgba(233,69,96,.45)':'background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)';
       // Exercise chips (weight/plyo)
       const exChips=(l.type==='weight'||l.type==='plyo')&&Array.isArray(l.exercises)&&l.exercises.length
-        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.exercises.map(e=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;${_effStyle(e.effort)}">${e.name||'?'}</span>`).join('')}</div>`
+        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.exercises.map(e=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${e.name||'?'}</span>`).join('')}</div>`
         :'';
       // Sprint set summary chips
       const sprintChips=l.type==='sprint'&&Array.isArray(l.sets)&&l.sets.length
-        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.sets.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;${_effStyle(s.effort)}">${s.name||s.distance+'m'||'?'}</span>`).join('')}</div>`
+        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.sets.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${s.name||s.distance+'m'||'?'}</span>`).join('')}</div>`
         :'';
-      html+=`<div class="detail-card" onclick="_toggleLogDetail('logbody-${l.id}','chev-${l.id}')" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5);cursor:pointer">
+      html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
         <div class="detail-row">
-          <span style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px"><span id="chev-${l.id}" style="font-size:10px;color:var(--muted);transition:transform .2s">▾</span><span>${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span></span>
+          <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge ${typeBadge[l.type]}">${l.type}</span>
-            <button onclick="event.stopPropagation();_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
-            <button onclick="event.stopPropagation();_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete</button>
+            <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
+            <button onclick="_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete</button>
           </div>
         </div>
-        <div id="logbody-${l.id}" style="display:none">
         <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
         ${rpe?`<div class="detail-row" style="align-items:center">
-          <span class="detail-key">Session RPE</span>
+          <span class="detail-key">Effort</span>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="width:80px;height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden">
               <div style="width:${rpe*10}%;height:100%;border-radius:3px;background:${rpeColor};transition:width .3s"></div>
@@ -2771,7 +2769,6 @@ function _renderAthRecentLogs(targetId){
           </div>
         </div>`:''}
         ${exChips}${sprintChips}
-        </div>
       </div>`;
     });
 
@@ -3457,7 +3454,6 @@ function addSetToEx(i){
   showToast(`Set ${ST.exercises[i].setRows.length} added`);
 }
 
-function _logSess(){try{return (ST&&ST._activeSession)||(new Date().getHours()<12?'am':'pm');}catch(e){return new Date().getHours()<12?'am':'pm';}}
 function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 'confirmed'
   const allExs=ST.exercises.filter(e=>e.name&&e.name.trim());
   if(!allExs.length){ showToast('Add at least one exercise'); return; }
@@ -3539,7 +3535,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       return s+w*(parseInt(e.sets)||0)*(parseInt(e.reps)||0)*slMult;
     },0);
     d.logs.push({
-      id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',session:_logSess(),
+      id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',
       phase,week,
       exercises:liftingExs.map(e=>{
         const isBW=e.isBodyweight||false;
@@ -3574,7 +3570,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const totalReps=plyoExs.filter(e=>(e.planRepType||'reps')!=='contacts').reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
     const totalContacts=plyoExs.filter(e=>(e.planRepType||'reps')==='contacts').reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
     d.logs.push({
-      id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'plyo',session:_logSess(),
+      id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'plyo',
       phase,week,
       exercises:plyoExs.map(e=>({
         name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
@@ -3598,7 +3594,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const totalDist=Math.round(sprintExs.reduce((s,e)=>
       s+(parseFloat(e.distance)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0));
     d.logs.push({
-      id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',session:_logSess(),
+      id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
       phase,week,
       sprintType:sprintExs[0]?.subCategory||'Sprint Training',
       sets:sprintExs.map(e=>({
@@ -3622,7 +3618,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   const _allSkipped=[..._skippedLifting,..._skippedPlyo,..._skippedSprint];
   if(!liftingExs.length&&!plyoExs.length&&!sprintExs.length&&_allSkipped.length){
     d.logs.push({id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,
-      type:'weight',session:_logSess(),phase,week,exercises:[],skippedExercises:_allSkipped,totalVolume:0,rpe,notes});
+      type:'weight',phase,week,exercises:[],skippedExercises:_allSkipped,totalVolume:0,rpe,notes});
     summaryParts.push(`${_allSkipped.length} skipped ↩`);
   }
 
@@ -3837,7 +3833,7 @@ function saveSprint(dupMode){
   }
 
   const log={
-    id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',session:_logSess(),
+    id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
     phase:document.getElementById('sp-phase').value,
     week:document.getElementById('sp-week').value,
     sprintType:ST.sprintSets[0]?.subCategory||'Sprint Training',
@@ -5175,7 +5171,7 @@ function openAthDetail(name){
         style="width:100%;box-sizing:border-box;padding:9px 12px 9px 32px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;-webkit-appearance:none"
         oninput="filterDetailLogs(this.value)">
     </div>`;
-  _renderDetailLogs(d.logs.filter(l=>l.athleteName===name).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,50));
+  _renderDetailLogs(d.logs.filter(l=>l.athleteName===name).slice(-50).reverse());
 
   document.getElementById('coach-tabbar').classList.remove('show');
   showScreen('s-ath-detail');
@@ -5276,7 +5272,7 @@ function _renderDetailLogs(logs){
 function filterDetailLogs(query){
   const d=getData(), name=ST._detailAthName;
   if(!name) return;
-  const all=d.logs.filter(l=>l.athleteName===name).slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,50);
+  const all=d.logs.filter(l=>l.athleteName===name).slice(-50).reverse();
   const q=query.trim().toLowerCase();
   const filtered=q?all.filter(l=>{
     if(l.type==='weight'||l.type==='plyo') return (l.exercises||[]).some(e=>(e.name||'').toLowerCase().includes(q));
@@ -6436,7 +6432,6 @@ function _deleteAthLog(id){
     rm();
     _addDeletedId(id);
     const dd=getData();
-    const _dAth=(dd.athletes||[]).find(a=>a.name===log.athleteName); if(_dAth) _syncAthleteId=_dAth.id;
     dd.logs=dd.logs.filter(l=>l.id!==id);
     saveData(dd);
     showToast('Log deleted · Gelöscht');
@@ -9308,5 +9303,3 @@ function showToast(msg){ const t=document.getElementById('toast'); t.textContent
 </script>
 </body>
 </html>
-
-<!-- build: 20260605T062517Z -->
