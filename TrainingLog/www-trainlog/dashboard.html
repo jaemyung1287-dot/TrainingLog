@@ -2050,22 +2050,31 @@ const EXERCISE_LIBRARY={
 const SUB2TYPE={};Object.entries(TRAINING_STRUCTURE).forEach(([t,v])=>v.subs.forEach(sb=>SUB2TYPE[sb]=t));
 const EX2SUB={};Object.entries(EXERCISE_LIBRARY).forEach(([sb,exs])=>exs.forEach(n=>{if(!EX2SUB[n])EX2SUB[n]=sb;}));
 
-function _rmModal(){const m=document.getElementById('x-modal');if(m)m.remove();}
-function _mkModal(inner){
+let _modalGuard=null; // returns true when there are unsaved changes
+function _rmModal(){const m=document.getElementById('x-modal');if(m)m.remove();_modalGuard=null;}
+function _tryCloseModal(){
+  if(_modalGuard&&_modalGuard()){
+    if(!confirm('⚠️ 저장하지 않은 내용이 있습니다. 닫으면 사라집니다.\nClose without saving?'))return;
+  }
   _rmModal();
+}
+function _mkModal(inner){
+  const m=document.getElementById('x-modal');if(m)m.remove(); // re-render keeps guard
   const ov=document.createElement('div');ov.className='modal-ov';ov.id='x-modal';
   ov.innerHTML=`<div class="modal-card">${inner}</div>`;
-  ov.onclick=e=>{if(e.target===ov)_rmModal();};
+  ov.onclick=e=>{if(e.target===ov)_tryCloseModal();};
   document.body.appendChild(ov);
   return ov;
 }
 
 // ══ LOG EDITOR ══
 let _eLog=null,_eAthId=null;
+let _eSig0='';
 function openLogEditor(logId,athId){
   const src=(athLogs[athId]||[]).find(l=>l.id===logId);
   if(!src){alert('Log not found');return;}
   _eLog=JSON.parse(JSON.stringify(src));_eAthId=athId;
+  _eSig0=JSON.stringify(_eLog);
   _renderLogEditor();
 }
 function _renderLogEditor(){
@@ -2132,15 +2141,16 @@ function _renderLogEditor(){
   _mkModal(`
     <div class="modal-hd">
       <div class="modal-title">${typeLbl} · ${fmtFull(l.date)}</div>
-      <button class="m-btn ghost" onclick="_rmModal()">✕</button>
+      <button class="m-btn ghost" onclick="_tryCloseModal()">✕</button>
     </div>
     <div class="modal-bd">${body}</div>
     <div class="modal-ft">
       <button class="m-btn del" onclick="deleteLogFromEditor()">🗑 Delete log</button>
       <span style="flex:1"></span>
-      <button class="m-btn" onclick="_rmModal()">Cancel</button>
+      <button class="m-btn" onclick="_tryCloseModal()">Cancel</button>
       <button class="m-btn save" onclick="saveLogEditor()">💾 Save</button>
     </div>`);
+  _modalGuard=()=>JSON.stringify(_eLog)!==_eSig0;
 }
 // Recompute totals using the SAME rules as the phone app (SL/SA ×2, BW = base + extra)
 function _recompTotals(l){
@@ -2246,9 +2256,14 @@ function renderPlan(){
 
 // ── Plan editor modal ──
 let _pe=null; // {day,key,keys:Set,sess,warmup,exs:[{name,sub,int,dist,sets,reps,rest,isSL}]}
+function _peSig(){
+  return JSON.stringify([_pe.warmup,_pe.sess,[..._pe.keys].sort(),
+    _pe.exs.map(e=>[e.name,e.sub,e.int,e.dist,e.sets,e.reps,e.rest,e.isSL])]);
+}
 function openPlanEditor(day,key,sess){
   _pe={day,key,keys:new Set([key]),sess};
   _loadPlanEditorRows();
+  _pe._sig0=_peSig();
   _renderPlanEditor();
 }
 // Toggle a target chip — multiple athletes/groups can receive the same plan at once
@@ -2272,8 +2287,13 @@ function _loadPlanEditorRows(){
   }));
 }
 function _peSwitch(field,val){
+  if(_pe[field]===val)return;
+  // Switching session reloads rows — warn if current rows would be lost
+  const sigNow=_peSig(), dirtyRows=JSON.parse(sigNow)[3].length&&sigNow!==_pe._sig0;
+  if(dirtyRows&&!confirm('⚠️ 저장하지 않은 운동 입력이 있습니다. 세션을 바꾸면 사라집니다. 계속할까요?'))return;
   _pe[field]=val;
   _loadPlanEditorRows();
+  _pe._sig0=_peSig();
   _renderPlanEditor();
 }
 // ── Copy from another session (any day, any group/athlete) ──
@@ -2372,7 +2392,7 @@ function _renderPlanEditor(){
   _mkModal(`
     <div class="modal-hd">
       <div class="modal-title">📝 Session Plan · ${fmtFull(_pe.day)} (${wd})</div>
-      <button class="m-btn ghost" onclick="_rmModal()">✕</button>
+      <button class="m-btn ghost" onclick="_tryCloseModal()">✕</button>
     </div>
     <div class="modal-bd">
       ${dl}
@@ -2408,9 +2428,10 @@ function _renderPlanEditor(){
     <div class="modal-ft">
       <button class="m-btn del" onclick="clearPlanSess()">🗑 Clear session</button>
       <span style="flex:1"></span>
-      <button class="m-btn" onclick="_rmModal()">Cancel</button>
+      <button class="m-btn" onclick="_tryCloseModal()">Cancel</button>
       <button class="m-btn save" onclick="savePlanEditor()">💾 Save plan${_pe.keys.size>1?` (${_pe.keys.size} targets)`:''}</button>
     </div>`);
+  _modalGuard=()=>_pe&&_pe._sig0!==undefined&&_peSig()!==_pe._sig0;
 }
 function _peName(i,val){
   _pe.exs[i].name=val;
