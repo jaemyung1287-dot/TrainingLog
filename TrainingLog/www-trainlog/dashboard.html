@@ -2186,7 +2186,8 @@ function _planKeys(){
     {key:'A',label:'Group A',color:'#58a6ff'},
     {key:'B',label:'Group B',color:'#3ecf8e'},
     {key:'all',label:'All Groups',color:'#f7a94f'},
-    ...aths.map(a=>({key:'ath_'+a.id,label:a.name,color:'#a78bfa',ath:true}))
+    ...aths.slice().sort((a,b)=>(a.group||'').localeCompare(b.group||'')||a.name.localeCompare(b.name))
+      .map(a=>({key:'ath_'+a.id,label:a.name,color:a.group==='A'?'#58a6ff':'#3ecf8e',ath:true,grp:a.group}))
   ];
 }
 function _planSessOf(day,key,sess){
@@ -2202,10 +2203,20 @@ function renderPlan(){
   document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)} · click a cell to edit`;
   const DN_DE=['Mo','Di','Mi','Do','Fr','Sa','So'];const DN_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const keys=_planKeys();
-  // Show group rows always; athlete rows only if they have a plan this week
-  const visKeys=keys.filter(k=>!k.ath||wk.some(({ds})=>_planSessOf(ds,k.key,'am')||_planSessOf(ds,k.key,'pm')));
+  // ALL targets always visible — groups first, then every athlete (개별 훈련 작성용)
+  const visKeys=keys;
 
-  let html=`<div class="sched-wrap"><table class="sched-table"><thead><tr><th class="ath-col">Target</th>`;
+  // Prominent week navigation inside the Plan tab
+  const wkTag=weekOffset===0?' · This week':weekOffset===1?' · Next week':weekOffset===-1?' · Last week':'';
+  let html=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+    <button class="m-btn" style="width:42px;font-size:16px" onclick="shiftWeek(-1)">‹</button>
+    <div style="font-size:15px;font-weight:800;min-width:240px;text-align:center">${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}, ${wk[6].d.getFullYear()}<span style="color:var(--gold)">${wkTag}</span></div>
+    <button class="m-btn" style="width:42px;font-size:16px" onclick="shiftWeek(1)">›</button>
+    ${weekOffset!==0?`<button class="m-btn" onclick="shiftWeek(0,true)">← This week</button>`:''}
+    <button class="m-btn" style="margin-left:auto;background:rgba(247,169,79,.12);border-color:rgba(247,169,79,.4);color:var(--gold)" onclick="shiftWeek(1)" title="다음 주 플랜 짜기">📝 Plan next week →</button>
+  </div>`;
+
+  html+=`<div class="sched-wrap"><table class="sched-table"><thead><tr><th class="ath-col">Target</th>`;
   wk.forEach(({ds,d},i)=>{
     html+=`<th class="${ds===today?'day-today':''}">${DN_DE[i]} · ${DN_EN[i]}<br><span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0">${d.getDate()}.${d.getMonth()+1}.</span></th>`;
   });
@@ -2213,7 +2224,7 @@ function renderPlan(){
   visKeys.forEach(k=>{
     html+=`<tr><td class="td-ath"><div class="td-ath-inner">
       <div class="td-av" style="background:${k.color}22;color:${k.color}">${k.ath?k.label[0]:k.key==='all'?'∗':k.key}</div>
-      <div><div class="td-ath-name">${_esc(k.label)}</div></div>
+      <div><div class="td-ath-name">${_esc(k.label)}</div>${k.ath?`<div class="td-ath-meta"><span class="td-ath-badge" style="background:${k.color}22;color:${k.color}">Group ${k.grp}</span></div>`:''}</div>
     </div></td>`;
     wk.forEach(({ds})=>{
       const am=_planSessOf(ds,k.key,'am'),pm=_planSessOf(ds,k.key,'pm');
@@ -2251,6 +2262,47 @@ function _peSwitch(field,val){
   _loadPlanEditorRows();
   _renderPlanEditor();
 }
+// ── Copy from another session (any day, any group/athlete) ──
+function _peCopySources(){
+  const out=[];
+  const keys=_planKeys();
+  const labelOf=k=>keys.find(x=>x.key===k)?.label||k;
+  Object.entries(coachData?.sessionPlans||{}).forEach(([day,plan])=>{
+    if(!plan)return;
+    Object.keys(plan).forEach(key=>{
+      if(key==='phase'||key==='week')return;
+      ['am','pm'].forEach(sess=>{
+        if(day===_pe.day&&key===_pe.key&&sess===_pe.sess)return; // self
+        const s=_planSessOf(day,key,sess);
+        if(!s||!(s.exercises||[]).length)return;
+        out.push({day,key,sess,n:s.exercises.length,label:labelOf(key)});
+      });
+    });
+  });
+  out.sort((a,b)=>b.day.localeCompare(a.day)||a.label.localeCompare(b.label));
+  // dedup identical content rows (same day+sess+content via simple sig)
+  const seen=new Set();const dedup=[];
+  out.forEach(s=>{
+    const sess=_planSessOf(s.day,s.key,s.sess);
+    const sig=s.day+'|'+s.sess+'|'+JSON.stringify((sess.exercises||[]).map(e=>[e.name,e.planSets,e.planReps,e.planIntensity]));
+    if(seen.has(sig))return;seen.add(sig);dedup.push(s);
+  });
+  return dedup.slice(0,60);
+}
+function _peCopyFrom(encoded){
+  if(!encoded)return;
+  const [day,key,sess]=JSON.parse(encoded);
+  const s=_planSessOf(day,key,sess);
+  if(!s)return;
+  if(_pe.exs.length&&!confirm('Replace current rows with the copied session?'))return;
+  _pe.warmup=s.warmup||_pe.warmup;
+  _pe.exs=(s.exercises||[]).map(e=>({
+    name:e.name||'',sub:e.subCategory||EX2SUB[e.name]||'',
+    int:e.planIntensity||'',dist:e.planDistance||'',sets:e.planSets||'',reps:e.planReps||'',
+    rest:e.planRestTime||'',isSL:!!e.isSL,_orig:JSON.parse(JSON.stringify(e))
+  }));
+  _renderPlanEditor();
+}
 function _renderPlanEditor(){
   const keys=_planKeys();
   const dt=new Date(_pe.day+'T12:00:00');
@@ -2286,6 +2338,16 @@ function _renderPlanEditor(){
           <button class="m-btn" style="${_pe.sess==='pm'?'background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.5);color:#a78bfa':''}" onclick="_peSwitch('sess','pm')">🌇 PM</button>
         </div>
       </div>
+      ${(()=>{ const srcs=_peCopySources(); if(!srcs.length) return '';
+        const dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const opts=srcs.map(s=>{
+          const dt=new Date(s.day+'T12:00:00'); const wd=isNaN(dt)?'':dn[dt.getDay()];
+          return `<option value='${JSON.stringify([s.day,s.key,s.sess]).replace(/'/g,"&#39;")}'>${s.day.slice(5).replace('-','.')} ${wd} · ${_esc(s.label)} · ${s.sess.toUpperCase()} (${s.n})</option>`;
+        }).join('');
+        return `<div style="margin-bottom:12px"><span class="m-lbl">📋 Copy from existing session</span>
+          <select class="m-in" style="width:100%" onchange="_peCopyFrom(this.value);this.value=''">
+            <option value="">— select a session to copy —</option>${opts}
+          </select></div>`; })()}
       <div style="margin-bottom:12px"><span class="m-lbl">🔆 Warm-up</span>
         <input class="m-in" style="width:100%" placeholder="e.g. 10 min dynamic stretching…" value="${_esc(_pe.warmup)}" oninput="_pe.warmup=this.value"></div>
       <div class="pe-row" style="margin-bottom:6px">
