@@ -557,6 +557,7 @@ let overviewFilter='all';
 let athletesFilter='all';
 let planGrpFilter=null; // Plan tab: which group's athletes are shown (null = groups only)
 let schedFilter='all'; // Schedule tab: 'all' | 'A' | 'B' | athlete name
+let schedDayIdx=null;  // Schedule tab: null = whole week, 0–6 = Mon..Sun
 let compareSet=new Set();
 const charts={};
 
@@ -2335,7 +2336,19 @@ function renderSchedule(){
     ${weekOffset!==0?`<button class="m-btn" onclick="shiftWeek(0,true)">← This week</button>`:''}
   </div>`;
 
-  // ── Group / athlete filter (same pattern as Overview) ──
+  // ── 1st priority: DAY strip (Mon–Sun) — pick a day to see only that day's sessions ──
+  const DN2=['Mo · Mon','Di · Tue','Mi · Wed','Do · Thu','Fr · Fri','Sa · Sat','So · Sun'];
+  html+=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+    <button class="flt-btn ${schedDayIdx===null?'on':''}" onclick="schedDayIdx=null;renderSchedule()">Week 전체</button>`;
+  wk.forEach(({ds,d},i)=>{
+    const on=schedDayIdx===i;
+    const isT=ds===today;
+    html+=`<button class="flt-btn ${on?'on':''}" style="${isT&&!on?'border-color:rgba(88,166,255,.45)':''}"
+      onclick="schedDayIdx=${on?'null':i};renderSchedule()">${DN2[i]}<span style="margin-left:4px;opacity:.6">${d.getDate()}.</span>${isT?' <span style="font-size:8px;color:var(--blue);font-weight:800">●</span>':''}</button>`;
+  });
+  html+=`</div>`;
+
+  // ── 2nd/3rd priority: Group / athlete filter (same pattern as Overview) ──
   const allAths=coachData?.athletes||[];
   const sBtn=(val,label,dot)=>{
     const on=schedFilter===val;
@@ -2361,6 +2374,7 @@ function renderSchedule(){
 
   let anyBlock=false;
   wk.forEach(({ds,d},di)=>{
+    if(schedDayIdx!==null&&di!==schedDayIdx)return; // day filter
     const plan=coachData?.sessionPlans?.[ds];
     // ── 1. Logged sessions (detailed, per athlete; respects filter) ──
     const loggedBlocks=[];
