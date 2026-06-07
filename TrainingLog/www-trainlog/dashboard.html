@@ -880,6 +880,50 @@ function renderOverview(){
 // ══════════════════════════════════════
 //  LOAD
 // ══════════════════════════════════════
+// ── Exercise progression series (주요 운동 성장 추이) ──
+function _exProgression(logs){
+  const byEx={};
+  logs.filter(l=>l.type==='weight'||l.type==='plyo').forEach(l=>{
+    (l.exercises||[]).forEach(e=>{
+      if(!e.name)return;
+      let top=0;
+      if(e.setRows&&e.setRows.length)e.setRows.forEach(r=>{const kg=e.isBodyweight?(parseFloat(r.extraKg)||0):(parseFloat(r.kg)||0);if(kg>top)top=kg;});
+      else top=e.isBodyweight?(parseFloat(e.extraKg)||0):(parseFloat(e.weight)||0);
+      if(top<=0)return;
+      (byEx[e.name]=byEx[e.name]||[]).push({date:l.date,top});
+    });
+  });
+  const out=[];
+  Object.entries(byEx).forEach(([name,pts])=>{
+    const byDate={};pts.forEach(p=>{if(!byDate[p.date]||p.top>byDate[p.date])byDate[p.date]=p.top;});
+    const series=Object.entries(byDate).map(([d,v])=>({d,v})).sort((a,b)=>a.d.localeCompare(b.d));
+    if(series.length>=2)out.push({name,series,n:series.length});
+  });
+  out.sort((a,b)=>b.n-a.n);
+  return out.slice(0,6);
+}
+function _sprintProgression(logs){
+  const byDist={};
+  logs.filter(l=>l.type==='sprint').forEach(l=>{
+    (l.sets||[]).forEach(s=>{
+      const dist=parseFloat(s.distance);if(!dist)return;
+      let best=parseFloat(s.actualTime)||null;
+      (s.repTimes||[]).forEach(t=>{if(t!=null&&(best==null||t<best))best=t;});
+      if(best==null)return;
+      const key=dist+'m Sprint';
+      byDist[key]=byDist[key]||{};
+      if(!byDist[key][l.date]||best<byDist[key][l.date])byDist[key][l.date]=best;
+    });
+  });
+  const out=[];
+  Object.entries(byDist).forEach(([name,byDate])=>{
+    const series=Object.entries(byDate).map(([d,v])=>({d,v})).sort((a,b)=>a.d.localeCompare(b.d));
+    if(series.length>=2)out.push({name,series,n:series.length,sprint:true});
+  });
+  out.sort((a,b)=>b.n-a.n);
+  return out.slice(0,3);
+}
+
 function renderLoad(){
   const wrap=document.getElementById('tab-load');
   const wk=getWeekDates(weekOffset);
@@ -1044,7 +1088,51 @@ function renderLoad(){
   });
 
   html+=`</div>`;
+
+  // ── 3. Exercise progression — 주요 운동 성장 추이 (선택된 선수) ──
+  const wSeries=_exProgression(selLogs);
+  const spSeries=_sprintProgression(selLogs);
+  const allSeries=[...wSeries,...spSeries];
+  if(allSeries.length){
+    html+=`<div style="margin-top:22px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">📈 Progression · ${_esc(selAth.name)} — 주요 운동 추이</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">`;
+    allSeries.forEach((s,idx)=>{
+      const first=s.series[0].v,last=s.series[s.series.length-1].v;
+      const delta=Math.round((last-first)*100)/100;
+      const good=s.sprint?delta<0:delta>0;
+      const deltaStr=(delta>0?'+':'')+delta+(s.sprint?'s':'kg');
+      html+=`<div class="card" style="padding:12px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(s.name)}</span>
+          <span style="font-size:11px;font-weight:800;flex-shrink:0;color:${delta===0?'var(--muted)':good?'#3ecf8e':'#f85149'}">${deltaStr}</span>
+        </div>
+        <div style="position:relative;height:120px"><canvas id="ch-prog-${idx}"></canvas></div>
+        <div style="font-size:9px;color:var(--hint);margin-top:5px">${s.sprint?'best time/lap (낮을수록 좋음)':'top set kg'} · ${s.series.length} sessions</div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  } else {
+    html+=`<div style="margin-top:18px;font-size:11px;color:var(--hint)">📈 같은 운동이 2회 이상 기록되면 성장 추이 차트가 표시됩니다</div>`;
+  }
+
   wrap.innerHTML=html;
+
+  // instantiate progression charts (after DOM)
+  Object.keys(charts).filter(k=>k.startsWith('prog-')).forEach(killChart);
+  if(allSeries.length){
+    setTimeout(()=>{
+      allSeries.forEach((s,idx)=>{
+        const c=document.getElementById('ch-prog-'+idx);if(!c)return;
+        const color=s.sprint?'#3ecf8e':'#f7a94f';
+        charts['prog-'+idx]=new Chart(c,{type:'line',
+          data:{labels:s.series.map(p=>fmt(p.d)),datasets:[{data:s.series.map(p=>p.v),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,borderWidth:2}]},
+          options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+            scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9},maxTicksLimit:8}},
+                    y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}}}}});
+      });
+    },50);
+  }
 }
 
 // ══════════════════════════════════════
