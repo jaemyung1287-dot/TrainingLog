@@ -2428,6 +2428,7 @@ function renderSchedule(){
           <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
           <span style="font-size:12px;font-weight:600;flex:1">${icon} ${_esc(e.name)}${e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':''}</span>
           <span style="font-size:11px;color:rgba(198,168,90,.85);font-weight:600">${det.join(' · ')}</span>
+          ${e.ytUrl?`<a href="${_esc(e.ytUrl)}" target="_blank" style="flex-shrink:0;padding:2px 8px;border-radius:6px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:10px;font-weight:800;text-decoration:none">▶</a>`:''}
         </div>`;
       }).join('');
       const note=b.s.coachNote||'';
@@ -2609,11 +2610,11 @@ function _peRowFrom(e){
     restS:e.planRestTime||'',restSU:e.planRestUnit||'m',
     restR:e.planRestTimeReps||'',restRU:e.planRestUnitReps||'m',
     ctype:e.planContractionType||'',cval:e.planContractionValue||'',
-    esys:e.planEnergySystem||'',
+    esys:e.planEnergySystem||'',yt:e.ytUrl||'',
     _orig:JSON.parse(JSON.stringify(e))
   };
 }
-function _peNewRow(){return {name:'',sub:'',int:'',dist:'',sets:'',reps:'',isBW:false,isSL:false,isSA:false,restS:'',restSU:'m',restR:'',restRU:'m',ctype:'',cval:'',esys:''};}
+function _peNewRow(){return {name:'',sub:'',int:'',dist:'',sets:'',reps:'',isBW:false,isSL:false,isSA:false,restS:'',restSU:'m',restR:'',restRU:'m',ctype:'',cval:'',esys:'',yt:''};}
 function _loadPlanEditorRows(){
   const s=_planSessOf(_pe.day,_pe.key,_pe.sess);
   _pe.warmup=s?.warmup||'';
@@ -2753,6 +2754,13 @@ function _renderPlanEditor(){
         ${cvalField}
         ${esysField}
       </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+        <span style="font-size:9px;font-weight:700;color:rgba(255,60,60,.7);letter-spacing:.3px;flex-shrink:0">▶ YT</span>
+        <input type="url" class="m-in" placeholder="https://youtube.com/watch?v=… (외부 훈련 선수용 영상)" value="${_esc(e.yt)}"
+          style="flex:1;padding:5px 9px;font-size:11px;border-color:rgba(255,60,60,.2)"
+          onchange="_pe.exs[${i}].yt=this.value;_renderPlanEditor()">
+        ${e.yt?`<a href="${_esc(e.yt)}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:11px;font-weight:800;text-decoration:none">▶</a>`:''}
+      </div>
     </div>`;
   }).join('');
 
@@ -2824,7 +2832,7 @@ function _peBuildSession(){
       planRestTime:e.restS||'',planRestUnit:e.restSU||'m',
       planRestTimeReps:e.restR||'',planRestUnitReps:e.restRU||'m',
       planContractionType:e.ctype||'',planContractionValue:e.cval||'',
-      planEnergySystem:e.esys||'',
+      planEnergySystem:e.esys||'',ytUrl:(e.yt||'').trim(),
       planLegMode:e.isSL?'SL':e.isSA?'SA':(base.planLegMode==='SL'||base.planLegMode==='SA'?'DL':base.planLegMode||'DL')
     });
   });
