@@ -2330,8 +2330,16 @@ function _renderPlanEditor(){
     return `<button class="m-btn" style="padding:5px 11px;font-size:11px;${on?`background:${k.color}22;border-color:${k.color}88;color:${k.color};font-weight:800`:''}"
       onclick="_peToggleKey('${k.key}')">${on?'✓ ':''}${_esc(k.label)}</button>`;
   };
-  const grpChips=keys.filter(k=>!k.ath).map(chipOf).join('');
-  const athChips=keys.filter(k=>k.ath).map(chipOf).join('');
+  // Group chips: All Groups → Group A → Group B
+  const grpOrder={'all':0,'A':1,'B':2};
+  const grpChips=keys.filter(k=>!k.ath).sort((a,b)=>grpOrder[a.key]-grpOrder[b.key]).map(chipOf).join('');
+  // Athlete chips: filtered by selected group(s) — Group A 선택 시 A 선수만 표시
+  const selGrps=['A','B'].filter(g=>_pe.keys.has(g));
+  let athKeys=keys.filter(k=>k.ath);
+  if(!_pe.keys.has('all')&&selGrps.length){
+    athKeys=athKeys.filter(k=>selGrps.includes(k.grp)||_pe.keys.has(k.key)); // keep already-selected visible
+  }
+  const athChips=athKeys.map(chipOf).join('');
   const subOpts=Object.entries(TRAINING_STRUCTURE).map(([t,v])=>
     `<optgroup label="${t}">${v.subs.map(sb=>`<option value="${sb}">${sb}</option>`).join('')}</optgroup>`).join('');
   const dl=`<datalist id="ex-dl">${Object.keys(EX2SUB).map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>`;
