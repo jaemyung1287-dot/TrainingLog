@@ -7477,7 +7477,9 @@ function renderPlanAccordion(){
     const subWrap=document.createElement('div');
     subWrap.className='plan-sub-section';
 
-    info.subs.forEach(sub=>{
+    // Include non-standard subcategories (e.g. '기타' from dashboard custom exercises)
+    const _extraSubs=[...new Set(typeExs.map(e=>e.subCategory).filter(sb=>sb&&!info.subs.includes(sb)))];
+    [...info.subs,..._extraSubs].forEach(sub=>{
       const subExs=typeExs.filter(e=>e.subCategory===sub);
       const subKey=`${type}::${sub}`;
       const isActiveInput=ST._planActiveInput===subKey;

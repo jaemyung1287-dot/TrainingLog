@@ -2072,7 +2072,23 @@ const EXERCISE_LIBRARY={
 
 // Reverse maps from the embedded exercise library
 const SUB2TYPE={};Object.entries(TRAINING_STRUCTURE).forEach(([t,v])=>v.subs.forEach(sb=>SUB2TYPE[sb]=t));
+SUB2TYPE['기타']='Resistance Training'; // 미분류 신규 운동 — 나중에 분류
 const EX2SUB={};Object.entries(EXERCISE_LIBRARY).forEach(([sb,exs])=>exs.forEach(n=>{if(!EX2SUB[n])EX2SUB[n]=sb;}));
+// Custom exercise names already used in any plan (so they autocomplete next time)
+function _customExNames(){
+  const out=new Set();
+  Object.values(coachData?.sessionPlans||{}).forEach(plan=>{
+    if(!plan)return;
+    Object.entries(plan).forEach(([k,g])=>{
+      if(k==='phase'||k==='week'||!g||typeof g!=='object')return;
+      ['am','pm'].forEach(ss=>{
+        ((g[ss]&&g[ss].exercises)||[]).forEach(e=>{ if(e.name&&!EX2SUB[e.name])out.add(e.name); });
+      });
+      (Array.isArray(g.exercises)?g.exercises:[]).forEach(e=>{ if(e.name&&!EX2SUB[e.name])out.add(e.name); });
+    });
+  });
+  return [...out];
+}
 
 let _modalGuard=null; // returns true when there are unsaved changes
 function _rmModal(){const m=document.getElementById('x-modal');if(m)m.remove();_modalGuard=null;}
@@ -2702,8 +2718,9 @@ function _renderPlanEditor(){
   }
   const athChips=athKeys.map(chipOf).join('');
   const subOpts=Object.entries(TRAINING_STRUCTURE).map(([t,v])=>
-    `<optgroup label="${t}">${v.subs.map(sb=>`<option value="${sb}">${sb}</option>`).join('')}</optgroup>`).join('');
-  const dl=`<datalist id="ex-dl">${Object.keys(EX2SUB).map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>`;
+    `<optgroup label="${t}">${v.subs.map(sb=>`<option value="${sb}">${sb}</option>`).join('')}</optgroup>`).join('')
+    +`<optgroup label="미분류"><option value="기타">기타 (나중에 분류)</option></optgroup>`;
+  const dl=`<datalist id="ex-dl">${[...Object.keys(EX2SUB),..._customExNames()].map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>`;
 
   // Dist column only when a sprint-type exercise is present
   const _isSprintRow=(e)=>SUB2TYPE[e.sub]==='Sprint Training';
@@ -2820,6 +2837,7 @@ function _peName(i,val){
   _pe.exs[i].name=val;
   const sub=EX2SUB[val];
   if(sub)_pe.exs[i].sub=sub;
+  else if(val&&val.trim()&&!_pe.exs[i].sub)_pe.exs[i].sub='기타'; // 새 운동 → 미분류 (앱과 동일하게 자유 추가)
   _renderPlanEditor();
 }
 function _peMove(i,dir){
@@ -2830,7 +2848,7 @@ function _peMove(i,dir){
 }
 function _peBuildSession(){
   const exercises=_pe.exs.filter(e=>e.name&&e.name.trim()).map(e=>{
-    const sub=e.sub||EX2SUB[e.name]||'Knee Dominant';
+    const sub=e.sub||EX2SUB[e.name]||'기타';
     const tType=SUB2TYPE[sub]||'Resistance Training';
     const base=e._orig?JSON.parse(JSON.stringify(e._orig)):{};
     return Object.assign(base,{
