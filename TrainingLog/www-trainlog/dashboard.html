@@ -2070,11 +2070,16 @@ function _tryCloseModal(){
   _rmModal();
 }
 function _mkModal(inner,wide){
+  // Preserve scroll position of the modal body across re-renders
+  const prevBd=document.querySelector('#x-modal .modal-bd');
+  const prevScroll=prevBd?prevBd.scrollTop:0;
   const m=document.getElementById('x-modal');if(m)m.remove(); // re-render keeps guard
   const ov=document.createElement('div');ov.className='modal-ov';ov.id='x-modal';
   ov.innerHTML=`<div class="modal-card" style="${wide?'max-width:940px':''}">${inner}</div>`;
   ov.onclick=e=>{if(e.target===ov)_tryCloseModal();};
   document.body.appendChild(ov);
+  const bd=ov.querySelector('.modal-bd');
+  if(bd&&prevScroll)bd.scrollTop=prevScroll;
   return ov;
 }
 
