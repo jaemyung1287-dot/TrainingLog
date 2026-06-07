@@ -1326,11 +1326,21 @@ function _restoreImages(cloudData){
   return cloudData;
 }
 
+// ── Day-level union of sessionPlans: primary wins conflicts, secondary's
+//    extra days are PRESERVED. This guarantees a stale/empty copy can never
+//    erase plan-days that exist elsewhere (the root cause of plan loss). ──
+function _unionPlans(primary,secondary){
+  const out=JSON.parse(JSON.stringify(primary||{}));
+  Object.entries(secondary||{}).forEach(([day,plan])=>{ if(!(day in out)&&plan) out[day]=plan; });
+  return out;
+}
+
 // Push to Firestore (background, non-blocking)
 // Coach data → COACH_DOC | Athlete logs → ATHLETE_DOC(id)
 function syncToCloud(d){
   _hideSyncError();
-  // 1. Always push coach-owned data (no logs)
+  // 1. Push coach-owned data — but first union sessionPlans with cloud so this
+  //    device can never wipe plan-days it doesn't know about.
   const coachData=_stripImages({
     athletes:d.athletes||[],
     sessionPlans:d.sessionPlans||{},
@@ -1339,7 +1349,15 @@ function syncToCloud(d){
     records:d.records||[],
     _lastUpdated:d._lastUpdated||Date.now()
   });
-  COACH_DOC.set(coachData).then(()=>{
+  COACH_DOC.get().then(snap=>{
+    if(snap.exists){
+      const cloudPlans=snap.data().sessionPlans||{};
+      coachData.sessionPlans=_unionPlans(coachData.sessionPlans,cloudPlans);
+      // keep local in sync with the union (direct write, no recursion)
+      try{ const raw=localStorage.getItem(SK); if(raw){ const ld=JSON.parse(raw); ld.sessionPlans=coachData.sessionPlans; localStorage.setItem(SK,JSON.stringify(ld)); } }catch(e){}
+    }
+    return COACH_DOC.set(coachData);
+  }).then(()=>{
     try{ localStorage.setItem('trainlog_last_sync',Date.now().toString()); }catch(e){}
     showToast('☁️ Cloud synced ✓');
   }).catch(e=>{
@@ -1463,9 +1481,9 @@ async function initFirebase(){
     window._fbStatus='got cloud: '+(cloudData?'ok':'null');
 
     if(cloudData){
-      // Always use cloud coach-data (sessionPlans, athletes) + merge logs
+      // Cloud coach-data wins per-day, but local-only plan-days SURVIVE (union)
       const merged=JSON.parse(JSON.stringify(local||cloudData));
-      merged.sessionPlans=cloudData.sessionPlans;
+      merged.sessionPlans=_unionPlans(cloudData.sessionPlans,local?.sessionPlans);
       merged.athletes=cloudData.athletes;
       merged.programs=cloudData.programs;
       merged.settings=cloudData.settings;
@@ -1478,6 +1496,12 @@ async function initFirebase(){
       _backupLocal();
       localStorage.setItem(SK,JSON.stringify(merged));
       console.log(`[TrainLog] Loaded from Firebase ✓ (${merged.logs.length} logs)`);
+      // ── Recovery: if this device holds plan-days the cloud lost, push them back ──
+      if(Object.keys(merged.sessionPlans||{}).length>Object.keys(cloudData.sessionPlans||{}).length){
+        COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:Date.now()}))
+          .then(()=>console.log('[TrainLog] Recovered local plan-days → cloud ✓'))
+          .catch(e=>console.warn('[TrainLog] Plan recovery push failed:',e));
+      }
     } else {
       // No cloud data yet — push local data to new structure
       const localData=getData();
@@ -1520,9 +1544,9 @@ function startCloudSync(){
         if(!cloudData) return;
         const local=JSON.parse(localStorage.getItem(SK)||'null');
         const _deletedIds=_getDeletedIds();
-        // Always trust cloud for coach-owned fields
+        // Cloud wins per-day for coach-owned fields, local-only plan-days survive
         const merged=JSON.parse(JSON.stringify(local||cloudData));
-        merged.sessionPlans=cloudData.sessionPlans;
+        merged.sessionPlans=_unionPlans(cloudData.sessionPlans,local?.sessionPlans);
         merged.athletes=cloudData.athletes;
         merged.programs=cloudData.programs;
         merged.settings=cloudData.settings;
@@ -1572,12 +1596,10 @@ function _refreshPlansFromCloud(onUpdated){
       // ── Safety guards: NEVER let a background refresh destroy local plans ──
       // 1. Local was saved while we were fetching → local is newer, skip.
       if((d._lastUpdated||0)>fetchStart) return;
-      // 2. Cloud has fewer plan-days AND is not newer than local → looks stale/partial, skip.
-      const cloudDays=Object.keys(cloud.sessionPlans||{}).length;
-      const localDays=Object.keys(d.sessionPlans||{}).length;
-      if(cloudDays<localDays&&(cloud._lastUpdated||0)<=(d._lastUpdated||0)) return;
-      const changed=JSON.stringify(d.sessionPlans||{})!==JSON.stringify(cloud.sessionPlans||{});
-      d.sessionPlans=cloud.sessionPlans||{};
+      // 2. Union merge — cloud wins per-day, local-only days always survive.
+      const unioned=_unionPlans(cloud.sessionPlans||{},d.sessionPlans||{});
+      const changed=JSON.stringify(d.sessionPlans||{})!==JSON.stringify(unioned);
+      d.sessionPlans=unioned;
       if(cloud.athletes) d.athletes=cloud.athletes;
       if(cloud.records) d.records=cloud.records;
       if(cloud._lastUpdated) d._lastUpdated=Math.max(d._lastUpdated||0,cloud._lastUpdated);
