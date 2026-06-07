@@ -6757,13 +6757,13 @@ function clearPlanSession(){
   const sessLabel=sess==='am'?'AM':'PM';
   const grp=ST._planGroup;
   const _grpLabel=grp.startsWith('ath_')?((getData().athletes||[]).find(a=>'ath_'+a.id===grp)?.name||grp):('Group '+grp);
-  if(!confirm(`Clear ${sessLabel} exercises for ${_grpLabel} on ${ST._planDay}?\n\nThis only removes the session plan (not athlete logs).`)) return;
+  if(!confirm(`Clear entire ${sessLabel} plan (exercises + warm-up/cool-down notes) for ${_grpLabel} on ${ST._planDay}?\n\nThis only removes the session plan (not athlete logs).`)) return;
   const d=getData();
   const plan=d.sessionPlans[ST._planDay];
-  if(plan){
-    if(plan[grp]&&plan[grp][sess]) plan[grp][sess].exercises=[];
-    // 'all' group 처리
-    if(grp==='all'&&plan['all']&&plan['all'][sess]) plan['all'][sess].exercises=[];
+  if(plan&&plan[grp]){
+    if(plan[grp][sess]){ plan[grp][sess].exercises=[]; plan[grp][sess].warmup=''; plan[grp][sess].cooldown=''; }
+    // backward compat: old flat format (treated as AM)
+    if(sess==='am'&&Array.isArray(plan[grp].exercises)){ plan[grp].exercises=[]; if(plan[grp].warmup!==undefined) plan[grp].warmup=''; if(plan[grp].cooldown!==undefined) plan[grp].cooldown=''; }
     d.sessionPlans[ST._planDay]=plan;
   }
   // 선수 로그는 건드리지 않음 — 플랜만 지우기
@@ -7939,31 +7939,43 @@ function _togglePlanExSA(idx){
 
 // ── Copy session plan from another day (same group key) ─────────
 function _planDayCopySources(){
-  // Returns [{day, sess, n}] — other days where the current group has a planned session
+  // Returns [{day, grp, sess, n}] — planned sessions from ANY group (A/B/all), any day
   const d=getData();
   const out=[];
-  const grp=ST._planGroup;
+  const grpKeys=['all','A','B'];
+  const curSess=ST._planSession||'am';
   Object.entries(d.sessionPlans||{}).forEach(([day,plan])=>{
-    if(day===ST._planDay||!plan||!plan[grp]) return;
-    ['am','pm'].forEach(sess=>{
-      let s=plan[grp][sess];
-      if(!s&&sess==='am'&&Array.isArray(plan[grp].exercises)) s=plan[grp]; // backward compat
-      const n=s&&Array.isArray(s.exercises)?s.exercises.length:0;
-      if(n>0) out.push({day,sess,n});
+    if(!plan) return;
+    grpKeys.forEach(grp=>{
+      if(!plan[grp]) return;
+      ['am','pm'].forEach(sess=>{
+        if(day===ST._planDay&&grp===ST._planGroup&&sess===curSess) return; // skip copy target itself
+        let s=plan[grp][sess];
+        if(!s&&sess==='am'&&Array.isArray(plan[grp].exercises)) s=plan[grp]; // backward compat
+        const n=s&&Array.isArray(s.exercises)?s.exercises.length:0;
+        if(n>0) out.push({day,grp,sess,n});
+      });
     });
   });
-  out.sort((a,b)=>b.day.localeCompare(a.day)||a.sess.localeCompare(b.sess));
-  return out.slice(0,30);
+  out.sort((a,b)=>b.day.localeCompare(a.day)||a.grp.localeCompare(b.grp)||a.sess.localeCompare(b.sess));
+  return out.slice(0,40);
 }
 function _showPlanDayCopyModal(){
   const srcs=_planDayCopySources();
   if(!srcs.length){ showToast('No other planned days found'); return; }
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const grpChip=(g)=>{
+    const cfg=g==='A'?['Group A','rgba(198,168,90,.15)','#c6a85a']
+            :g==='B'?['Group B','rgba(79,142,247,.15)','#4f8ef7']
+            :['All','rgba(62,207,142,.15)','#3ecf8e'];
+    return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${cfg[1]};color:${cfg[2]}">${cfg[0]}</span>`;
+  };
   const rows=srcs.map((s,i)=>{
     const dt=new Date(s.day+'T12:00:00');
     const wd=isNaN(dt)?'':dayNames[dt.getDay()];
-    return `<button class="_pdc-row" data-i="${i}" style="width:100%;display:flex;align-items:center;gap:10px;padding:13px 14px;border:none;border-top:${i===0?'none':'1px solid rgba(255,255,255,.06)'};background:none;color:var(--text);cursor:pointer;font-family:inherit;text-align:left">
-      <span style="font-size:13px;font-weight:700;min-width:88px">${s.day.slice(5).replace('-','.')} <span style="color:var(--muted);font-weight:600">${wd}</span></span>
+    return `<button class="_pdc-row" data-i="${i}" style="width:100%;display:flex;align-items:center;gap:8px;padding:13px 14px;border:none;border-top:${i===0?'none':'1px solid rgba(255,255,255,.06)'};background:none;color:var(--text);cursor:pointer;font-family:inherit;text-align:left">
+      <span style="font-size:13px;font-weight:700;min-width:82px">${s.day.slice(5).replace('-','.')} <span style="color:var(--muted);font-weight:600">${wd}</span></span>
+      ${grpChip(s.grp)}
       <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${s.sess==='am'?'rgba(247,169,79,.15)':'rgba(167,139,250,.15)'};color:${s.sess==='am'?'#f7a94f':'#a78bfa'}">${s.sess.toUpperCase()}</span>
       <span style="font-size:12px;color:var(--muted);flex:1">${s.n} exercise${s.n>1?'s':''}</span>
       <span style="color:var(--muted)">›</span>
@@ -7980,19 +7992,19 @@ function _showPlanDayCopyModal(){
   document.body.appendChild(el);
   const rm=()=>document.body.removeChild(el);
   el.querySelectorAll('._pdc-row').forEach(btn=>{
-    btn.onclick=()=>{ const s=srcs[parseInt(btn.dataset.i)]; rm(); _copyPlanFromDay(s.day,s.sess); };
+    btn.onclick=()=>{ const s=srcs[parseInt(btn.dataset.i)]; rm(); _copyPlanFromDay(s.day,s.grp,s.sess); };
   });
   el.querySelector('#_pdc-cxl').onclick=()=>rm();
   el.onclick=(ev)=>{if(ev.target===el)rm();};
 }
-function _copyPlanFromDay(srcDay,srcSess){
+function _copyPlanFromDay(srcDay,srcGrp,srcSess){
   const d=getData();
-  const grp=ST._planGroup;
-  const srcPlan=d.sessionPlans[srcDay]; if(!srcPlan||!srcPlan[grp]) return;
-  let srcSessObj=srcPlan[grp][srcSess];
-  if(!srcSessObj&&srcSess==='am'&&Array.isArray(srcPlan[grp].exercises))
-    srcSessObj={exercises:srcPlan[grp].exercises,warmup:srcPlan[grp].warmup||'',cooldown:srcPlan[grp].cooldown||''};
+  const srcPlan=d.sessionPlans[srcDay]; if(!srcPlan||!srcPlan[srcGrp]) return;
+  let srcSessObj=srcPlan[srcGrp][srcSess];
+  if(!srcSessObj&&srcSess==='am'&&Array.isArray(srcPlan[srcGrp].exercises))
+    srcSessObj={exercises:srcPlan[srcGrp].exercises,warmup:srcPlan[srcGrp].warmup||'',cooldown:srcPlan[srcGrp].cooldown||''};
   if(!srcSessObj) return;
+  const grp=ST._planGroup;
   const sess=ST._planSession||'am';
   const plan=d.sessionPlans[ST._planDay]||{};
   const curExs=_getPlanSessionExs(plan[grp]||null);
