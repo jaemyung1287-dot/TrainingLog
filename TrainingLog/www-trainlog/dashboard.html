@@ -2634,11 +2634,11 @@ function _peRowFrom(e){
     restS:e.planRestTime||'',restSU:e.planRestUnit||'m',
     restR:e.planRestTimeReps||'',restRU:e.planRestUnitReps||'m',
     ctype:e.planContractionType||'',cval:e.planContractionValue||'',
-    esys:e.planEnergySystem||'',yt:e.ytUrl||'',
+    esys:e.planEnergySystem||'',yt:e.ytUrl||'',cmt:e.coachComment||'',
     _orig:JSON.parse(JSON.stringify(e))
   };
 }
-function _peNewRow(){return {name:'',sub:'',int:'',dist:'',sets:'',reps:'',isBW:false,isSL:false,isSA:false,restS:'',restSU:'m',restR:'',restRU:'m',ctype:'',cval:'',esys:'',yt:''};}
+function _peNewRow(){return {name:'',sub:'',int:'',dist:'',sets:'',reps:'',isBW:false,isSL:false,isSA:false,restS:'',restSU:'m',restR:'',restRU:'m',ctype:'',cval:'',esys:'',yt:'',cmt:''};}
 function _loadPlanEditorRows(){
   const s=_planSessOf(_pe.day,_pe.key,_pe.sess);
   _pe.warmup=s?.warmup||'';
@@ -2781,10 +2781,14 @@ function _renderPlanEditor(){
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
         <span style="font-size:9px;font-weight:700;color:rgba(255,60,60,.7);letter-spacing:.3px;flex-shrink:0">▶ YT</span>
-        <input type="url" class="m-in" placeholder="https://youtube.com/watch?v=… (외부 훈련 선수용 영상)" value="${_esc(e.yt)}"
-          style="flex:1;padding:5px 9px;font-size:11px;border-color:rgba(255,60,60,.2)"
+        <input type="url" class="m-in" placeholder="영상 링크" value="${_esc(e.yt)}"
+          style="flex:1;min-width:0;padding:5px 9px;font-size:11px;border-color:rgba(255,60,60,.2)"
           onchange="_pe.exs[${i}].yt=this.value;_renderPlanEditor()">
         ${e.yt?`<a href="${_esc(e.yt)}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:11px;font-weight:800;text-decoration:none">▶</a>`:''}
+        <span style="font-size:9px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.3px;flex-shrink:0;margin-left:4px">💬</span>
+        <input class="m-in" placeholder="코치 코멘트 (선수 화면에 표시)" value="${_esc(e.cmt)}"
+          style="flex:1;min-width:0;padding:5px 9px;font-size:11px;border-color:rgba(198,168,90,.25)"
+          oninput="_pe.exs[${i}].cmt=this.value">
       </div>
     </div>`;
   }).join('');
@@ -2858,7 +2862,7 @@ function _peBuildSession(){
       planRestTime:e.restS||'',planRestUnit:e.restSU||'m',
       planRestTimeReps:e.restR||'',planRestUnitReps:e.restRU||'m',
       planContractionType:e.ctype||'',planContractionValue:e.cval||'',
-      planEnergySystem:e.esys||'',ytUrl:(e.yt||'').trim(),
+      planEnergySystem:e.esys||'',ytUrl:(e.yt||'').trim(),coachComment:(e.cmt||'').trim(),
       planLegMode:e.isSL?'SL':e.isSA?'SA':(base.planLegMode==='SL'||base.planLegMode==='SA'?'DL':base.planLegMode||'DL')
     });
   });

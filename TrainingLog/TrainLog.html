@@ -2513,7 +2513,7 @@ function selectType(t){
         const lg=_isSprint?_sprintLoggedByName[e.name]:_loggedByName[e.name];
         if(lg){
           return {
-            name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true,
+            name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true, coachComment:e.coachComment||'',
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
             planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
@@ -2535,7 +2535,7 @@ function selectType(t){
           };
         } else {
           return {
-            name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true,
+            name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true, coachComment:e.coachComment||'',
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
             planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
@@ -2672,7 +2672,7 @@ function selectType(t){
         const ls=_sprintLoggedByName[e.name];
         if(ls){
           return {
-            name:e.name, subCategory:e.subCategory||ls.subCategory||null, fromPlan:true,
+            name:e.name, subCategory:e.subCategory||ls.subCategory||null, fromPlan:true, coachComment:e.coachComment||'', ytUrl:e.ytUrl||'',
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'', planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
@@ -2683,7 +2683,7 @@ function selectType(t){
           };
         } else {
           return {
-            name:e.name, subCategory:e.subCategory, fromPlan:true,
+            name:e.name, subCategory:e.subCategory, fromPlan:true, coachComment:e.coachComment||'', ytUrl:e.ytUrl||'',
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'', planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
@@ -3272,7 +3272,15 @@ function renderExList(){
         const _ps=_prev.rows.map(r=>`${r.kg||'—'}×${r.reps||'—'}`).join(' · ');
         prevHintHtml=_prevHintHtml(`Last ${_pd}: ${_ps}`,_prev.coachComment);
       }
-      paramsHtml=`${liftPlanSummary}${contractionBadge}${prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
+      // Coach comment from the plan (entered on the web dashboard)
+      let coachBadge='';
+      if(ex.coachComment){
+        coachBadge=`<div style="margin-top:6px;display:flex;align-items:flex-start;gap:7px;padding:6px 10px;background:rgba(198,168,90,.08);border:1px solid rgba(198,168,90,.25);border-radius:8px">
+          <span style="font-size:10px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.05em;flex-shrink:0;margin-top:1px">💬 COACH</span>
+          <span style="font-size:12px;color:var(--text);line-height:1.4">${ex.coachComment}</span>
+        </div>`;
+      }
+      paramsHtml=`${liftPlanSummary}${contractionBadge}${coachBadge}${prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -3815,7 +3823,10 @@ function renderSprintSets(){
            <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px;background:rgba(58,122,90,.3);border:1px solid #3A7A5A88;color:#3ecf8e;width:fit-content">${s.subCategory||'Sprint Training'}</span>
            <span class="_ex-name-done" style="font-size:14px;font-weight:700;color:#D4D0E8;${s.done?'text-decoration:line-through;opacity:.5':''}">${spDonePrefix}${s.name||''}</span>
          </div>
-         <span style="font-size:10px;color:var(--muted)">📋</span>`
+         <div style="display:flex;align-items:center;gap:6px">
+           ${s.ytUrl?`<a href="${s.ytUrl}" target="_blank" style="padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:12px;font-weight:800;text-decoration:none">▶</a>`:''}
+           <span style="font-size:10px;color:var(--muted)">📋</span>
+         </div>`
       : `<span style="font-size:14px;font-weight:700;color:var(--muted)">Set Group ${i+1}</span>
          <button class="del-btn" onclick="removeSprintSet(${i})">×</button>`;
 
@@ -3832,6 +3843,11 @@ function renderSprintSets(){
       _spRestStr=` <span style="color:#4f8ef7">/ Rest: ${_rp.join(' · ')}</span>`;
     }
     const spPlanSummary=_spPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_spPlanParts.join(' · ')}${_spRestStr}</div>`:'';
+    // Coach comment from the plan (entered on the web dashboard)
+    const spCoachBadge=s.coachComment?`<div style="margin-top:6px;display:flex;align-items:flex-start;gap:7px;padding:6px 10px;background:rgba(198,168,90,.08);border:1px solid rgba(198,168,90,.25);border-radius:8px">
+      <span style="font-size:10px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.05em;flex-shrink:0;margin-top:1px">💬 COACH</span>
+      <span style="font-size:12px;color:var(--text);line-height:1.4">${s.coachComment}</span>
+    </div>`:'';
     // Previous performance hint — last time same sprint (name/distance): best time + coach lap records
     let spPrevHtml='';
     const _spPrev=_prevSprintPerf(s.name,s.distance||s.planDistance);
@@ -3892,6 +3908,7 @@ function renderSprintSets(){
         </div>
       </div>
       ${spPlanSummary}
+      ${spCoachBadge}
       ${spPrevHtml}
       ${effortHtml}
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
