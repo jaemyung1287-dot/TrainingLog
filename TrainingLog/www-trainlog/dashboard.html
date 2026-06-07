@@ -556,6 +556,7 @@ let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
 let overviewFilter='all';
 let athletesFilter='all';
 let planGrpFilter=null; // Plan tab: which group's athletes are shown (null = groups only)
+let schedFilter='all'; // Schedule tab: 'all' | 'A' | 'B' | athlete name
 let compareSet=new Set();
 const charts={};
 
@@ -2334,12 +2335,37 @@ function renderSchedule(){
     ${weekOffset!==0?`<button class="m-btn" onclick="shiftWeek(0,true)">← This week</button>`:''}
   </div>`;
 
+  // ── Group / athlete filter (same pattern as Overview) ──
+  const allAths=coachData?.athletes||[];
+  const sBtn=(val,label,dot)=>{
+    const on=schedFilter===val;
+    return `<button class="flt-btn ${on?'on':''}" onclick="schedFilter='${val.replace(/'/g,"\\'")}';renderSchedule()">${dot?`<span class="flt-dot" style="background:${dot}"></span>`:''}${label}</button>`;
+  };
+  html+=`<div class="filter-bar"><div class="filter-group">
+    ${sBtn('all','All Athletes')}${sBtn('A','Group A')}${sBtn('B','Group B')}
+  </div><div class="flt-sep"></div><div class="filter-group">`;
+  allAths.forEach(a=>{
+    const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
+    html+=sBtn(a.name,short,a.group==='A'?'#58a6ff':'#3ecf8e');
+  });
+  html+=`</div></div>`;
+
+  // Relevance helpers for the current filter
+  const _athRel=(a)=>schedFilter==='all'||a.group===schedFilter||a.name===schedFilter;
+  const _keyRel=(key)=>{
+    if(key==='all')return true;
+    if(key==='A'||key==='B')return schedFilter==='all'||schedFilter===key||allAths.some(a=>a.name===schedFilter&&a.group===key);
+    if(key.startsWith('ath_')){const a=allAths.find(x=>'ath_'+x.id===key);return a?_athRel(a):false;}
+    return true;
+  };
+
   let anyBlock=false;
   wk.forEach(({ds,d},di)=>{
     const plan=coachData?.sessionPlans?.[ds];
-    // ── 1. Logged sessions (detailed, per athlete) ──
+    // ── 1. Logged sessions (detailed, per athlete; respects filter) ──
     const loggedBlocks=[];
     (coachData?.athletes||[]).forEach(a=>{
+      if(!_athRel(a))return;
       const dayLogs=(athLogs[a.id]||[]).filter(l=>l.date===ds&&l.type!=='condition');
       if(dayLogs.length)loggedBlocks.push({a,logs:dayLogs});
     });
@@ -2349,6 +2375,7 @@ function renderSchedule(){
     if(plan)Object.keys(plan).forEach(key=>{
       if(key==='phase'||key==='week')return;
       if(loggedIds.has(key))return;
+      if(!_keyRel(key))return;
       ['am','pm'].forEach(sess=>{
         const s=_planSessOf(ds,key,sess);
         if(!s||!(s.exercises||[]).length)return;
