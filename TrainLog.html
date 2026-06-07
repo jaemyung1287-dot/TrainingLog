@@ -7945,6 +7945,14 @@ function _planDayCopySources(){
   const out=[];
   const curSess=ST._planSession||'am';
   const athName=(k)=>{const a=(d.athletes||[]).find(a=>'ath_'+a.id===k);return a?a.name:k.slice(4);};
+  // Canonical signature — compares the training content only (ignores ids, fromPlan flags, key order)
+  const _exSig=(exs)=>JSON.stringify(exs.map(e=>[
+    e.name,e.trainingType,e.subCategory,
+    e.planIntensity,e.planDistance,e.planSets,e.planReps,
+    e.planRestTime,e.planRestUnit,e.planRestTimeReps,e.planRestUnitReps,e.planRestType,
+    e.planContractionType,e.planContractionValue,e.planEnergySystem,e.planRepType,e.planLegMode,
+    e.isBW,e.isSL,e.isSA
+  ].map(v=>v===undefined||v===''?null:v)));
   Object.entries(d.sessionPlans||{}).forEach(([day,plan])=>{
     if(!plan) return;
     Object.keys(plan).forEach(grp=>{
@@ -7959,16 +7967,38 @@ function _planDayCopySources(){
         out.push({day,grp,sess,n:exs.length,exs,wu:s.warmup||'',
           label:grp==='A'?'Group A':grp==='B'?'Group B':grp==='all'?'All':athName(grp),
           isAth:grp.startsWith('ath_'),
-          sig:JSON.stringify(exs)});
+          sig:_exSig(exs)});
       });
     });
   });
-  // Merge identical sessions on the same day+session (e.g. plan replicated to several athletes)
+  // Merge & suppress duplicates per day+session:
+  //  - identical content shown once
+  //  - group entry supersedes identical athlete entries (athletes hidden if same as group plan)
+  //  - athlete plans that DIFFER from the group plan stay visible
   const seen={}; const dedup=[];
   out.forEach(s=>{
     const k=s.day+'|'+s.sess+'|'+s.sig;
-    if(seen[k]){ if(!seen[k].label.includes(s.label)) seen[k].label+=', '+s.label; return; }
+    const ex=seen[k];
+    if(ex){
+      if(s.isAth&&!ex.isAth) return;                       // group already covers this content
+      if(!s.isAth&&ex.isAth){                              // group supersedes merged athlete row
+        ex.label=s.label; ex.grp=s.grp; ex.isAth=false; ex.athIds=null; return;
+      }
+      if(s.isAth&&ex.isAth){ ex.athIds.push(s.grp); if(!ex.label.includes(s.label)) ex.label+=', '+s.label; return; }
+      return; // two identical group entries (e.g. A & all) — keep first
+    }
+    s.athIds=s.isAth?[s.grp]:null;
     seen[k]=s; dedup.push(s);
+  });
+  // If a merged athlete set covers an entire group, label it as that group
+  dedup.forEach(s=>{
+    if(!s.isAth||!s.athIds||s.athIds.length<2) return;
+    ['A','B'].forEach(g=>{
+      const members=(d.athletes||[]).filter(a=>a.group===g).map(a=>'ath_'+a.id);
+      if(members.length&&s.athIds.length===members.length&&members.every(m=>s.athIds.includes(m))){
+        s.label='Group '+g; s.grpLike=g;
+      }
+    });
   });
   dedup.sort((a,b)=>b.day.localeCompare(a.day)||a.label.localeCompare(b.label)||a.sess.localeCompare(b.sess));
   return dedup;
@@ -7980,9 +8010,10 @@ function _showPlanDayCopyModal(){
   const monNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const chip=(txt,bg,fg)=>`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${bg};color:${fg};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${txt}</span>`;
   const grpChip=(s)=>{
-    if(s.grp==='A') return chip(s.label,'rgba(198,168,90,.15)','#c6a85a');
-    if(s.grp==='B') return chip(s.label,'rgba(79,142,247,.15)','#4f8ef7');
-    if(s.grp==='all') return chip(s.label,'rgba(62,207,142,.15)','#3ecf8e');
+    const g=s.grpLike||s.grp; // merged full-group athlete sets styled as their group
+    if(g==='A') return chip(s.label,'rgba(198,168,90,.15)','#c6a85a');
+    if(g==='B') return chip(s.label,'rgba(79,142,247,.15)','#4f8ef7');
+    if(g==='all') return chip(s.label,'rgba(62,207,142,.15)','#3ecf8e');
     return chip(s.label,'rgba(167,139,250,.15)','#a78bfa'); // individual athlete(s)
   };
   // Monday of the week for grouping
