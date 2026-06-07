@@ -2057,6 +2057,15 @@ const EXERCISE_LIBRARY={
 .pe-useg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
 .pe-useg button{padding:3px 7px;font-size:9px;font-weight:700;border:none;background:none;color:var(--muted);cursor:pointer;font-family:inherit}
 .pe-useg button.on{background:rgba(79,142,247,.2);color:#4f8ef7}
+.sched-ex{padding:7px 0;border-top:1px solid rgba(255,255,255,.05)}
+.sched-ex:first-of-type{border-top:none}
+.sched-cmt{width:100%;margin-top:5px;padding:5px 9px;font-size:11px;background:rgba(0,0,0,.18)}
+.sched-cmt::placeholder{color:rgba(230,237,243,.22)}
+.lap-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.lap{display:inline-flex;align-items:center;gap:3px}
+.lap-n{font-size:9px;font-weight:700;color:var(--hint);min-width:12px;text-align:right}
+.lap input{width:56px;padding:4px 5px;border-radius:7px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:11px;text-align:center;outline:none;font-family:inherit}
+.lap input:focus{border-color:rgba(62,207,142,.5)}
 `;document.head.appendChild(s);})();
 
 // Reverse maps from the embedded exercise library
@@ -2304,6 +2313,11 @@ function renderPlan(){
 // ══ WEEKLY SCHEDULE — completed plans, readable sheet + coach notes ══
 function renderSchedule(){
   const wrap=document.getElementById('tab-schedule');
+  // Don't re-render while the coach is typing in a comment/lap field (live-sync would wipe it)
+  const ae=document.activeElement;
+  if(ae&&ae.closest&&ae.closest('#tab-schedule')&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
+  const _content=document.getElementById('content');
+  const _sc=_content?_content.scrollTop:0;
   const wk=getWeekDates(weekOffset);
   const today=todayStr();
   document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}`;
@@ -2323,11 +2337,18 @@ function renderSchedule(){
   let anyBlock=false;
   wk.forEach(({ds,d},di)=>{
     const plan=coachData?.sessionPlans?.[ds];
-    if(!plan)return;
-    // Collect session blocks; merge identical content (e.g. plan saved to several athletes)
+    // ── 1. Logged sessions (detailed, per athlete) ──
+    const loggedBlocks=[];
+    (coachData?.athletes||[]).forEach(a=>{
+      const dayLogs=(athLogs[a.id]||[]).filter(l=>l.date===ds&&l.type!=='condition');
+      if(dayLogs.length)loggedBlocks.push({a,logs:dayLogs});
+    });
+    const loggedIds=new Set(loggedBlocks.map(b=>'ath_'+b.a.id));
+    // ── 2. Planned blocks (merged); skip athlete keys that already logged ──
     const blocks=[];const seen={};
-    Object.keys(plan).forEach(key=>{
+    if(plan)Object.keys(plan).forEach(key=>{
       if(key==='phase'||key==='week')return;
+      if(loggedIds.has(key))return;
       ['am','pm'].forEach(sess=>{
         const s=_planSessOf(ds,key,sess);
         if(!s||!(s.exercises||[]).length)return;
@@ -2336,12 +2357,22 @@ function renderSchedule(){
         const b={sess,keys:[key],s};seen[sig]=b;blocks.push(b);
       });
     });
-    if(!blocks.length)return;
+    if(!blocks.length&&!loggedBlocks.length)return;
     anyBlock=true;
     blocks.sort((a,b)=>a.sess.localeCompare(b.sess));
     const isToday=ds===today;
     html+=`<div class="card" style="margin-bottom:14px;${isToday?'border-color:rgba(88,166,255,.45)':''}">
       <div style="font-size:13px;font-weight:800;margin-bottom:10px">${DN[di]} · ${d.getDate()}.${d.getMonth()+1}.${isToday?' <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:var(--blue-dim);color:var(--blue);font-weight:800">TODAY</span>':''}</div>`;
+    // ── Logged sessions (detail + per-exercise coach comments + sprint lap times) ──
+    if(loggedBlocks.length){
+      html+=`<div style="font-size:9px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">✅ Logged</div>`;
+      loggedBlocks.forEach(({a,logs})=>{
+        logs.sort((x,y)=>(x.session||'zz').localeCompare(y.session||'zz'));
+        logs.forEach(l=>html+=_schedLogBlock(a,l));
+      });
+    }
+    if(blocks.length&&loggedBlocks.length)
+      html+=`<div style="font-size:9px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin:4px 0 6px">📋 Planned (not logged yet)</div>`;
     blocks.forEach(b=>{
       const tgtChips=b.keys.map(k=>`<span class="pc-chip" style="background:${colorOf(k)}22;color:${colorOf(k)}">${_esc(labelOf(k))}</span>`).join('');
       const sessChip=`<span class="pc-chip" style="background:${b.sess==='am'?'rgba(247,169,79,.12)':'rgba(167,139,250,.12)'};color:${b.sess==='am'?'#f7a94f':'#a78bfa'}">${b.sess.toUpperCase()}</span>`;
@@ -2379,7 +2410,95 @@ function renderSchedule(){
   });
   if(!anyBlock)html+=`<div class="empty">No planned sessions this week — Plan 탭에서 작성하세요</div>`;
   wrap.innerHTML=html;
+  if(_content)_content.scrollTop=_sc; // keep scroll position across live-sync re-renders
 }
+// ── Logged-session block: full detail, per-exercise comments, sprint lap times ──
+function _schedLogBlock(a,l){
+  const c=tc(l.type);
+  const grpColor=a.group==='A'?'#58a6ff':'#3ecf8e';
+  const typeLbl=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
+  const total=l.type==='weight'?`${vol([l]).toLocaleString()} kg`
+    :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
+    :l.type==='plyo'?`${l.totalReps||0} reps`:'';
+  const sessChip=l.session?`<span class="pc-chip" style="background:${l.session==='am'?'rgba(247,169,79,.12)':'rgba(167,139,250,.12)'};color:${l.session==='am'?'#f7a94f':'#a78bfa'}">${l.session.toUpperCase()}</span>`:'';
+  let inner='';
+  if(l.type==='weight'||l.type==='plyo'){
+    inner=(l.exercises||[]).map((e,i)=>{
+      let det;
+      if(e.setRows&&e.setRows.length){
+        det=e.setRows.map(r=>`${e.isBodyweight?('BW'+(r.extraKg?'+'+r.extraKg:'')):(r.kg||'—')}×${r.reps||'—'}`).join(' · ');
+      } else {
+        det=`${e.isBodyweight?'BW':(e.weight||'—')+'kg'} ${e.sets||'—'}×${e.reps||'—'}`;
+      }
+      const mods=(e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':'')+(e.isSA?' <span style="font-size:9px;font-weight:700;color:#a78bfa">SA</span>':'');
+      return `<div class="sched-ex">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
+          <span style="font-size:12px;font-weight:600;flex:1">${_esc(e.name||'—')}${mods}</span>
+          <span style="font-size:11px;color:rgba(198,168,90,.85);font-weight:600">${det}</span>
+        </div>
+        <input class="m-in sched-cmt" placeholder="💬 운동 코멘트…" value="${_esc(e.coachComment||'')}"
+          onblur="_schedExCmt('${a.id}','${l.id}',${i},this.value)">
+      </div>`;
+    }).join('');
+  } else if(l.type==='sprint'){
+    inner=(l.sets||[]).map((st,si)=>{
+      const lapN=Math.max(1,(parseInt(st.sets)||1)*(parseInt(st.reps)||1));
+      const laps=Array.from({length:lapN},(_,ri)=>{
+        const v=(st.repTimes||[])[ri];
+        return `<span class="lap"><span class="lap-n">${ri+1}</span><input type="number" step="0.01" placeholder="s" value="${v??''}"
+          onblur="_schedRepTime('${a.id}','${l.id}',${si},${ri},this.value)"></span>`;
+      }).join('');
+      const hd=`${st.distance||'?'}m × ${st.sets||1}×${st.reps||1}${st.intensity?' @'+st.intensity+'%':''}${st.actualTime?' · best '+st.actualTime+'s':''}`;
+      return `<div class="sched-ex">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:var(--hint);min-width:16px">${si+1}.</span>
+          <span style="font-size:12px;font-weight:600;flex:1">${_esc(st.name||'Sprint')}${st.subCategory?` <span style="font-size:9px;color:var(--green)">${_esc(st.subCategory)}</span>`:''}</span>
+          <span style="font-size:11px;color:rgba(62,207,142,.85);font-weight:600">${hd}</span>
+        </div>
+        <div class="lap-grid"><span style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;align-self:center">⏱ Laps</span>${laps}</div>
+        <input class="m-in sched-cmt" placeholder="💬 세트 코멘트…" value="${_esc(st.coachComment||'')}"
+          onblur="_schedSetCmt('${a.id}','${l.id}',${si},this.value)">
+      </div>`;
+    }).join('');
+  } else {
+    inner=`<div style="font-size:11px;color:var(--muted)">${typeLbl}</div>`;
+  }
+  return `<div style="border:1px solid ${c}33;border-left:3px solid ${c};border-radius:10px;padding:10px 13px;margin-bottom:9px;background:${tcBg(l.type)}">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <span class="pc-chip" style="background:${grpColor}22;color:${grpColor}">${_esc(a.name)}</span>
+      ${sessChip}
+      <span style="font-size:11px;font-weight:800;color:${c}">${typeLbl}${total?' · '+total:''}</span>
+      ${l.rpe?`<span style="font-size:10px;color:var(--muted)">RPE ${l.rpe}</span>`:''}
+      <span style="flex:1"></span>
+      <button class="m-btn ghost" style="font-size:10px;padding:3px 7px" onclick="openLogEditor('${l.id}','${a.id}')">✎ Edit</button>
+    </div>
+    ${l.notes?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">💬 <span style="color:var(--text)">${_esc(l.notes)}</span></div>`:''}
+    ${inner}
+  </div>`;
+}
+// Patch a single log inside the athlete doc (read-modify-write, keeps everything else)
+async function _schedPatchLog(athId,logId,mut){
+  try{
+    const ref=db.collection('trainlog').doc('athlete_'+athId);
+    const snap=await ref.get();if(!snap.exists)return;
+    const logs=(snap.data().logs||[]).map(l=>{
+      if(l.id!==logId)return l;
+      const cp=JSON.parse(JSON.stringify(l));mut(cp);return cp;
+    });
+    await ref.update({logs,_lastUpdated:Date.now()});
+    athLogs[athId]=logs;
+  }catch(e){alert('Save error: '+e.message);}
+}
+function _schedExCmt(athId,logId,i,val){_schedPatchLog(athId,logId,l=>{if(l.exercises&&l.exercises[i])l.exercises[i].coachComment=val;});}
+function _schedSetCmt(athId,logId,si,val){_schedPatchLog(athId,logId,l=>{if(l.sets&&l.sets[si])l.sets[si].coachComment=val;});}
+function _schedRepTime(athId,logId,si,ri,val){_schedPatchLog(athId,logId,l=>{
+  if(l.sets&&l.sets[si]){
+    if(!Array.isArray(l.sets[si].repTimes))l.sets[si].repTimes=[];
+    l.sets[si].repTimes[ri]=val===''?null:parseFloat(val);
+  }
+});}
+
 async function _schedSaveNote(day,sess,keysCsv,val){
   try{
     const dayPlan=JSON.parse(JSON.stringify(coachData?.sessionPlans?.[day]||{}));
