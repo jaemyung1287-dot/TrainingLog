@@ -2386,11 +2386,19 @@ function renderSchedule(){
     const loggedIds=new Set(loggedBlocks.map(b=>'ath_'+b.a.id));
     // ── 2. Planned blocks (merged); skip athlete keys that already logged ──
     const blocks=[];const seen={};
+    const _fAth=allAths.find(a=>a.name===schedFilter)||null; // individual-athlete filter?
     if(plan)Object.keys(plan).forEach(key=>{
       if(key==='phase'||key==='week')return;
       if(loggedIds.has(key))return;
       if(!_keyRel(key))return;
       ['am','pm'].forEach(sess=>{
+        // Individual filter: show ONLY the plan that actually applies to this athlete
+        // (same resolution as the phone app: individual > group > all)
+        if(_fAth){
+          const athKey='ath_'+_fAth.id;
+          const applicable=_planSessOf(ds,athKey,sess)?athKey:_planSessOf(ds,_fAth.group,sess)?_fAth.group:'all';
+          if(key!==applicable)return;
+        }
         const s=_planSessOf(ds,key,sess);
         if(!s||!(s.exercises||[]).length)return;
         const sig=sess+'|'+JSON.stringify((s.exercises||[]).map(e=>[e.name,e.planIntensity,e.planDistance,e.planSets,e.planReps,e.planRestTime,e.isSL]));
