@@ -2044,9 +2044,17 @@ const EXERCISE_LIBRARY={
 .pe-hdr{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
 .pe-sl{width:100%;padding:5px 0;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:none;color:var(--muted);font-family:inherit}
 .pe-sl.on{background:rgba(79,142,247,.18);border-color:rgba(79,142,247,.5);color:#4f8ef7}
-.pe-ud{padding:0;height:13px;line-height:1;border-radius:4px;font-size:8px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:inherit}
+.pe-ud{padding:0;width:18px;height:22px;line-height:1;border-radius:4px;font-size:9px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:inherit}
 .pe-ud:hover:not(:disabled){color:var(--text);border-color:rgba(255,255,255,.3)}
 .pe-ud:disabled{opacity:.25;cursor:default}
+.pe-card{border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:7px;background:rgba(255,255,255,.015)}
+.pe-opts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.05)}
+.pe-olbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.pe-osep{width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0}
+.pe-mode{padding:4px 10px;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:none;color:var(--muted);font-family:inherit}
+.pe-useg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.pe-useg button{padding:3px 7px;font-size:9px;font-weight:700;border:none;background:none;color:var(--muted);cursor:pointer;font-family:inherit}
+.pe-useg button.on{background:rgba(79,142,247,.2);color:#4f8ef7}
 `;document.head.appendChild(s);})();
 
 // Reverse maps from the embedded exercise library
@@ -2061,10 +2069,10 @@ function _tryCloseModal(){
   }
   _rmModal();
 }
-function _mkModal(inner){
+function _mkModal(inner,wide){
   const m=document.getElementById('x-modal');if(m)m.remove(); // re-render keeps guard
   const ov=document.createElement('div');ov.className='modal-ov';ov.id='x-modal';
-  ov.innerHTML=`<div class="modal-card">${inner}</div>`;
+  ov.innerHTML=`<div class="modal-card" style="${wide?'max-width:940px':''}">${inner}</div>`;
   ov.onclick=e=>{if(e.target===ov)_tryCloseModal();};
   document.body.appendChild(ov);
   return ov;
@@ -2371,7 +2379,7 @@ async function _schedSaveNote(day,sess,keysCsv,val){
 let _pe=null; // {day,key,keys:Set,sess,warmup,exs:[{name,sub,int,dist,sets,reps,rest,isSL}]}
 function _peSig(){
   return JSON.stringify([_pe.warmup,_pe.sess,[..._pe.keys].sort(),
-    _pe.exs.map(e=>[e.name,e.sub,e.int,e.dist,e.sets,e.reps,e.rest,e.isSL])]);
+    _pe.exs.map(e=>{const{_orig,...r}=e;return r;})]);
 }
 function openPlanEditor(day,key,sess){
   _pe={day,key,keys:new Set([key]),sess};
@@ -2390,14 +2398,23 @@ function _peToggleKey(key){
   }
   _renderPlanEditor(); // rows are kept — only chip state changes
 }
+function _peRowFrom(e){
+  return {
+    name:e.name||'',sub:e.subCategory||EX2SUB[e.name]||'',
+    int:e.planIntensity||'',dist:e.planDistance||'',sets:e.planSets||'',reps:e.planReps||'',
+    isBW:!!e.isBW,isSL:!!e.isSL,isSA:!!e.isSA,
+    restS:e.planRestTime||'',restSU:e.planRestUnit||'m',
+    restR:e.planRestTimeReps||'',restRU:e.planRestUnitReps||'m',
+    ctype:e.planContractionType||'',cval:e.planContractionValue||'',
+    esys:e.planEnergySystem||'',
+    _orig:JSON.parse(JSON.stringify(e))
+  };
+}
+function _peNewRow(){return {name:'',sub:'',int:'',dist:'',sets:'',reps:'',isBW:false,isSL:false,isSA:false,restS:'',restSU:'m',restR:'',restRU:'m',ctype:'',cval:'',esys:''};}
 function _loadPlanEditorRows(){
   const s=_planSessOf(_pe.day,_pe.key,_pe.sess);
   _pe.warmup=s?.warmup||'';
-  _pe.exs=(s?.exercises||[]).map(e=>({
-    name:e.name||'',sub:e.subCategory||EX2SUB[e.name]||'',
-    int:e.planIntensity||'',dist:e.planDistance||'',sets:e.planSets||'',reps:e.planReps||'',
-    rest:e.planRestTime||'',isSL:!!e.isSL,_orig:e
-  }));
+  _pe.exs=(s?.exercises||[]).map(_peRowFrom);
 }
 function _peSwitch(field,val){
   if(_pe[field]===val)return;
@@ -2449,11 +2466,7 @@ function _peCopyFrom(encoded){
   if(!s)return;
   if(_pe.exs.length&&!confirm('Replace current rows with the copied session?'))return;
   _pe.warmup=s.warmup||_pe.warmup;
-  _pe.exs=(s.exercises||[]).map(e=>({
-    name:e.name||'',sub:e.subCategory||EX2SUB[e.name]||'',
-    int:e.planIntensity||'',dist:e.planDistance||'',sets:e.planSets||'',reps:e.planReps||'',
-    rest:e.planRestTime||'',isSL:!!e.isSL,_orig:JSON.parse(JSON.stringify(e))
-  }));
+  _pe.exs=(s.exercises||[]).map(_peRowFrom);
   _renderPlanEditor();
 }
 function _renderPlanEditor(){
@@ -2483,24 +2496,62 @@ function _renderPlanEditor(){
   // Dist column only when a sprint-type exercise is present
   const _isSprintRow=(e)=>SUB2TYPE[e.sub]==='Sprint Training';
   const hasSprint=_pe.exs.some(_isSprintRow);
-  const gridCols=`minmax(150px,2fr) 1.4fr 52px ${hasSprint?'56px ':''}46px 46px 52px 34px 36px 26px`;
-  const rows=_pe.exs.map((e,i)=>`<div class="pe-row" style="grid-template-columns:${gridCols}">
-    <input class="m-in" list="ex-dl" placeholder="Exercise" value="${_esc(e.name)}" onchange="_peName(${i},this.value)">
-    <select class="m-in" onchange="_pe.exs[${i}].sub=this.value;_renderPlanEditor()">${subOpts.replace(`value="${e.sub}"`,`value="${e.sub}" selected`)}</select>
-    <input class="m-in" type="number" placeholder="%" value="${e.int}" oninput="_pe.exs[${i}].int=this.value">
-    ${hasSprint?(_isSprintRow(e)
-      ?`<input class="m-in" type="number" placeholder="m" value="${e.dist}" oninput="_pe.exs[${i}].dist=this.value">`
-      :`<span style="text-align:center;color:var(--hint);font-size:11px">—</span>`):''}
-    <input class="m-in" type="number" placeholder="S" value="${e.sets}" oninput="_pe.exs[${i}].sets=this.value">
-    <input class="m-in" type="number" placeholder="R" value="${e.reps}" oninput="_pe.exs[${i}].reps=this.value">
-    <input class="m-in" type="number" placeholder="s" value="${e.rest}" oninput="_pe.exs[${i}].rest=this.value">
-    <button class="pe-sl ${e.isSL?'on':''}" onclick="_pe.exs[${i}].isSL=!_pe.exs[${i}].isSL;_renderPlanEditor()">SL</button>
-    <span style="display:flex;flex-direction:column;gap:1px">
-      <button class="pe-ud" ${i===0?'disabled':''} onclick="_peMove(${i},-1)">▲</button>
-      <button class="pe-ud" ${i===_pe.exs.length-1?'disabled':''} onclick="_peMove(${i},1)">▼</button>
-    </span>
-    <button class="m-btn ghost" style="padding:4px" onclick="_pe.exs.splice(${i},1);_renderPlanEditor()">✕</button>
-  </div>`).join('');
+  const gridCols=`minmax(170px,2fr) 1.5fr 56px ${hasSprint?'60px ':''}50px 50px 40px 28px`;
+  const _modeChip=(i,key,lbl,color)=>{
+    const on=_pe.exs[i][key];
+    return `<button class="pe-mode" style="${on?`background:${color}22;border-color:${color}88;color:${color}`:''}"
+      onclick="_pe.exs[${i}].${key}=!_pe.exs[${i}].${key};_renderPlanEditor()">${on?'✓ ':''}${lbl}</button>`;
+  };
+  const _unitSeg=(i,key,unit)=>`<span class="pe-useg">
+    <button class="${unit==='m'?'on':''}" onclick="_pe.exs[${i}].${key}='m';_renderPlanEditor()">m</button>
+    <button class="${unit==='s'?'on':''}" onclick="_pe.exs[${i}].${key}='s';_renderPlanEditor()">s</button>
+  </span>`;
+  const CTYPES=['','Concentric','Eccentric','Isometric','Eccentric-Concentric','Isometric-Concentric'];
+  const ESYS=['','ATP-PC (Phosphagen)','Glycolytic (Lactic)','Oxidative (Aerobic)'];
+  const rows=_pe.exs.map((e,i)=>{
+    const ctypeOpts=CTYPES.map(c=>`<option value="${c}" ${e.ctype===c?'selected':''}>${c||'Contraction'}</option>`).join('');
+    let cvalField='';
+    if(e.ctype==='Concentric'){
+      const tempos=['Ballistic','Fast','Controlled','Slow'];
+      cvalField=`<select class="m-in" style="width:100px;padding:5px 6px;font-size:11px" onchange="_pe.exs[${i}].cval=this.value">
+        <option value="">Tempo</option>${tempos.map(t=>`<option value="${t}" ${e.cval===t?'selected':''}>${t}</option>`).join('')}</select>`;
+    } else if(e.ctype){
+      cvalField=`<input class="m-in" type="number" placeholder="sec" style="width:56px;padding:5px 6px" value="${_esc(e.cval)}" oninput="_pe.exs[${i}].cval=this.value">`;
+    }
+    const esysField=_isSprintRow(e)?`<select class="m-in" style="width:160px;padding:5px 6px;font-size:11px" onchange="_pe.exs[${i}].esys=this.value">
+      ${ESYS.map(s=>`<option value="${s}" ${e.esys===s?'selected':''}>${s||'⚡ Energy System'}</option>`).join('')}</select>`:'';
+    return `<div class="pe-card">
+      <div class="pe-row" style="grid-template-columns:${gridCols};margin-bottom:0">
+        <input class="m-in" list="ex-dl" placeholder="Exercise" value="${_esc(e.name)}" onchange="_peName(${i},this.value)">
+        <select class="m-in" onchange="_pe.exs[${i}].sub=this.value;_renderPlanEditor()">${subOpts.replace(`value="${e.sub}"`,`value="${e.sub}" selected`)}</select>
+        <input class="m-in" type="number" placeholder="%" value="${e.int}" oninput="_pe.exs[${i}].int=this.value">
+        ${hasSprint?(_isSprintRow(e)
+          ?`<input class="m-in" type="number" placeholder="m" value="${e.dist}" oninput="_pe.exs[${i}].dist=this.value">`
+          :`<span style="text-align:center;color:var(--hint);font-size:11px">—</span>`):''}
+        <input class="m-in" type="number" placeholder="S" value="${e.sets}" oninput="_pe.exs[${i}].sets=this.value">
+        <input class="m-in" type="number" placeholder="R" value="${e.reps}" oninput="_pe.exs[${i}].reps=this.value">
+        <span style="display:flex;gap:2px;justify-content:center">
+          <button class="pe-ud" ${i===0?'disabled':''} onclick="_peMove(${i},-1)">▲</button>
+          <button class="pe-ud" ${i===_pe.exs.length-1?'disabled':''} onclick="_peMove(${i},1)">▼</button>
+        </span>
+        <button class="m-btn ghost" style="padding:4px" onclick="_pe.exs.splice(${i},1);_renderPlanEditor()">✕</button>
+      </div>
+      <div class="pe-opts">
+        <span class="pe-olbl">훈련 모드</span>
+        ${_modeChip(i,'isBW','BW','#3ecf8e')}${_modeChip(i,'isSL','SL','#4f8ef7')}${_modeChip(i,'isSA','SA','#a78bfa')}
+        <span class="pe-osep"></span>
+        <span class="pe-olbl">Rest</span>
+        <span style="font-size:10px;color:var(--muted)">S</span>
+        <input class="m-in" type="number" placeholder="—" style="width:50px;padding:5px 6px" value="${_esc(e.restS)}" oninput="_pe.exs[${i}].restS=this.value">${_unitSeg(i,'restSU',e.restSU)}
+        <span style="font-size:10px;color:var(--muted)">R</span>
+        <input class="m-in" type="number" placeholder="—" style="width:50px;padding:5px 6px" value="${_esc(e.restR)}" oninput="_pe.exs[${i}].restR=this.value">${_unitSeg(i,'restRU',e.restRU)}
+        <span class="pe-osep"></span>
+        <select class="m-in" style="width:150px;padding:5px 6px;font-size:11px" onchange="_pe.exs[${i}].ctype=this.value;_renderPlanEditor()">${ctypeOpts}</select>
+        ${cvalField}
+        ${esysField}
+      </div>
+    </div>`;
+  }).join('');
 
   _mkModal(`
     <div class="modal-hd">
@@ -2531,19 +2582,19 @@ function _renderPlanEditor(){
             <option value="">— select a session to copy —</option>${opts}
           </select></div>`; })()}
       <div style="margin-bottom:12px"><span class="m-lbl">🔆 Warm-up</span>
-        <input class="m-in" style="width:100%" placeholder="e.g. 10 min dynamic stretching…" value="${_esc(_pe.warmup)}" oninput="_pe.warmup=this.value"></div>
-      <div class="pe-row" style="margin-bottom:6px;grid-template-columns:${gridCols}">
-        <span class="pe-hdr">Exercise</span><span class="pe-hdr">Category</span><span class="pe-hdr">Int%</span>${hasSprint?'<span class="pe-hdr">Dist</span>':''}<span class="pe-hdr">Sets</span><span class="pe-hdr">Reps</span><span class="pe-hdr">Rest s</span><span class="pe-hdr">SL</span><span class="pe-hdr">Order</span><span></span>
+        <textarea class="m-in" style="width:100%;min-height:48px;resize:vertical" placeholder="e.g. 10 min dynamic stretching…" oninput="_pe.warmup=this.value">${_esc(_pe.warmup)}</textarea></div>
+      <div class="pe-row" style="margin-bottom:6px;grid-template-columns:${gridCols};padding:0 11px">
+        <span class="pe-hdr">Exercise</span><span class="pe-hdr">Category</span><span class="pe-hdr">Int%</span>${hasSprint?'<span class="pe-hdr">Dist</span>':''}<span class="pe-hdr">Sets</span><span class="pe-hdr">Reps</span><span class="pe-hdr">Order</span><span></span>
       </div>
       ${rows||''}
-      <button class="m-btn" style="width:100%;margin-top:4px;border-style:dashed" onclick="_pe.exs.push({name:'',sub:'',int:'',dist:'',sets:'',reps:'',rest:'',isSL:false});_renderPlanEditor()">＋ Add exercise</button>
+      <button class="m-btn" style="width:100%;margin-top:4px;border-style:dashed" onclick="_pe.exs.push(_peNewRow());_renderPlanEditor()">＋ Add exercise</button>
     </div>
     <div class="modal-ft">
       <button class="m-btn del" onclick="clearPlanSess()">🗑 Clear session</button>
       <span style="flex:1"></span>
       <button class="m-btn" onclick="_tryCloseModal()">Cancel</button>
       <button class="m-btn save" onclick="savePlanEditor()">💾 Save plan${_pe.keys.size>1?` (${_pe.keys.size} targets)`:''}</button>
-    </div>`);
+    </div>`,true);
   _modalGuard=()=>_pe&&_pe._sig0!==undefined&&_peSig()!==_pe._sig0;
 }
 function _peName(i,val){
@@ -2561,12 +2612,17 @@ function _peMove(i,dir){
 function _peBuildSession(){
   const exercises=_pe.exs.filter(e=>e.name&&e.name.trim()).map(e=>{
     const sub=e.sub||EX2SUB[e.name]||'Knee Dominant';
+    const tType=SUB2TYPE[sub]||'Resistance Training';
     const base=e._orig?JSON.parse(JSON.stringify(e._orig)):{};
     return Object.assign(base,{
-      name:e.name.trim(),trainingType:SUB2TYPE[sub]||'Resistance Training',subCategory:sub,
+      name:e.name.trim(),trainingType:tType,subCategory:sub,
       planIntensity:e.int||'',planDistance:e.dist||'',planSets:e.sets||'',planReps:e.reps||'',
-      planRestTime:e.rest||'',planRestUnit:base.planRestUnit||'s',
-      isSL:!!e.isSL
+      isBW:!!e.isBW,isSL:!!e.isSL,isSA:!!e.isSA,
+      planRestTime:e.restS||'',planRestUnit:e.restSU||'m',
+      planRestTimeReps:e.restR||'',planRestUnitReps:e.restRU||'m',
+      planContractionType:e.ctype||'',planContractionValue:e.cval||'',
+      planEnergySystem:e.esys||'',
+      planLegMode:e.isSL?'SL':e.isSA?'SA':(base.planLegMode==='SL'||base.planLegMode==='SA'?'DL':base.planLegMode||'DL')
     });
   });
   return {warmup:_pe.warmup||'',cooldown:'',exercises};
