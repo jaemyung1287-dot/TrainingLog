@@ -7275,6 +7275,26 @@ function renderPlanAccordion(){
     return;
   }
 
+  // ── Copy from other group (A↔B, same day & session) ─────────
+  if(ST._planGroup==='A'||ST._planGroup==='B'){
+    const _cpSrc=ST._planGroup==='A'?'B':'A';
+    const _cpSrcGrp=plan?plan[_cpSrc]:null;
+    const _cpSess=ST._planSession||'am';
+    let _cpSrcSess=null;
+    if(_cpSrcGrp){
+      if(_cpSrcGrp[_cpSess]) _cpSrcSess=_cpSrcGrp[_cpSess];
+      else if(_cpSess==='am'&&Array.isArray(_cpSrcGrp.exercises)) _cpSrcSess=_cpSrcGrp;
+    }
+    const _cpN=_cpSrcSess&&Array.isArray(_cpSrcSess.exercises)?_cpSrcSess.exercises.length:0;
+    if(_cpN>0||(_cpSrcSess&&(_cpSrcSess.warmup||'').trim())){
+      const cpBtn=document.createElement('button');
+      cpBtn.innerHTML=`📋 Copy from Group ${_cpSrc} · ${_cpSess.toUpperCase()}${_cpN?` (${_cpN} exercise${_cpN>1?'s':''})`:''}`;
+      cpBtn.style.cssText='width:100%;margin-bottom:12px;padding:11px;border-radius:12px;border:1px dashed rgba(198,168,90,.45);background:rgba(198,168,90,.08);color:#c6a85a;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit';
+      cpBtn.onclick=()=>_copyPlanFromGroup(_cpSrc);
+      wrap.appendChild(cpBtn);
+    }
+  }
+
   // ── Warm-up Card (top) ───────────────────────────────────────
   _makePlanTextCard(wrap,'warmup','Warm-up','🔆','#f7a94f',
     'e.g. 10 min dynamic stretching, hip circles, leg swings…',
@@ -7906,6 +7926,27 @@ function _togglePlanExSA(idx){
   d.sessionPlans[ST._planDay]=plan;
   saveData(d);
   renderPlanAccordion();
+}
+
+// ── Copy entire session plan from the other group (same day & session) ──
+function _copyPlanFromGroup(src){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]; if(!plan||!plan[src]) return;
+  const sess=ST._planSession||'am';
+  const srcGrp=plan[src];
+  let srcSess=srcGrp[sess];
+  if(!srcSess&&sess==='am'&&Array.isArray(srcGrp.exercises))
+    srcSess={exercises:srcGrp.exercises,warmup:srcGrp.warmup||'',cooldown:srcGrp.cooldown||''};
+  if(!srcSess) return;
+  const dst=ST._planGroup; if(dst!=='A'&&dst!=='B') return;
+  const curExs=_getPlanSessionExs(plan[dst]||null);
+  if(curExs.length&&!confirm(`Group ${dst} ${sess.toUpperCase()} plan (${curExs.length} exercise${curExs.length>1?'s':''}) will be overwritten. Continue?`)) return;
+  if(!plan[dst]) plan[dst]={};
+  plan[dst][sess]=JSON.parse(JSON.stringify(srcSess));
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
+  showToast(`Copied Group ${src} → ${dst} ✓`);
 }
 
 function saveSessionPlan(){
