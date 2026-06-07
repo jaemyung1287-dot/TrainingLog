@@ -2275,15 +2275,19 @@ function renderPlan(){
     wk.forEach(({ds})=>{
       const am=_planSessOf(ds,k.key,'am'),pm=_planSessOf(ds,k.key,'pm');
       let cell='';
-      if(am)cell+=`<span class="pc-chip" style="background:rgba(247,169,79,.12);color:#f7a94f" title="${(am.exercises||[]).length} exercises">AM</span>`;
-      if(pm)cell+=`<span class="pc-chip" style="background:rgba(167,139,250,.12);color:#a78bfa" title="${(pm.exercises||[]).length} exercises">PM</span>`;
-      // Group row empty but member athletes have INDIVIDUAL plans → show dimmed summary
-      if(!am&&!pm&&(k.key==='A'||k.key==='B'||k.key==='all')){
+      if(k.ath){
+        // Athlete row: own effective plan (individual key only)
+        if(am)cell+=`<span class="pc-chip" style="background:rgba(247,169,79,.12);color:#f7a94f" title="${(am.exercises||[]).length} exercises">AM</span>`;
+        if(pm)cell+=`<span class="pc-chip" style="background:rgba(167,139,250,.12);color:#a78bfa" title="${(pm.exercises||[]).length} exercises">PM</span>`;
+      } else {
+        // Group row: ONE solid chip per session — 👤n = members who have that session
+        // (individual plan OR group plan OR all-groups plan, same resolution as the app)
         const members=(coachData?.athletes||[]).filter(a=>k.key==='all'||a.group===k.key);
-        const amAths=members.filter(a=>_planSessOf(ds,'ath_'+a.id,'am'));
-        const pmAths=members.filter(a=>_planSessOf(ds,'ath_'+a.id,'pm'));
-        if(amAths.length)cell+=`<span class="pc-chip" style="background:none;border:1px dashed rgba(247,169,79,.4);color:rgba(247,169,79,.65)" title="${_esc(amAths.map(a=>a.name).join(', '))}">AM 👤${amAths.length}</span>`;
-        if(pmAths.length)cell+=`<span class="pc-chip" style="background:none;border:1px dashed rgba(167,139,250,.4);color:rgba(167,139,250,.65)" title="${_esc(pmAths.map(a=>a.name).join(', '))}">PM 👤${pmAths.length}</span>`;
+        const sessFor=(a,sess)=>_planSessOf(ds,'ath_'+a.id,sess)||_planSessOf(ds,a.group,sess)||_planSessOf(ds,'all',sess);
+        const amAths=members.filter(a=>sessFor(a,'am'));
+        const pmAths=members.filter(a=>sessFor(a,'pm'));
+        if(amAths.length)cell+=`<span class="pc-chip" style="background:rgba(247,169,79,.12);color:#f7a94f" title="${_esc(amAths.map(a=>a.name).join(', '))}">AM 👤${amAths.length}</span>`;
+        if(pmAths.length)cell+=`<span class="pc-chip" style="background:rgba(167,139,250,.12);color:#a78bfa" title="${_esc(pmAths.map(a=>a.name).join(', '))}">PM 👤${pmAths.length}</span>`;
       }
       if(!cell)cell=`<div class="pc-add">+ plan</div>`;
       html+=`<td class="td-day plan-cell${ds===today?' is-today':''}" onclick="openPlanEditor('${ds}','${k.key}','${am?'am':pm?'pm':'am'}')">${cell}</td>`;
