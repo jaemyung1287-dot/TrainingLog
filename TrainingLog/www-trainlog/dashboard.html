@@ -2242,11 +2242,22 @@ function renderPlan(){
 }
 
 // ── Plan editor modal ──
-let _pe=null; // {day,key,sess,warmup,exs:[{name,sub,int,dist,sets,reps,rest,isSL}]}
+let _pe=null; // {day,key,keys:Set,sess,warmup,exs:[{name,sub,int,dist,sets,reps,rest,isSL}]}
 function openPlanEditor(day,key,sess){
-  _pe={day,key,sess};
+  _pe={day,key,keys:new Set([key]),sess};
   _loadPlanEditorRows();
   _renderPlanEditor();
+}
+// Toggle a target chip — multiple athletes/groups can receive the same plan at once
+function _peToggleKey(key){
+  if(_pe.keys.has(key)){
+    if(_pe.keys.size===1) return; // keep at least one target
+    _pe.keys.delete(key);
+    if(_pe.key===key) _pe.key=[..._pe.keys][0]; // primary follows
+  } else {
+    _pe.keys.add(key);
+  }
+  _renderPlanEditor(); // rows are kept — only chip state changes
 }
 function _loadPlanEditorRows(){
   const s=_planSessOf(_pe.day,_pe.key,_pe.sess);
@@ -2313,7 +2324,14 @@ function _renderPlanEditor(){
   const keys=_planKeys();
   const dt=new Date(_pe.day+'T12:00:00');
   const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
-  const keyOpts=keys.map(k=>`<option value="${k.key}" ${_pe.key===k.key?'selected':''}>${k.label}</option>`).join('');
+  // Multi-select target chips (groups + every athlete)
+  const chipOf=(k)=>{
+    const on=_pe.keys.has(k.key);
+    return `<button class="m-btn" style="padding:5px 11px;font-size:11px;${on?`background:${k.color}22;border-color:${k.color}88;color:${k.color};font-weight:800`:''}"
+      onclick="_peToggleKey('${k.key}')">${on?'✓ ':''}${_esc(k.label)}</button>`;
+  };
+  const grpChips=keys.filter(k=>!k.ath).map(chipOf).join('');
+  const athChips=keys.filter(k=>k.ath).map(chipOf).join('');
   const subOpts=Object.entries(TRAINING_STRUCTURE).map(([t,v])=>
     `<optgroup label="${t}">${v.subs.map(sb=>`<option value="${sb}">${sb}</option>`).join('')}</optgroup>`).join('');
   const dl=`<datalist id="ex-dl">${Object.keys(EX2SUB).map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>`;
@@ -2337,8 +2355,12 @@ function _renderPlanEditor(){
     </div>
     <div class="modal-bd">
       ${dl}
+      <div style="margin-bottom:12px">
+        <span class="m-lbl">Target — 여러 명 선택 가능 (선택된 전원에게 동일 플랜 저장)</span>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">${grpChips}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${athChips}</div>
+      </div>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-        <div><span class="m-lbl">Target</span><select class="m-in" onchange="_peSwitch('key',this.value)">${keyOpts}</select></div>
         <div><span class="m-lbl">Session</span>
           <button class="m-btn" style="${_pe.sess==='am'?'background:rgba(247,169,79,.15);border-color:rgba(247,169,79,.5);color:#f7a94f':''}" onclick="_peSwitch('sess','am')">🌅 AM</button>
           <button class="m-btn" style="${_pe.sess==='pm'?'background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.5);color:#a78bfa':''}" onclick="_peSwitch('sess','pm')">🌇 PM</button>
@@ -2366,7 +2388,7 @@ function _renderPlanEditor(){
       <button class="m-btn del" onclick="clearPlanSess()">🗑 Clear session</button>
       <span style="flex:1"></span>
       <button class="m-btn" onclick="_rmModal()">Cancel</button>
-      <button class="m-btn save" onclick="savePlanEditor()">💾 Save plan</button>
+      <button class="m-btn save" onclick="savePlanEditor()">💾 Save plan${_pe.keys.size>1?` (${_pe.keys.size} targets)`:''}</button>
     </div>`);
 }
 function _peName(i,val){
@@ -2391,12 +2413,15 @@ function _peBuildSession(){
 async function savePlanEditor(){
   try{
     const dayPlan=JSON.parse(JSON.stringify(coachData?.sessionPlans?.[_pe.day]||{}));
-    if(!dayPlan[_pe.key])dayPlan[_pe.key]={};
     const sessObj=_peBuildSession();
-    // preserve existing cooldown/conditioning text if present
-    const prev=dayPlan[_pe.key][_pe.sess];
-    if(prev){sessObj.cooldown=prev.cooldown||'';if(prev.conditioningText)sessObj.conditioningText=prev.conditioningText;}
-    dayPlan[_pe.key][_pe.sess]=sessObj;
+    // Write the same session to EVERY selected target
+    [..._pe.keys].forEach(key=>{
+      if(!dayPlan[key])dayPlan[key]={};
+      const copy=JSON.parse(JSON.stringify(sessObj));
+      const prev=dayPlan[key][_pe.sess];
+      if(prev){copy.cooldown=prev.cooldown||'';if(prev.conditioningText)copy.conditioningText=prev.conditioningText;}
+      dayPlan[key][_pe.sess]=copy;
+    });
     await db.collection('trainlog').doc('coach').update({['sessionPlans.'+_pe.day]:dayPlan,_lastUpdated:Date.now()});
     if(!coachData.sessionPlans)coachData.sessionPlans={};
     coachData.sessionPlans[_pe.day]=dayPlan;
@@ -2404,14 +2429,17 @@ async function savePlanEditor(){
   }catch(e){alert('Save error: '+e.message);}
 }
 async function clearPlanSess(){
-  if(!confirm(`Clear ${_pe.sess.toUpperCase()} plan for this target on ${_pe.day}?`))return;
+  const n=_pe.keys.size;
+  if(!confirm(`Clear ${_pe.sess.toUpperCase()} plan on ${_pe.day} for ${n} selected target${n>1?'s':''}?`))return;
   try{
     const dayPlan=JSON.parse(JSON.stringify(coachData?.sessionPlans?.[_pe.day]||{}));
-    if(dayPlan[_pe.key]){
-      delete dayPlan[_pe.key][_pe.sess];
-      if(_pe.sess==='am'&&Array.isArray(dayPlan[_pe.key].exercises))delete dayPlan[_pe.key].exercises; // legacy flat
-      if(!Object.keys(dayPlan[_pe.key]).length)delete dayPlan[_pe.key];
-    }
+    [..._pe.keys].forEach(key=>{
+      if(dayPlan[key]){
+        delete dayPlan[key][_pe.sess];
+        if(_pe.sess==='am'&&Array.isArray(dayPlan[key].exercises))delete dayPlan[key].exercises; // legacy flat
+        if(!Object.keys(dayPlan[key]).length)delete dayPlan[key];
+      }
+    });
     await db.collection('trainlog').doc('coach').update({['sessionPlans.'+_pe.day]:dayPlan,_lastUpdated:Date.now()});
     coachData.sessionPlans[_pe.day]=dayPlan;
     _rmModal();renderCurrent();
