@@ -554,7 +554,7 @@ const ALLOWED='jaemyung1287@gmail.com';
 let coachData=null, athLogs={}, unsubs=[], athUnsubs=[], curTab='plan';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
 let overviewFilter='all';
-let athletesFilter='all';
+let athletesFilter=null; // Athletes tab: 기본 미선택 — 선택해야 카드 표시
 let planGrpFilter=null; // Plan tab: which group's athletes are shown (null = groups only)
 let schedFilter='all'; // Schedule tab: 'all' | 'A' | 'B' | athlete name
 let schedDayIdx=null;  // Schedule tab: null = whole week, 0–6 = Mon..Sun
@@ -1584,7 +1584,7 @@ function cBar2(label,val,max,hg){
 // ══════════════════════════════════════
 //  ATHLETES
 // ══════════════════════════════════════
-function setAthletesFilter(f){athletesFilter=f;renderAthletes();}
+function setAthletesFilter(f){athletesFilter=athletesFilter===f?null:f;renderAthletes();} // 같은 버튼 재클릭 = 해제
 function toggleCompare(name){
   if(compareSet.has(name))compareSet.delete(name);else compareSet.add(name);
   renderAthletes();
@@ -1629,6 +1629,13 @@ function renderAthletes(){
     </button>`;
   });
   fb+=`</div></div>`;
+
+  // ── Nothing selected → 안내만 표시 ──
+  if(!athletesFilter){
+    document.getElementById('tb-sub').textContent='Select a group or athlete';
+    wrap.innerHTML=fb+`<div class="empty" style="padding:48px 0">위에서 그룹 또는 선수를 선택하면 훈련 데이터가 표시됩니다<br><span style="font-size:11px;color:var(--hint)">같은 버튼을 다시 누르면 닫힙니다</span></div>`;
+    return;
+  }
 
   // ── Filtered list ──
   let athletes = athletesFilter==='all' ? allAthletes
@@ -1708,12 +1715,28 @@ function renderAthletes(){
   athletes.forEach(ath=>{
     const athId=ath.id;
     const logs=getLogsByName(ath.name);
-    const {wVol,sDist,avgF,avgM,sess}=_athStats(ath,7);
-    const recent=logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
-    const sore=logs.filter(l=>l.type==='condition'&&(l.soreness||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+    const {wVol,sDist,sess}=_athStats(ath,7);
+    const trainLogs=logs.filter(l=>l.type!=='condition');
+    const recent=trainLogs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+    const keyLifts=_exProgression(trainLogs).slice(0,5);
+    const sprintBests=_sprintProgression(trainLogs);
     const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
     const grpBg=ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)';
     const isSel=compareSet.has(ath.name);
+    // brief per-log exercise summary (top weights / sprint sets)
+    const _logBrief=(l)=>{
+      if(l.type==='weight'||l.type==='plyo'){
+        return (l.exercises||[]).map(e=>{
+          let kg=0;
+          if(e.setRows&&e.setRows.length)kg=Math.max(...e.setRows.map(r=>parseFloat(r.kg)||0));
+          else if(!e.isBodyweight)kg=parseFloat(e.weight)||0;
+          return {n:e.name,kg};
+        }).filter(x=>x.n).sort((a,b)=>b.kg-a.kg).slice(0,3)
+          .map(t=>`${t.n}${t.kg>0?' <b style="color:var(--gold)">'+t.kg+'</b>':''}`).join(' · ');
+      }
+      if(l.type==='sprint')return (l.sets||[]).slice(0,3).map(s=>`${s.distance||'?'}m×${s.sets||1}×${s.reps||1}${s.actualTime?' <b style="color:var(--green)">'+s.actualTime+'s</b>':''}`).join(' · ');
+      return '';
+    };
 
     cardsHtml+=`<div class="ath-card ${isSel?'selected':''}">
       <button class="cmp-toggle" onclick="toggleCompare('${ath.name.replace(/'/g,"\\'")}')" title="Compare">✓</button>
@@ -1733,20 +1756,45 @@ function renderAthletes(){
           <div class="stat-chip"><div class="sv" style="color:var(--gold)">${wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—'}</div><div class="sl">Volume</div></div>
           <div class="stat-chip"><div class="sv" style="color:var(--green)">${sDist>0?sDist.toLocaleString()+'m':'—'}</div><div class="sl">Sprint</div></div>
         </div>
-        ${avgF!=null?`<div style="margin-bottom:12px">${cBar2('Ø Fatigue',avgF.toFixed(1),10,false)}${cBar2('Ø Mood',avgM!=null?avgM.toFixed(1):null,10,true)}</div>`:''}
-        <div class="sec"><span class="sec-title">Recent Logs</span><div class="sec-line"></div></div>
+        ${keyLifts.length?`<div class="sec"><span class="sec-title">🏋️ Key Lifts · 현재 기록</span><div class="sec-line"></div></div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">
+        ${keyLifts.map(s=>{
+          const first=s.series[0].v,last=s.series[s.series.length-1].v;
+          const delta=Math.round((last-first)*100)/100;
+          return `<tr>
+            <td style="padding:3px 0;color:#c9d1d9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${_esc(s.name)}</td>
+            <td style="padding:3px 4px;text-align:right;font-weight:700;color:var(--gold);white-space:nowrap">${last}kg</td>
+            <td style="padding:3px 0;text-align:right;font-weight:700;white-space:nowrap;width:52px;color:${delta>0?'#3ecf8e':delta<0?'#f85149':'var(--hint)'}">${delta>0?'+':''}${delta||'—'}</td>
+            <td style="padding:3px 0;text-align:right;color:var(--hint);white-space:nowrap;width:42px">${s.series[s.series.length-1].d.slice(5).replace('-','.')}</td>
+          </tr>`;
+        }).join('')}</table>`:''}
+        ${sprintBests.length?`<div class="sec"><span class="sec-title">⚡ Sprint Bests</span><div class="sec-line"></div></div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">
+        ${sprintBests.map(s=>{
+          const best=Math.min(...s.series.map(p=>p.v));
+          const last=s.series[s.series.length-1];
+          return `<tr>
+            <td style="padding:3px 0;color:#c9d1d9">${_esc(s.name)}</td>
+            <td style="padding:3px 4px;text-align:right;font-weight:700;color:var(--green)">best ${best}s</td>
+            <td style="padding:3px 0;text-align:right;color:var(--muted);white-space:nowrap">last ${last.v}s</td>
+            <td style="padding:3px 0;text-align:right;color:var(--hint);white-space:nowrap;width:42px">${last.d.slice(5).replace('-','.')}</td>
+          </tr>`;
+        }).join('')}</table>`:''}
+        <div class="sec"><span class="sec-title">Training Logs</span><div class="sec-line"></div></div>
         ${recent.length?recent.map(l=>{
           const c=tc(l.type);
-          const v=l.type==='weight'?`${vol([l]).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='condition'?`F${l.fatigue||'—'} M${l.mood||'—'}`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
-          return`<div class="lr">
+          const v=l.type==='weight'?`${vol([l]).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+          const brief=_logBrief(l);
+          return`<div class="lr" style="flex-wrap:wrap">
             <span class="ld">${fmt(l.date)}</span>
             <span class="lt" style="color:${c}">${l.type}</span>
             <span class="lv">${v}</span>
             ${l.rpe?`<span class="lrpe">RPE ${l.rpe}</span>`:''}
+            <button class="ldel" onclick="openLogEditor('${l.id}','${athId}');event.stopPropagation()" style="opacity:1;background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:var(--muted)">✎</button>
             <button class="ldel" onclick="delLog('${l.id}','${athId}',event)">🗑</button>
+            ${brief?`<div style="width:100%;font-size:10px;color:var(--muted);padding:2px 0 0 50px">${brief}</div>`:''}
           </div>`;
-        }).join(''):'<div style="color:var(--muted);font-size:11px;padding:8px 0">No logs</div>'}
-        ${sore.length?`<div class="sec" style="margin-top:14px"><span class="sec-title">Soreness</span><div class="sec-line"></div></div>`+sore.map(l=>`<div style="margin-bottom:6px"><div style="font-size:10px;color:var(--muted);margin-bottom:4px">${fmt(l.date)}</div><div style="display:flex;flex-wrap:wrap;gap:3px">${l.soreness.map(s=>{const n=s.intensity;const c=n>=7?'248,81,73':n>=4?'247,169,79':'62,207,142';return`<span class="sore-tag" style="background:rgba(${c},.15);color:rgba(${c},1)">${s.part} ${s.intensity}</span>`}).join('')}</div></div>`).join(''):''}
+        }).join(''):'<div style="color:var(--muted);font-size:11px;padding:8px 0">No training logs</div>'}
       </div>
     </div>`;
   });
