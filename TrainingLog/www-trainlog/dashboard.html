@@ -2267,8 +2267,14 @@ function _peCopySources(){
   const out=[];
   const keys=_planKeys();
   const labelOf=k=>keys.find(x=>x.key===k)?.label||k;
+  // Same week as the day being edited (Mon–Sun)
+  const _d=new Date(_pe.day+'T12:00:00');const _dow=_d.getDay();
+  const _mon=new Date(_d);_mon.setDate(_d.getDate()-(_dow===0?6:_dow-1));
+  const _sun=new Date(_mon);_sun.setDate(_mon.getDate()+6);
+  const _wkMin=dsFromDate(_mon),_wkMax=dsFromDate(_sun);
   Object.entries(coachData?.sessionPlans||{}).forEach(([day,plan])=>{
     if(!plan)return;
+    if(day<_wkMin||day>_wkMax)return; // only the same week
     Object.keys(plan).forEach(key=>{
       if(key==='phase'||key==='week')return;
       ['am','pm'].forEach(sess=>{
