@@ -1562,12 +1562,20 @@ function _refreshPlansFromCloud(onUpdated){
   const now=Date.now();
   if(now-_lastPlanRefresh<15000) return; // throttle 15s
   _lastPlanRefresh=now;
+  const fetchStart=Date.now();
   COACH_DOC.get().then(snap=>{
     if(!snap.exists) return;
     const cloud=snap.data();
     try{
       const raw=localStorage.getItem(SK); if(!raw) return;
       const d=JSON.parse(raw);
+      // ── Safety guards: NEVER let a background refresh destroy local plans ──
+      // 1. Local was saved while we were fetching → local is newer, skip.
+      if((d._lastUpdated||0)>fetchStart) return;
+      // 2. Cloud has fewer plan-days AND is not newer than local → looks stale/partial, skip.
+      const cloudDays=Object.keys(cloud.sessionPlans||{}).length;
+      const localDays=Object.keys(d.sessionPlans||{}).length;
+      if(cloudDays<localDays&&(cloud._lastUpdated||0)<=(d._lastUpdated||0)) return;
       const changed=JSON.stringify(d.sessionPlans||{})!==JSON.stringify(cloud.sessionPlans||{});
       d.sessionPlans=cloud.sessionPlans||{};
       if(cloud.athletes) d.athletes=cloud.athletes;
@@ -8232,6 +8240,9 @@ function saveSessionPlan(){
     // Group mode: remove any individual athlete keys for this group so the group plan is sole source
     const grp=ST._planGroup; // 'A', 'B', or 'all'
     if(grp==='A'||grp==='B'){
+      // Safety: warn before silently wiping existing INDIVIDUAL athlete plans for this day
+      const victims=(d.athletes||[]).filter(a=>a.group===grp&&plan['ath_'+a.id]&&Object.keys(plan['ath_'+a.id]).length);
+      if(victims.length&&!confirm(`⚠️ ${victims.map(a=>a.name).join(', ')} — this day has INDIVIDUAL plans for these athletes.\nSaving as Group ${grp} will DELETE those individual plans. Continue?`)) return;
       (d.athletes||[]).filter(a=>a.group===grp).forEach(a=>delete plan['ath_'+a.id]);
     }
     if(!plan[grp]) plan[grp]={};
