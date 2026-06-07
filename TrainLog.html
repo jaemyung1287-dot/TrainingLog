@@ -1862,6 +1862,8 @@ const _COACH_TABBAR_SCREENS=new Set(['s-coach','s-phv','s-bulk-entry','s-session
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  // Any successful save clears today's coach reminder for this athlete
+  if(id==='s-success'&&typeof _markNotifRead==='function') _markNotifRead();
   const tb=document.getElementById('coach-tabbar');
   if(_COACH_TABBAR_SCREENS.has(id)) tb.classList.add('show');
   else tb.classList.remove('show');
