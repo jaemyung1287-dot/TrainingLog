@@ -7939,61 +7939,111 @@ function _togglePlanExSA(idx){
 
 // ── Copy session plan from another day (same group key) ─────────
 function _planDayCopySources(){
-  // Returns [{day, grp, sess, n}] — planned sessions from ANY group (A/B/all), any day
+  // Returns [{day, grp, sess, n, label, exNames}] — planned sessions from ANY key:
+  // group ('A'/'B'/'all') AND individual athletes ('ath_*'). Identical athlete copies are merged.
   const d=getData();
   const out=[];
-  const grpKeys=['all','A','B'];
   const curSess=ST._planSession||'am';
+  const athName=(k)=>{const a=(d.athletes||[]).find(a=>'ath_'+a.id===k);return a?a.name:k.slice(4);};
   Object.entries(d.sessionPlans||{}).forEach(([day,plan])=>{
     if(!plan) return;
-    grpKeys.forEach(grp=>{
-      if(!plan[grp]) return;
+    Object.keys(plan).forEach(grp=>{
+      if(grp==='phase'||grp==='week') return;
+      const g=plan[grp]; if(!g||typeof g!=='object') return;
       ['am','pm'].forEach(sess=>{
         if(day===ST._planDay&&grp===ST._planGroup&&sess===curSess) return; // skip copy target itself
-        let s=plan[grp][sess];
-        if(!s&&sess==='am'&&Array.isArray(plan[grp].exercises)) s=plan[grp]; // backward compat
-        const n=s&&Array.isArray(s.exercises)?s.exercises.length:0;
-        if(n>0) out.push({day,grp,sess,n});
+        let s=g[sess];
+        if(!s&&sess==='am'&&Array.isArray(g.exercises)) s=g; // backward compat
+        const exs=s&&Array.isArray(s.exercises)?s.exercises:[];
+        if(!exs.length) return;
+        out.push({day,grp,sess,n:exs.length,
+          label:grp==='A'?'Group A':grp==='B'?'Group B':grp==='all'?'All':athName(grp),
+          isAth:grp.startsWith('ath_'),
+          exNames:exs.map(e=>e.name||'').join(' ').toLowerCase(),
+          sig:JSON.stringify(exs)});
       });
     });
   });
-  out.sort((a,b)=>b.day.localeCompare(a.day)||a.grp.localeCompare(b.grp)||a.sess.localeCompare(b.sess));
-  return out.slice(0,40);
+  // Merge identical sessions on the same day+session (e.g. plan replicated to several athletes)
+  const seen={}; const dedup=[];
+  out.forEach(s=>{
+    const k=s.day+'|'+s.sess+'|'+s.sig;
+    if(seen[k]){ if(!seen[k].label.includes(s.label)) seen[k].label+=', '+s.label; return; }
+    seen[k]=s; dedup.push(s);
+  });
+  dedup.sort((a,b)=>b.day.localeCompare(a.day)||a.label.localeCompare(b.label)||a.sess.localeCompare(b.sess));
+  return dedup.slice(0,80);
 }
 function _showPlanDayCopyModal(){
   const srcs=_planDayCopySources();
   if(!srcs.length){ showToast('No other planned days found'); return; }
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const grpChip=(g)=>{
-    const cfg=g==='A'?['Group A','rgba(198,168,90,.15)','#c6a85a']
-            :g==='B'?['Group B','rgba(79,142,247,.15)','#4f8ef7']
-            :['All','rgba(62,207,142,.15)','#3ecf8e'];
-    return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${cfg[1]};color:${cfg[2]}">${cfg[0]}</span>`;
+  const monNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const chip=(txt,bg,fg)=>`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${bg};color:${fg};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${txt}</span>`;
+  const grpChip=(s)=>{
+    if(s.grp==='A') return chip(s.label,'rgba(198,168,90,.15)','#c6a85a');
+    if(s.grp==='B') return chip(s.label,'rgba(79,142,247,.15)','#4f8ef7');
+    if(s.grp==='all') return chip(s.label,'rgba(62,207,142,.15)','#3ecf8e');
+    return chip(s.label,'rgba(167,139,250,.15)','#a78bfa'); // individual athlete(s)
   };
-  const rows=srcs.map((s,i)=>{
-    const dt=new Date(s.day+'T12:00:00');
-    const wd=isNaN(dt)?'':dayNames[dt.getDay()];
-    return `<button class="_pdc-row" data-i="${i}" style="width:100%;display:flex;align-items:center;gap:8px;padding:13px 14px;border:none;border-top:${i===0?'none':'1px solid rgba(255,255,255,.06)'};background:none;color:var(--text);cursor:pointer;font-family:inherit;text-align:left">
-      <span style="font-size:13px;font-weight:700;min-width:82px">${s.day.slice(5).replace('-','.')} <span style="color:var(--muted);font-weight:600">${wd}</span></span>
-      ${grpChip(s.grp)}
-      <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${s.sess==='am'?'rgba(247,169,79,.15)':'rgba(167,139,250,.15)'};color:${s.sess==='am'?'#f7a94f':'#a78bfa'}">${s.sess.toUpperCase()}</span>
-      <span style="font-size:12px;color:var(--muted);flex:1">${s.n} exercise${s.n>1?'s':''}</span>
-      <span style="color:var(--muted)">›</span>
-    </button>`;
-  }).join('');
+  // Monday of the week for grouping
+  const _wkMon=(day)=>{const dt=new Date(day+'T12:00:00');const dow=dt.getDay();const mon=new Date(dt);mon.setDate(dt.getDate()-(dow===0?6:dow-1));return mon;};
+  const _wkLabel=(mon)=>{
+    const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    const cur=_wkMon(ST._planDay).getTime();
+    const diff=Math.round((cur-mon.getTime())/(7*24*3600*1000));
+    const tag=diff===0?' · This week':diff===1?' · Last week':diff===-1?' · Next week':'';
+    return `${monNames[mon.getMonth()]} ${mon.getDate()} – ${monNames[sun.getMonth()]} ${sun.getDate()}, ${sun.getFullYear()}${tag}`;
+  };
   const el=document.createElement('div');
   el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
-  el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:20px 0 28px;width:100%;max-width:480px;border-top:1px solid var(--border);max-height:70vh;display:flex;flex-direction:column">
+  el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:20px 0 28px;width:100%;max-width:480px;border-top:1px solid var(--border);max-height:75vh;display:flex;flex-direction:column">
     <div style="font-size:15px;font-weight:700;color:var(--text);margin:0 20px 4px">📅 Copy from another day</div>
-    <div style="font-size:12px;color:var(--muted);margin:0 20px 14px">→ ${ST._planDay} · ${(ST._planSession||'am').toUpperCase()} (current group)</div>
-    <div style="overflow-y:auto;border-top:1px solid rgba(255,255,255,.06)">${rows}</div>
+    <div style="font-size:12px;color:var(--muted);margin:0 20px 12px">→ ${ST._planDay} · ${(ST._planSession||'am').toUpperCase()} (current group)</div>
+    <div style="margin:0 20px 12px">
+      <input id="_pdc-search" type="search" placeholder="🔍 Search date · group · athlete · exercise…"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:11px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none">
+    </div>
+    <div id="_pdc-list" style="overflow-y:auto;border-top:1px solid rgba(255,255,255,.06)"></div>
     <button id="_pdc-cxl" style="margin:14px 20px 0;padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Cancel</button>
   </div>`;
   document.body.appendChild(el);
   const rm=()=>document.body.removeChild(el);
-  el.querySelectorAll('._pdc-row').forEach(btn=>{
-    btn.onclick=()=>{ const s=srcs[parseInt(btn.dataset.i)]; rm(); _copyPlanFromDay(s.day,s.grp,s.sess); };
-  });
+  const listEl=el.querySelector('#_pdc-list');
+  const renderList=(q)=>{
+    q=(q||'').trim().toLowerCase();
+    const filtered=srcs.filter(s=>{
+      if(!q) return true;
+      const dt=new Date(s.day+'T12:00:00');
+      const wd=isNaN(dt)?'':dayNames[dt.getDay()].toLowerCase();
+      const hay=`${s.day} ${s.day.slice(5).replace('-','.')} ${wd} ${s.label.toLowerCase()} ${s.sess} ${s.exNames}`;
+      return q.split(/\s+/).every(t=>hay.includes(t));
+    });
+    if(!filtered.length){ listEl.innerHTML=`<div style="padding:28px 20px;text-align:center;font-size:13px;color:var(--muted)">No matches</div>`; return; }
+    let html=''; let lastWk=null;
+    filtered.forEach((s,i)=>{
+      const mon=_wkMon(s.day); const wkKey=mon.toISOString().slice(0,10);
+      if(wkKey!==lastWk){
+        lastWk=wkKey;
+        html+=`<div style="position:sticky;top:0;padding:8px 20px;background:var(--bg2);border-top:${i===0?'none':'1px solid rgba(255,255,255,.06)'};border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);text-transform:uppercase">${_wkLabel(mon)}</div>`;
+      }
+      const dt=new Date(s.day+'T12:00:00');
+      const wd=isNaN(dt)?'':dayNames[dt.getDay()];
+      html+=`<button class="_pdc-row" data-i="${srcs.indexOf(s)}" style="width:100%;display:flex;align-items:center;gap:8px;padding:13px 14px;border:none;border-top:1px solid rgba(255,255,255,.04);background:none;color:var(--text);cursor:pointer;font-family:inherit;text-align:left">
+        <span style="font-size:13px;font-weight:700;min-width:78px">${s.day.slice(5).replace('-','.')} <span style="color:var(--muted);font-weight:600">${wd}</span></span>
+        ${grpChip(s)}
+        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${s.sess==='am'?'rgba(247,169,79,.15)':'rgba(167,139,250,.15)'};color:${s.sess==='am'?'#f7a94f':'#a78bfa'}">${s.sess.toUpperCase()}</span>
+        <span style="font-size:12px;color:var(--muted);flex:1">${s.n} exercise${s.n>1?'s':''}</span>
+        <span style="color:var(--muted)">›</span>
+      </button>`;
+    });
+    listEl.innerHTML=html;
+    listEl.querySelectorAll('._pdc-row').forEach(btn=>{
+      btn.onclick=()=>{ const s=srcs[parseInt(btn.dataset.i)]; rm(); _copyPlanFromDay(s.day,s.grp,s.sess); };
+    });
+  };
+  renderList('');
+  el.querySelector('#_pdc-search').oninput=(ev)=>renderList(ev.target.value);
   el.querySelector('#_pdc-cxl').onclick=()=>rm();
   el.onclick=(ev)=>{if(ev.target===el)rm();};
 }
