@@ -494,6 +494,7 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
       <button class="nb" onclick="switchTab('load',this)"><span class="ni">📊</span>Load</button>
       <button class="nb" onclick="switchTab('soreness',this)"><span class="ni">🔴</span>Soreness</button>
       <button class="nb" onclick="switchTab('condition',this)"><span class="ni">😴</span>Condition</button>
+      <button class="nb" onclick="switchTab('plan',this)"><span class="ni">📝</span>Plan</button>
       <div class="sb-section-label">Athletes</div>
       <button class="nb" onclick="switchTab('athletes',this)"><span class="ni">👥</span>All Athletes</button>
       <div class="sb-section-label">Data</div>
@@ -533,6 +534,7 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
       <div class="tab" id="tab-load"></div>
       <div class="tab" id="tab-soreness"></div>
       <div class="tab" id="tab-condition"></div>
+      <div class="tab" id="tab-plan"></div>
       <div class="tab" id="tab-athletes"></div>
       <div class="tab" id="tab-export"></div>
     </div>
@@ -636,7 +638,8 @@ function iCol(v,hg){
 }
 function tc(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#bc8cff',tabata:'#f85149'}[t]||'var(--muted)';}
 function tcBg(t){return{weight:'rgba(247,169,79,.1)',sprint:'rgba(62,207,142,.1)',plyo:'rgba(247,169,79,.1)',tabata:'rgba(248,81,73,.1)'}[t]||'rgba(255,255,255,.04)';}
-function planGrp(plan,ath){if(!plan)return null;return plan.groups?.[ath.group]||(!plan.groups?plan:null);}
+// Matches the app's _planGrpData resolution: individual athlete key → group → all (legacy .groups last)
+function planGrp(plan,ath){if(!plan)return null;return plan['ath_'+ath.id]||plan[ath.group]||plan['all']||plan.groups?.[ath.group]||null;}
 function sessExs(gd,s){if(!gd)return[];if(gd[s]?.exercises)return gd[s].exercises;if(s==='am'&&gd.exercises)return gd.exercises;return[];}
 function killChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
@@ -653,7 +656,7 @@ function updateWeekLabel(){
 }
 
 // ══ NAV ══
-const TITLES={overview:'Overview',load:'Training Load',soreness:'Soreness',condition:'Condition',athletes:'Athletes',export:'Export'};
+const TITLES={overview:'Overview',load:'Training Load',soreness:'Soreness',condition:'Condition',plan:'Session Plan',athletes:'Athletes',export:'Export'};
 function switchTab(id,btn){
   curTab=id;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -667,7 +670,7 @@ function switchTab(id,btn){
 function renderCurrent(){
   if(!coachData)return;
   updateWeekLabel();
-  ({overview:renderOverview,load:renderLoad,soreness:renderSoreness,condition:renderCondition,athletes:renderAthletes,export:renderExport})[curTab]?.();
+  ({overview:renderOverview,load:renderLoad,soreness:renderSoreness,condition:renderCondition,plan:renderPlan,athletes:renderAthletes,export:renderExport})[curTab]?.();
 }
 
 // ══════════════════════════════════════
@@ -705,7 +708,7 @@ function _ovEx(l){
   }
   return lines;
 }
-function _ovBlock(l){
+function _ovBlock(l,athId){
   const c=tc(l.type), bg=tcBg(l.type);
   const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
   const val=l.type==='weight'?`${vol([l]).toLocaleString()} kg`
@@ -717,8 +720,9 @@ function _ovBlock(l){
   const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_esc(x)}</div>`).join('')}</div>`:'';
   const note=l.notes?`<div class="cmt-wrap" onclick="event.stopPropagation();this.classList.toggle('show')"><span class="cmt-chip">💬 Comment</span><div class="cmt-text">${_esc(l.notes)}</div></div>`:'';
   const caret=lines.length?`<span class="sb-caret">&#9662;</span>`:'';
+  const editBtn=athId?`<button class="lg-edit" onclick="event.stopPropagation();openLogEditor('${l.id}','${athId}')" title="Edit / Delete">✎</button>`:'';
   return `<div class="session-block" style="background:${bg};border-left-color:${c}" title="${tip}" onclick="this.classList.toggle('open')">
-    <div class="session-type" style="color:${c}">${typeLabel}${caret}</div>
+    <div class="session-type" style="color:${c}">${typeLabel}${caret}${editBtn}</div>
     <div class="session-val">${val}</div>
     ${l.rpe?`<div class="session-rpe">RPE ${l.rpe}</div>`:''}
     ${detail}
@@ -815,6 +819,7 @@ function renderOverview(){
           <span class="cond-item"><span class="cond-lbl">Sleep</span> ${condLog.sleepHours==null?'—':condLog.sleepHours}h</span>
           <span class="cond-item" style="color:${fc}"><span class="cond-lbl">Fatigue</span> ${condLog.fatigue==null?'—':condLog.fatigue}</span>
           <span class="cond-item" style="color:${mc}"><span class="cond-lbl">Mood</span> ${condLog.mood==null?'—':condLog.mood}</span>
+          <button class="lg-edit" onclick="event.stopPropagation();openLogEditor('${condLog.id}','${ath.id}')" title="Edit / Delete">✎</button>
         </div>`;
       }
       // -- Soreness (below condition) --
@@ -843,12 +848,13 @@ function renderOverview(){
         const pmL=trainLogs.filter(l=>l.session==='pm');
         const noL=trainLogs.filter(l=>l.session!=='am'&&l.session!=='pm');
         table+=`<div class="train-wrap${condLog?' div-top':''}">`;
+        const _ob=l=>_ovBlock(l,ath.id);
         if(amL.length||pmL.length){
-          if(amL.length) table+=`<div class="sess-hd am">AM</div>`+amL.map(_ovBlock).join('');
-          if(pmL.length) table+=`<div class="sess-hd pm">PM</div>`+pmL.map(_ovBlock).join('');
-          if(noL.length) table+=noL.map(_ovBlock).join('');
+          if(amL.length) table+=`<div class="sess-hd am">AM</div>`+amL.map(_ob).join('');
+          if(pmL.length) table+=`<div class="sess-hd pm">PM</div>`+pmL.map(_ob).join('');
+          if(noL.length) table+=noL.map(_ob).join('');
         } else {
-          table+=noL.map(_ovBlock).join('');
+          table+=noL.map(_ob).join('');
         }
         table+=`</div>`;
       } else if(!hasPlan&&!condLog){
@@ -1831,15 +1837,516 @@ function _moveTip(e){
 document.addEventListener('mousemove',_moveTip);
 
 // ══ DELETE ══
+// Removes the log AND records a cloud tombstone (deletedIds) so athlete phones
+// don't resurrect it from their local copy on next sync.
 async function delLog(logId,athId,event){
   event?.stopPropagation();
   if(!confirm('Delete this log?'))return;
   try{
     const ref=db.collection('trainlog').doc('athlete_'+athId);
     const snap=await ref.get();if(!snap.exists)return;
-    await ref.update({logs:(snap.data().logs||[]).filter(l=>l.id!==logId)});
+    await ref.update({
+      logs:(snap.data().logs||[]).filter(l=>l.id!==logId),
+      deletedIds:firebase.firestore.FieldValue.arrayUnion(logId),
+      _lastUpdated:Date.now()
+    });
     athLogs[athId]=(athLogs[athId]||[]).filter(l=>l.id!==logId);
     renderCurrent();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+// ── Embedded from TrainLog.html (keep in sync) ──
+const TRAINING_STRUCTURE={
+  'Resistance Training':{
+    icon:'💪',
+    subs:['Knee Dominant','Hip Hinge','Horizontal Push','Vertical Push','Horizontal Pull','Vertical Pull','Unilateral Training','Lower Leg','Hip Abduction / Adduction','Core Training'],
+    color:'#4A6B8A',
+    params:'lifting'
+  },
+  'Power Development':{
+    icon:'🏋️',
+    subs:['Weightlifting','Medicine Ball','Velocity-Based Training'],
+    color:'#9A7A48',
+    params:'lifting'
+  },
+  'Sprint Training':{
+    icon:'⚡',
+    subs:['Acceleration','Maximum Velocity','Speed Endurance','Special Endurance 1','Special Endurance 2','Resistance Sprinting'],
+    color:'#3A7A5A',
+    params:'sprint'
+  },
+  'Plyometric Training':{
+    icon:'🦘',
+    subs:['Vertical Power','Horizontal Power','Reactive / Elastic'],
+    color:'#6A4A8A',
+    params:'plyo'
+  }
+};
+const EXERCISE_LIBRARY={
+  // Resistance Training
+  'Knee Dominant':[
+    'Rhythmic Squat','Quarter Squat','Half Squat','Squat','Box Squat','Pause Squat',
+    'Front Squat','Goblet Squat','Safety Bar Squat','Zercher Squat','Hack Squat',
+    'Leg Press','Leg Extension','Sissy Squat'
+  ],
+  'Hip Hinge':[
+    'Good Morning','Romanian Deadlift','Nordic Curl','Leg Curl (Lying)','Leg Curl (Seated)','Deadlift',
+    'Sumo Deadlift','Trap Bar Deadlift','Stiff Leg Deadlift','Snatch Grip Deadlift',
+    'Rack Pull','Block Pull','Hip Thrust','Glute Bridge',
+    'Banded Hip Thrust','Single Leg Hip Thrust',
+    'GHD Single Leg Back Extension','45° Single Leg Back Extension',
+    'Eccentric Slider Hamstring Curl'
+  ],
+  'Horizontal Push':[
+    'Bench Press','Incline Bench Press','Decline Bench Press','Close Grip Bench Press',
+    'Dumbbell Bench Press','Incline Dumbbell Press','Decline Dumbbell Press',
+    'Push Up','Weighted Push Up','Dips','Cable Fly','Dumbbell Fly',
+    'Chest Press Machine','Landmine Press'
+  ],
+  'Vertical Push':[
+    'Seated Shoulder Press','Standing Shoulder Press','Dumbbell Shoulder Press',
+    'Arnold Press','Push Press','Z Press','Behind Neck Press',
+    'Cable Lateral Raise','Dumbbell Lateral Raise','Upright Row','Barbell Overhead Press'
+  ],
+  'Horizontal Pull':[
+    'Inverted Row','Seated Row','T-Bar Row','Bent Over Row','Pendlay Row',
+    'Cable Row','Dumbbell Row','Chest Supported Row','Meadows Row',
+    'Face Pull','Band Pull Apart','TRX Row','Single Arm Cable Row'
+  ],
+  'Vertical Pull':[
+    'Lat Pull Down','Single Arm Lat Pull Down','Pull Up','Chin Up',
+    'Neutral Grip Pull Up','Wide Grip Pull Up','Weighted Pull Up',
+    'Cable Straight Arm Pull Down','Dumbbell Pullover','Barbell Pullover'
+  ],
+  'Unilateral Training':[
+    'Reverse Lunge','Forward Lunge','Lateral Lunge','Walking Lunge','Curtsy Lunge',
+    'Box Step Up','Low Box Power Step Up','Bulgarian Split Squat',
+    'Split Deadlift','Single Leg Deadlift','Single Leg RDL',
+    'Single Leg Hamstring Curl','Single Leg Leg Press','Single Leg Squat','Pistol Squat',
+    'Step Down','Single Leg Hip Thrust','Single Leg Glute Bridge',
+    'Supine Hip Flexion w/KB (SL)','Supine Hip Flexion w/Cable (SL)',
+    'Standing Hip Flexion w/KB (SL)','Standing Hip Flexion w/Cable (SL)',
+    'Quadruped Hip Flexion w/Swiss Ball (SL)','Quadruped Hip Flexion w/Swiss Ball (ISO)'
+  ],
+  'Lower Leg':[
+    'Heel Walking','Calf Raise','Incline Calf Raise','Tibialis Raise','Tibialis Anterior Raise',
+    'Seated Calf Raise','Single Leg Calf Raise','Donkey Calf Raise',
+    'Eccentric Calf Raise','Toe Raise','Soleus Raise','Ankle Circle',
+    'Resistance Band Dorsiflexion'
+  ],
+  'Hip Abduction / Adduction':[
+    'Side-Lying Hip Abduction','Clamshell','Banded Clamshell','Standing Hip Abduction',
+    'Cable Hip Abduction','Machine Hip Abduction','Machine Hip Adduction',
+    'Banded Hip Abduction Walk','Side-Lying Hip Adduction','Copenhagen Adduction',
+    'Copenhagen Plank Short Lever','Copenhagen Plank ISO Long Lever'
+  ],
+  'Core Training':[
+    'Crunch / Sit Up','Plank','Side Plank','GHD Sit Up','GHD Sit Up w/Plate','Leg Raise','Copenhagen Plank',
+    'Ab Wheel / Ab Slide','Pallof Press','Wood Chop','Dead Bug','Bird Dog',
+    'Russian Twist','V-Up','Hollow Body Hold','L-Sit','Hanging Leg Raise',
+    'Dragon Flag','Toes to Bar','Cable Crunch','Landmine Rotation',
+    'Farmer\'s Carry','Suitcase Carry','Overhead Carry','Single Leg Dead Bug',
+    'GHD Back Extension',
+    'GHD Reverse Hyperextension','GHD Reverse Alternated Hyperextension',
+    '45° Back Extension','Swimmer'
+  ],
+  // Power Development
+  'Weightlifting':[
+    'Squat Clean','Power Clean','Hang Power Clean','High Pull','Hang High Pull'
+  ],
+  'Medicine Ball':[
+    'Chest Pass / Push','Forward Scoop Throw','Slam (Front / Side)',
+    'Bent Over Chest Throw','Kneeling Acceleration Throw','Kneeling Rotation Throw',
+    'Overhead Backward Throw','Rotational Throw','Lateral Throw','Step & Throw',
+    'Single Leg Throw','Wall Ball','Squat to Press','Split Stance Rotational Throw',
+    'Underhand Forward Throw','Side Toss','Hip Toss','Drop Catch Throw'
+  ],
+  'Velocity-Based Training':[
+    'Rhythmic Squat','Squat Jump (Half / Deep)','Squat Jump','Loaded CMJ',
+    'Trap Bar Jump','Dumbbell Jump Squat','Hex Bar Deadlift Jump','Bench Throw',
+    'Loaded Bounding','Jump Squat with Load'
+  ],
+  // Sprint
+  'Acceleration':[
+    'Modified Start','Push Sled','Sprint','Harness Sprint','Band Resisted Sprint',
+    'Falling Start','Block Start','Drive Phase Sprint','Ins & Outs'
+  ],
+  'Maximum Velocity':[
+    'Sprint','Downhill Sprint','Flying Sprint','Overspeed Sprint'
+  ],
+  'Speed Endurance':['Sprint'],
+  'Special Endurance 1':['Repeated Sprint','Sprint','Intensive Tempo'],
+  'Special Endurance 2':['Tempo Run','Extensive Tempo'],
+  'Resistance Sprinting':[
+    'Uphill Sprint','Towing Sled','Pushing Sled'
+  ],
+  // Plyometric — Vertical Power (easy → hard)
+  'Vertical Power':[
+    'Kneeling Pop Up','Box Step Up Jump','Squat Jump (BW)',
+    'Countermovement Jump (CMJ)','Split Squat Jump','Stair / Uphill Concentric Jump',
+    'Box Jump','Tuck Jump','Weighted CMJ','Depth Drop','Vorzov Jump',
+    'Depth Jump','Hurdle Jump','Repeated Hurdle Jump','Loaded Hurdle Jump',
+    'Box Depth Jump'
+  ],
+  // Plyometric — Horizontal Power (easy → hard)
+  'Horizontal Power':[
+    'Kneeling Pop Up','Standing Long Jump','Broad Jump','Lateral Bound',
+    'Hop Step','Alternate Leg Bound','Triple Broad Jump','Bounding',
+    'Repeated Broad Jump','Single Leg Broad Jump','Lateral Box Jump',
+    'Rotational Bound','Horizontal Depth Jump','Resisted Bounding',
+    'Single Leg Bounding','Max Distance Bounding'
+  ],
+  // Plyometric — Reactive / Elastic (easy → hard)
+  'Reactive / Elastic':[
+    'Ankle Jump','Pogo Jump','Line Hop','Mini Bound','Uphill Mini Bound',
+    'Lateral Hurdle Hop','Single Leg Ankle Hop','Continuous Hurdle Jump (Low)',
+    'Fast Leg Drill','Reactive Lateral Bound','Continuous Hurdle Jump (High)',
+    'Single Leg Hurdle Hop','In-Place Reactive Jump','Max Stiffness Bounding',
+    'Single Leg Reactive Jump'
+  ]
+};
+
+// ══════════════════════════════════════
+//  LOG EDITOR + SESSION PLAN EDITOR (dashboard ↔ phone two-way sync)
+// ══════════════════════════════════════
+// Extra CSS
+(function(){const s=document.createElement('style');s.textContent=`
+.lg-edit{margin-left:6px;padding:0 5px;border-radius:4px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--muted);font-size:10px;cursor:pointer;opacity:0;transition:opacity .12s;line-height:1.5;vertical-align:middle}
+.session-block:hover .lg-edit,.cond-row:hover .lg-edit{opacity:1}
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px}
+.modal-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:100%;max-width:640px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-hd{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.modal-title{font-size:15px;font-weight:800}
+.modal-bd{padding:16px 20px;overflow-y:auto;flex:1}
+.modal-ft{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:9px;justify-content:flex-end}
+.m-in{padding:7px 10px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:12px;outline:none;font-family:inherit}
+.m-in:focus{border-color:rgba(247,169,79,.5)}
+.m-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;display:block}
+.m-btn{padding:9px 16px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--border);background:var(--card);color:var(--text)}
+.m-btn.save{background:#3ecf8e;border-color:#3ecf8e;color:#fff}
+.m-btn.del{background:rgba(233,69,96,.12);border-color:rgba(233,69,96,.35);color:var(--red)}
+.m-btn.ghost{background:none;border:none;color:var(--muted)}
+.ex-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:9px}
+.ex-card-hd{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.ex-nm{font-size:12px;font-weight:700;flex:1}
+.mchip{font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px}
+.srow{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px}
+.srow .m-in{width:64px;padding:5px 7px;text-align:center}
+.plan-cell{cursor:pointer;transition:background .12s}
+.plan-cell:hover{background:rgba(247,169,79,.05)}
+.pc-chip{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;margin:1px 2px}
+.pc-add{font-size:11px;color:var(--hint);padding:6px 0}
+.pe-row{display:grid;grid-template-columns:minmax(150px,2fr) 1.4fr 56px 56px 48px 48px 56px 34px 28px;gap:5px;align-items:center;margin-bottom:5px}
+.pe-row .m-in{width:100%;padding:6px 7px;font-size:11px}
+.pe-hdr{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.pe-sl{width:100%;padding:5px 0;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:none;color:var(--muted);font-family:inherit}
+.pe-sl.on{background:rgba(79,142,247,.18);border-color:rgba(79,142,247,.5);color:#4f8ef7}
+`;document.head.appendChild(s);})();
+
+// Reverse maps from the embedded exercise library
+const SUB2TYPE={};Object.entries(TRAINING_STRUCTURE).forEach(([t,v])=>v.subs.forEach(sb=>SUB2TYPE[sb]=t));
+const EX2SUB={};Object.entries(EXERCISE_LIBRARY).forEach(([sb,exs])=>exs.forEach(n=>{if(!EX2SUB[n])EX2SUB[n]=sb;}));
+
+function _rmModal(){const m=document.getElementById('x-modal');if(m)m.remove();}
+function _mkModal(inner){
+  _rmModal();
+  const ov=document.createElement('div');ov.className='modal-ov';ov.id='x-modal';
+  ov.innerHTML=`<div class="modal-card">${inner}</div>`;
+  ov.onclick=e=>{if(e.target===ov)_rmModal();};
+  document.body.appendChild(ov);
+  return ov;
+}
+
+// ══ LOG EDITOR ══
+let _eLog=null,_eAthId=null;
+function openLogEditor(logId,athId){
+  const src=(athLogs[athId]||[]).find(l=>l.id===logId);
+  if(!src){alert('Log not found');return;}
+  _eLog=JSON.parse(JSON.stringify(src));_eAthId=athId;
+  _renderLogEditor();
+}
+function _renderLogEditor(){
+  const l=_eLog;
+  const typeLbl={weight:'🏋️ Weight',sprint:'⚡ Sprint',plyo:'🦘 Plyo',condition:'😴 Condition',tabata:'🔥 Tabata'}[l.type]||l.type;
+  let body=`<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+    <div><span class="m-lbl">Date</span><input type="date" class="m-in" value="${l.date}" onchange="_eLog.date=this.value"></div>
+    ${l.type!=='condition'?`<div><span class="m-lbl">RPE</span><input type="number" min="1" max="10" class="m-in" style="width:70px" value="${l.rpe||''}" oninput="_eLog.rpe=parseInt(this.value)||null"></div>`:''}
+  </div>`;
+
+  if(l.type==='weight'||l.type==='plyo'){
+    body+=(l.exercises||[]).map((e,i)=>{
+      const chips=(e.isBW||e.isBodyweight?'<span class="mchip" style="background:rgba(62,207,142,.15);color:#3ecf8e">BW</span>':'')
+        +(e.isSL?'<span class="mchip" style="background:rgba(79,142,247,.15);color:#4f8ef7">SL</span>':'')
+        +(e.isSA?'<span class="mchip" style="background:rgba(167,139,250,.15);color:#a78bfa">SA</span>':'');
+      let rows='';
+      if(e.setRows&&e.setRows.length){
+        rows=e.setRows.map((r,j)=>`<div class="srow">
+          <span style="color:var(--muted);min-width:34px">Set ${j+1}</span>
+          ${e.isBodyweight
+            ?`<input type="number" class="m-in" value="${r.extraKg??''}" placeholder="+kg" oninput="_eLog.exercises[${i}].setRows[${j}].extraKg=this.value"><span style="color:var(--muted)">+kg</span>`
+            :`<input type="number" class="m-in" value="${r.kg??''}" oninput="_eLog.exercises[${i}].setRows[${j}].kg=this.value"><span style="color:var(--muted)">kg</span>`}
+          <input type="number" class="m-in" value="${r.reps??''}" oninput="_eLog.exercises[${i}].setRows[${j}].reps=this.value"><span style="color:var(--muted)">reps</span>
+        </div>`).join('');
+      } else {
+        rows=`<div class="srow">
+          <input type="number" class="m-in" value="${e.weight??''}" oninput="_eLog.exercises[${i}].weight=this.value"><span style="color:var(--muted)">kg</span>
+          <input type="number" class="m-in" value="${e.sets??''}" oninput="_eLog.exercises[${i}].sets=this.value"><span style="color:var(--muted)">sets</span>
+          <input type="number" class="m-in" value="${e.reps??''}" oninput="_eLog.exercises[${i}].reps=this.value"><span style="color:var(--muted)">reps</span>
+        </div>`;
+      }
+      return `<div class="ex-card">
+        <div class="ex-card-hd"><span class="ex-nm">${_esc(e.name||'—')}</span>${chips}
+          <button class="m-btn del" style="padding:2px 8px;font-size:10px" onclick="_eLog.exercises.splice(${i},1);_renderLogEditor()">🗑</button>
+        </div>${rows}</div>`;
+    }).join('')||'<div class="empty">No exercises</div>';
+  } else if(l.type==='sprint'){
+    body+=(l.sets||[]).map((st,i)=>`<div class="ex-card">
+      <div class="ex-card-hd"><span class="ex-nm">${_esc(st.name||'Sprint')}${st.subCategory?` <span class="mchip" style="background:rgba(62,207,142,.15);color:#3ecf8e">${_esc(st.subCategory)}</span>`:''}</span>
+        <button class="m-btn del" style="padding:2px 8px;font-size:10px" onclick="_eLog.sets.splice(${i},1);_renderLogEditor()">🗑</button>
+      </div>
+      <div class="srow">
+        <input type="number" class="m-in" value="${st.distance??''}" oninput="_eLog.sets[${i}].distance=parseFloat(this.value)||0"><span style="color:var(--muted)">m</span>
+        <input type="number" class="m-in" value="${st.sets??''}" oninput="_eLog.sets[${i}].sets=parseInt(this.value)||1"><span style="color:var(--muted)">sets</span>
+        <input type="number" class="m-in" value="${st.reps??''}" oninput="_eLog.sets[${i}].reps=parseInt(this.value)||1"><span style="color:var(--muted)">reps</span>
+        <input type="number" class="m-in" value="${st.intensity??''}" oninput="_eLog.sets[${i}].intensity=parseFloat(this.value)||0"><span style="color:var(--muted)">%</span>
+        <input type="number" step="0.01" class="m-in" value="${st.actualTime??''}" oninput="_eLog.sets[${i}].actualTime=parseFloat(this.value)||null"><span style="color:var(--muted)">s</span>
+      </div>
+    </div>`).join('')||'<div class="empty">No sets</div>';
+  } else if(l.type==='condition'){
+    const f=(lbl,key,max)=>`<div><span class="m-lbl">${lbl}</span><input type="number" min="0" max="${max}" step="${key==='sleepHours'?'0.5':'1'}" class="m-in" style="width:78px" value="${l[key]??''}" oninput="_eLog.${key}=parseFloat(this.value)||null"></div>`;
+    body+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      ${f('Sleep (h)','sleepHours',14)}${f('Sleep Quality','sleepQuality',10)}${f('Fatigue','fatigue',10)}${f('Mood','mood',10)}
+    </div>`;
+    if((l.soreness||[]).length){
+      body+=`<span class="m-lbl">Soreness (read-only)</span><div style="margin-bottom:10px">`+
+        l.soreness.map(s=>`<span class="mchip" style="background:rgba(233,69,96,.12);color:var(--red);margin:1px 2px">${_esc(s.part)} ${s.intensity}</span>`).join('')+`</div>`;
+    }
+  }
+
+  body+=`<div style="margin-top:10px"><span class="m-lbl">Notes</span>
+    <textarea class="m-in" style="width:100%;min-height:54px;resize:vertical" oninput="_eLog.notes=this.value">${_esc(l.notes||'')}</textarea></div>`;
+
+  _mkModal(`
+    <div class="modal-hd">
+      <div class="modal-title">${typeLbl} · ${fmtFull(l.date)}</div>
+      <button class="m-btn ghost" onclick="_rmModal()">✕</button>
+    </div>
+    <div class="modal-bd">${body}</div>
+    <div class="modal-ft">
+      <button class="m-btn del" onclick="deleteLogFromEditor()">🗑 Delete log</button>
+      <span style="flex:1"></span>
+      <button class="m-btn" onclick="_rmModal()">Cancel</button>
+      <button class="m-btn save" onclick="saveLogEditor()">💾 Save</button>
+    </div>`);
+}
+// Recompute totals using the SAME rules as the phone app (SL/SA ×2, BW = base + extra)
+function _recompTotals(l){
+  if(l.type==='weight'||l.type==='plyo'){
+    l.totalVolume=(l.exercises||[]).reduce((s,e)=>{
+      const slMult=(e.isSL||e.isSA)?2:1;
+      const isBW=e.isBodyweight||false;
+      const bwBase=isBW?(parseFloat(e.bwBase??e.weight)||0):0;
+      if(e.setRows&&e.setRows.length){
+        return s+e.setRows.reduce((ss,r)=>{
+          const kg=isBW?(bwBase+(parseFloat(r.extraKg)||0)):(parseFloat(r.kg)||0);
+          return ss+kg*(parseFloat(r.reps)||0)*slMult;
+        },0);
+      }
+      const w=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
+      return s+w*(parseFloat(e.sets)||0)*(parseFloat(e.reps)||0)*slMult;
+    },0);
+  } else if(l.type==='sprint'){
+    l.totalDistance=(l.sets||[]).reduce((s,st)=>s+(parseFloat(st.distance)||0)*(parseInt(st.sets)||1)*(parseInt(st.reps)||1),0);
+  }
+  return l;
+}
+async function saveLogEditor(){
+  if(!_eLog||!_eAthId)return;
+  _recompTotals(_eLog);
+  try{
+    const ref=db.collection('trainlog').doc('athlete_'+_eAthId);
+    const snap=await ref.get();if(!snap.exists){alert('Athlete doc missing');return;}
+    const logs=(snap.data().logs||[]).map(l=>l.id===_eLog.id?_eLog:l);
+    await ref.update({logs,_lastUpdated:Date.now()});
+    athLogs[_eAthId]=logs;
+    _rmModal();renderCurrent();
+  }catch(e){alert('Save error: '+e.message);}
+}
+async function deleteLogFromEditor(){
+  if(!_eLog||!_eAthId)return;
+  const id=_eLog.id,aid=_eAthId;
+  _rmModal();
+  await delLog(id,aid,null);
+}
+
+// ══ SESSION PLAN TAB ══
+function _planKeys(){
+  const aths=coachData?.athletes||[];
+  return [
+    {key:'A',label:'Group A',color:'#58a6ff'},
+    {key:'B',label:'Group B',color:'#3ecf8e'},
+    {key:'all',label:'All Groups',color:'#f7a94f'},
+    ...aths.map(a=>({key:'ath_'+a.id,label:a.name,color:'#a78bfa',ath:true}))
+  ];
+}
+function _planSessOf(day,key,sess){
+  const plan=coachData?.sessionPlans?.[day];if(!plan||!plan[key])return null;
+  let s=plan[key][sess];
+  if(!s&&sess==='am'&&Array.isArray(plan[key].exercises))s=plan[key];
+  return (s&&((s.exercises||[]).length||((s.warmup||'').trim())))?s:null;
+}
+function renderPlan(){
+  const wrap=document.getElementById('tab-plan');
+  const wk=getWeekDates(weekOffset);
+  const today=todayStr();
+  document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)} · click a cell to edit`;
+  const DN_DE=['Mo','Di','Mi','Do','Fr','Sa','So'];const DN_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const keys=_planKeys();
+  // Show group rows always; athlete rows only if they have a plan this week
+  const visKeys=keys.filter(k=>!k.ath||wk.some(({ds})=>_planSessOf(ds,k.key,'am')||_planSessOf(ds,k.key,'pm')));
+
+  let html=`<div class="sched-wrap"><table class="sched-table"><thead><tr><th class="ath-col">Target</th>`;
+  wk.forEach(({ds,d},i)=>{
+    html+=`<th class="${ds===today?'day-today':''}">${DN_DE[i]} · ${DN_EN[i]}<br><span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0">${d.getDate()}.${d.getMonth()+1}.</span></th>`;
+  });
+  html+=`</tr></thead><tbody>`;
+  visKeys.forEach(k=>{
+    html+=`<tr><td class="td-ath"><div class="td-ath-inner">
+      <div class="td-av" style="background:${k.color}22;color:${k.color}">${k.ath?k.label[0]:k.key==='all'?'∗':k.key}</div>
+      <div><div class="td-ath-name">${_esc(k.label)}</div></div>
+    </div></td>`;
+    wk.forEach(({ds})=>{
+      const am=_planSessOf(ds,k.key,'am'),pm=_planSessOf(ds,k.key,'pm');
+      let cell='';
+      if(am)cell+=`<span class="pc-chip" style="background:rgba(247,169,79,.12);color:#f7a94f">AM ${(am.exercises||[]).length}</span>`;
+      if(pm)cell+=`<span class="pc-chip" style="background:rgba(167,139,250,.12);color:#a78bfa">PM ${(pm.exercises||[]).length}</span>`;
+      if(!am&&!pm)cell=`<div class="pc-add">+ plan</div>`;
+      html+=`<td class="td-day plan-cell${ds===today?' is-today':''}" onclick="openPlanEditor('${ds}','${k.key}','${am?'am':pm?'pm':'am'}')">${cell}</td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</tbody></table></div>
+  <div style="margin-top:12px;font-size:11px;color:var(--muted)">셀 클릭 → 플랜 작성/수정 · 저장하면 선수 폰 앱에 자동 반영 (선수는 앱을 열 때 최신 플랜을 받습니다)</div>`;
+  wrap.innerHTML=html;
+}
+
+// ── Plan editor modal ──
+let _pe=null; // {day,key,sess,warmup,exs:[{name,sub,int,dist,sets,reps,rest,isSL}]}
+function openPlanEditor(day,key,sess){
+  _pe={day,key,sess};
+  _loadPlanEditorRows();
+  _renderPlanEditor();
+}
+function _loadPlanEditorRows(){
+  const s=_planSessOf(_pe.day,_pe.key,_pe.sess);
+  _pe.warmup=s?.warmup||'';
+  _pe.exs=(s?.exercises||[]).map(e=>({
+    name:e.name||'',sub:e.subCategory||EX2SUB[e.name]||'',
+    int:e.planIntensity||'',dist:e.planDistance||'',sets:e.planSets||'',reps:e.planReps||'',
+    rest:e.planRestTime||'',isSL:!!e.isSL,_orig:e
+  }));
+}
+function _peSwitch(field,val){
+  _pe[field]=val;
+  _loadPlanEditorRows();
+  _renderPlanEditor();
+}
+function _renderPlanEditor(){
+  const keys=_planKeys();
+  const dt=new Date(_pe.day+'T12:00:00');
+  const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+  const keyOpts=keys.map(k=>`<option value="${k.key}" ${_pe.key===k.key?'selected':''}>${k.label}</option>`).join('');
+  const subOpts=Object.entries(TRAINING_STRUCTURE).map(([t,v])=>
+    `<optgroup label="${t}">${v.subs.map(sb=>`<option value="${sb}">${sb}</option>`).join('')}</optgroup>`).join('');
+  const dl=`<datalist id="ex-dl">${Object.keys(EX2SUB).map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>`;
+
+  const rows=_pe.exs.map((e,i)=>`<div class="pe-row">
+    <input class="m-in" list="ex-dl" placeholder="Exercise" value="${_esc(e.name)}" onchange="_peName(${i},this.value)">
+    <select class="m-in" onchange="_pe.exs[${i}].sub=this.value">${subOpts.replace(`value="${e.sub}"`,`value="${e.sub}" selected`)}</select>
+    <input class="m-in" type="number" placeholder="%" value="${e.int}" oninput="_pe.exs[${i}].int=this.value">
+    <input class="m-in" type="number" placeholder="m" value="${e.dist}" oninput="_pe.exs[${i}].dist=this.value">
+    <input class="m-in" type="number" placeholder="S" value="${e.sets}" oninput="_pe.exs[${i}].sets=this.value">
+    <input class="m-in" type="number" placeholder="R" value="${e.reps}" oninput="_pe.exs[${i}].reps=this.value">
+    <input class="m-in" type="number" placeholder="s" value="${e.rest}" oninput="_pe.exs[${i}].rest=this.value">
+    <button class="pe-sl ${e.isSL?'on':''}" onclick="_pe.exs[${i}].isSL=!_pe.exs[${i}].isSL;_renderPlanEditor()">SL</button>
+    <button class="m-btn ghost" style="padding:4px" onclick="_pe.exs.splice(${i},1);_renderPlanEditor()">✕</button>
+  </div>`).join('');
+
+  _mkModal(`
+    <div class="modal-hd">
+      <div class="modal-title">📝 Session Plan · ${fmtFull(_pe.day)} (${wd})</div>
+      <button class="m-btn ghost" onclick="_rmModal()">✕</button>
+    </div>
+    <div class="modal-bd">
+      ${dl}
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div><span class="m-lbl">Target</span><select class="m-in" onchange="_peSwitch('key',this.value)">${keyOpts}</select></div>
+        <div><span class="m-lbl">Session</span>
+          <button class="m-btn" style="${_pe.sess==='am'?'background:rgba(247,169,79,.15);border-color:rgba(247,169,79,.5);color:#f7a94f':''}" onclick="_peSwitch('sess','am')">🌅 AM</button>
+          <button class="m-btn" style="${_pe.sess==='pm'?'background:rgba(167,139,250,.15);border-color:rgba(167,139,250,.5);color:#a78bfa':''}" onclick="_peSwitch('sess','pm')">🌇 PM</button>
+        </div>
+      </div>
+      <div style="margin-bottom:12px"><span class="m-lbl">🔆 Warm-up</span>
+        <input class="m-in" style="width:100%" placeholder="e.g. 10 min dynamic stretching…" value="${_esc(_pe.warmup)}" oninput="_pe.warmup=this.value"></div>
+      <div class="pe-row" style="margin-bottom:6px">
+        <span class="pe-hdr">Exercise</span><span class="pe-hdr">Category</span><span class="pe-hdr">Int%</span><span class="pe-hdr">Dist</span><span class="pe-hdr">Sets</span><span class="pe-hdr">Reps</span><span class="pe-hdr">Rest s</span><span class="pe-hdr">SL</span><span></span>
+      </div>
+      ${rows||''}
+      <button class="m-btn" style="width:100%;margin-top:4px;border-style:dashed" onclick="_pe.exs.push({name:'',sub:'',int:'',dist:'',sets:'',reps:'',rest:'',isSL:false});_renderPlanEditor()">＋ Add exercise</button>
+    </div>
+    <div class="modal-ft">
+      <button class="m-btn del" onclick="clearPlanSess()">🗑 Clear session</button>
+      <span style="flex:1"></span>
+      <button class="m-btn" onclick="_rmModal()">Cancel</button>
+      <button class="m-btn save" onclick="savePlanEditor()">💾 Save plan</button>
+    </div>`);
+}
+function _peName(i,val){
+  _pe.exs[i].name=val;
+  const sub=EX2SUB[val];
+  if(sub)_pe.exs[i].sub=sub;
+  _renderPlanEditor();
+}
+function _peBuildSession(){
+  const exercises=_pe.exs.filter(e=>e.name&&e.name.trim()).map(e=>{
+    const sub=e.sub||EX2SUB[e.name]||'Knee Dominant';
+    const base=e._orig?JSON.parse(JSON.stringify(e._orig)):{};
+    return Object.assign(base,{
+      name:e.name.trim(),trainingType:SUB2TYPE[sub]||'Resistance Training',subCategory:sub,
+      planIntensity:e.int||'',planDistance:e.dist||'',planSets:e.sets||'',planReps:e.reps||'',
+      planRestTime:e.rest||'',planRestUnit:base.planRestUnit||'s',
+      isSL:!!e.isSL
+    });
+  });
+  return {warmup:_pe.warmup||'',cooldown:'',exercises};
+}
+async function savePlanEditor(){
+  try{
+    const dayPlan=JSON.parse(JSON.stringify(coachData?.sessionPlans?.[_pe.day]||{}));
+    if(!dayPlan[_pe.key])dayPlan[_pe.key]={};
+    const sessObj=_peBuildSession();
+    // preserve existing cooldown/conditioning text if present
+    const prev=dayPlan[_pe.key][_pe.sess];
+    if(prev){sessObj.cooldown=prev.cooldown||'';if(prev.conditioningText)sessObj.conditioningText=prev.conditioningText;}
+    dayPlan[_pe.key][_pe.sess]=sessObj;
+    await db.collection('trainlog').doc('coach').update({['sessionPlans.'+_pe.day]:dayPlan,_lastUpdated:Date.now()});
+    if(!coachData.sessionPlans)coachData.sessionPlans={};
+    coachData.sessionPlans[_pe.day]=dayPlan;
+    _rmModal();renderCurrent();
+  }catch(e){alert('Save error: '+e.message);}
+}
+async function clearPlanSess(){
+  if(!confirm(`Clear ${_pe.sess.toUpperCase()} plan for this target on ${_pe.day}?`))return;
+  try{
+    const dayPlan=JSON.parse(JSON.stringify(coachData?.sessionPlans?.[_pe.day]||{}));
+    if(dayPlan[_pe.key]){
+      delete dayPlan[_pe.key][_pe.sess];
+      if(_pe.sess==='am'&&Array.isArray(dayPlan[_pe.key].exercises))delete dayPlan[_pe.key].exercises; // legacy flat
+      if(!Object.keys(dayPlan[_pe.key]).length)delete dayPlan[_pe.key];
+    }
+    await db.collection('trainlog').doc('coach').update({['sessionPlans.'+_pe.day]:dayPlan,_lastUpdated:Date.now()});
+    coachData.sessionPlans[_pe.day]=dayPlan;
+    _rmModal();renderCurrent();
   }catch(e){alert('Error: '+e.message);}
 }
 

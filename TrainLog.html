@@ -1356,8 +1356,10 @@ function syncToCloud(d){
     ||_syncAthleteId
     ||(ST.coachRecordAthlete?(d.athletes||[]).find(a=>a.name===ST.coachRecordAthlete)?.id:null);
   if(athId){
-    const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId);
-    ATHLETE_DOC(athId).set({logs:athLogs,_lastUpdated:d._lastUpdated||Date.now()})
+    const _delSet=_getDeletedIds();
+    const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId&&!_delSet.has(l.id));
+    // merge:true preserves dashboard-written fields (deletedIds); include our own tombstones
+    ATHLETE_DOC(athId).set({logs:athLogs,deletedIds:[..._delSet],_lastUpdated:d._lastUpdated||Date.now()},{merge:true})
       .catch(e=>console.warn('[TrainLog] Athlete log sync error:',e));
     _syncAthleteId=null;
   }
@@ -1417,7 +1419,12 @@ async function _fetchAllCloudData(){
   const _deletedIds=_getDeletedIds();
   const allLogs=[];
   athSnaps.forEach(snap=>{
-    if(snap.exists)(snap.data().logs||[]).forEach(l=>{ if(!_deletedIds.has(l.id)) allLogs.push(l); });
+    if(!snap.exists) return;
+    const dd=snap.data();
+    // Cloud tombstones (e.g. log deleted on the coach web dashboard) — adopt locally
+    // so this device never re-uploads a deleted log from its local copy.
+    (dd.deletedIds||[]).forEach(id=>{ if(!_deletedIds.has(id)){ _addDeletedId(id); _deletedIds.add(id); } });
+    (dd.logs||[]).forEach(l=>{ if(!_deletedIds.has(l.id)) allLogs.push(l); });
   });
   return {...coachData,logs:allLogs};
 }
@@ -1488,12 +1495,14 @@ async function initFirebase(){
 async function _fullSyncToCloud(d){
   const coachData=_stripImages({athletes:d.athletes||[],sessionPlans:d.sessionPlans||{},programs:d.programs||{},settings:d.settings||{},records:d.records||[],_lastUpdated:d._lastUpdated||Date.now()});
   await COACH_DOC.set(coachData);
+  const _delSet=_getDeletedIds();
   const logsByAthlete={};
   (d.logs||[]).forEach(log=>{
+    if(_delSet.has(log.id)) return;
     const ath=(d.athletes||[]).find(a=>a.name===log.athleteName);
     if(ath){ if(!logsByAthlete[ath.id]) logsByAthlete[ath.id]=[]; logsByAthlete[ath.id].push(log); }
   });
-  await Promise.all(Object.entries(logsByAthlete).map(([athId,logs])=>ATHLETE_DOC(athId).set({logs,_lastUpdated:d._lastUpdated||Date.now()})));
+  await Promise.all(Object.entries(logsByAthlete).map(([athId,logs])=>ATHLETE_DOC(athId).set({logs,deletedIds:[..._delSet],_lastUpdated:d._lastUpdated||Date.now()},{merge:true})));
 }
 
 // Start real-time listener (coach dashboard)
@@ -1543,6 +1552,31 @@ function startCloudSync(){
 // Stop listener when coach leaves
 function stopCloudSync(){
   if(_unsubscribe){ _unsubscribe(); _unsubscribe=null; }
+}
+
+// ── Plan freshness: pull latest coach-owned data (sessionPlans etc.) from cloud ──
+// Called when entering plan-reading screens so plans written on the WEB DASHBOARD
+// appear immediately, and so a stale phone doesn't overwrite them on next save.
+let _lastPlanRefresh=0;
+function _refreshPlansFromCloud(onUpdated){
+  const now=Date.now();
+  if(now-_lastPlanRefresh<15000) return; // throttle 15s
+  _lastPlanRefresh=now;
+  COACH_DOC.get().then(snap=>{
+    if(!snap.exists) return;
+    const cloud=snap.data();
+    try{
+      const raw=localStorage.getItem(SK); if(!raw) return;
+      const d=JSON.parse(raw);
+      const changed=JSON.stringify(d.sessionPlans||{})!==JSON.stringify(cloud.sessionPlans||{});
+      d.sessionPlans=cloud.sessionPlans||{};
+      if(cloud.athletes) d.athletes=cloud.athletes;
+      if(cloud.records) d.records=cloud.records;
+      if(cloud._lastUpdated) d._lastUpdated=Math.max(d._lastUpdated||0,cloud._lastUpdated);
+      localStorage.setItem(SK,JSON.stringify(d)); // direct write — no saveData (avoid re-push loop)
+      if(changed&&typeof onUpdated==='function') onUpdated();
+    }catch(e){}
+  }).catch(()=>{});
 }
 
 const SK='trainlog_v5'; // bumped to avoid stale cache conflicts
@@ -1894,6 +1928,8 @@ function goAthleteMenu(){
   _enterAthleteMenu();
 }
 function _enterAthleteMenu(){
+  // Pull latest plans from cloud (dashboard edits) — re-render menu if they changed
+  _refreshPlansFromCloud(()=>{ if(document.getElementById('s-athlete-menu')?.classList.contains('active')) _enterAthleteMenu(); });
   document.getElementById('menu-greeting').textContent=`Hey, ${ST.athlete.name}! 👋`;
   // Always use Europe/Berlin timezone for date display (team is based in Germany)
   const _berlinDate=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Berlin',weekday:'short',month:'long',day:'numeric'}).format(new Date());
@@ -6715,6 +6751,8 @@ ST._planOpenCats=new Set();   // which accordion cards are expanded
 ST._planActiveInput=null;     // "Power Lifting::Power" — which sub has open input
 
 function goSessionPlan(){
+  // Pull latest plans from cloud (dashboard edits) before coach starts editing
+  _refreshPlansFromCloud(()=>{ if(document.getElementById('s-session-plan')?.classList.contains('active')){ _renderPlanWeek(); _renderPlanGroupBtns(); _loadPlanForDay(); } });
   const now=new Date(); const dow=now.getDay();
   const monday=new Date(now);
   monday.setDate(now.getDate()-(dow===0?6:dow-1));
