@@ -558,7 +558,9 @@ let athletesFilter=null; // Athletes tab: 기본 미선택 — 선택해야 카�
 let planGrpFilter=null; // Plan tab: which group's athletes are shown (null = groups only)
 let schedFilter='all'; // Schedule tab: 'all' | 'A' | 'B' | athlete name
 let schedDayIdx=null;  // Schedule tab: null = whole week, 0–6 = Mon..Sun
-let loadGrpFilter='all'; // Load tab: 'all' | 'A' | 'B'
+let loadGrpFilter=null; // Load tab: null(미선택) | 'all' | 'A' | 'B' — 재클릭 시 해제
+let loadRegSel=null;    // Load tab: region chart 세부 카테고리 선택 (null = 전체 스택)
+let loadSprSel=null;    // Load tab: sprint chart 세부 타입 선택
 let compareSet=new Set();
 const charts={};
 
@@ -588,7 +590,7 @@ function startListen(){
   unsubs.push(db.collection('trainlog').doc('coach').onSnapshot(snap=>{
     if(!snap.exists){renderCurrent();return;}
     const prev=coachData; coachData=snap.data();
-    if(!loadAth&&coachData.athletes?.length){loadAth=coachData.athletes[0].name;condAth=loadAth;soreAth=loadAth;}
+    if(!condAth&&coachData.athletes?.length){condAth=coachData.athletes[0].name;soreAth=condAth;} // loadAth는 클릭 시에만
     const ids=(coachData.athletes||[]).map(a=>a.id).filter(Boolean);
     const prevIds=(prev?.athletes||[]).map(a=>a.id).filter(Boolean);
     if(JSON.stringify(ids)!==JSON.stringify(prevIds)){setupAthListeners(ids);setTimeout(renderCurrent,1500);}
@@ -972,20 +974,23 @@ function renderLoad(){
   const athletes=coachData.athletes||[];
   if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
   document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}`;
-  if(!loadAth)loadAth=athletes[0].name;
-
   const DN=['Mo','Di','Mi','Do','Fr','Sa','So'];
   const today=todayStr();
 
-  // ── 0. Group filter (전체 / A / B) ──
-  const fAthletes=loadGrpFilter==='all'?athletes:athletes.filter(a=>a.group===loadGrpFilter);
+  // ── 0. Group filter (전체 / A / B) — 토글식, 기본 미선택 ──
   const gBtn=(val,label)=>{
     const on=loadGrpFilter===val;
-    return `<button class="flt-btn ${on?'on':''}" onclick="loadGrpFilter='${val}';renderLoad()">${on?'✓ ':''}${label}</button>`;
+    return `<button class="flt-btn ${on?'on':''}" onclick="loadGrpFilter=loadGrpFilter==='${val}'?null:'${val}';renderLoad()">${on?'✓ ':''}${label}</button>`;
   };
   let html=`<div class="filter-bar" style="margin-bottom:14px"><div class="filter-group">
     ${gBtn('all','All Groups')}${gBtn('A','Group A')}${gBtn('B','Group B')}
   </div></div>`;
+  if(!loadGrpFilter){
+    document.getElementById('tb-sub').textContent='Select a group';
+    wrap.innerHTML=html+`<div class="empty" style="padding:48px 0">그룹을 선택하면 주간 훈련 부하가 표시됩니다<br><span style="font-size:11px;color:var(--hint)">같은 버튼을 다시 누르면 닫힙니다 · 표에서 선수를 클릭하면 개인 상세가 열립니다</span></div>`;
+    return;
+  }
+  const fAthletes=loadGrpFilter==='all'?athletes:athletes.filter(a=>a.group===loadGrpFilter);
 
   // ── 1. Weekly Load Summary ──
   html+=`<div class="card" style="margin-bottom:20px;overflow-x:auto">
@@ -1011,7 +1016,7 @@ function renderLoad(){
       });
       return cell+'</td>';
     });
-    html+=`<tr style="cursor:pointer" onclick="loadAth='${ath.name.replace(/'/g,"\\'")}';renderLoad()" title="Click for detail">
+    html+=`<tr style="cursor:pointer" onclick="loadAth=loadAth==='${ath.name.replace(/'/g,"\\'")}'?null:'${ath.name.replace(/'/g,"\\'")}';renderLoad()" title="Click for detail (재클릭 시 닫기)">
       <td style="font-weight:600;white-space:nowrap;border-left:2px solid ${loadAth===ath.name?grpColor:'transparent'}">
         ${ath.name} <span class="type-pill" style="background:${ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)'};color:${grpColor}">Grp ${ath.group}</span>
       </td>
@@ -1029,19 +1034,61 @@ function renderLoad(){
   const _sprAths=fAthletes.filter(a=>Object.keys(bd.sprint[a.name]).length);
   if(_regAths.length||_sprAths.length){
     html+=`<div class="g2" style="margin-bottom:20px">`;
+    // 세부 카테고리 칩 — 클릭 시 그 카테고리만, 재클릭 시 전체 스택으로
+    const _regPresent=REGION_ORDER.filter(r=>_regAths.some(a=>bd.region[a.name][r]));
+    const _chip=(on,label,color,handler)=>`<button onclick="${handler}"
+      style="padding:2px 9px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;
+      border:1px solid ${on?color:'var(--border)'};background:${on?color+'22':'none'};color:${on?color:'var(--muted)'}">${label}</button>`;
     if(_regAths.length){
-      html+=`<div class="card"><div class="card-hd">🏋️ Weight Volume by Region <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--hint)">· 상/하체/코어/파워 (kg)</span></div>
+      const chips=[_chip(!loadRegSel,'전체','#f7a94f',"loadRegSel=null;renderLoad()")]
+        .concat(_regPresent.map(r=>_chip(loadRegSel===r,r,REGION_COLOR[r],`loadRegSel=loadRegSel==='${r}'?null:'${r}';renderLoad()`))).join('');
+      html+=`<div class="card"><div class="card-hd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🏋️ Weight Volume <span style="display:flex;gap:4px;flex-wrap:wrap;margin-left:6px">${chips}</span></div>
         <div style="position:relative;height:${Math.max(120,_regAths.length*34+50)}px"><canvas id="ch-ld-reg"></canvas></div></div>`;
     }
     if(_sprAths.length){
-      html+=`<div class="card"><div class="card-hd">⚡ Sprint Distance by Type <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--hint)">· 가속/저항/탑스피드 등 (m)</span></div>
+      const sChips=[_chip(!loadSprSel,'전체','#3ecf8e',"loadSprSel=null;renderLoad()")]
+        .concat(bd.sprintTypes.map(t=>_chip(loadSprSel===t,t,SPRINT_COLOR[t]||'#6b7280',`loadSprSel=loadSprSel==='${t.replace(/'/g,"\\'")}'?null:'${t.replace(/'/g,"\\'")}';renderLoad()`))).join('');
+      html+=`<div class="card"><div class="card-hd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">⚡ Sprint Distance <span style="display:flex;gap:4px;flex-wrap:wrap;margin-left:6px">${sChips}</span></div>
         <div style="position:relative;height:${Math.max(120,_sprAths.length*34+50)}px"><canvas id="ch-ld-spr"></canvas></div></div>`;
     }
     html+=`</div>`;
   }
 
-  // ── 2. Session Detail (선택된 선수, 이번 주 상세) ──
-  const selAth=athletes.find(a=>a.name===loadAth)||athletes[0];
+  // breakdown chart factory (양쪽 경로에서 공용)
+  const _ldMakeBreakdownCharts=()=>{
+    const _stackOpts={indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.5)',font:{size:10},boxWidth:10}}},
+      scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}},
+              y:{stacked:true,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}}}};
+    const cReg=document.getElementById('ch-ld-reg');
+    if(cReg&&_regAths.length){
+      const regs=(loadRegSel?[loadRegSel]:REGION_ORDER).filter(r=>_regAths.some(a=>bd.region[a.name][r]));
+      charts['ld-reg']=new Chart(cReg,{type:'bar',data:{
+        labels:_regAths.map(a=>a.name.split(' ')[0]),
+        datasets:regs.map(r=>({label:r,data:_regAths.map(a=>Math.round(bd.region[a.name][r]||0)),backgroundColor:REGION_COLOR[r]+'cc',borderRadius:2}))
+      },options:_stackOpts});
+    }
+    const cSpr=document.getElementById('ch-ld-spr');
+    if(cSpr&&_sprAths.length){
+      const types=loadSprSel?[loadSprSel]:bd.sprintTypes;
+      charts['ld-spr']=new Chart(cSpr,{type:'bar',data:{
+        labels:_sprAths.map(a=>a.name.split(' ')[0]),
+        datasets:types.map(t=>({label:t,data:_sprAths.map(a=>Math.round(bd.sprint[a.name][t]||0)),backgroundColor:(SPRINT_COLOR[t]||'#6b7280')+'cc',borderRadius:2}))
+      },options:_stackOpts});
+    }
+  };
+
+  // ── 2. Session Detail — 표에서 선수를 클릭했을 때만 표시 ──
+  const selAth=loadAth?fAthletes.find(a=>a.name===loadAth)||athletes.find(a=>a.name===loadAth):null;
+  if(!selAth){
+    html+=`<div style="font-size:11px;color:var(--hint);padding:6px 2px">↑ 표에서 선수를 클릭하면 주간 세션 상세와 성장 추이가 여기 표시됩니다</div>`;
+    wrap.innerHTML=html;
+    // breakdown charts still need instantiation below — fall through via early chart block
+    ['ld-reg','ld-spr'].forEach(killChart);
+    Object.keys(charts).filter(k=>k.startsWith('prog-')).forEach(killChart);
+    setTimeout(()=>{ _ldMakeBreakdownCharts(); },50);
+    return;
+  }
   const selLogs=getLogsByName(selAth.name);
   const grpColor=selAth.group==='A'?'#58a6ff':'#3ecf8e';
 
@@ -1053,7 +1100,8 @@ function renderLoad(){
         <div style="font-size:11px;color:#8b949e">Session Detail · ${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}</div>
       </div>
     </div>
-    <select class="fsel" onchange="loadAth=this.value;renderLoad()">
+    <select class="fsel" onchange="loadAth=this.value||null;renderLoad()">
+      <option value="">— close —</option>
       ${athletes.map(a=>`<option value="${a.name}" ${loadAth===a.name?'selected':''}>${a.name}</option>`).join('')}
     </select>
   </div>`;
@@ -1190,27 +1238,7 @@ function renderLoad(){
 
   // breakdown stacked bars (after DOM)
   ['ld-reg','ld-spr'].forEach(killChart);
-  setTimeout(()=>{
-    const _stackOpts={indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.5)',font:{size:10},boxWidth:10}}},
-      scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}},
-              y:{stacked:true,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}}}};
-    const cReg=document.getElementById('ch-ld-reg');
-    if(cReg&&_regAths.length){
-      charts['ld-reg']=new Chart(cReg,{type:'bar',data:{
-        labels:_regAths.map(a=>a.name.split(' ')[0]),
-        datasets:REGION_ORDER.filter(r=>_regAths.some(a=>bd.region[a.name][r]))
-          .map(r=>({label:r,data:_regAths.map(a=>Math.round(bd.region[a.name][r]||0)),backgroundColor:REGION_COLOR[r]+'cc',borderRadius:2}))
-      },options:_stackOpts});
-    }
-    const cSpr=document.getElementById('ch-ld-spr');
-    if(cSpr&&_sprAths.length){
-      charts['ld-spr']=new Chart(cSpr,{type:'bar',data:{
-        labels:_sprAths.map(a=>a.name.split(' ')[0]),
-        datasets:bd.sprintTypes.map(t=>({label:t,data:_sprAths.map(a=>Math.round(bd.sprint[a.name][t]||0)),backgroundColor:(SPRINT_COLOR[t]||'#6b7280')+'cc',borderRadius:2}))
-      },options:_stackOpts});
-    }
-  },50);
+  setTimeout(_ldMakeBreakdownCharts,50);
 
   // instantiate progression charts (after DOM)
   Object.keys(charts).filter(k=>k.startsWith('prog-')).forEach(killChart);
