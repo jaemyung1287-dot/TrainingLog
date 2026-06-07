@@ -7956,10 +7956,9 @@ function _planDayCopySources(){
         if(!s&&sess==='am'&&Array.isArray(g.exercises)) s=g; // backward compat
         const exs=s&&Array.isArray(s.exercises)?s.exercises:[];
         if(!exs.length) return;
-        out.push({day,grp,sess,n:exs.length,
+        out.push({day,grp,sess,n:exs.length,exs,wu:s.warmup||'',
           label:grp==='A'?'Group A':grp==='B'?'Group B':grp==='all'?'All':athName(grp),
           isAth:grp.startsWith('ath_'),
-          exNames:exs.map(e=>e.name||'').join(' ').toLowerCase(),
           sig:JSON.stringify(exs)});
       });
     });
@@ -7972,7 +7971,7 @@ function _planDayCopySources(){
     seen[k]=s; dedup.push(s);
   });
   dedup.sort((a,b)=>b.day.localeCompare(a.day)||a.label.localeCompare(b.label)||a.sess.localeCompare(b.sess));
-  return dedup.slice(0,80);
+  return dedup;
 }
 function _showPlanDayCopyModal(){
   const srcs=_planDayCopySources();
@@ -7995,57 +7994,124 @@ function _showPlanDayCopyModal(){
     const tag=diff===0?' · This week':diff===1?' · Last week':diff===-1?' · Next week':'';
     return `${monNames[mon.getMonth()]} ${mon.getDate()} – ${monNames[sun.getMonth()]} ${sun.getDate()}, ${sun.getFullYear()}${tag}`;
   };
+  // Week navigation bounds (clamp to weeks that actually have plans, incl. current week)
+  const baseMon=_wkMon(ST._planDay);
+  const _offOf=(day)=>Math.round((_wkMon(day).getTime()-baseMon.getTime())/(7*24*3600*1000));
+  const offs=srcs.map(s=>_offOf(s.day));
+  const minOff=Math.min(0,...offs), maxOff=Math.max(0,...offs);
+  let wkOff=0;
+  // Default to the nearest week that has plans (prefer current, then most recent past)
+  if(!offs.includes(0)){ const past=offs.filter(o=>o<0); wkOff=past.length?Math.max(...past):Math.min(...offs); }
+
   const el=document.createElement('div');
   el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
   el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:20px 0 28px;width:100%;max-width:480px;border-top:1px solid var(--border);max-height:75vh;display:flex;flex-direction:column">
     <div style="font-size:15px;font-weight:700;color:var(--text);margin:0 20px 4px">📅 Copy from another day</div>
     <div style="font-size:12px;color:var(--muted);margin:0 20px 12px">→ ${ST._planDay} · ${(ST._planSession||'am').toUpperCase()} (current group)</div>
-    <div style="margin:0 20px 12px">
-      <input id="_pdc-search" type="search" placeholder="🔍 Search date · group · athlete · exercise…"
-        style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:11px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none">
-    </div>
-    <div id="_pdc-list" style="overflow-y:auto;border-top:1px solid rgba(255,255,255,.06)"></div>
-    <button id="_pdc-cxl" style="margin:14px 20px 0;padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Cancel</button>
+    <div id="_pdc-body" style="overflow-y:auto;display:flex;flex-direction:column;min-height:120px"></div>
+    <button id="_pdc-cxl" style="margin:14px 20px 0;padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0">Cancel</button>
   </div>`;
   document.body.appendChild(el);
   const rm=()=>document.body.removeChild(el);
-  const listEl=el.querySelector('#_pdc-list');
-  const renderList=(q)=>{
-    q=(q||'').trim().toLowerCase();
-    const filtered=srcs.filter(s=>{
-      if(!q) return true;
-      const dt=new Date(s.day+'T12:00:00');
-      const wd=isNaN(dt)?'':dayNames[dt.getDay()].toLowerCase();
-      const hay=`${s.day} ${s.day.slice(5).replace('-','.')} ${wd} ${s.label.toLowerCase()} ${s.sess} ${s.exNames}`;
-      return q.split(/\s+/).every(t=>hay.includes(t));
-    });
-    if(!filtered.length){ listEl.innerHTML=`<div style="padding:28px 20px;text-align:center;font-size:13px;color:var(--muted)">No matches</div>`; return; }
-    let html=''; let lastWk=null;
-    filtered.forEach((s,i)=>{
-      const mon=_wkMon(s.day); const wkKey=mon.toISOString().slice(0,10);
-      if(wkKey!==lastWk){
-        lastWk=wkKey;
-        html+=`<div style="position:sticky;top:0;padding:8px 20px;background:var(--bg2);border-top:${i===0?'none':'1px solid rgba(255,255,255,.06)'};border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);text-transform:uppercase">${_wkLabel(mon)}</div>`;
-      }
-      const dt=new Date(s.day+'T12:00:00');
-      const wd=isNaN(dt)?'':dayNames[dt.getDay()];
-      html+=`<button class="_pdc-row" data-i="${srcs.indexOf(s)}" style="width:100%;display:flex;align-items:center;gap:8px;padding:13px 14px;border:none;border-top:1px solid rgba(255,255,255,.04);background:none;color:var(--text);cursor:pointer;font-family:inherit;text-align:left">
-        <span style="font-size:13px;font-weight:700;min-width:78px">${s.day.slice(5).replace('-','.')} <span style="color:var(--muted);font-weight:600">${wd}</span></span>
-        ${grpChip(s)}
-        <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${s.sess==='am'?'rgba(247,169,79,.15)':'rgba(167,139,250,.15)'};color:${s.sess==='am'?'#f7a94f':'#a78bfa'}">${s.sess.toUpperCase()}</span>
-        <span style="font-size:12px;color:var(--muted);flex:1">${s.n} exercise${s.n>1?'s':''}</span>
-        <span style="color:var(--muted)">›</span>
-      </button>`;
-    });
-    listEl.innerHTML=html;
-    listEl.querySelectorAll('._pdc-row').forEach(btn=>{
-      btn.onclick=()=>{ const s=srcs[parseInt(btn.dataset.i)]; rm(); _copyPlanFromDay(s.day,s.grp,s.sess); };
+  const body=el.querySelector('#_pdc-body');
+
+  const renderWeek=()=>{
+    const mon=new Date(baseMon); mon.setDate(baseMon.getDate()+wkOff*7);
+    const wkKey=mon.toISOString().slice(0,10);
+    const items=srcs.filter(s=>_wkMon(s.day).toISOString().slice(0,10)===wkKey);
+    const navBtn=(dir,disabled)=>`<button id="_pdc-${dir<0?'prev':'next'}" ${disabled?'disabled':''}
+      style="width:38px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:${disabled?'rgba(255,255,255,.18)':'var(--text)'};font-size:15px;cursor:${disabled?'default':'pointer'};font-family:inherit;flex-shrink:0">${dir<0?'‹':'›'}</button>`;
+    let html=`<div style="display:flex;align-items:center;gap:10px;padding:0 20px 12px">
+      ${navBtn(-1,wkOff<=minOff)}
+      <div style="flex:1;text-align:center;font-size:12px;font-weight:700;letter-spacing:.3px;color:var(--text)">${_wkLabel(mon)}</div>
+      ${navBtn(1,wkOff>=maxOff)}
+    </div>`;
+    if(!items.length){
+      html+=`<div style="padding:30px 20px;text-align:center;font-size:13px;color:var(--muted);border-top:1px solid rgba(255,255,255,.06)">No planned sessions this week</div>`;
+    } else {
+      html+=`<div style="border-top:1px solid rgba(255,255,255,.06)">`;
+      items.forEach((s,i)=>{
+        const dt=new Date(s.day+'T12:00:00');
+        const wd=isNaN(dt)?'':dayNames[dt.getDay()];
+        html+=`<button class="_pdc-row" data-i="${srcs.indexOf(s)}" style="width:100%;display:flex;align-items:center;gap:8px;padding:13px 14px;border:none;border-top:${i===0?'none':'1px solid rgba(255,255,255,.04)'};background:none;color:var(--text);cursor:pointer;font-family:inherit;text-align:left">
+          <span style="font-size:13px;font-weight:700;min-width:78px">${s.day.slice(5).replace('-','.')} <span style="color:var(--muted);font-weight:600">${wd}</span></span>
+          ${grpChip(s)}
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${s.sess==='am'?'rgba(247,169,79,.15)':'rgba(167,139,250,.15)'};color:${s.sess==='am'?'#f7a94f':'#a78bfa'}">${s.sess.toUpperCase()}</span>
+          <span style="font-size:12px;color:var(--muted);flex:1">${s.n} exercise${s.n>1?'s':''}</span>
+          <span style="color:var(--muted)">›</span>
+        </button>`;
+      });
+      html+='</div>';
+    }
+    body.innerHTML=html;
+    const prev=body.querySelector('#_pdc-prev'), next=body.querySelector('#_pdc-next');
+    if(prev&&!prev.disabled) prev.onclick=()=>{wkOff--;renderWeek();};
+    if(next&&!next.disabled) next.onclick=()=>{wkOff++;renderWeek();};
+    body.querySelectorAll('._pdc-row').forEach(btn=>{
+      btn.onclick=()=>renderPreview(srcs[parseInt(btn.dataset.i)]);
     });
   };
-  renderList('');
-  el.querySelector('#_pdc-search').oninput=(ev)=>renderList(ev.target.value);
+
+  const renderPreview=(s)=>{
+    const dt=new Date(s.day+'T12:00:00');
+    const wd=isNaN(dt)?'':dayNames[dt.getDay()];
+    const sessChip=`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:${s.sess==='am'?'rgba(247,169,79,.15)':'rgba(167,139,250,.15)'};color:${s.sess==='am'?'#f7a94f':'#a78bfa'}">${s.sess.toUpperCase()}</span>`;
+    let html=`<div style="display:flex;align-items:center;gap:8px;padding:0 20px 12px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:700">${s.day.slice(5).replace('-','.')} <span style="color:var(--muted);font-weight:600">${wd}</span></span>
+      ${grpChip(s)} ${sessChip}
+      <span style="font-size:12px;color:var(--muted)">${s.n} exercise${s.n>1?'s':''}</span>
+    </div>`;
+    html+=`<div style="border-top:1px solid rgba(255,255,255,.06)">`;
+    if(s.wu) html+=`<div style="padding:10px 20px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:var(--muted)">🔆 <span style="color:var(--text)">${s.wu}</span></div>`;
+    (s.exs||[]).forEach((e,i)=>{
+      const icon=TRAINING_STRUCTURE[e.trainingType]?.icon||'';
+      const det=[];
+      if(e.planIntensity) det.push(e.planIntensity+'%');
+      if(e.planDistance) det.push(e.planDistance+'m');
+      if(e.planSets||e.planReps) det.push((e.planSets||'—')+'×'+(e.planReps||'—'));
+      const mods=(e.isBW?'BW ':'')+(e.isSL?'SL ':'')+(e.isSA?'SA ':'');
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:11px 20px;border-top:${i===0&&!s.wu?'none':'1px solid rgba(255,255,255,.04)'}">
+        <span style="font-size:13px;font-weight:600;color:var(--text);flex:1">${icon} ${e.name||'—'}</span>
+        ${mods?`<span style="font-size:10px;font-weight:700;color:#4f8ef7">${mods.trim()}</span>`:''}
+        <span style="font-size:12px;color:rgba(198,168,90,.85);font-weight:600">${det.join(' · ')}</span>
+      </div>`;
+    });
+    html+=`</div>
+    <div style="display:flex;gap:9px;padding:14px 20px 0">
+      <button id="_pdc-back" style="flex:1;padding:13px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">← Back</button>
+      <button id="_pdc-copy" style="flex:2;padding:13px;border-radius:12px;background:#3ecf8e;border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📋 Copy to ${ST._planDay.slice(5).replace('-','.')} · ${(ST._planSession||'am').toUpperCase()}</button>
+    </div>`;
+    body.innerHTML=html;
+    body.querySelector('#_pdc-back').onclick=()=>renderWeek();
+    body.querySelector('#_pdc-copy').onclick=()=>{ rm(); _copyPlanFromDay(s.day,s.grp,s.sess); };
+  };
+
+  renderWeek();
   el.querySelector('#_pdc-cxl').onclick=()=>rm();
   el.onclick=(ev)=>{if(ev.target===el)rm();};
+}
+// Shared: write a copied session object into the current target.
+// In individual mode with multiple athletes selected, replicates to ALL selected athletes
+// (same behaviour as saveSessionPlan), not just the primary.
+function _applyPlanCopy(srcSessObj,toastMsg){
+  const d=getData();
+  const grp=ST._planGroup;
+  const sess=ST._planSession||'am';
+  const plan=d.sessionPlans[ST._planDay]||{};
+  const curExs=_getPlanSessionExs(plan[grp]||null);
+  if(curExs.length&&!confirm(`Current ${sess.toUpperCase()} plan (${curExs.length} exercise${curExs.length>1?'s':''}) will be overwritten. Continue?`)) return;
+  const targets=new Set([grp]);
+  if(grp.startsWith('ath_')&&ST._planSelectedAthletes&&ST._planSelectedAthletes.size>1){
+    ST._planSelectedAthletes.forEach(k=>targets.add(k));
+  }
+  targets.forEach(t=>{
+    if(!plan[t]) plan[t]={};
+    plan[t][sess]=JSON.parse(JSON.stringify(srcSessObj));
+  });
+  d.sessionPlans[ST._planDay]=plan;
+  saveData(d);
+  renderPlanAccordion();
+  showToast(toastMsg+(targets.size>1?` · ${targets.size} athletes`:'')+' ✓');
 }
 function _copyPlanFromDay(srcDay,srcGrp,srcSess){
   const d=getData();
@@ -8054,17 +8120,7 @@ function _copyPlanFromDay(srcDay,srcGrp,srcSess){
   if(!srcSessObj&&srcSess==='am'&&Array.isArray(srcPlan[srcGrp].exercises))
     srcSessObj={exercises:srcPlan[srcGrp].exercises,warmup:srcPlan[srcGrp].warmup||'',cooldown:srcPlan[srcGrp].cooldown||''};
   if(!srcSessObj) return;
-  const grp=ST._planGroup;
-  const sess=ST._planSession||'am';
-  const plan=d.sessionPlans[ST._planDay]||{};
-  const curExs=_getPlanSessionExs(plan[grp]||null);
-  if(curExs.length&&!confirm(`Current ${sess.toUpperCase()} plan (${curExs.length} exercise${curExs.length>1?'s':''}) will be overwritten. Continue?`)) return;
-  if(!plan[grp]) plan[grp]={};
-  plan[grp][sess]=JSON.parse(JSON.stringify(srcSessObj));
-  d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
-  renderPlanAccordion();
-  showToast(`Copied ${srcDay} ${srcSess.toUpperCase()} → ${sess.toUpperCase()} ✓`);
+  _applyPlanCopy(srcSessObj,`Copied ${srcDay.slice(5).replace('-','.')} ${srcSess.toUpperCase()} → ${(ST._planSession||'am').toUpperCase()}`);
 }
 
 // ── Copy entire session plan from the other group (same day & session) ──
@@ -8078,14 +8134,7 @@ function _copyPlanFromGroup(src){
     srcSess={exercises:srcGrp.exercises,warmup:srcGrp.warmup||'',cooldown:srcGrp.cooldown||''};
   if(!srcSess) return;
   const dst=ST._planGroup; if(dst!=='A'&&dst!=='B') return;
-  const curExs=_getPlanSessionExs(plan[dst]||null);
-  if(curExs.length&&!confirm(`Group ${dst} ${sess.toUpperCase()} plan (${curExs.length} exercise${curExs.length>1?'s':''}) will be overwritten. Continue?`)) return;
-  if(!plan[dst]) plan[dst]={};
-  plan[dst][sess]=JSON.parse(JSON.stringify(srcSess));
-  d.sessionPlans[ST._planDay]=plan;
-  saveData(d);
-  renderPlanAccordion();
-  showToast(`Copied Group ${src} → ${dst} ✓`);
+  _applyPlanCopy(srcSess,`Copied Group ${src} → ${dst}`);
 }
 
 function saveSessionPlan(){
