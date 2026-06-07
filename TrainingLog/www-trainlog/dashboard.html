@@ -2041,6 +2041,9 @@ const EXERCISE_LIBRARY={
 .pe-hdr{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
 .pe-sl{width:100%;padding:5px 0;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:none;color:var(--muted);font-family:inherit}
 .pe-sl.on{background:rgba(79,142,247,.18);border-color:rgba(79,142,247,.5);color:#4f8ef7}
+.pe-ud{padding:0;height:13px;line-height:1;border-radius:4px;font-size:8px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:inherit}
+.pe-ud:hover:not(:disabled){color:var(--text);border-color:rgba(255,255,255,.3)}
+.pe-ud:disabled{opacity:.25;cursor:default}
 `;document.head.appendChild(s);})();
 
 // Reverse maps from the embedded exercise library
@@ -2344,15 +2347,25 @@ function _renderPlanEditor(){
     `<optgroup label="${t}">${v.subs.map(sb=>`<option value="${sb}">${sb}</option>`).join('')}</optgroup>`).join('');
   const dl=`<datalist id="ex-dl">${Object.keys(EX2SUB).map(n=>`<option value="${_esc(n)}">`).join('')}</datalist>`;
 
-  const rows=_pe.exs.map((e,i)=>`<div class="pe-row">
+  // Dist column only when a sprint-type exercise is present
+  const _isSprintRow=(e)=>SUB2TYPE[e.sub]==='Sprint Training';
+  const hasSprint=_pe.exs.some(_isSprintRow);
+  const gridCols=`minmax(150px,2fr) 1.4fr 52px ${hasSprint?'56px ':''}46px 46px 52px 34px 36px 26px`;
+  const rows=_pe.exs.map((e,i)=>`<div class="pe-row" style="grid-template-columns:${gridCols}">
     <input class="m-in" list="ex-dl" placeholder="Exercise" value="${_esc(e.name)}" onchange="_peName(${i},this.value)">
-    <select class="m-in" onchange="_pe.exs[${i}].sub=this.value">${subOpts.replace(`value="${e.sub}"`,`value="${e.sub}" selected`)}</select>
+    <select class="m-in" onchange="_pe.exs[${i}].sub=this.value;_renderPlanEditor()">${subOpts.replace(`value="${e.sub}"`,`value="${e.sub}" selected`)}</select>
     <input class="m-in" type="number" placeholder="%" value="${e.int}" oninput="_pe.exs[${i}].int=this.value">
-    <input class="m-in" type="number" placeholder="m" value="${e.dist}" oninput="_pe.exs[${i}].dist=this.value">
+    ${hasSprint?(_isSprintRow(e)
+      ?`<input class="m-in" type="number" placeholder="m" value="${e.dist}" oninput="_pe.exs[${i}].dist=this.value">`
+      :`<span style="text-align:center;color:var(--hint);font-size:11px">—</span>`):''}
     <input class="m-in" type="number" placeholder="S" value="${e.sets}" oninput="_pe.exs[${i}].sets=this.value">
     <input class="m-in" type="number" placeholder="R" value="${e.reps}" oninput="_pe.exs[${i}].reps=this.value">
     <input class="m-in" type="number" placeholder="s" value="${e.rest}" oninput="_pe.exs[${i}].rest=this.value">
     <button class="pe-sl ${e.isSL?'on':''}" onclick="_pe.exs[${i}].isSL=!_pe.exs[${i}].isSL;_renderPlanEditor()">SL</button>
+    <span style="display:flex;flex-direction:column;gap:1px">
+      <button class="pe-ud" ${i===0?'disabled':''} onclick="_peMove(${i},-1)">▲</button>
+      <button class="pe-ud" ${i===_pe.exs.length-1?'disabled':''} onclick="_peMove(${i},1)">▼</button>
+    </span>
     <button class="m-btn ghost" style="padding:4px" onclick="_pe.exs.splice(${i},1);_renderPlanEditor()">✕</button>
   </div>`).join('');
 
@@ -2386,8 +2399,8 @@ function _renderPlanEditor(){
           </select></div>`; })()}
       <div style="margin-bottom:12px"><span class="m-lbl">🔆 Warm-up</span>
         <input class="m-in" style="width:100%" placeholder="e.g. 10 min dynamic stretching…" value="${_esc(_pe.warmup)}" oninput="_pe.warmup=this.value"></div>
-      <div class="pe-row" style="margin-bottom:6px">
-        <span class="pe-hdr">Exercise</span><span class="pe-hdr">Category</span><span class="pe-hdr">Int%</span><span class="pe-hdr">Dist</span><span class="pe-hdr">Sets</span><span class="pe-hdr">Reps</span><span class="pe-hdr">Rest s</span><span class="pe-hdr">SL</span><span></span>
+      <div class="pe-row" style="margin-bottom:6px;grid-template-columns:${gridCols}">
+        <span class="pe-hdr">Exercise</span><span class="pe-hdr">Category</span><span class="pe-hdr">Int%</span>${hasSprint?'<span class="pe-hdr">Dist</span>':''}<span class="pe-hdr">Sets</span><span class="pe-hdr">Reps</span><span class="pe-hdr">Rest s</span><span class="pe-hdr">SL</span><span class="pe-hdr">Order</span><span></span>
       </div>
       ${rows||''}
       <button class="m-btn" style="width:100%;margin-top:4px;border-style:dashed" onclick="_pe.exs.push({name:'',sub:'',int:'',dist:'',sets:'',reps:'',rest:'',isSL:false});_renderPlanEditor()">＋ Add exercise</button>
@@ -2403,6 +2416,12 @@ function _peName(i,val){
   _pe.exs[i].name=val;
   const sub=EX2SUB[val];
   if(sub)_pe.exs[i].sub=sub;
+  _renderPlanEditor();
+}
+function _peMove(i,dir){
+  const j=i+dir;
+  if(j<0||j>=_pe.exs.length)return;
+  const t=_pe.exs[i];_pe.exs[i]=_pe.exs[j];_pe.exs[j]=t;
   _renderPlanEditor();
 }
 function _peBuildSession(){
