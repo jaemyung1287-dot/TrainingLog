@@ -839,10 +839,12 @@ function renderOverview(){
         table+=`<div class="cmt-wrap" onclick="event.stopPropagation();this.classList.toggle('show')"><span class="cmt-chip">💬 Comment</span><div class="cmt-text">${_esc(condLog.notes)}</div></div>`;
       }
 
-      // -- Plan hint --
+      // -- Plan hint (clickable → plan editor for this athlete's resolved plan) --
       if(hasPlan&&!trainLogs.length){
         const cnt=sessExs(gd,'am').length+sessExs(gd,'pm').length;
-        table+=`<div class="plan-hint">${cnt} planned</div>`;
+        const resKey=plan?.['ath_'+ath.id]?('ath_'+ath.id):plan?.[ath.group]?ath.group:'all';
+        const resSess=sessExs(gd,'am').length?'am':'pm';
+        table+=`<div class="plan-hint" style="cursor:pointer" title="Click to open plan editor" onclick="event.stopPropagation();openPlanEditor('${ds}','${resKey}','${resSess}')">📋 ${cnt} planned</div>`;
       }
 
       // -- Training sessions (AM / PM split) --
@@ -2361,7 +2363,7 @@ function renderSchedule(){
       html+=`<div style="border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:9px">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:7px">${sessChip}${tgtChips}
           <span style="flex:1"></span>
-          <button class="m-btn ghost" style="font-size:10px;padding:3px 7px" onclick="openPlanEditor('${ds}','${b.keys[0]}','${b.sess}')">✎ Edit</button>
+          <button class="m-btn ghost" style="font-size:10px;padding:3px 7px" onclick="openPlanEditorKeys('${ds}','${keysCsv}','${b.sess}')">✎ Edit</button>
         </div>
         ${b.s.warmup?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">🔆 ${_esc(b.s.warmup)}</div>`:''}
         ${exRows}
@@ -2401,7 +2403,31 @@ function _peSig(){
 function openPlanEditor(day,key,sess){
   _pe={day,key,keys:new Set([key]),sess};
   _loadPlanEditorRows();
+  // Group cell clicked but group key itself is empty (e.g. plan was saved per-athlete
+  // from the phone app) → adopt the members' INDIVIDUAL plans: load their content and
+  // pre-select those athletes as targets so editing/saving goes back to them.
+  if(!_pe.exs.length&&!(_pe.warmup||'').trim()&&(key==='A'||key==='B'||key==='all')){
+    const members=(coachData?.athletes||[]).filter(a=>key==='all'||a.group===key);
+    const withSess=(ss)=>members.filter(a=>_planSessOf(day,'ath_'+a.id,ss));
+    let useSess=sess, aths=withSess(sess);
+    if(!aths.length){const other=sess==='am'?'pm':'am';const o=withSess(other);if(o.length){useSess=other;aths=o;}}
+    if(aths.length){
+      _pe.sess=useSess;
+      _pe.key='ath_'+aths[0].id;
+      _pe.keys=new Set(aths.map(a=>'ath_'+a.id));
+      _loadPlanEditorRows();
+    }
+  }
   _pe._sig0=_peSig();
+  _renderPlanEditor();
+}
+// Open editor with MULTIPLE pre-selected targets (e.g. from a merged Schedule block)
+function openPlanEditorKeys(day,keysCsv,sess){
+  const ks=keysCsv.split(',').filter(Boolean);
+  if(!ks.length)return;
+  openPlanEditor(day,ks[0],sess);
+  ks.slice(1).forEach(k=>_pe.keys.add(k));
+  _pe._sig0=_peSig(); // selection from the block is the baseline, not a "change"
   _renderPlanEditor();
 }
 // Toggle a target chip — multiple athletes/groups can receive the same plan at once
