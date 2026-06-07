@@ -2275,8 +2275,8 @@ function renderPlan(){
     wk.forEach(({ds})=>{
       const am=_planSessOf(ds,k.key,'am'),pm=_planSessOf(ds,k.key,'pm');
       let cell='';
-      if(am)cell+=`<span class="pc-chip" style="background:rgba(247,169,79,.12);color:#f7a94f">AM ${(am.exercises||[]).length}</span>`;
-      if(pm)cell+=`<span class="pc-chip" style="background:rgba(167,139,250,.12);color:#a78bfa">PM ${(pm.exercises||[]).length}</span>`;
+      if(am)cell+=`<span class="pc-chip" style="background:rgba(247,169,79,.12);color:#f7a94f" title="${(am.exercises||[]).length} exercises">AM</span>`;
+      if(pm)cell+=`<span class="pc-chip" style="background:rgba(167,139,250,.12);color:#a78bfa" title="${(pm.exercises||[]).length} exercises">PM</span>`;
       // Group row empty but member athletes have INDIVIDUAL plans → show dimmed summary
       if(!am&&!pm&&(k.key==='A'||k.key==='B'||k.key==='all')){
         const members=(coachData?.athletes||[]).filter(a=>k.key==='all'||a.group===k.key);
