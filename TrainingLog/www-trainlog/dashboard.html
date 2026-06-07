@@ -2582,8 +2582,9 @@ async function _schedSaveNote(day,sess,keysCsv,val){
 // ── Plan editor modal ──
 let _pe=null; // {day,key,keys:Set,sess,warmup,exs:[{name,sub,int,dist,sets,reps,rest,isSL}]}
 function _peSig(){
+  // strip _-prefixed UI-state props (_orig, _showPrev) — they're not content changes
   return JSON.stringify([_pe.warmup,_pe.sess,[..._pe.keys].sort(),
-    _pe.exs.map(e=>{const{_orig,...r}=e;return r;})]);
+    _pe.exs.map(e=>{const r={};Object.keys(e).forEach(k=>{if(!k.startsWith('_'))r[k]=e[k];});return r;})]);
 }
 function openPlanEditor(day,key,sess){
   _pe={day,key,keys:new Set([key]),sess};
@@ -2725,7 +2726,7 @@ function _renderPlanEditor(){
   // Dist column only when a sprint-type exercise is present
   const _isSprintRow=(e)=>SUB2TYPE[e.sub]==='Sprint Training';
   const hasSprint=_pe.exs.some(_isSprintRow);
-  const gridCols=`minmax(170px,2fr) 1.5fr 56px ${hasSprint?'60px ':''}50px 50px 40px 28px`;
+  const gridCols=`minmax(170px,2fr) 1.5fr 56px ${hasSprint?'60px ':''}50px 50px 40px 30px 28px`;
   const _modeChip=(i,key,lbl,color)=>{
     const on=_pe.exs[i][key];
     return `<button class="pe-mode" style="${on?`background:${color}22;border-color:${color}88;color:${color}`:''}"
@@ -2763,6 +2764,7 @@ function _renderPlanEditor(){
           <button class="pe-ud" ${i===0?'disabled':''} onclick="_peMove(${i},-1)">▲</button>
           <button class="pe-ud" ${i===_pe.exs.length-1?'disabled':''} onclick="_peMove(${i},1)">▼</button>
         </span>
+        <button class="m-btn ghost" title="지난 기록 보기/숨기기" style="padding:4px;${e._showPrev?'background:rgba(198,168,90,.15);border:1px solid rgba(198,168,90,.4);border-radius:7px;color:#c6a85a':''}" onclick="_pe.exs[${i}]._showPrev=!_pe.exs[${i}]._showPrev;_renderPlanEditor()">📈</button>
         <button class="m-btn ghost" style="padding:4px" onclick="_pe.exs.splice(${i},1);_renderPlanEditor()">✕</button>
       </div>
       <div class="pe-opts">
@@ -2790,6 +2792,7 @@ function _renderPlanEditor(){
           style="flex:1;min-width:0;padding:5px 9px;font-size:11px;border-color:rgba(198,168,90,.25)"
           oninput="_pe.exs[${i}].cmt=this.value">
       </div>
+      ${e._showPrev&&e.name&&e.name.trim()?_pePrevPanel(e.name):''}
     </div>`;
   }).join('');
 
@@ -2824,7 +2827,7 @@ function _renderPlanEditor(){
       <div style="margin-bottom:12px"><span class="m-lbl">🔆 Warm-up</span>
         <textarea class="m-in" style="width:100%;min-height:48px;resize:vertical" placeholder="e.g. 10 min dynamic stretching…" oninput="_pe.warmup=this.value">${_esc(_pe.warmup)}</textarea></div>
       <div class="pe-row" style="margin-bottom:6px;grid-template-columns:${gridCols};padding:0 11px">
-        <span class="pe-hdr">Exercise</span><span class="pe-hdr">Category</span><span class="pe-hdr">Int%</span>${hasSprint?'<span class="pe-hdr">Dist</span>':''}<span class="pe-hdr">Sets</span><span class="pe-hdr">Reps</span><span class="pe-hdr">Order</span><span></span>
+        <span class="pe-hdr">Exercise</span><span class="pe-hdr">Category</span><span class="pe-hdr">Int%</span>${hasSprint?'<span class="pe-hdr">Dist</span>':''}<span class="pe-hdr">Sets</span><span class="pe-hdr">Reps</span><span class="pe-hdr">Order</span><span></span><span></span>
       </div>
       ${rows||''}
       <button class="m-btn" style="width:100%;margin-top:4px;border-style:dashed" onclick="_pe.exs.push(_peNewRow());_renderPlanEditor()">＋ Add exercise</button>
@@ -2836,6 +2839,66 @@ function _renderPlanEditor(){
       <button class="m-btn save" onclick="savePlanEditor()">💾 Save plan${_pe.keys.size>1?` (${_pe.keys.size} targets)`:''}</button>
     </div>`,true);
   _modalGuard=()=>_pe&&_pe._sig0!==undefined&&_peSig()!==_pe._sig0;
+}
+// ── Previous performance per athlete (플랜 짤 때 지난 기록 참고) ──
+function _peTargetAths(){
+  const aths=coachData?.athletes||[];
+  const out=[];const seen=new Set();
+  [..._pe.keys].forEach(k=>{
+    let list=[];
+    if(k==='all')list=aths;
+    else if(k==='A'||k==='B')list=aths.filter(a=>a.group===k);
+    else if(k.startsWith('ath_')){const a=aths.find(x=>'ath_'+x.id===k);if(a)list=[a];}
+    list.forEach(a=>{if(!seen.has(a.id)){seen.add(a.id);out.push(a);}});
+  });
+  return out;
+}
+function _dashPrevPerf(a,exName,beforeDay){
+  // weight/plyo: latest log of same exercise
+  const wl=(athLogs[a.id]||[])
+    .filter(l=>(l.type==='weight'||l.type==='plyo')&&l.date<beforeDay&&(l.exercises||[]).some(e=>e.name===exName))
+    .sort((x,y)=>y.date.localeCompare(x.date));
+  if(wl.length){
+    const e=wl[0].exercises.find(x=>x.name===exName);
+    let det;
+    if(e.setRows&&e.setRows.length)det=e.setRows.map(r=>`${e.isBodyweight?('BW'+(r.extraKg?'+'+r.extraKg:'')):(r.kg||'—')}×${r.reps||'—'}`).join(' · ');
+    else det=`${e.isBodyweight?'BW':(e.weight||'—')+'kg'} ${e.sets||'—'}×${e.reps||'—'}`;
+    return {date:wl[0].date,det};
+  }
+  // sprint: latest set with same name
+  const sl=(athLogs[a.id]||[]).filter(l=>l.type==='sprint'&&l.date<beforeDay).sort((x,y)=>y.date.localeCompare(x.date));
+  for(const l of sl){
+    const st=(l.sets||[]).find(s=>s.name===exName);
+    if(st){
+      const parts=[];
+      if(st.actualTime)parts.push('best '+st.actualTime+'s');
+      const laps=(st.repTimes||[]).filter(t=>t!=null);
+      if(laps.length)parts.push('laps '+laps.join('/'));
+      if(!parts.length&&st.distance)parts.push(st.distance+'m ×'+(st.sets||1)+'×'+(st.reps||1));
+      return {date:l.date,det:parts.join(' · ')};
+    }
+  }
+  return null;
+}
+// Vertical previous-performance panel — opened per exercise via the 📈 toggle
+function _pePrevPanel(exName){
+  const aths=_peTargetAths();
+  const withRec=[],noRec=[];
+  aths.forEach(a=>{
+    const p=_dashPrevPerf(a,exName.trim(),_pe.day);
+    if(p)withRec.push({a,p});else noRec.push(a);
+  });
+  if(!withRec.length)
+    return `<div style="margin-top:7px;padding:8px 12px;background:rgba(198,168,90,.05);border:1px solid rgba(198,168,90,.15);border-radius:8px;font-size:11px;color:var(--muted)">📈 선택된 선수들의 이전 기록 없음</div>`;
+  const rows=withRec.map(({a,p})=>`<tr>
+    <td style="padding:3px 0;width:92px;font-weight:700;color:${a.group==='A'?'#58a6ff':'#3ecf8e'};white-space:nowrap">${_esc(a.name.split(' ')[0])}</td>
+    <td style="padding:3px 6px;color:rgba(198,168,90,.95)">${_esc(p.det)}</td>
+    <td style="padding:3px 0;text-align:right;color:var(--hint);white-space:nowrap;width:46px">${p.date.slice(5).replace('-','.')}</td>
+  </tr>`).join('');
+  const noRow=noRec.length?`<tr><td colspan="3" style="padding:4px 0;color:var(--hint);font-size:10px">${_esc(noRec.map(a=>a.name.split(' ')[0]).join(', '))} — 기록 없음</td></tr>`:'';
+  return `<div style="margin-top:7px;padding:8px 12px;background:rgba(198,168,90,.05);border:1px solid rgba(198,168,90,.15);border-radius:8px">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">${rows}${noRow}</table>
+  </div>`;
 }
 function _peName(i,val){
   _pe.exs[i].name=val;
