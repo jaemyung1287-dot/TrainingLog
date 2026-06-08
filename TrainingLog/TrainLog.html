@@ -3102,6 +3102,7 @@ function renderExList(){
   if(!ST.exercises.length) ST.exercises.push({name:'',trainingType:null,subCategory:null,intensity:'',weight:'',sets:'',reps:'',effort:''});
   ST.exercises.forEach((ex,i)=>{
     const fromPlan=ex.fromPlan;
+    const ytEmbed=_ytEmbedHtml(ex.ytUrl);
     const params=TRAINING_STRUCTURE[ex.trainingType]?.params||'lifting';
     const typeColor=TRAINING_STRUCTURE[ex.trainingType]?.color||'rgba(255,255,255,.12)';
     const subColor=SUB_COLOR[ex.subCategory]||'rgba(255,255,255,.08)';
@@ -3280,7 +3281,7 @@ function renderExList(){
           <span style="font-size:12px;color:var(--text);line-height:1.4">${ex.coachComment}</span>
         </div>`;
       }
-      paramsHtml=`${liftPlanSummary}${contractionBadge}${coachBadge}${prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
+      paramsHtml=`${liftPlanSummary}${contractionBadge}${ytEmbed}${coachBadge}${prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -3307,7 +3308,7 @@ function renderExList(){
             <div class="mini-lbl">${repLbl}${repsEdited?' ✎':''}${legTag}</div>
           </div>
         </div>
-        ${plyoPlanSummary}`;
+        ${plyoPlanSummary}${ytEmbed}`;
     } else {
       // Sprint — fallback for sprint exercises in mixed (weight) session
       const sprintSetsEdited=fromPlan&&ex.planSets&&ex.sets&&String(ex.sets)!==String(ex.planSets);
@@ -3339,7 +3340,7 @@ function renderExList(){
             <div class="mini-lbl">Reps${sprintRepsEdited?' ✎':''}</div>
           </div>
         </div>
-        ${sprintFallbackPlanSummary}`;
+        ${sprintFallbackPlanSummary}${ytEmbed}`;
     }
 
     // VBT extra fields — only for Velocity-Based Training sub-category
@@ -3782,6 +3783,19 @@ function _prevSprintPerf(name,dist){
   }
   return null;
 }
+// ── YouTube 임베드 (선수 화면: 플랜과 코치 코멘트 사이 영상) ──
+function _ytId(u){
+  if(!u) return '';
+  const m=String(u).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/|live\/))([\w-]{11})/);
+  return m?m[1]:'';
+}
+function _ytEmbedHtml(url){
+  const id=_ytId(url);
+  if(!id) return '';
+  return `<div style="margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,0,0,.2);background:#000;position:relative;width:100%;padding-top:56.25%">
+    <iframe src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1" title="Übungsvideo" loading="lazy" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"></iframe>
+  </div>`;
+}
 function _prevHintHtml(txt,comment){
   return `<div style="display:flex;flex-direction:column;gap:2px;margin-top:8px;padding:7px 11px;background:rgba(198,168,90,.07);border:1px solid rgba(198,168,90,.18);border-radius:9px">
     <span style="font-size:11px;color:rgba(198,168,90,.9);font-weight:600">📈 ${txt}</span>
@@ -3908,6 +3922,7 @@ function renderSprintSets(){
         </div>
       </div>
       ${spPlanSummary}
+      ${_ytEmbedHtml(s.ytUrl)}
       ${spCoachBadge}
       ${spPrevHtml}
       ${effortHtml}
