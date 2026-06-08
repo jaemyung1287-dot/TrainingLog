@@ -3167,13 +3167,10 @@ function renderExList(){
         if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · reps`);
         liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
-      const _lastW=_getLastExWeight(ex.name);
-      const _lastWHint=_lastW
-        ?` <span style="color:rgba(255,255,255,.18);margin:0 5px">|</span><span style="color:rgba(255,255,255,.38)">Letzt. ${_lastW.date.slice(5)} · <span style="color:#f7a94f;font-weight:700">${_lastW.weight} kg</span></span>`
-        :'';
+      // 이전 기록은 아래 📈 Last 줄에서 세트별로 더 자세히 보여주므로, 플랜 줄의 "Letzt." 중복 제거
       const liftPlanSummary=_liftPlanParts.length
-        ?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}${_lastWHint}</div>`
-        :(_lastW?`<div class="plan-summary-row" style="color:rgba(255,255,255,.38)">Letzt. ${_lastW.date.slice(5)} · <span style="color:#f7a94f;font-weight:700">${_lastW.weight} kg</span></div>`:'');
+        ?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`
+        :'';
       // Contraction info (read-only for athlete)
       let contractionBadge='';
       if(fromPlan&&ex.planContractionType){
