@@ -3103,6 +3103,20 @@ function renderExList(){
   ST.exercises.forEach((ex,i)=>{
     const fromPlan=ex.fromPlan;
     const ytEmbed=_ytEmbedHtml(ex.ytUrl);
+    // 영상이 카드에 임베드되면 헤더의 ▶ 아이콘은 중복이라 숨김 (임베드 불가 URL일 때만 ▶ 표시)
+    const ytLink=(ex.ytUrl&&!ytEmbed)
+      ?`<a href="${ex.ytUrl}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:13px;font-weight:800;text-decoration:none" onclick="event.stopPropagation()">▶</a>`
+      :'';
+    // 훈련 모드 칩(BW/SL/SA) — 제목 우측에 인라인 표시 (칸 높이 절약)
+    let planModeChips='';
+    if(fromPlan){
+      const _hdrBW=ex.isBodyweight||false;
+      const _hdrSL=ex.isSL||(ex.planLegMode==='SL')||/\(SL\)/i.test(ex.name);
+      const _hdrSA=ex.isSA||(ex.planLegMode==='SA')||/\(SA\)/i.test(ex.name);
+      if(_hdrBW) planModeChips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.3);color:#3ecf8e;flex-shrink:0">BW</span>`;
+      if(_hdrSL) planModeChips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:#4f8ef7;flex-shrink:0">SL</span>`;
+      if(_hdrSA) planModeChips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:#a78bfa;flex-shrink:0">SA</span>`;
+    }
     const params=TRAINING_STRUCTURE[ex.trainingType]?.params||'lifting';
     const typeColor=TRAINING_STRUCTURE[ex.trainingType]?.color||'rgba(255,255,255,.12)';
     const subColor=SUB_COLOR[ex.subCategory]||'rgba(255,255,255,.08)';
@@ -3119,9 +3133,12 @@ function renderExList(){
     // Header row
     const donePrefix=ex.done?`<span style="color:#3ecf8e;font-size:12px;font-weight:700;margin-right:6px">✓</span>`:'';
     const headerHtml=fromPlan
-      ? `<span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;flex:1;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
-         ${ex.ytUrl?`<a href="${ex.ytUrl}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:13px;font-weight:800;text-decoration:none" onclick="event.stopPropagation()">▶</a>`:''}
-         <span style="font-size:10px;color:var(--muted)">📋</span>`
+      ? `<div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;flex-wrap:wrap">
+           <span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
+           ${planModeChips}
+         </div>
+         ${ytLink}
+         <span style="font-size:10px;color:var(--muted);flex-shrink:0">📋</span>`
       : ((!ex.name||ex._searching)
         ? `<div style="position:relative;flex:1;min-width:0">
              <input class="ex-name" id="exsearch-${i}" placeholder="Übung suchen..." value="${ex._searchVal||''}" autocomplete="off"
@@ -3403,16 +3420,8 @@ function renderExList(){
     const _tmSA = ex.isSA||false;
     let trainingModeHtml = '';
     if(fromPlan){
-      // 코치 플랜에서 온 경우 — 읽기 전용 badge
-      const _pSL=ex.isSL||(ex.planLegMode==='SL')||/\(SL\)/i.test(ex.name);
-      const _pSA=ex.isSA||(ex.planLegMode==='SA')||/\(SA\)/i.test(ex.name);
-      if(_tmBW||_pSL||_pSA){
-        let chips='';
-        if(_tmBW) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.3);color:#3ecf8e">BW</span>`;
-        if(_pSL) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:#4f8ef7">SL</span>`;
-        if(_pSA) chips+=`<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:#a78bfa">SA</span>`;
-        trainingModeHtml=`<div style="display:flex;align-items:center;gap:5px;margin-top:7px;flex-wrap:wrap">${chips}</div>`;
-      }
+      // 코치 플랜에서 온 경우 — 훈련 모드 badge는 헤더(제목 우측)에 표시됨 (planModeChips)
+      trainingModeHtml='';
     } else if(ex.name && !ex._searching){
       // 선수 자유입력 — 인터랙티브 토글 버튼
       const _bS=(on,col,bg)=>`font-size:10px;font-weight:700;padding:4px 10px;border-radius:7px;cursor:pointer;font-family:inherit;border:1px solid ${on?col+'99':'rgba(255,255,255,.15)'};background:${on?bg:'transparent'};color:${on?col:'rgba(255,255,255,.38)'}`;
@@ -3838,7 +3847,7 @@ function renderSprintSets(){
            <span class="_ex-name-done" style="font-size:14px;font-weight:700;color:#D4D0E8;${s.done?'text-decoration:line-through;opacity:.5':''}">${spDonePrefix}${s.name||''}</span>
          </div>
          <div style="display:flex;align-items:center;gap:6px">
-           ${s.ytUrl?`<a href="${s.ytUrl}" target="_blank" style="padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:12px;font-weight:800;text-decoration:none">▶</a>`:''}
+           ${(s.ytUrl&&!_ytEmbedHtml(s.ytUrl))?`<a href="${s.ytUrl}" target="_blank" style="padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:12px;font-weight:800;text-decoration:none">▶</a>`:''}
            <span style="font-size:10px;color:var(--muted)">📋</span>
          </div>`
       : `<span style="font-size:14px;font-weight:700;color:var(--muted)">Set Group ${i+1}</span>
