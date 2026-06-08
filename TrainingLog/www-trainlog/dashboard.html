@@ -280,6 +280,9 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .cmt-wrap:hover .cmt-chip,.cmt-wrap.show .cmt-chip{color:var(--text2);background:rgba(255,255,255,.1);border-color:var(--blue)}
 .cmt-text{display:none;font-size:9px;font-weight:400;color:#aab2bd;line-height:1.4;margin-top:3px;white-space:normal;background:rgba(255,255,255,.04);border-left:2px solid var(--border2);padding:4px 6px;border-radius:0 4px 4px 0}
 .cmt-wrap:hover .cmt-text,.cmt-wrap.show .cmt-text{display:block}
+.cmt-text{cursor:help}
+.tl-tip{position:fixed;z-index:99999;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:7px 9px;font-size:11px;color:#c9d1d9;line-height:1.45;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.55);white-space:normal;pointer-events:none}
+.tl-tip .tl-h{font-size:9px;color:#58a6ff;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
 .cond-note{margin-bottom:4px}
 .sess-hd{font-size:8px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.6px;margin:3px 0 2px}
 .sess-hd.am{color:#d8a657}
@@ -3225,6 +3228,48 @@ async function clearPlanSess(){
     _rmModal();renderCurrent();
   }catch(e){alert('Error: '+e.message);}
 }
+
+// ══ COMMENT TRANSLATION (hover → EN, online) ══
+(function(){
+  if(window.__tlInit)return; window.__tlInit=true;
+  const cache={}; let tipEl=null, curTarget=null, seq=0;
+  function removeTip(){ if(tipEl){tipEl.remove();tipEl=null;} curTarget=null; }
+  async function translate(text){
+    if(cache[text])return cache[text];
+    try{
+      const u="https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q="+encodeURIComponent(text);
+      const r=await fetch(u); const j=await r.json();
+      const o=j[0].map(s=>s[0]).join(""); cache[text]=o; return o;
+    }catch(e){
+      try{ const r2=await fetch("https://api.mymemory.translated.net/get?q="+encodeURIComponent(text)+"&langpair=de|en"); const j2=await r2.json(); const o2=j2.responseData.translatedText; cache[text]=o2; return o2; }
+      catch(e2){ return null; }
+    }
+  }
+  function showTip(target,content){
+    removeTip();
+    const r=target.getBoundingClientRect();
+    tipEl=document.createElement('div'); tipEl.className='tl-tip';
+    tipEl.innerHTML='<div class="tl-h">🌐 English</div><div class="tl-b"></div>';
+    tipEl.querySelector('.tl-b').textContent=content;
+    document.body.appendChild(tipEl);
+    tipEl.style.left=Math.max(8,Math.min(r.left,window.innerWidth-310))+'px';
+    tipEl.style.top=(r.bottom+6)+'px';
+    curTarget=target;
+  }
+  document.addEventListener('mouseover', async (ev)=>{
+    const t=ev.target.closest && ev.target.closest('.cmt-text');
+    if(!t || t===curTarget) return;
+    const text=(t.textContent||'').trim(); if(!text) return;
+    const my=t, mySeq=++seq;
+    showTip(t,'translating…');
+    const tr=await translate(text);
+    if(curTarget===my && tipEl && mySeq===seq){ tipEl.querySelector('.tl-b').textContent = tr||'translation unavailable (offline?)'; }
+  });
+  document.addEventListener('mouseout', (ev)=>{
+    const t=ev.target.closest && ev.target.closest('.cmt-text');
+    if(t && !t.contains(ev.relatedTarget)) removeTip();
+  });
+})();
 
 // ══ INIT ══
 updateWeekLabel();
