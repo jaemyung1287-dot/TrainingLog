@@ -2723,33 +2723,16 @@ function renderSchedule(){
           const tag=_blockAthIds.length>1&&ath?ath.name.split(' ')[0]:'';
           return _prevExNoteHtml(aid,e.name,ds,tag);
         }).join('');
-        const _isOpen=openExCmt&&openExCmt.ds===ds&&openExCmt.sess===b.sess&&openExCmt.keysCsv===keysCsv&&openExCmt.exIdx===i;
-        // 후보는 필터와 무관하게 전체 선수 — 이 운동의 원래 대상만 미리 체크
-        const _chips=allAths.map(a=>{
-          const short=a.name.split(' ').map((p,k)=>k===0?p:p[0]+'.').join(' ');
-          const on=_blockAthIds.includes(a.id);
-          const gc=a.group==='A'?'#58a6ff':'#3ecf8e';
-          return `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border-radius:14px;background:${gc}1a;border:1px solid ${gc}55;cursor:pointer;color:var(--text)"><input type="checkbox" value="${_esc(a.id)}" ${on?'checked':''} style="margin:0;accent-color:${gc}">${_esc(short)}</label>`;
-        }).join('');
-        const _exPanel=_isOpen?`<div id="exnote-panel" data-ds="${ds}" data-ex="${encodeURIComponent(e.name)}" style="margin:7px 0 2px;padding:10px 12px;background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.25);border-radius:8px">
-          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px">💬 ${_esc(e.name)} · 코멘트 대상 선택</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${_chips||'<span style="font-size:11px;color:var(--hint)">대상 선수 없음</span>'}</div>
-          <textarea class="m-in" style="width:100%;min-height:44px;resize:vertical;font-size:12px" placeholder="선택한 선수에게 남길 코멘트…"></textarea>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:7px;gap:8px">
-            <span style="font-size:10px;color:var(--hint)">선택한 선수에게 각각 개별 저장 · 다음 훈련에 자동 표시</span>
-            <span style="flex-shrink:0;white-space:nowrap">
-              <button class="m-btn ghost" style="font-size:10px;padding:3px 9px" onclick="openExCmt=null;renderSchedule()">취소</button>
-              <button class="m-btn" style="font-size:10px;padding:3px 11px" onclick="_submitExNote(this)">저장</button>
-            </span>
-          </div>
-        </div>`:'';
+        const _pkey='P|'+ds+'|'+b.sess+'|'+keysCsv+'|'+i;
+        const _isOpen=openExCmt===_pkey;
+        const _exPanel=_isOpen?_exNotePanelHTML(ds,e.name||'',_blockAthIds,{}):'';
         return `<div style="padding:5px 0;border-top:${i===0?'none':'1px solid rgba(255,255,255,.04)'}">
           <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
           <span style="font-size:12px;font-weight:600;flex:1">${icon} ${_esc(e.name)}${e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':''}</span>
           <span style="font-size:11px;color:rgba(198,168,90,.85);font-weight:600">${det.join(' · ')}</span>
           ${e.ytUrl?`<a href="${_esc(e.ytUrl)}" target="_blank" style="flex-shrink:0;padding:2px 8px;border-radius:6px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:10px;font-weight:800;text-decoration:none">▶</a>`:''}
-          <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_isOpen?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${ds}','${b.sess}','${keysCsv}',${i})">💬</button>
+          <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_isOpen?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${_pkey}')">💬</button>
           </div>${_notes}${_exPanel}
         </div>`;
       }).join('');
@@ -2798,12 +2781,45 @@ function _prevExNote(athId,exName,beforeDate){
   cands.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   return cands[0];
 }
-// 대상 선택 코멘트: 선택한 각 선수의 exNotes에 개별 저장
-let openExCmt=null;
-function _openExCmt(ds,sess,keysCsv,i){
-  if(openExCmt&&openExCmt.ds===ds&&openExCmt.sess===sess&&openExCmt.keysCsv===keysCsv&&openExCmt.exIdx===i)openExCmt=null;
-  else openExCmt={ds,sess,keysCsv,exIdx:i};
-  renderSchedule();
+// 대상 선택 코멘트 패널 (예정·기록 세션 공통): 여러 선수 선택해 한 번에 작성
+let openExCmt=null; // 열린 운동 식별 키(문자열)
+function _openExCmt(key){openExCmt=(openExCmt===key)?null:key;renderSchedule();}
+function _exnPick(mode){
+  const panel=document.getElementById('exnote-panel');if(!panel)return;
+  panel.querySelectorAll('.exn-chip').forEach(lb=>{
+    const cb=lb.querySelector('input');
+    if(mode==='all')cb.checked=true;
+    else if(mode==='none')cb.checked=false;
+    else cb.checked=(lb.getAttribute('data-grp')===mode);
+  });
+}
+function _exNotePanelHTML(ds,exName,defaultIds,ctx){
+  ctx=ctx||{};
+  const all=coachData?.athletes||[];
+  const chips=all.map(a=>{
+    const short=a.name.split(' ').map((p,k)=>k===0?p:p[0]+'.').join(' ');
+    const on=(defaultIds||[]).includes(a.id);
+    const gc=a.group==='A'?'#58a6ff':'#3ecf8e';
+    return `<label class="exn-chip" data-grp="${a.group}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border-radius:14px;background:${gc}1a;border:1px solid ${gc}55;cursor:pointer;color:var(--text)"><input type="checkbox" value="${_esc(a.id)}" ${on?'checked':''} style="margin:0;accent-color:${gc}">${_esc(short)}</label>`;
+  }).join('');
+  return `<div id="exnote-panel" data-ds="${ds}" data-ex="${encodeURIComponent(exName)}" data-athid="${_esc(ctx.athId||'')}" data-logid="${_esc(ctx.logId||'')}" data-exidx="${ctx.exIdx==null?'':ctx.exIdx}" data-kind="${ctx.kind||''}" style="margin:7px 0 2px;padding:10px 12px;background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.25);border-radius:8px">
+    <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:7px">💬 ${_esc(exName)} · 코멘트 대상 선택</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">
+      <button class="m-btn ghost" style="font-size:10px;padding:2px 8px" onclick="_exnPick('A')">그룹 A 전체</button>
+      <button class="m-btn ghost" style="font-size:10px;padding:2px 8px" onclick="_exnPick('B')">그룹 B 전체</button>
+      <button class="m-btn ghost" style="font-size:10px;padding:2px 8px" onclick="_exnPick('all')">전체</button>
+      <button class="m-btn ghost" style="font-size:10px;padding:2px 8px" onclick="_exnPick('none')">해제</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${chips||'<span style="font-size:11px;color:var(--hint)">선수 없음</span>'}</div>
+    <textarea class="m-in" style="width:100%;min-height:44px;resize:vertical;font-size:12px" placeholder="선택한 선수에게 남길 코멘트…"></textarea>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:7px;gap:8px">
+      <span style="font-size:10px;color:var(--hint)">선택한 선수에게 각각 저장 · 다음 훈련에 자동 표시</span>
+      <span style="flex-shrink:0;white-space:nowrap">
+        <button class="m-btn ghost" style="font-size:10px;padding:3px 9px" onclick="openExCmt=null;renderSchedule()">취소</button>
+        <button class="m-btn" style="font-size:10px;padding:3px 11px" onclick="_submitExNote(this)">저장</button>
+      </span>
+    </div>
+  </div>`;
 }
 function _submitExNote(btn){
   const panel=btn.closest('#exnote-panel');if(!panel)return;
@@ -2813,18 +2829,29 @@ function _submitExNote(btn){
   const txt=((panel.querySelector('textarea')||{}).value||'').trim();
   if(!ids.length){alert('대상 선수를 1명 이상 선택하세요');return;}
   if(!txt){alert('코멘트를 입력하세요');return;}
-  _schedSaveExNotes(ds,exName,ids,txt);
+  const ctx={athId:panel.getAttribute('data-athid')||'',logId:panel.getAttribute('data-logid')||'',exIdx:panel.getAttribute('data-exidx'),kind:panel.getAttribute('data-kind')||''};
+  _schedSaveExNotes(ds,exName,ids,txt,ctx);
 }
-async function _schedSaveExNotes(ds,exName,athIds,comment){
-  const note={id:'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),date:todayStr(),exName:exName,comment:comment};
+async function _schedSaveExNotes(ds,exName,athIds,comment,ctx){
+  ctx=ctx||{};
+  const note={id:'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),date:ds||todayStr(),exName:exName,comment:comment};
   for(const aid of athIds){
     try{
-      const ref=db.collection('trainlog').doc('athlete_'+aid);
-      const snap=await ref.get();
-      const arr=snap.exists?(snap.data().exNotes||[]):[];
-      arr.push(note);
-      await ref.set({exNotes:arr,_lastUpdated:Date.now()},{merge:true});
-      athNotes[aid]=arr;
+      if(ctx.logId&&aid===ctx.athId){
+        // 현재 기록 세션 본인 → 그 운동/세트의 코멘트로 저장 (이 세션에 그대로 표시)
+        const idx=parseInt(ctx.exIdx);
+        await _schedPatchLog(aid,ctx.logId,l=>{
+          if(ctx.kind==='s'){if(l.sets&&l.sets[idx])l.sets[idx].coachComment=comment;}
+          else{if(l.exercises&&l.exercises[idx])l.exercises[idx].coachComment=comment;}
+        });
+      } else {
+        const ref=db.collection('trainlog').doc('athlete_'+aid);
+        const snap=await ref.get();
+        const arr=snap.exists?(snap.data().exNotes||[]):[];
+        arr.push(note);
+        await ref.set({exNotes:arr,_lastUpdated:Date.now()},{merge:true});
+        athNotes[aid]=arr;
+      }
     }catch(e){alert('저장 오류: '+e.message);}
   }
   openExCmt=null;
@@ -2855,16 +2882,20 @@ function _schedLogBlock(a,l){
         det=`${e.isBodyweight?'BW':(e.weight||'—')+'kg'} ${e.sets||'—'}×${e.reps||'—'}`;
       }
       const mods=(e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':'')+(e.isSA?' <span style="font-size:9px;font-weight:700;color:#a78bfa">SA</span>':'');
-      const _ui=_logCmtUI(a.id+'|'+l.id+'|w'+i,e.coachComment,`_schedExCmt('${a.id}','${l.id}',${i},this.value)`);
+      const _key='L|'+a.id+'|'+l.id+'|w'+i;
+      const _open=openExCmt===_key;
+      const _cur=(e.coachComment||'').trim();
+      const _panel=_open?_exNotePanelHTML(l.date,e.name||'',[a.id],{athId:a.id,logId:l.id,exIdx:i,kind:'w'}):'';
       return `<div class="sched-ex">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
           <span style="font-size:12px;font-weight:600;flex:1">${_esc(e.name||'—')}${mods}</span>
           <span style="font-size:11px;color:rgba(198,168,90,.85);font-weight:600">${det}</span>
-          ${_ui.btn}
+          <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${(_open||_cur)?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${_key}')">💬</button>
         </div>
         ${_prevExNoteHtml(a.id,e.name,l.date,'')}
-        ${_ui.body}
+        ${_cur?`<div style="font-size:11px;color:var(--text);margin-top:4px;padding-left:24px">💬 ${_esc(_cur)}</div>`:''}
+        ${_panel}
       </div>`;
     }).join('');
   } else if(l.type==='sprint'){
@@ -2876,16 +2907,20 @@ function _schedLogBlock(a,l){
           onblur="_schedRepTime('${a.id}','${l.id}',${si},${ri},this.value)"></span>`;
       }).join('');
       const hd=`${st.distance||'?'}m × ${st.sets||1}×${st.reps||1}${st.intensity?' @'+st.intensity+'%':''}${st.actualTime?' · best '+st.actualTime+'s':''}`;
-      const _ui=_logCmtUI(a.id+'|'+l.id+'|s'+si,st.coachComment,`_schedSetCmt('${a.id}','${l.id}',${si},this.value)`);
+      const _key='L|'+a.id+'|'+l.id+'|s'+si;
+      const _open=openExCmt===_key;
+      const _cur=(st.coachComment||'').trim();
+      const _panel=_open?_exNotePanelHTML(l.date,st.name||'Sprint',[a.id],{athId:a.id,logId:l.id,exIdx:si,kind:'s'}):'';
       return `<div class="sched-ex">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:10px;color:var(--hint);min-width:16px">${si+1}.</span>
           <span style="font-size:12px;font-weight:600;flex:1">${_esc(st.name||'Sprint')}${st.subCategory?` <span style="font-size:9px;color:var(--green)">${_esc(st.subCategory)}</span>`:''}</span>
           <span style="font-size:11px;color:rgba(62,207,142,.85);font-weight:600">${hd}</span>
-          ${_ui.btn}
+          <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${(_open||_cur)?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${_key}')">💬</button>
         </div>
         <div class="lap-grid"><span style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;align-self:center">⏱ Laps</span>${laps}</div>
-        ${_ui.body}
+        ${_cur?`<div style="font-size:11px;color:var(--text);margin-top:4px;padding-left:24px">💬 ${_esc(_cur)}</div>`:''}
+        ${_panel}
       </div>`;
     }).join('');
   } else {
@@ -2926,23 +2961,6 @@ async function _schedPatchLog(athId,logId,mut){
 function _schedExCmt(athId,logId,i,val){_schedPatchLog(athId,logId,l=>{if(l.exercises&&l.exercises[i])l.exercises[i].coachComment=val;});}
 function _schedSetCmt(athId,logId,si,val){_schedPatchLog(athId,logId,l=>{if(l.sets&&l.sets[si])l.sets[si].coachComment=val;});}
 function _schedLogReview(athId,logId,val){_schedPatchLog(athId,logId,l=>{l.coachReview=val;});}
-// 기록 세션 운동 코멘트: 💬 버튼으로 열고/닫는 토글 (예정 세션과 동일한 패턴)
-let openLogCmt=null;
-function _toggleLogCmt(key){
-  openLogCmt=(openLogCmt===key)?null:key;
-  renderSchedule();
-  if(openLogCmt)setTimeout(()=>{const el=document.querySelector('#tab-schedule [data-lk="'+openLogCmt+'"]');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},0);
-}
-function _logCmtUI(key,curVal,saveAttr){
-  const open=openLogCmt===key;
-  const has=(curVal||'').trim();
-  const active=open||has;
-  const btn=`<button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${active?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="코멘트" onclick="_toggleLogCmt('${key}')">💬</button>`;
-  let body='';
-  if(open)body=`<input class="m-in sched-cmt" data-lk="${key}" placeholder="💬 운동 코멘트…" value="${_esc(curVal||'')}" onblur="${saveAttr}">`;
-  else if(has)body=`<div style="font-size:11px;color:var(--text);margin-top:4px;padding-left:24px;cursor:pointer" onclick="_toggleLogCmt('${key}')">💬 ${_esc(has)}</div>`;
-  return {btn,body};
-}
 function _schedRepTime(athId,logId,si,ri,val){_schedPatchLog(athId,logId,l=>{
   if(l.sets&&l.sets[si]){
     if(!Array.isArray(l.sets[si].repTimes))l.sets[si].repTimes=[];
