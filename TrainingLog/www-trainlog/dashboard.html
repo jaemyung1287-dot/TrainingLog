@@ -554,7 +554,7 @@ const db=firebase.firestore(), auth=firebase.auth();
 const ALLOWED='jaemyung1287@gmail.com';
 
 // ══ STATE ══
-let coachData=null, athLogs={}, unsubs=[], athUnsubs=[], curTab='plan';
+let coachData=null, athLogs={}, athNotes={}, unsubs=[], athUnsubs=[], curTab='plan';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
 let overviewFilter='all';
 let athletesFilter=null; // Athletes tab: 기본 미선택 — 선택해야 카드 표시
@@ -609,7 +609,7 @@ function setupAthListeners(ids){
   if(!ids.length){renderCurrent();return;}
   ids.forEach(id=>{
     athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).onSnapshot(
-      snap=>{athLogs[id]=snap.exists?(snap.data().logs||[]):[];renderCurrent();},
+      snap=>{const _d=snap.exists?snap.data():{};athLogs[id]=_d.logs||[];athNotes[id]=_d.exNotes||[];renderCurrent();},
       err=>{console.warn('[dash] snapshot err:',id,err);renderCurrent();}
     ));
   });
@@ -2710,6 +2710,7 @@ function renderSchedule(){
         if(k==='all')return allAths.filter(a=>_athRel(a)).map(a=>a.id);
         return [];
       }))];
+      const keysCsv=b.keys.join(',');
       const exRows=(b.s.exercises||[]).map((e,i)=>{
         const det=[];
         if(e.planIntensity)det.push(e.planIntensity+'%');
@@ -2722,17 +2723,34 @@ function renderSchedule(){
           const tag=_blockAthIds.length>1&&ath?ath.name.split(' ')[0]:'';
           return _prevExNoteHtml(aid,e.name,ds,tag);
         }).join('');
+        const _isOpen=openExCmt&&openExCmt.ds===ds&&openExCmt.sess===b.sess&&openExCmt.keysCsv===keysCsv&&openExCmt.exIdx===i;
+        const _chips=_blockAthIds.map(aid=>{
+          const ath=allAths.find(x=>x.id===aid);const nm=ath?ath.name.split(' ')[0]:aid;
+          return `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border-radius:14px;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);cursor:pointer;color:var(--text)"><input type="checkbox" value="${_esc(aid)}" checked style="margin:0;accent-color:#58a6ff">${_esc(nm)}</label>`;
+        }).join('');
+        const _exPanel=_isOpen?`<div id="exnote-panel" data-ds="${ds}" data-ex="${encodeURIComponent(e.name)}" style="margin:7px 0 2px;padding:10px 12px;background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.25);border-radius:8px">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px">💬 ${_esc(e.name)} · 코멘트 대상 선택</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${_chips||'<span style="font-size:11px;color:var(--hint)">대상 선수 없음</span>'}</div>
+          <textarea class="m-in" style="width:100%;min-height:44px;resize:vertical;font-size:12px" placeholder="선택한 선수에게 남길 코멘트…"></textarea>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:7px;gap:8px">
+            <span style="font-size:10px;color:var(--hint)">선택한 선수에게 각각 개별 저장 · 다음 훈련에 자동 표시</span>
+            <span style="flex-shrink:0;white-space:nowrap">
+              <button class="m-btn ghost" style="font-size:10px;padding:3px 9px" onclick="openExCmt=null;renderSchedule()">취소</button>
+              <button class="m-btn" style="font-size:10px;padding:3px 11px" onclick="_submitExNote(this)">저장</button>
+            </span>
+          </div>
+        </div>`:'';
         return `<div style="padding:5px 0;border-top:${i===0?'none':'1px solid rgba(255,255,255,.04)'}">
           <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
           <span style="font-size:12px;font-weight:600;flex:1">${icon} ${_esc(e.name)}${e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':''}</span>
           <span style="font-size:11px;color:rgba(198,168,90,.85);font-weight:600">${det.join(' · ')}</span>
           ${e.ytUrl?`<a href="${_esc(e.ytUrl)}" target="_blank" style="flex-shrink:0;padding:2px 8px;border-radius:6px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:10px;font-weight:800;text-decoration:none">▶</a>`:''}
-          </div>${_notes}
+          <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_isOpen?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${ds}','${b.sess}','${keysCsv}',${i})">💬</button>
+          </div>${_notes}${_exPanel}
         </div>`;
       }).join('');
       const note=b.s.coachNote||'';
-      const keysCsv=b.keys.join(',');
       html+=`<div style="border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:9px">
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:7px">${sessChip}${tgtChips}
           <span style="flex:1"></span>
@@ -2759,15 +2777,55 @@ function _noteDateShort(ds){const p=(ds||'').split('-');return p.length===3?(+p[
 function _prevExNote(athId,exName,beforeDate){
   if(!exName)return null;
   const key=exName.trim().toLowerCase();
-  const logs=(athLogs[athId]||[]).filter(l=>(l.type==='weight'||l.type==='plyo')&&l.date<beforeDate);
-  logs.sort((x,y)=>(y.date||'').localeCompare(x.date||''));
-  for(const l of logs){
-    for(const e of (l.exercises||[])){
-      if((e.name||'').trim().toLowerCase()===key&&(e.coachComment||'').trim())
-        return {date:l.date,comment:e.coachComment.trim()};
-    }
+  const cands=[];
+  // 1) 기록된 세션에 단 운동 코멘트 (이 세션 이전)
+  (athLogs[athId]||[]).forEach(l=>{
+    if((l.type==='weight'||l.type==='plyo')&&l.date<beforeDate)
+      (l.exercises||[]).forEach(e=>{
+        if((e.name||'').trim().toLowerCase()===key&&(e.coachComment||'').trim())
+          cands.push({date:l.date,comment:e.coachComment.trim()});
+      });
+  });
+  // 2) 대상 선택으로 미리 걸어둔 메모 (이 세션 당일·이전)
+  (athNotes[athId]||[]).forEach(n=>{
+    if((n.exName||'').trim().toLowerCase()===key&&(n.comment||'').trim()&&(n.date||'')<=beforeDate)
+      cands.push({date:n.date,comment:n.comment.trim()});
+  });
+  if(!cands.length)return null;
+  cands.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  return cands[0];
+}
+// 대상 선택 코멘트: 선택한 각 선수의 exNotes에 개별 저장
+let openExCmt=null;
+function _openExCmt(ds,sess,keysCsv,i){
+  if(openExCmt&&openExCmt.ds===ds&&openExCmt.sess===sess&&openExCmt.keysCsv===keysCsv&&openExCmt.exIdx===i)openExCmt=null;
+  else openExCmt={ds,sess,keysCsv,exIdx:i};
+  renderSchedule();
+}
+function _submitExNote(btn){
+  const panel=btn.closest('#exnote-panel');if(!panel)return;
+  const ds=panel.getAttribute('data-ds');
+  const exName=decodeURIComponent(panel.getAttribute('data-ex'));
+  const ids=[...panel.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value);
+  const txt=((panel.querySelector('textarea')||{}).value||'').trim();
+  if(!ids.length){alert('대상 선수를 1명 이상 선택하세요');return;}
+  if(!txt){alert('코멘트를 입력하세요');return;}
+  _schedSaveExNotes(ds,exName,ids,txt);
+}
+async function _schedSaveExNotes(ds,exName,athIds,comment){
+  const note={id:'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),date:todayStr(),exName:exName,comment:comment};
+  for(const aid of athIds){
+    try{
+      const ref=db.collection('trainlog').doc('athlete_'+aid);
+      const snap=await ref.get();
+      const arr=snap.exists?(snap.data().exNotes||[]):[];
+      arr.push(note);
+      await ref.set({exNotes:arr,_lastUpdated:Date.now()},{merge:true});
+      athNotes[aid]=arr;
+    }catch(e){alert('저장 오류: '+e.message);}
   }
-  return null;
+  openExCmt=null;
+  renderSchedule();
 }
 function _prevExNoteHtml(athId,exName,beforeDate,nameTag){
   const n=_prevExNote(athId,exName,beforeDate);
