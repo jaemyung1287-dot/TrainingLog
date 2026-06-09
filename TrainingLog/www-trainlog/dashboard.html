@@ -2724,9 +2724,12 @@ function renderSchedule(){
           return _prevExNoteHtml(aid,e.name,ds,tag);
         }).join('');
         const _isOpen=openExCmt&&openExCmt.ds===ds&&openExCmt.sess===b.sess&&openExCmt.keysCsv===keysCsv&&openExCmt.exIdx===i;
-        const _chips=_blockAthIds.map(aid=>{
-          const ath=allAths.find(x=>x.id===aid);const nm=ath?ath.name.split(' ')[0]:aid;
-          return `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border-radius:14px;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);cursor:pointer;color:var(--text)"><input type="checkbox" value="${_esc(aid)}" checked style="margin:0;accent-color:#58a6ff">${_esc(nm)}</label>`;
+        // 후보는 필터와 무관하게 전체 선수 — 이 운동의 원래 대상만 미리 체크
+        const _chips=allAths.map(a=>{
+          const short=a.name.split(' ').map((p,k)=>k===0?p:p[0]+'.').join(' ');
+          const on=_blockAthIds.includes(a.id);
+          const gc=a.group==='A'?'#58a6ff':'#3ecf8e';
+          return `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border-radius:14px;background:${gc}1a;border:1px solid ${gc}55;cursor:pointer;color:var(--text)"><input type="checkbox" value="${_esc(a.id)}" ${on?'checked':''} style="margin:0;accent-color:${gc}">${_esc(short)}</label>`;
         }).join('');
         const _exPanel=_isOpen?`<div id="exnote-panel" data-ds="${ds}" data-ex="${encodeURIComponent(e.name)}" style="margin:7px 0 2px;padding:10px 12px;background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.25);border-radius:8px">
           <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px">💬 ${_esc(e.name)} · 코멘트 대상 선택</div>
