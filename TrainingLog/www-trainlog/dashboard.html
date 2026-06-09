@@ -2828,9 +2828,10 @@ function _exNotePanelHTML(ds,exName,defaultIds,ctx){
     const on=def.includes(a.id);
     return `<div class="exn-chip g${a.group} ${on?'on':''}" data-grp="${a.group}" data-id="${_esc(a.id)}" onclick="_exnToggle(this)"><span class="dot"></span><span class="nm">${_esc(short)}</span><span class="tk">✓</span></div>`;
   }).join('');
-  return `<div id="exnote-panel" class="exn-panel" data-ds="${ds}" data-ex="${encodeURIComponent(exName)}" data-athid="${_esc(ctx.athId||'')}" data-logid="${_esc(ctx.logId||'')}" data-exidx="${ctx.exIdx==null?'':ctx.exIdx}" data-kind="${ctx.kind||''}">
+  const isRev=ctx.mode==='review';
+  return `<div id="exnote-panel" class="exn-panel" data-ds="${ds}" data-ex="${encodeURIComponent(exName)}" data-athid="${_esc(ctx.athId||'')}" data-logid="${_esc(ctx.logId||'')}" data-exidx="${ctx.exIdx==null?'':ctx.exIdx}" data-kind="${ctx.kind||''}" data-mode="${ctx.mode||''}" data-session="${ctx.session||''}">
     <div class="exn-head">
-      <span class="exn-title">💬 ${_esc(exName)} · 대상 <span class="exn-cnt">${def.length}</span>명</span>
+      <span class="exn-title">${isRev?'📝':'💬'} ${_esc(exName)} · 대상 <span class="exn-cnt">${def.length}</span>명</span>
       <span class="exn-quick">
         <button type="button" class="exn-q" onclick="_exnPick('A')">그룹 A</button>
         <button type="button" class="exn-q" onclick="_exnPick('B')">그룹 B</button>
@@ -2839,9 +2840,9 @@ function _exNotePanelHTML(ds,exName,defaultIds,ctx){
       </span>
     </div>
     <div class="exn-grid">${chips||'<span style="font-size:11px;color:var(--hint)">선수 없음</span>'}</div>
-    <textarea class="m-in exn-ta" placeholder="선택한 선수에게 남길 코멘트…"></textarea>
+    <textarea class="m-in exn-ta" placeholder="${isRev?'선택한 선수의 이 세션 총평…':'선택한 선수에게 남길 코멘트…'}">${_esc(ctx.initText||'')}</textarea>
     <div class="exn-foot">
-      <span class="exn-note">선택한 선수에게 각각 저장 · 다음 훈련에 자동 표시</span>
+      <span class="exn-note">${isRev?'선택한 선수의 이 세션 총평으로 저장':'선택한 선수에게 각각 저장 · 다음 훈련에 자동 표시'}</span>
       <span class="exn-acts">
         <button type="button" class="m-btn ghost" onclick="openExCmt=null;renderSchedule()">취소</button>
         <button type="button" class="m-btn" onclick="_submitExNote(this)">저장</button>
@@ -2857,8 +2858,22 @@ function _submitExNote(btn){
   const txt=((panel.querySelector('textarea')||{}).value||'').trim();
   if(!ids.length){alert('대상 선수를 1명 이상 선택하세요');return;}
   if(!txt){alert('코멘트를 입력하세요');return;}
+  if((panel.getAttribute('data-mode')||'')==='review'){_schedSaveReview(ds,panel.getAttribute('data-session')||'',ids,txt);return;}
   const ctx={athId:panel.getAttribute('data-athid')||'',logId:panel.getAttribute('data-logid')||'',exIdx:panel.getAttribute('data-exidx'),kind:panel.getAttribute('data-kind')||''};
   _schedSaveExNotes(ds,exName,ids,txt,ctx);
+}
+async function _schedSaveReview(ds,session,athIds,comment){
+  let applied=0,skipped=0;
+  for(const aid of athIds){
+    const logs=athLogs[aid]||[];
+    const target=logs.find(l=>l.date===ds&&(session?(l.session||'')===session:true))||logs.find(l=>l.date===ds);
+    if(!target){skipped++;continue;}
+    await _schedPatchLog(aid,target.id,l=>{l.coachReview=comment;});
+    applied++;
+  }
+  openExCmt=null;
+  renderSchedule();
+  if(skipped)alert(`${applied}명 적용 · ${skipped}명은 그 날 기록이 없어 건너뜀`);
 }
 async function _schedSaveExNotes(ds,exName,athIds,comment,ctx){
   ctx=ctx||{};
@@ -2954,7 +2969,11 @@ function _schedLogBlock(a,l){
   } else {
     inner=`<div style="font-size:11px;color:var(--muted)">${typeLbl}</div>`;
   }
-  return `<div style="border:1px solid ${c}33;border-left:3px solid ${c};border-radius:10px;padding:10px 13px;margin-bottom:9px;background:${tcBg(l.type)}">
+  const _rk='R|'+a.id+'|'+l.id;
+  const _ro=openExCmt===_rk;
+  const _rc=(l.coachReview||'').trim();
+  const _rpanel=_ro?_exNotePanelHTML(l.date,'세션 총평',[a.id],{mode:'review',session:l.session||'',initText:l.coachReview||'',athId:a.id,logId:l.id}):'';
+  return `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:9px">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
       <span class="pc-chip" style="background:${grpColor}22;color:${grpColor}">${_esc(a.name)}</span>
       ${sessChip}
@@ -2965,11 +2984,10 @@ function _schedLogBlock(a,l){
     </div>
     ${l.notes?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">💬 <span style="color:var(--text)">${_esc(l.notes)}</span></div>`:''}
     ${inner}
-    <div style="margin-top:9px">
-      <span class="m-lbl">📝 코치 총평 · 세션 전체</span>
-      <textarea class="m-in" style="width:100%;min-height:38px;resize:vertical;font-size:12px"
-        placeholder="이 세션 전체에 대한 총평을 입력하세요… (자동 저장)"
-        onblur="_schedLogReview('${a.id}','${l.id}',this.value)">${_esc(l.coachReview||'')}</textarea>
+    <div style="margin-top:10px">
+      <button class="m-btn ghost" style="font-size:11px;padding:4px 10px;${(_ro||_rc)?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" onclick="_openExCmt('${_rk}')">📝 코치 총평 · 세션 전체${_rc?' ✓':''}</button>
+      ${_rc?`<div style="font-size:11px;color:var(--text);margin-top:5px;padding-left:6px">📝 ${_esc(_rc)}</div>`:''}
+      ${_rpanel}
     </div>
   </div>`;
 }
@@ -2988,7 +3006,6 @@ async function _schedPatchLog(athId,logId,mut){
 }
 function _schedExCmt(athId,logId,i,val){_schedPatchLog(athId,logId,l=>{if(l.exercises&&l.exercises[i])l.exercises[i].coachComment=val;});}
 function _schedSetCmt(athId,logId,si,val){_schedPatchLog(athId,logId,l=>{if(l.sets&&l.sets[si])l.sets[si].coachComment=val;});}
-function _schedLogReview(athId,logId,val){_schedPatchLog(athId,logId,l=>{l.coachReview=val;});}
 function _schedRepTime(athId,logId,si,ri,val){_schedPatchLog(athId,logId,l=>{
   if(l.sets&&l.sets[si]){
     if(!Array.isArray(l.sets[si].repTimes))l.sets[si].repTimes=[];
