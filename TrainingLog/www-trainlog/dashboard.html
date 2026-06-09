@@ -2703,6 +2703,13 @@ function renderSchedule(){
     blocks.forEach(b=>{
       const tgtChips=b.keys.map(k=>`<span class="pc-chip" style="background:${colorOf(k)}22;color:${colorOf(k)}">${_esc(labelOf(k))}</span>`).join('');
       const sessChip=`<span class="pc-chip" style="background:${b.sess==='am'?'rgba(247,169,79,.12)':'rgba(167,139,250,.12)'};color:${b.sess==='am'?'#f7a94f':'#a78bfa'}">${b.sess.toUpperCase()}</span>`;
+      // 이 블록이 적용되는 선수 ID들 (그룹/전체 키는 멤버로 해석)
+      const _blockAthIds=[...new Set(b.keys.flatMap(k=>{
+        if(k.startsWith('ath_')){const id=k.slice(4);return allAths.some(a=>a.id===id)?[id]:[];}
+        if(k==='A'||k==='B')return allAths.filter(a=>a.group===k&&_athRel(a)).map(a=>a.id);
+        if(k==='all')return allAths.filter(a=>_athRel(a)).map(a=>a.id);
+        return [];
+      }))];
       const exRows=(b.s.exercises||[]).map((e,i)=>{
         const det=[];
         if(e.planIntensity)det.push(e.planIntensity+'%');
@@ -2710,11 +2717,18 @@ function renderSchedule(){
         if(e.planSets||e.planReps)det.push((e.planSets||'—')+'×'+(e.planReps||'—'));
         if(e.planRestTime)det.push('rest '+e.planRestTime+(e.planRestUnit||'s'));
         const icon=TRAINING_STRUCTURE[e.trainingType]?.icon||'';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:${i===0?'none':'1px solid rgba(255,255,255,.04)'}">
+        const _notes=_blockAthIds.map(aid=>{
+          const ath=allAths.find(x=>x.id===aid);
+          const tag=_blockAthIds.length>1&&ath?ath.name.split(' ')[0]:'';
+          return _prevExNoteHtml(aid,e.name,ds,tag);
+        }).join('');
+        return `<div style="padding:5px 0;border-top:${i===0?'none':'1px solid rgba(255,255,255,.04)'}">
+          <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
           <span style="font-size:12px;font-weight:600;flex:1">${icon} ${_esc(e.name)}${e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':''}</span>
           <span style="font-size:11px;color:rgba(198,168,90,.85);font-weight:600">${det.join(' · ')}</span>
           ${e.ytUrl?`<a href="${_esc(e.ytUrl)}" target="_blank" style="flex-shrink:0;padding:2px 8px;border-radius:6px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:10px;font-weight:800;text-decoration:none">▶</a>`:''}
+          </div>${_notes}
         </div>`;
       }).join('');
       const note=b.s.coachNote||'';
@@ -2739,6 +2753,27 @@ function renderSchedule(){
   if(!anyBlock)html+=`<div class="empty">No planned sessions this week — Plan 탭에서 작성하세요</div>`;
   wrap.innerHTML=html;
   if(_content)_content.scrollTop=_sc; // keep scroll position across live-sync re-renders
+}
+// ── 지난 메모: 같은 선수·같은 운동의 가장 최근 coachComment 1개 찾기 ──
+function _noteDateShort(ds){const p=(ds||'').split('-');return p.length===3?(+p[1])+'/'+(+p[2]):ds;}
+function _prevExNote(athId,exName,beforeDate){
+  if(!exName)return null;
+  const key=exName.trim().toLowerCase();
+  const logs=(athLogs[athId]||[]).filter(l=>(l.type==='weight'||l.type==='plyo')&&l.date<beforeDate);
+  logs.sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+  for(const l of logs){
+    for(const e of (l.exercises||[])){
+      if((e.name||'').trim().toLowerCase()===key&&(e.coachComment||'').trim())
+        return {date:l.date,comment:e.coachComment.trim()};
+    }
+  }
+  return null;
+}
+function _prevExNoteHtml(athId,exName,beforeDate,nameTag){
+  const n=_prevExNote(athId,exName,beforeDate);
+  if(!n)return '';
+  const who=nameTag?`<span style="color:var(--muted);font-weight:700">${_esc(nameTag)}</span> · `:'';
+  return `<div style="font-size:10px;color:var(--hint);margin-top:3px;line-height:1.45;padding-left:24px">🔖 ${who}지난 메모 (${_noteDateShort(n.date)}): <span style="color:var(--muted)">${_esc(n.comment)}</span></div>`;
 }
 // ── Logged-session block: full detail, per-exercise comments, sprint lap times ──
 function _schedLogBlock(a,l){
@@ -2767,6 +2802,7 @@ function _schedLogBlock(a,l){
         </div>
         <input class="m-in sched-cmt" placeholder="💬 운동 코멘트…" value="${_esc(e.coachComment||'')}"
           onblur="_schedExCmt('${a.id}','${l.id}',${i},this.value)">
+        ${_prevExNoteHtml(a.id,e.name,l.date,'')}
       </div>`;
     }).join('');
   } else if(l.type==='sprint'){
