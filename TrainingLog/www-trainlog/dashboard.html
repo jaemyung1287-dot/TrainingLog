@@ -2333,11 +2333,10 @@ const EXERCISE_LIBRARY={
 .exn-quick{display:flex;gap:4px;flex-wrap:wrap}
 .exn-q{font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;outline:none}
 .exn-q:hover{background:rgba(255,255,255,.06);color:var(--text)}
-.exn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:5px;margin-bottom:9px}
-.exn-chip{display:flex;align-items:center;gap:5px;font-size:10px;padding:4px 7px;border-radius:7px;cursor:pointer;color:var(--muted);background:rgba(255,255,255,.025);border:1px solid var(--border);user-select:none;transition:background .12s,border-color .12s}
+.exn-grid{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+.exn-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;padding:4px 8px;border-radius:7px;cursor:pointer;color:var(--muted);background:rgba(255,255,255,.025);border:1px solid var(--border);user-select:none;white-space:nowrap;transition:background .12s,border-color .12s}
 .exn-chip:hover{background:rgba(255,255,255,.06)}
 .exn-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--gc);flex-shrink:0;opacity:.45}
-.exn-chip .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .exn-chip .tk{font-size:10px;font-weight:800;color:var(--gc);opacity:0}
 .exn-chip.on{color:var(--text);border-color:var(--gc);background:var(--gcbg)}
 .exn-chip.on .dot{opacity:1}
