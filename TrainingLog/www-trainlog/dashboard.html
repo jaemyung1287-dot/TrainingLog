@@ -2325,6 +2325,30 @@ const EXERCISE_LIBRARY={
 .sched-ex:first-of-type{border-top:none}
 .sched-cmt{width:100%;margin-top:5px;padding:5px 9px;font-size:11px;background:rgba(0,0,0,.18)}
 .sched-cmt::placeholder{color:rgba(230,237,243,.22)}
+/* 대상 선택 코멘트 패널 */
+.exn-panel{margin:8px 0 3px;padding:11px 13px;background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.22);border-radius:10px}
+.exn-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.exn-title{font-size:11px;font-weight:700;color:var(--text)}
+.exn-cnt{color:#58a6ff;font-weight:800}
+.exn-quick{display:flex;gap:4px;flex-wrap:wrap}
+.exn-q{font-size:10px;padding:3px 9px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;outline:none}
+.exn-q:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.exn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px;margin-bottom:10px}
+.exn-chip{display:flex;align-items:center;gap:7px;font-size:12px;padding:7px 10px;border-radius:8px;cursor:pointer;color:var(--muted);background:rgba(255,255,255,.025);border:1px solid var(--border);user-select:none;transition:background .12s,border-color .12s}
+.exn-chip:hover{background:rgba(255,255,255,.06)}
+.exn-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--gc);flex-shrink:0;opacity:.45}
+.exn-chip .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exn-chip .tk{font-size:11px;font-weight:800;color:var(--gc);opacity:0}
+.exn-chip.on{color:var(--text);border-color:var(--gc);background:var(--gcbg)}
+.exn-chip.on .dot{opacity:1}
+.exn-chip.on .tk{opacity:1}
+.exn-chip.gA{--gc:#58a6ff;--gcbg:rgba(88,166,255,.14)}
+.exn-chip.gB{--gc:#3ecf8e;--gcbg:rgba(62,207,142,.14)}
+.exn-ta{width:100%;min-height:46px;resize:vertical;font-size:12px}
+.exn-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;flex-wrap:wrap}
+.exn-note{font-size:10px;color:var(--hint)}
+.exn-acts{display:flex;gap:6px;flex-shrink:0}
+.exn-acts .m-btn{font-size:11px;padding:4px 12px}
 .lap-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .lap{display:inline-flex;align-items:center;gap:3px}
 .lap-n{font-size:9px;font-weight:700;color:var(--hint);min-width:12px;text-align:right}
@@ -2784,39 +2808,43 @@ function _prevExNote(athId,exName,beforeDate){
 // 대상 선택 코멘트 패널 (예정·기록 세션 공통): 여러 선수 선택해 한 번에 작성
 let openExCmt=null; // 열린 운동 식별 키(문자열)
 function _openExCmt(key){openExCmt=(openExCmt===key)?null:key;renderSchedule();}
+function _exnToggle(el){el.classList.toggle('on');_exnCount();}
+function _exnCount(){const p=document.getElementById('exnote-panel');if(!p)return;const c=p.querySelector('.exn-cnt');if(c)c.textContent=p.querySelectorAll('.exn-chip.on').length;}
 function _exnPick(mode){
-  const panel=document.getElementById('exnote-panel');if(!panel)return;
-  panel.querySelectorAll('.exn-chip').forEach(lb=>{
-    const cb=lb.querySelector('input');
-    if(mode==='all')cb.checked=true;
-    else if(mode==='none')cb.checked=false;
-    else cb.checked=(lb.getAttribute('data-grp')===mode);
+  const p=document.getElementById('exnote-panel');if(!p)return;
+  p.querySelectorAll('.exn-chip').forEach(el=>{
+    if(mode==='all')el.classList.add('on');
+    else if(mode==='none')el.classList.remove('on');
+    else el.classList.toggle('on',el.getAttribute('data-grp')===mode);
   });
+  _exnCount();
 }
 function _exNotePanelHTML(ds,exName,defaultIds,ctx){
   ctx=ctx||{};
-  const all=coachData?.athletes||[];
+  const def=defaultIds||[];
+  const all=(coachData?.athletes||[]).slice().sort((x,y)=>(x.group||'').localeCompare(y.group||'')||x.name.localeCompare(y.name));
   const chips=all.map(a=>{
     const short=a.name.split(' ').map((p,k)=>k===0?p:p[0]+'.').join(' ');
-    const on=(defaultIds||[]).includes(a.id);
-    const gc=a.group==='A'?'#58a6ff':'#3ecf8e';
-    return `<label class="exn-chip" data-grp="${a.group}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 9px;border-radius:14px;background:${gc}1a;border:1px solid ${gc}55;cursor:pointer;color:var(--text)"><input type="checkbox" value="${_esc(a.id)}" ${on?'checked':''} style="margin:0;accent-color:${gc}">${_esc(short)}</label>`;
+    const on=def.includes(a.id);
+    return `<div class="exn-chip g${a.group} ${on?'on':''}" data-grp="${a.group}" data-id="${_esc(a.id)}" onclick="_exnToggle(this)"><span class="dot"></span><span class="nm">${_esc(short)}</span><span class="tk">✓</span></div>`;
   }).join('');
-  return `<div id="exnote-panel" data-ds="${ds}" data-ex="${encodeURIComponent(exName)}" data-athid="${_esc(ctx.athId||'')}" data-logid="${_esc(ctx.logId||'')}" data-exidx="${ctx.exIdx==null?'':ctx.exIdx}" data-kind="${ctx.kind||''}" style="margin:7px 0 2px;padding:10px 12px;background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.25);border-radius:8px">
-    <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:7px">💬 ${_esc(exName)} · 코멘트 대상 선택</div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">
-      <button class="m-btn ghost" style="font-size:10px;padding:2px 8px" onclick="_exnPick('A')">그룹 A 전체</button>
-      <button class="m-btn ghost" style="font-size:10px;padding:2px 8px" onclick="_exnPick('B')">그룹 B 전체</button>
-      <button class="m-btn ghost" style="font-size:10px;padding:2px 8px" onclick="_exnPick('all')">전체</button>
-      <button class="m-btn ghost" style="font-size:10px;padding:2px 8px" onclick="_exnPick('none')">해제</button>
+  return `<div id="exnote-panel" class="exn-panel" data-ds="${ds}" data-ex="${encodeURIComponent(exName)}" data-athid="${_esc(ctx.athId||'')}" data-logid="${_esc(ctx.logId||'')}" data-exidx="${ctx.exIdx==null?'':ctx.exIdx}" data-kind="${ctx.kind||''}">
+    <div class="exn-head">
+      <span class="exn-title">💬 ${_esc(exName)} · 대상 <span class="exn-cnt">${def.length}</span>명</span>
+      <span class="exn-quick">
+        <button type="button" class="exn-q" onclick="_exnPick('A')">그룹 A</button>
+        <button type="button" class="exn-q" onclick="_exnPick('B')">그룹 B</button>
+        <button type="button" class="exn-q" onclick="_exnPick('all')">전체</button>
+        <button type="button" class="exn-q" onclick="_exnPick('none')">해제</button>
+      </span>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${chips||'<span style="font-size:11px;color:var(--hint)">선수 없음</span>'}</div>
-    <textarea class="m-in" style="width:100%;min-height:44px;resize:vertical;font-size:12px" placeholder="선택한 선수에게 남길 코멘트…"></textarea>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:7px;gap:8px">
-      <span style="font-size:10px;color:var(--hint)">선택한 선수에게 각각 저장 · 다음 훈련에 자동 표시</span>
-      <span style="flex-shrink:0;white-space:nowrap">
-        <button class="m-btn ghost" style="font-size:10px;padding:3px 9px" onclick="openExCmt=null;renderSchedule()">취소</button>
-        <button class="m-btn" style="font-size:10px;padding:3px 11px" onclick="_submitExNote(this)">저장</button>
+    <div class="exn-grid">${chips||'<span style="font-size:11px;color:var(--hint)">선수 없음</span>'}</div>
+    <textarea class="m-in exn-ta" placeholder="선택한 선수에게 남길 코멘트…"></textarea>
+    <div class="exn-foot">
+      <span class="exn-note">선택한 선수에게 각각 저장 · 다음 훈련에 자동 표시</span>
+      <span class="exn-acts">
+        <button type="button" class="m-btn ghost" onclick="openExCmt=null;renderSchedule()">취소</button>
+        <button type="button" class="m-btn" onclick="_submitExNote(this)">저장</button>
       </span>
     </div>
   </div>`;
@@ -2825,7 +2853,7 @@ function _submitExNote(btn){
   const panel=btn.closest('#exnote-panel');if(!panel)return;
   const ds=panel.getAttribute('data-ds');
   const exName=decodeURIComponent(panel.getAttribute('data-ex'));
-  const ids=[...panel.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value);
+  const ids=[...panel.querySelectorAll('.exn-chip.on')].map(c=>c.getAttribute('data-id'));
   const txt=((panel.querySelector('textarea')||{}).value||'').trim();
   if(!ids.length){alert('대상 선수를 1명 이상 선택하세요');return;}
   if(!txt){alert('코멘트를 입력하세요');return;}
