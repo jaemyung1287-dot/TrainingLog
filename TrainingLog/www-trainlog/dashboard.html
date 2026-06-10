@@ -692,6 +692,12 @@ function setOverviewFilter(f){overviewFilter=f;renderOverview();}
 
 // ── Overview cell helpers (added) ──
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// Effort 점 (Low=초록, Medium=주황, High=빨강) — 앱과 동일, 운동 이름 앞
+function _effDot(eff){
+  const C={Low:'#3ecf8e',Medium:'#f7a94f',High:'#e94560'};
+  if(!eff||!C[eff]) return '';
+  return `<span title="Effort: ${eff}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${C[eff]};margin-right:5px;vertical-align:middle"></span>`;
+}
 function _ovEx(l){
   let lines=[];
   if(l.type==='weight'){
@@ -703,7 +709,7 @@ function _ovEx(l){
       const sl=e.isSL?'SL ':e.isSA?'SA ':'';
       const kg=maxKg>0?' '+maxKg+'kg':'';
       const sr=(sets&&reps)?' '+sets+'x'+reps:'';
-      lines.push(sl+e.name+kg+sr+(e.isBodyweight?' (BW)':''));
+      lines.push({t:sl+e.name+kg+sr+(e.isBodyweight?' (BW)':''), eff:e.effort||''});
     });
   } else if(l.type==='sprint'){
     (l.sets||[]).forEach(s=>{
@@ -711,12 +717,12 @@ function _ovEx(l){
       const reps=s.reps||s.sets||1;
       const inten=s.intensity?' @'+s.intensity+'%':'';
       const t=s.actualTime?' ('+s.actualTime+'s)':'';
-      lines.push((s.distance||'?')+'m x'+reps+inten+t);
+      lines.push({t:(s.distance||'?')+'m x'+reps+inten+t, eff:s.effort||''});
     });
   } else if(l.type==='plyo'){
-    lines.push((l.totalReps||0)+' reps');
+    lines.push({t:(l.totalReps||0)+' reps', eff:''});
   } else if(l.type==='tabata'){
-    lines.push('8 rounds 20s/10s');
+    lines.push({t:'8 rounds 20s/10s', eff:''});
   }
   return lines;
 }
@@ -728,8 +734,8 @@ function _ovBlock(l,athId){
     :l.type==='plyo'?`${l.totalReps||0} reps`
     :l.type==='tabata'?'8 rounds':'—';
   const lines=_ovEx(l);
-  const tip=_esc(lines.join('\n'));
-  const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_esc(x)}</div>`).join('')}</div>`:'';
+  const tip=_esc(lines.map(x=>x.t).join('\n'));
+  const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_effDot(x.eff)}${_esc(x.t)}</div>`).join('')}</div>`:'';
   const note=l.notes?`<div class="cmt-wrap" onclick="event.stopPropagation();this.classList.toggle('show')"><span class="cmt-chip">💬 Comment</span><div class="cmt-text">${_esc(l.notes)}</div></div>`:'';
   const caret=lines.length?`<span class="sb-caret">&#9662;</span>`:'';
   const editBtn=athId?`<button class="lg-edit" onclick="event.stopPropagation();openLogEditor('${l.id}','${athId}')" title="Edit / Delete">✎</button>`:'';
