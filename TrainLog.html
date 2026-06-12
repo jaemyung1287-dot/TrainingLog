@@ -2126,7 +2126,7 @@ function renderTeamTrainingData(){
             if(x==null||x==='') return '';
             const _ov=(_tgt!=null&&parseFloat(x)>_tgt);
             const _c=_ov?'#ff5252':'#3ecf8e';
-            return `<span style="display:inline-flex;align-items:baseline;gap:4px;padding:2px 8px;border-radius:8px;background:${_ov?'rgba(255,82,82,.1)':'rgba(62,207,142,.1)'};border:1px solid ${_ov?'rgba(255,82,82,.25)':'rgba(62,207,142,.25)'}"><span style="font-size:9px;font-weight:700;color:var(--muted)">${n}</span><span style="font-size:12px;font-weight:800;color:${_c}">${_f2(x)}<span style="font-size:9px;font-weight:600;opacity:.65">s</span></span></span>`;
+            return `<span style="display:inline-flex;align-items:baseline;gap:4px;padding:2px 8px;border-radius:8px;background:${_ov?'rgba(255,82,82,.1)':'rgba(62,207,142,.1)'};border:1px solid ${_ov?'rgba(255,82,82,.25)':'rgba(62,207,142,.25)'}"><span style="font-size:9px;font-weight:700;color:var(--muted);min-width:11px">${n}.</span><span style="font-size:12px;font-weight:800;color:${_c}">${_f2(x)}<span style="font-size:9px;font-weight:600;opacity:.65">s</span></span></span>`;
           };
           let _laps='';
           for(let _g=0;_g<_ns;_g++){
