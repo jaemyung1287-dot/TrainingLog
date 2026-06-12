@@ -4006,8 +4006,10 @@ function renderSprintSets(){
 
     const _disc=_setIsUphill(s)?'uphill':'sprint';
     // Auto-fill PB from coach records when empty → links records to pace automatically
-    if((s.pb===''||s.pb==null) && s.distance){
-      const _autoPB=_getSprintPB(parseFloat(s.distance),_disc);
+    // fall back to planned distance so PB resolves even before the athlete types a distance (e.g. combined sessions)
+    const _pbDist=parseFloat(s.distance||s.planDistance)||null;
+    if((s.pb===''||s.pb==null) && _pbDist){
+      const _autoPB=_getSprintPB(_pbDist,_disc);
       if(_autoPB){ s.pb=String(_autoPB); s._pbAuto=true; }
     }
     const pb=parseFloat(s.pb)||null;
