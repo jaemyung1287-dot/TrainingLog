@@ -2110,9 +2110,10 @@ function renderTeamTrainingData(){
       const td=l.totalDistance!=null?l.totalDistance:(l.sets||[]).reduce((t,s)=>t+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
       const tag=l.sprintType?` <span style="color:var(--muted)">· ${l.sprintType}</span>`:'';
       const det=(l.sets||[]).map(s=>{
+        const _f2=x=>{ const n=parseFloat(x); return isNaN(n)?x:n.toFixed(2); };
         const t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:(s.totalTime!=null?s.totalTime:null);
         const reps=`${s.sets||1}×${s.reps||1}`;
-        const right=`${t!=null?`<span style="color:#3ecf8e;font-weight:700">${t}s</span>`:'<span style="color:var(--muted)">—</span>'}${s.intensity?`  <span style="color:var(--muted)">${s.intensity}%</span>`:''}`;
+        const right=`${t!=null?`<span style="color:#3ecf8e;font-weight:800">${_f2(t)}s</span>`:'<span style="color:var(--muted)">—</span>'}${s.intensity?`  <span style="color:var(--muted)">${s.intensity}%</span>`:''}`;
         let _row=detRow(`${s.distance||'—'}m <span style="color:var(--muted);font-size:11px">${reps}</span>`,right);
         const _rt=Array.isArray(s.repTimes)?s.repTimes:[];
         if(_rt.some(x=>x!=null&&x!=='')){
@@ -2121,13 +2122,19 @@ function renderTeamTrainingData(){
           const _pb=parseFloat(s.pb)||null;
           const _pct=parseFloat(s.intensity)||null;
           const _tgt=(_pb&&_pct&&_pct>0)?(_pb/(_pct/100)):null;
-          const _fmt=x=>{ if(x==null||x==='') return '<span style="color:var(--muted)">—</span>'; const _ov=(_tgt!=null&&parseFloat(x)>_tgt); return `<span style="color:${_ov?'#ff5252':'#3ecf8e'};font-weight:700">${x}s</span>`; };
+          const _pill=(x,n)=>{
+            if(x==null||x==='') return '';
+            const _ov=(_tgt!=null&&parseFloat(x)>_tgt);
+            const _c=_ov?'#ff5252':'#3ecf8e';
+            return `<span style="display:inline-flex;align-items:baseline;gap:4px;padding:2px 8px;border-radius:8px;background:${_ov?'rgba(255,82,82,.1)':'rgba(62,207,142,.1)'};border:1px solid ${_ov?'rgba(255,82,82,.25)':'rgba(62,207,142,.25)'}"><span style="font-size:9px;font-weight:700;color:var(--muted)">${n}</span><span style="font-size:12px;font-weight:800;color:${_c}">${_f2(x)}<span style="font-size:9px;font-weight:600;opacity:.65">s</span></span></span>`;
+          };
           let _laps='';
           for(let _g=0;_g<_ns;_g++){
-            const _chunk=_rt.slice(_g*_nr,_g*_nr+_nr).map(_fmt).join(' <span style="color:var(--muted)">·</span> ');
-            if(_chunk) _laps+=`<div>${_ns>1?`<span style="color:var(--muted)">${_g+1}. Satz:</span> `:''}${_chunk}</div>`;
+            const _grp=_rt.slice(_g*_nr,_g*_nr+_nr);
+            const _pills=_grp.map((x,_k)=>_pill(x,_k+1)).filter(Boolean).join('');
+            if(_pills) _laps+=`<div style="display:flex;gap:8px;align-items:flex-start;margin-top:5px"><span style="font-size:10px;font-weight:800;color:var(--muted);white-space:nowrap;padding-top:4px;min-width:42px">${_ns>1?`${_g+1}. Satz`:'Läufe'}</span><div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">${_pills}</div></div>`;
           }
-          _row+=`<div style="padding:1px 0 7px 4px;font-size:11px;line-height:1.6">🏁 ${_laps}</div>`;
+          _row+=`<div style="padding:3px 0 9px 2px"><div style="font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.06em">🏁 LAUF-ZEITEN</div>${_laps}</div>`;
         }
         return _row;
       }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
