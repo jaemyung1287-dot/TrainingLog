@@ -2039,7 +2039,7 @@ function renderTeamTrainingData(){
   const logRow=(id,name,mine,rightMeta,detailHtml)=>`
     <div style="border-bottom:1px solid rgba(255,255,255,.06)">
       <div onclick="toggleTeamRow('${id}')" style="display:flex;align-items:center;gap:8px;padding:12px 6px;cursor:pointer;border-radius:8px;${mine?'background:rgba(247,169,79,.07)':''}">
-        <div style="flex:1;min-width:0;font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}${mine?' · du':''}</div>
+        <div style="flex:1;min-width:0;font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
         <div style="text-align:right;font-size:11px;color:var(--muted);white-space:nowrap">${rightMeta}</div>
         <span id="twarr-${id}" style="font-size:11px;color:var(--muted);transition:transform .2s ease;flex-shrink:0">▼</span>
       </div>
