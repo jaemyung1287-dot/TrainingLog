@@ -3506,6 +3506,16 @@ function renderExList(){
         ${plyoPlanSummary}${ytEmbed}`;
     } else {
       // Sprint — fallback for sprint exercises in mixed (weight) session
+      // PB / target pace — same logic as the dedicated sprint form (was missing in combined/mixed sessions)
+      const _spDisc=_setIsUphill(ex)?'uphill':'sprint';
+      const _spPbDist=parseFloat(ex.distance||ex.planDistance)||null;
+      let _spPb=parseFloat(ex.pb)||null;
+      if(!_spPb && _spPbDist){ const _ap=_getSprintPB(_spPbDist,_spDisc); if(_ap){ _spPb=_ap; } }
+      const _spPct=parseFloat(ex.intensity||ex.planIntensity)||null;
+      const _spTarget=(_spPb&&_spPct&&_spPct>0)?(_spPb/(_spPct/100)).toFixed(2):null;
+      const sprintPbHtml=_spTarget
+        ?`<div style="margin:6px 0 2px;padding:8px 12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2);border-radius:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center"><span style="color:var(--muted)">\u{1F3AF} ${_spDisc==='uphill'?'\u26F0\uFE0F ':''}Target @ ${_spPct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${_spTarget}s</span><span style="color:var(--muted);font-size:11px">PB ${_spPb}s</span></div>`
+        :((_spPct&&_spPct>0&&!_spPb)?`<div style="margin:6px 0 2px;font-size:9px;color:var(--muted);text-align:right">kein PB</div>`:'');
       const sprintSetsEdited=fromPlan&&ex.planSets&&ex.sets&&String(ex.sets)!==String(ex.planSets);
       const sprintRepsEdited=fromPlan&&ex.planReps&&ex.reps&&String(ex.reps)!==String(ex.planReps);
       const _sprintPlanParts=[];
@@ -3535,7 +3545,7 @@ function renderExList(){
             <div class="mini-lbl">Reps${sprintRepsEdited?' ✎':''}</div>
           </div>
         </div>
-        ${sprintFallbackPlanSummary}${ytEmbed}`;
+        ${sprintFallbackPlanSummary}${sprintPbHtml}${ytEmbed}`;
     }
 
     // VBT extra fields — only for Velocity-Based Training sub-category
