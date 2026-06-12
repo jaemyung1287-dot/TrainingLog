@@ -393,18 +393,43 @@ const APP_VERSION = '20260527-7';
     </div>
   </div>
 
-  <!-- ── TEAM TRAINING DATA (all athletes) ── -->
-  <div style="margin-top:18px">
-    <div style="font-size:13px;font-weight:800;color:var(--gold);letter-spacing:.3px;margin-bottom:10px;display:flex;align-items:center;gap:6px">
-      🏟️ Team Training Data <span style="font-size:10px;font-weight:600;color:var(--muted)">· alle Athleten</span>
+  <!-- ── TEAM TRAINING DATA — tap to open ── -->
+  <div onclick="goTeamData()" style="margin-top:16px;border-radius:16px;background:linear-gradient(135deg,rgba(201,168,76,.14),rgba(201,168,76,.05));border:1px solid rgba(201,168,76,.35);padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+    <span style="font-size:26px;line-height:1">🏟️</span>
+    <div style="flex:1">
+      <div style="font-size:15px;font-weight:800;color:var(--text)">Team Training Data</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">alle Athleten · 전체 선수 기록</div>
     </div>
-    <div style="border-radius:16px;background:var(--card);border:1px solid var(--border);padding:14px">
-      <div style="font-size:12px;font-weight:800;color:#f7a94f;margin-bottom:4px;display:flex;align-items:center;gap:5px">🏋️ Weight Training Data</div>
-      <div id="team-weight-list" style="max-height:210px;overflow-y:auto"></div>
+    <span style="font-size:20px;color:var(--gold)">→</span>
+  </div>
+</div>
+
+<!-- TEAM TRAINING DATA SCREEN -->
+<div id="s-team-data" class="screen">
+  <div class="hdr">
+    <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
+    <span class="logo">🏔️ Team Bayern Skeleton</span>
+  </div>
+  <div class="ttl">🏟️ Team Training Data</div>
+  <div class="sub">alle Athleten · 전체 선수</div>
+  <div style="margin-top:10px">
+    <!-- Weight accordion -->
+    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);margin-bottom:12px;overflow:hidden">
+      <div onclick="toggleTeamAcc('weight')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
+        <span style="font-size:22px;line-height:1">🏋️</span>
+        <div style="flex:1;font-size:16px;font-weight:800;color:#f7a94f">Weight</div>
+        <span id="team-acc-arrow-weight" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
+      </div>
+      <div id="team-acc-body-weight" style="display:none;padding:0 14px 10px"></div>
     </div>
-    <div style="border-radius:16px;background:var(--card);border:1px solid var(--border);padding:14px;margin-top:12px">
-      <div style="font-size:12px;font-weight:800;color:#3ecf8e;margin-bottom:4px;display:flex;align-items:center;gap:5px">⚡ Sprint Training Data</div>
-      <div id="team-sprint-list" style="max-height:210px;overflow-y:auto"></div>
+    <!-- Sprint accordion -->
+    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);overflow:hidden">
+      <div onclick="toggleTeamAcc('sprint')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
+        <span style="font-size:22px;line-height:1">⚡</span>
+        <div style="flex:1;font-size:16px;font-weight:800;color:#3ecf8e">Sprint</div>
+        <span id="team-acc-arrow-sprint" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
+      </div>
+      <div id="team-acc-body-sprint" style="display:none;padding:0 14px 10px"></div>
     </div>
   </div>
 </div>
@@ -1974,13 +1999,29 @@ function backToAthleteMenu(){
   ST.editingLogId=null; ST._extraEditLogIds=[]; ST._logDate=null;
   if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;}
   if(ST._editFromCoach){ ST._editFromCoach=false; document.getElementById('coach-tabbar').classList.remove('show'); showScreen('s-ath-detail'); return; }
-  renderTeamTrainingData();
   showScreen('s-athlete-menu');
 }
 // ── Team Training Data (all athletes) — shown on athlete home ──
+function toggleTeamAcc(which){
+  const body=document.getElementById('team-acc-body-'+which);
+  const arrow=document.getElementById('team-acc-arrow-'+which);
+  if(!body) return;
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  if(arrow) arrow.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+function goTeamData(){
+  // Render fresh, start collapsed
+  renderTeamTrainingData();
+  ['weight','sprint'].forEach(w=>{
+    const b=document.getElementById('team-acc-body-'+w); if(b) b.style.display='none';
+    const a=document.getElementById('team-acc-arrow-'+w); if(a) a.style.transform='rotate(0deg)';
+  });
+  showScreen('s-team-data');
+}
 function renderTeamTrainingData(){
-  const wWrap=document.getElementById('team-weight-list');
-  const sWrap=document.getElementById('team-sprint-list');
+  const wWrap=document.getElementById('team-acc-body-weight');
+  const sWrap=document.getElementById('team-acc-body-sprint');
   if(!wWrap||!sWrap) return;
   const d=getData();
   const athByName={}; (d.athletes||[]).forEach(a=>athByName[a.name]=a);
@@ -2039,7 +2080,6 @@ function _enterAthleteMenu(){
   // Pull latest plans from cloud (dashboard edits) — re-render menu if they changed
   _refreshPlansFromCloud(()=>{ if(document.getElementById('s-athlete-menu')?.classList.contains('active')) _enterAthleteMenu(); });
   document.getElementById('menu-greeting').textContent=`Hey, ${ST.athlete.name}! 👋`;
-  renderTeamTrainingData();
   // Always use Europe/Berlin timezone for date display (team is based in Germany)
   const _berlinDate=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Berlin',weekday:'short',month:'long',day:'numeric'}).format(new Date());
   document.getElementById('menu-date-sub').textContent=_berlinDate;
