@@ -3506,18 +3506,18 @@ function renderExList(){
         ${plyoPlanSummary}${ytEmbed}`;
     } else {
       // Sprint — fallback for sprint exercises in mixed (weight) session
-      // PB / target pace — same logic as the dedicated sprint form (was missing in combined/mixed sessions)
+      // PB / target pace — boxed layout matching the dedicated sprint form (consistent across session types)
       const _spDisc=_setIsUphill(ex)?'uphill':'sprint';
       const _spPbDist=parseFloat(ex.distance||ex.planDistance)||null;
-      let _spPb=parseFloat(ex.pb)||null;
-      if(!_spPb && _spPbDist){ const _ap=_getSprintPB(_spPbDist,_spDisc); if(_ap){ _spPb=_ap; } }
+      const _spPbEntered=parseFloat(ex.pb)||null;
+      const _spPbAuto=(!_spPbEntered&&_spPbDist)?_getSprintPB(_spPbDist,_spDisc):null;
+      const _spPb=_spPbEntered||_spPbAuto;
       const _spPct=parseFloat(ex.intensity||ex.planIntensity)||null;
       const _spTarget=(_spPb&&_spPct&&_spPct>0)?(_spPb/(_spPct/100)).toFixed(2):null;
-      const sprintPbHtml=_spTarget
-        ?`<div style="margin:6px 0 2px;padding:8px 12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2);border-radius:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center"><span style="color:var(--muted)">\u{1F3AF} ${_spDisc==='uphill'?'\u26F0\uFE0F ':''}Target @ ${_spPct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${_spTarget}s</span><span style="color:var(--muted);font-size:11px">PB ${_spPb}s</span></div>`
-        :((_spPct&&_spPct>0&&!_spPb)?`<div style="margin:6px 0 2px;font-size:9px;color:var(--muted);text-align:right">kein PB</div>`:'');
+      const _spPbVal=ex.pb||(_spPbAuto!=null?_spPbAuto:'');
       const sprintSetsEdited=fromPlan&&ex.planSets&&ex.sets&&String(ex.sets)!==String(ex.planSets);
       const sprintRepsEdited=fromPlan&&ex.planReps&&ex.reps&&String(ex.reps)!==String(ex.planReps);
+      const distEdited=fromPlan&&ex.planDistance!==''&&ex.planDistance!=null&&ex.distance&&String(ex.distance)!==String(ex.planDistance);
       const _sprintPlanParts=[];
       if(fromPlan&&ex.planIntensity) _sprintPlanParts.push(`${ex.planIntensity}%`);
       if(fromPlan&&ex.planDistance) _sprintPlanParts.push(`${ex.planDistance}m`);
@@ -3532,8 +3532,15 @@ function renderExList(){
       const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
       paramsHtml=`
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-bottom:6px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="%" value="${ex.intensity||''}" oninput="ST.exercises[${i}].intensity=this.value"><div class="mini-lbl">Int %</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="m" value="${ex.distance||''}" oninput="ST.exercises[${i}].distance=this.value"><div class="mini-lbl">Dist (m)</div></div>
+          <div class="mini-wrap"><input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${ex.distance||''}" oninput="ST.exercises[${i}].distance=this.value" onblur="renderExList()"><div class="mini-lbl">Distance (m)${distEdited?' ✎':''}</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="3.58" value="${_spPbVal}" oninput="ST.exercises[${i}].pb=this.value" onblur="renderExList()" style="color:#3ecf8e"><div class="mini-lbl" style="color:#3ecf8e">${_spDisc==='uphill'?'⛰️ Uphill PB':'My PB'} (s)</div></div>
+        </div>
+        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-bottom:6px">
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="%" value="${ex.intensity||''}" oninput="ST.exercises[${i}].intensity=this.value" onblur="renderExList()"><div class="mini-lbl">Intensity %</div></div>
+          <div class="mini-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-size:18px;font-weight:800;color:${_spTarget?'#3ecf8e':'var(--muted)'}">${_spTarget?_spTarget+'s':'—'}</div>
+            <div class="mini-lbl"${_spTarget?' style="color:#3ecf8e"':''}>🎯 Target (s)</div>
+          </div>
         </div>
         <div class="ex-nums" style="grid-template-columns:1fr 1fr">
           <div class="mini-wrap">
@@ -3545,7 +3552,7 @@ function renderExList(){
             <div class="mini-lbl">Reps${sprintRepsEdited?' ✎':''}</div>
           </div>
         </div>
-        ${sprintFallbackPlanSummary}${sprintPbHtml}${ytEmbed}`;
+        ${sprintFallbackPlanSummary}${ytEmbed}`;
     }
 
     // VBT extra fields — only for Velocity-Based Training sub-category
