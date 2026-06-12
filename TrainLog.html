@@ -2027,6 +2027,11 @@ function toggleTeamRow(id){
   b.style.display=open?'none':'block';
   if(a) a.style.transform=open?'rotate(0deg)':'rotate(180deg)';
 }
+let TEAM_WEEK_OFFSET=0; // 0 = current week, -1 = last week, ...
+function teamWeekShift(delta){
+  TEAM_WEEK_OFFSET=Math.min(0,TEAM_WEEK_OFFSET+delta); // never go into the future
+  renderTeamTrainingData();
+}
 function renderTeamTrainingData(){
   const wWrap=document.getElementById('team-acc-body-weight');
   const sWrap=document.getElementById('team-acc-body-sprint');
@@ -2034,10 +2039,27 @@ function renderTeamTrainingData(){
   const d=getData();
   const me=ST.athlete?ST.athlete.name:'';
   const fmtDate=ds=>ds?ds.slice(5).replace('-','/'):'';
-  const empty=`<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">Noch keine Daten · No data yet</div>`;
+  // ── current selected week (Mon–Sun, Europe/Berlin) ──
+  const todayB=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const base=new Date(todayB+'T12:00:00');
+  const dow=(base.getDay()+6)%7; // Monday=0
+  const mon=new Date(base); mon.setDate(base.getDate()-dow+TEAM_WEEK_OFFSET*7);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const f=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  const wkStart=f(mon), wkEnd=f(sun);
+  const inWeek=l=>l.date&&l.date>=wkStart&&l.date<=wkEnd;
+  // ── week navigation bar ──
+  const lbl=TEAM_WEEK_OFFSET===0?'diese Woche · 이번 주':(TEAM_WEEK_OFFSET===-1?'letzte Woche · 지난 주':`vor ${-TEAM_WEEK_OFFSET} Wochen · ${-TEAM_WEEK_OFFSET}주 전`);
+  const atNow=TEAM_WEEK_OFFSET>=0;
+  const nav=`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;margin:2px 4px 10px;background:rgba(255,255,255,.04);border-radius:8px">
+      <span onclick="teamWeekShift(-1)" style="cursor:pointer;padding:2px 14px;color:#f7a94f;font-size:15px;user-select:none">◀</span>
+      <span style="font-size:12px;color:var(--text);text-align:center;line-height:1.4">${lbl}<br><span style="font-size:10px;color:var(--muted)">${fmtDate(wkStart)} – ${fmtDate(wkEnd)}</span></span>
+      <span ${atNow?'':'onclick="teamWeekShift(1)"'} style="cursor:${atNow?'default':'pointer'};padding:2px 14px;color:${atNow?'rgba(255,255,255,.15)':'#f7a94f'};font-size:15px;user-select:none">▶</span>
+    </div>`;
+  const emptyWeek=`<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">Keine Daten diese Woche · 이번 주 기록 없음</div>`;
   // detail line (level 3)
   const detRow=(left,right)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0">${left}</span><span style="font-size:11px;color:var(--muted);white-space:nowrap;text-align:right">${right}</span></div>`;
-  // generic collapsible row — used for level 1 (athlete) and level 2 (session)
+  // generic collapsible row — level 1 (athlete) and level 2 (session)
   const row=(id,leftHtml,rightHtml,bodyHtml,mine,padL)=>`
     <div style="border-bottom:1px solid rgba(255,255,255,.06)">
       <div onclick="toggleTeamRow('${id}')" style="display:flex;align-items:center;gap:8px;padding:11px 6px;cursor:pointer;border-radius:8px;${mine?'background:rgba(247,169,79,.07)':''}">
@@ -2047,7 +2069,7 @@ function renderTeamTrainingData(){
       </div>
       <div id="twbody-${id}" style="display:none;padding:0 0 6px ${padL}px">${bodyHtml}</div>
     </div>`;
-  // group logs by athlete; athletes ordered by most-recent date, sessions newest first
+  // group week-filtered logs by athlete
   const groupByAthlete=logs=>{
     const map=new Map();
     logs.forEach(l=>{const k=l.athleteName||'—';if(!map.has(k))map.set(k,[]);map.get(k).push(l);});
@@ -2059,9 +2081,9 @@ function renderTeamTrainingData(){
     return arr;
   };
 
-  // ===== WEIGHT (name → dates → exercises) =====
-  const wGroups=groupByAthlete((d.logs||[]).filter(l=>l.type==='weight'||l.type==='plyo'));
-  wWrap.innerHTML = wGroups.length ? wGroups.map((g,ai)=>{
+  // ===== WEIGHT (week → name → dates → exercises) =====
+  const wGroups=groupByAthlete((d.logs||[]).filter(l=>(l.type==='weight'||l.type==='plyo')&&inWeek(l)));
+  wWrap.innerHTML = nav + (wGroups.length ? wGroups.map((g,ai)=>{
     const mine=g.name===me;
     const sess=g.ls.map((l,si)=>{
       const vol=l.totalVolume!=null?l.totalVolume:(l.exercises||[]).reduce((t,e)=>t+(parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
@@ -2078,11 +2100,11 @@ function renderTeamTrainingData(){
     }).join('');
     const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
     return row('wA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
-  }).join('') : empty;
+  }).join('') : emptyWeek);
 
-  // ===== SPRINT (name → dates → sets) =====
-  const sGroups=groupByAthlete((d.logs||[]).filter(l=>l.type==='sprint'));
-  sWrap.innerHTML = sGroups.length ? sGroups.map((g,ai)=>{
+  // ===== SPRINT (week → name → dates → sets) =====
+  const sGroups=groupByAthlete((d.logs||[]).filter(l=>l.type==='sprint'&&inWeek(l)));
+  sWrap.innerHTML = nav + (sGroups.length ? sGroups.map((g,ai)=>{
     const mine=g.name===me;
     const sess=g.ls.map((l,si)=>{
       const td=l.totalDistance!=null?l.totalDistance:(l.sets||[]).reduce((t,s)=>t+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
@@ -2099,7 +2121,7 @@ function renderTeamTrainingData(){
     }).join('');
     const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
     return row('sA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
-  }).join('') : empty;
+  }).join('') : emptyWeek);
 }
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('Please select your name'); return; }
