@@ -668,6 +668,13 @@ const APP_VERSION = '20260527-7';
         <div class="lbl">Track Start</div>
       </div>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div class="type-card" id="rt-uphill" onclick="selectRecType('uphill')">
+        <span class="ico">⛰️</span>
+        <div class="lbl">Uphill</div>
+      </div>
+      <div></div>
+    </div>
   </div>
 
   <!-- Date — below type cards -->
@@ -1076,6 +1083,7 @@ const APP_VERSION = '20260527-7';
       <select class="fi" id="bulk-sprint-type">
         <option value="acc">Acceleration</option>
         <option value="maxv">Max Velocity</option>
+        <option value="uphill">⛰️ Uphill</option>
         <option value="se1">SE1</option>
         <option value="se2">SE2</option>
         <option value="tempo">Tempo</option>
@@ -1496,6 +1504,14 @@ async function initFirebase(){
       _backupLocal();
       localStorage.setItem(SK,JSON.stringify(merged));
       console.log(`[TrainLog] Loaded from Firebase ✓ (${merged.logs.length} logs)`);
+      // ── One-time seed: Uphill 50m team bests → records (idempotent) ──
+      if(_seedUphillRecords(merged)){
+        merged._lastUpdated=Date.now();
+        localStorage.setItem(SK,JSON.stringify(merged));
+        COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:merged._lastUpdated}))
+          .then(()=>console.log('[TrainLog] Uphill 50m seed → cloud ✓'))
+          .catch(e=>console.warn('[TrainLog] Uphill seed push failed:',e));
+      }
       // ── Recovery: if this device holds plan-days the cloud lost, push them back ──
       if(Object.keys(merged.sessionPlans||{}).length>Object.keys(cloudData.sessionPlans||{}).length){
         COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:Date.now()}))
@@ -1505,6 +1521,7 @@ async function initFirebase(){
     } else {
       // No cloud data yet — push local data to new structure
       const localData=getData();
+      if(_seedUphillRecords(localData)){ localData._lastUpdated=Date.now(); localStorage.setItem(SK,JSON.stringify(localData)); }
       // Force full sync: push coach doc + all athlete docs
       await _fullSyncToCloud(localData);
       console.log('[TrainLog] First run — pushed to Firebase ✓');
@@ -3729,15 +3746,19 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
 // ════════════════════════════════════════════════
 //  SPRINT FORM
 // ════════════════════════════════════════════════
-function _getSprintPB(distanceM){
+function _getSprintPB(distanceM,discipline){
+  if(!ST.athlete) return null;
+  const recType=discipline==='uphill'?'uphill':'sprint';
   const d=getData();
   const recs=(d.records||[]).filter(r=>
-    r.athleteName===ST.athlete.name && r.type==='sprint' &&
+    r.athleteName===ST.athlete.name && r.type===recType &&
     Math.abs((parseFloat(r.distance)||0)-parseFloat(distanceM))<0.5
   );
   if(!recs.length) return null;
   return Math.min(...recs.map(r=>parseFloat(r.time)).filter(Boolean));
 }
+// Detect uphill discipline from a sprint set's exercise name/subcategory
+function _setIsUphill(s){ return /uphill|bergauf|berg\b/i.test((s&&(s.name||''))+' '+(s&&(s.subCategory||''))); }
 function _updateSprintCalc(i){
   const s=ST.sprintSets[i];
   const pb=parseFloat(s.pb)||null;
@@ -3817,11 +3838,17 @@ function renderSprintSets(){
     const intEdited=fromPlan&&s.planIntensity!==''&&String(s.intensity)!==String(s.planIntensity);
     const distEdited=fromPlan&&s.planDistance!==''&&String(s.distance)!==String(s.planDistance);
 
+    const _disc=_setIsUphill(s)?'uphill':'sprint';
+    // Auto-fill PB from coach records when empty → links records to pace automatically
+    if((s.pb===''||s.pb==null) && s.distance){
+      const _autoPB=_getSprintPB(parseFloat(s.distance),_disc);
+      if(_autoPB){ s.pb=String(_autoPB); s._pbAuto=true; }
+    }
     const pb=parseFloat(s.pb)||null;
     const pct=parseFloat(s.intensity||s.planIntensity)||null;
     const targetT=(pb&&pct&&pct>0)?(pb/(pct/100)).toFixed(2):null;
     const calcHtml=`<div id="sp-calc-${i}" style="margin:8px 0 2px;padding:8px 12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2);border-radius:8px;font-size:12px;display:${targetT?'flex':'none'};justify-content:space-between;align-items:center">
-      ${targetT?`<span style="color:var(--muted)">🎯 Target @ ${pct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${targetT}s</span><span style="color:var(--muted);font-size:11px">PB ${pb}s</span>`:''}
+      ${targetT?`<span style="color:var(--muted)">🎯 ${_disc==='uphill'?'⛰️ ':''}Target @ ${pct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${targetT}s</span><span style="color:var(--muted);font-size:11px">${s._pbAuto?'🔗 ':''}PB ${pb}s</span>`:''}
     </div>`;
 
     // Effort buttons
@@ -3899,14 +3926,14 @@ function renderSprintSets(){
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${s.distance||''}"
-            oninput="ST.sprintSets[${i}].distance=this.value;ST.sprintSets[${i}].pb='';renderSprintSets()">
+            oninput="ST.sprintSets[${i}].distance=this.value;ST.sprintSets[${i}].pb='';ST.sprintSets[${i}]._pbAuto=false;renderSprintSets()">
           <div class="mini-lbl">Distance (m)${distEdited?' ✎':''}</div>
         </div>
         <div class="mini-wrap">
           <input class="mini-in" type="number" step="0.001" placeholder="3.58" value="${s.pb||''}"
-            oninput="ST.sprintSets[${i}].pb=this.value;_updateSprintCalc(${i})"
+            oninput="ST.sprintSets[${i}].pb=this.value;ST.sprintSets[${i}]._pbAuto=false;_updateSprintCalc(${i})"
             style="color:#3ecf8e">
-          <div class="mini-lbl" style="color:#3ecf8e">My PB (s)</div>
+          <div class="mini-lbl" style="color:#3ecf8e">${_disc==='uphill'?'⛰️ Uphill PB':'My PB'} (s)</div>
         </div>
       </div>
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
@@ -5646,6 +5673,30 @@ function _renderPerfSparklines(recs){
   Object.keys(byDist.strength).forEach(ex=>_spark(`spark-str-${ex.replace(/[^a-z0-9]/gi,'_')}`,byDist.strength[ex],false));
 }
 
+// ── Uphill 50m team-best seed (one-time, idempotent) ──
+const UPHILL50_SEED=[
+  {name:'Niklas Brandtner', time:8.40},
+  {name:'Moritz Menning',   time:8.70},
+  {name:'Marie Angerer',    time:9.28},
+  {name:'Charlize Reimann', time:10.54},
+  {name:'Sarah Klose',      time:10.40},
+  {name:'Laura Bründl',     time:10.90},
+  {name:'Nele Fröbus',      time:12.30}
+];
+function _seedUphillRecords(d){
+  if(!d) return false;
+  if(!d.records) d.records=[];
+  let added=0;
+  UPHILL50_SEED.forEach(row=>{
+    const exists=d.records.some(r=>r.type==='uphill'&&r.athleteName===row.name&&Math.abs((parseFloat(r.distance)||0)-50)<0.5);
+    if(exists) return;
+    const ath=(d.athletes||[]).find(a=>a.name===row.name);
+    d.records.push({id:genId(),date:'2026-06-12',athleteName:row.name,group:ath?ath.group:'',type:'uphill',distance:50,time:row.time,notes:'[Uphill 50m Best]'});
+    added++;
+  });
+  return added>0;
+}
+
 // ── Auto-feed records from Bulk ──
 function _autoFeedRecordsFromBulk(saves){
   if(!saves||!saves.length) return;
@@ -5654,9 +5705,10 @@ function _autoFeedRecordsFromBulk(saves){
   let added=0;
   saves.forEach(s=>{
     if(s.type==='sprint'){
+      const _rt=s.discipline==='uphill'?'uphill':'sprint';
       (s.data||[]).forEach(attempt=>{
         if(!attempt.distance||!attempt.time) return;
-        d.records.push({id:genId(),date:s.date,athleteName:s.athleteName,group:s.group,type:'sprint',distance:attempt.distance,time:attempt.time,notes:'[Bulk]'});
+        d.records.push({id:genId(),date:s.date,athleteName:s.athleteName,group:s.group,type:_rt,distance:attempt.distance,time:attempt.time,notes:'[Bulk]'});
         added++;
       });
     } else if(s.type==='start'){
@@ -6635,7 +6687,7 @@ function goCoachRecord(){
   document.getElementById('rec-distance').value='';
   document.getElementById('rec-notes').value='';
   document.getElementById('rec-load').value='';
-  document.querySelectorAll('#rt-sprint,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
+  document.querySelectorAll('#rt-sprint,#rt-uphill,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
   document.getElementById('rt-sprint').classList.add('sel');
   document.getElementById('rec-timed-fields').style.display='';
   document.getElementById('rec-strength-fields').style.display='none';
@@ -6653,13 +6705,14 @@ function backFromRecord(){
 
 function selectRecType(t){
   recType=t;
-  document.querySelectorAll('#rt-sprint,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
-  const idMap={sprint:'rt-sprint',icestart:'rt-ice',trackstart:'rt-track',strength:'rt-strength'};
+  document.querySelectorAll('#rt-sprint,#rt-uphill,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
+  const idMap={sprint:'rt-sprint',uphill:'rt-uphill',icestart:'rt-ice',trackstart:'rt-track',strength:'rt-strength'};
   document.getElementById(idMap[t]).classList.add('sel');
   const isStrength=t==='strength';
   document.getElementById('rec-timed-fields').style.display=isStrength?'none':'';
   document.getElementById('rec-strength-fields').style.display=isStrength?'':'none';
   if(t!=='strength') document.getElementById('rec-distance').value='';
+  if(t==='uphill') document.getElementById('rec-distance').value='50';
 }
 
 function selectExercise(ex,el){
@@ -6697,15 +6750,17 @@ function saveRecord(){
 
 function _timedRecHtml(recs, maxRows){
   const byKey={};
-  recs.filter(r=>r.type==='sprint'||r.type==='icestart').forEach(r=>{
+  const _TLBL={sprint:'⚡ Sprint',uphill:'⛰️ Uphill',icestart:'🧊 Ice Start'};
+  const _TORD={sprint:0,uphill:1,icestart:2};
+  recs.filter(r=>r.type==='sprint'||r.type==='uphill'||r.type==='icestart').forEach(r=>{
     const k=`${r.type}:${r.distance}`;
     if(!byKey[k]) byKey[k]={type:r.type,distance:r.distance,entries:[]};
     byKey[k].entries.push(r);
   });
   let html='';
-  Object.values(byKey).sort((a,b)=>{ if(a.type!==b.type)return a.type==='sprint'?-1:1; return a.distance-b.distance; }).forEach(grp=>{
+  Object.values(byKey).sort((a,b)=>{ if(a.type!==b.type)return (_TORD[a.type]??9)-(_TORD[b.type]??9); return a.distance-b.distance; }).forEach(grp=>{
     const best=grp.entries.reduce((b,e)=>e.time<b.time?e:b);
-    html+=`<div class="rec-group-hdr">${grp.type==='sprint'?'⚡ Sprint':'🧊 Ice Start'} · ${grp.distance}m</div>`;
+    html+=`<div class="rec-group-hdr">${_TLBL[grp.type]||grp.type} · ${grp.distance}m</div>`;
     grp.entries.slice(0,maxRows).forEach((r,i)=>{
       const isBest=r.id===best.id;
       html+=`<div class="rec-row${isBest?' rec-pr':''}">
@@ -9716,7 +9771,7 @@ function saveBulkEntry(){
       });
       // Auto-feed: all timed sprint attempts → records
       const timedAttempts=sprintSets.filter(s=>s.totalTime&&s.distance).map(s=>({distance:s.distance,time:s.totalTime}));
-      if(timedAttempts.length) autoFeedSaves.push({type:'sprint',athleteName:a.name,group:a.group,date:dateVal,data:timedAttempts});
+      if(timedAttempts.length) autoFeedSaves.push({type:'sprint',discipline:sprintType==='uphill'?'uphill':'sprint',athleteName:a.name,group:a.group,date:dateVal,data:timedAttempts});
       saved++;
     }
   });
