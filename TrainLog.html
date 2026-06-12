@@ -392,6 +392,21 @@ const APP_VERSION = '20260527-7';
       <div class="lbl">My Data</div>
     </div>
   </div>
+
+  <!-- ── TEAM TRAINING DATA (all athletes) ── -->
+  <div style="margin-top:18px">
+    <div style="font-size:13px;font-weight:800;color:var(--gold);letter-spacing:.3px;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+      🏟️ Team Training Data <span style="font-size:10px;font-weight:600;color:var(--muted)">· alle Athleten</span>
+    </div>
+    <div style="border-radius:16px;background:var(--card);border:1px solid var(--border);padding:14px">
+      <div style="font-size:12px;font-weight:800;color:#f7a94f;margin-bottom:4px;display:flex;align-items:center;gap:5px">🏋️ Weight Training Data</div>
+      <div id="team-weight-list" style="max-height:210px;overflow-y:auto"></div>
+    </div>
+    <div style="border-radius:16px;background:var(--card);border:1px solid var(--border);padding:14px;margin-top:12px">
+      <div style="font-size:12px;font-weight:800;color:#3ecf8e;margin-bottom:4px;display:flex;align-items:center;gap:5px">⚡ Sprint Training Data</div>
+      <div id="team-sprint-list" style="max-height:210px;overflow-y:auto"></div>
+    </div>
+  </div>
 </div>
 
 <!-- CONDITION FORM -->
@@ -1959,8 +1974,52 @@ function backToAthleteMenu(){
   ST.editingLogId=null; ST._extraEditLogIds=[]; ST._logDate=null;
   if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;}
   if(ST._editFromCoach){ ST._editFromCoach=false; document.getElementById('coach-tabbar').classList.remove('show'); showScreen('s-ath-detail'); return; }
+  renderTeamTrainingData();
   showScreen('s-athlete-menu');
 }
+// ── Team Training Data (all athletes) — shown on athlete home ──
+function renderTeamTrainingData(){
+  const wWrap=document.getElementById('team-weight-list');
+  const sWrap=document.getElementById('team-sprint-list');
+  if(!wWrap||!sWrap) return;
+  const d=getData();
+  const athByName={}; (d.athletes||[]).forEach(a=>athByName[a.name]=a);
+  const me=ST.athlete?ST.athlete.name:'';
+  const fmtDate=ds=>ds?ds.slice(5).replace('-','/'):'';
+  const grpChip=g=>`<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:7px;background:${g==='A'?'rgba(79,142,247,.18)':'rgba(247,169,79,.18)'};color:${g==='A'?'#4f8ef7':'#f7a94f'}">${g||'–'}</span>`;
+  const head=(name,grp,date,mine)=>`<div style="min-width:98px;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${name}${mine?' ·나':''}</div><div style="display:flex;align-items:center;gap:4px;margin-top:1px">${grpChip(grp)}<span style="font-size:10px;color:var(--muted)">${date}</span></div></div>`;
+  const rowWrap=(inner,mine)=>`<div style="display:flex;gap:8px;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.05);${mine?'background:rgba(247,169,79,.06);border-radius:8px;':''}">${inner}</div>`;
+  const empty=`<div style="font-size:12px;color:var(--muted);padding:12px 2px;text-align:center">No data yet · 아직 기록 없음</div>`;
+
+  // WEIGHT — all athletes, recent first
+  const wLogs=(d.logs||[]).filter(l=>l.type==='weight'||l.type==='plyo').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,10);
+  wWrap.innerHTML = wLogs.length ? wLogs.map(l=>{
+    const grp=(athByName[l.athleteName]?.group)||l.group;
+    const exs=(l.exercises||[]).slice(0,3).map(e=>{
+      const w=e.isBodyweight?`BW${(e.bwBase||e.extraKg)?'+'+(e.bwBase||e.extraKg)+'kg':''}`:(e.weight?e.weight+'kg':'');
+      const sr=(e.setRows&&e.setRows.length)?`${e.setRows.length} sets`:(e.sets?`${e.sets}×${e.reps||''}`:'');
+      return `<span style="color:var(--text)">${e.name||'–'}</span> <span style="color:var(--muted)">${[w,sr].filter(Boolean).join(' · ')}</span>`;
+    }).join('<br>');
+    const more=(l.exercises||[]).length>3?`<div style="font-size:10px;color:var(--muted);margin-top:2px">+${l.exercises.length-3} more</div>`:'';
+    const body=`<div style="flex:1;font-size:11px;line-height:1.5;min-width:0">${exs||'<span style="color:var(--muted)">–</span>'}${more}</div>`;
+    return rowWrap(head(l.athleteName,grp,fmtDate(l.date),l.athleteName===me)+body,l.athleteName===me);
+  }).join('') : empty;
+
+  // SPRINT — all athletes, recent first (includes coach/Bulk-entered)
+  const sLogs=(d.logs||[]).filter(l=>l.type==='sprint').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,10);
+  sWrap.innerHTML = sLogs.length ? sLogs.map(l=>{
+    const grp=(athByName[l.athleteName]?.group)||l.group;
+    const sets=(l.sets||[]).slice(0,4).map(s=>{
+      const t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:(s.totalTime!=null?s.totalTime:null);
+      return `<span style="color:var(--text)">${s.distance||'–'}m</span>${t!=null?` <span style="color:#3ecf8e;font-weight:700">${t}s</span>`:''}${s.intensity?` <span style="color:var(--muted)">${s.intensity}%</span>`:''}`;
+    }).join(' &nbsp; ');
+    const more=(l.sets||[]).length>4?` <span style="font-size:10px;color:var(--muted)">+${l.sets.length-4}</span>`:'';
+    const tag=l.sprintType?`<span style="font-size:10px;color:var(--muted)"> · ${l.sprintType}</span>`:'';
+    const body=`<div style="flex:1;font-size:11px;line-height:1.6;min-width:0">${sets||'<span style="color:var(--muted)">–</span>'}${more}${tag}</div>`;
+    return rowWrap(head(l.athleteName,grp,fmtDate(l.date),l.athleteName===me)+body,l.athleteName===me);
+  }).join('') : empty;
+}
+
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('Please select your name'); return; }
   // If coming from coach edit, return to coach athlete detail
@@ -1980,6 +2039,7 @@ function _enterAthleteMenu(){
   // Pull latest plans from cloud (dashboard edits) — re-render menu if they changed
   _refreshPlansFromCloud(()=>{ if(document.getElementById('s-athlete-menu')?.classList.contains('active')) _enterAthleteMenu(); });
   document.getElementById('menu-greeting').textContent=`Hey, ${ST.athlete.name}! 👋`;
+  renderTeamTrainingData();
   // Always use Europe/Berlin timezone for date display (team is based in Germany)
   const _berlinDate=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Berlin',weekday:'short',month:'long',day:'numeric'}).format(new Date());
   document.getElementById('menu-date-sub').textContent=_berlinDate;
