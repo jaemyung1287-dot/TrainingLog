@@ -2125,7 +2125,7 @@ function renderTeamTrainingData(){
           let _laps='';
           for(let _g=0;_g<_ns;_g++){
             const _chunk=_rt.slice(_g*_nr,_g*_nr+_nr).map(_fmt).join(' <span style="color:var(--muted)">·</span> ');
-            if(_chunk) _laps+=`<div>${_ns>1?`<span style="color:var(--muted)">S${_g+1}:</span> `:''}${_chunk}</div>`;
+            if(_chunk) _laps+=`<div>${_ns>1?`<span style="color:var(--muted)">${_g+1}. Satz:</span> `:''}${_chunk}</div>`;
           }
           _row+=`<div style="padding:1px 0 7px 4px;font-size:11px;line-height:1.6">🏁 ${_laps}</div>`;
         }
@@ -4197,7 +4197,7 @@ function _spLapInputsHtml(s,i){
     const setNo=(nr>0)?Math.floor(k/nr)+1:1;
     const repNo=(nr>0)?(k%nr)+1:k+1;
     cells+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">`
-      +`<span style="font-size:11px;color:var(--muted);width:54px;flex-shrink:0;font-weight:700">S${setNo}·R${repNo}</span>`
+      +`<span style="font-size:11px;color:var(--muted);width:58px;flex-shrink:0;font-weight:700">S${setNo}·L${repNo}</span>`
       +`<input class="mini-in" type="number" step="0.01" inputmode="decimal" placeholder="s" value="${t!=null?t:''}" oninput="ST.sprintSets[${i}].repTimes[${k}]=this.value" style="flex:1;color:#3ecf8e">`
       +`<button onclick="_rmLap(${i},${k})" style="width:28px;height:28px;flex-shrink:0;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.08);color:#ff6b6b;font-size:14px;cursor:pointer">×</button>`
       +`</div>`;
@@ -4205,7 +4205,7 @@ function _spLapInputsHtml(s,i){
   const body = cells || `<div style="font-size:11px;color:var(--muted);padding:2px 0 6px">Sets·Reps eingeben, dann + Lap</div>`;
   return `<div style="margin-top:10px;padding:10px 12px;background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.2);border-radius:10px">`
     +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">`
-    +`<span style="font-size:11px;font-weight:800;color:#4f8ef7;letter-spacing:.04em">🏁 COACH · Lap-Zeiten (s)</span>`
+    +`<span style="font-size:11px;font-weight:800;color:#4f8ef7;letter-spacing:.04em">🏁 COACH · Lap-Zeiten (Satz·Lauf, s)</span>`
     +`<button onclick="_addLap(${i})" style="padding:4px 12px;border-radius:8px;border:1px solid rgba(79,142,247,.35);background:rgba(79,142,247,.12);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer">+ Lap</button>`
     +`</div>${body}</div>`;
 }
