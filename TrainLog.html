@@ -3910,12 +3910,13 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
 // ════════════════════════════════════════════════
 //  SPRINT FORM
 // ════════════════════════════════════════════════
+function _normName(s){return (s||'').normalize('NFC').trim().toLowerCase().replace(/\s+/g,' ');}
 function _getSprintPB(distanceM,discipline){
   if(!ST.athlete) return null;
   const recType=discipline==='uphill'?'uphill':'sprint';
   const d=getData();
   const recs=(d.records||[]).filter(r=>
-    r.athleteName===ST.athlete.name && r.type===recType &&
+    _normName(r.athleteName)===_normName(ST.athlete.name) && r.type===recType &&
     Math.abs((parseFloat(r.distance)||0)-parseFloat(distanceM))<0.5
   );
   if(!recs.length) return null;
@@ -3935,9 +3936,10 @@ function _updateSprintCalc(i){
       <div style="font-size:18px;font-weight:800;color:#3ecf8e">${targetT}s</div>
       <div class="mini-lbl" style="color:#3ecf8e">🎯 Target (s)</div>`;
   } else {
+    const _noPb=(pct&&pct>0&&!pb);
     calcDiv.innerHTML=`
       <div style="font-size:18px;font-weight:800;color:var(--muted)">—</div>
-      <div class="mini-lbl">🎯 Target (s)</div>`;
+      <div class="mini-lbl">🎯 Target (s)</div>${_noPb?'<div style="font-size:9px;color:var(--muted);margin-top:1px">kein PB</div>':''}`;
   }
 }
 
