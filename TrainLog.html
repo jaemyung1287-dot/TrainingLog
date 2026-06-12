@@ -2019,45 +2019,62 @@ function goTeamData(){
   });
   showScreen('s-team-data');
 }
+function toggleTeamRow(id){
+  const b=document.getElementById('twbody-'+id);
+  const a=document.getElementById('twarr-'+id);
+  if(!b) return;
+  const open=b.style.display!=='none';
+  b.style.display=open?'none':'block';
+  if(a) a.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
 function renderTeamTrainingData(){
   const wWrap=document.getElementById('team-acc-body-weight');
   const sWrap=document.getElementById('team-acc-body-sprint');
   if(!wWrap||!sWrap) return;
   const d=getData();
-  const athByName={}; (d.athletes||[]).forEach(a=>athByName[a.name]=a);
   const me=ST.athlete?ST.athlete.name:'';
   const fmtDate=ds=>ds?ds.slice(5).replace('-','/'):'';
-  const grpChip=g=>`<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:7px;background:${g==='A'?'rgba(79,142,247,.18)':'rgba(247,169,79,.18)'};color:${g==='A'?'#4f8ef7':'#f7a94f'}">${g||'–'}</span>`;
-  const head=(name,grp,date,mine)=>`<div style="min-width:98px;flex-shrink:0"><div style="font-size:12px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${name}${mine?' ·나':''}</div><div style="display:flex;align-items:center;gap:4px;margin-top:1px">${grpChip(grp)}<span style="font-size:10px;color:var(--muted)">${date}</span></div></div>`;
-  const rowWrap=(inner,mine)=>`<div style="display:flex;gap:8px;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.05);${mine?'background:rgba(247,169,79,.06);border-radius:8px;':''}">${inner}</div>`;
-  const empty=`<div style="font-size:12px;color:var(--muted);padding:12px 2px;text-align:center">No data yet · 아직 기록 없음</div>`;
+  const empty=`<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">No data yet · 아직 기록 없음</div>`;
+  // Collapsible log row: name (left) · date+metric (right) → tap expands detail
+  const logRow=(id,name,mine,rightMeta,detailHtml)=>`
+    <div style="border-bottom:1px solid rgba(255,255,255,.06)">
+      <div onclick="toggleTeamRow('${id}')" style="display:flex;align-items:center;gap:8px;padding:12px 6px;cursor:pointer;border-radius:8px;${mine?'background:rgba(247,169,79,.07)':''}">
+        <div style="flex:1;min-width:0;font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}${mine?' · 나':''}</div>
+        <div style="text-align:right;font-size:11px;color:var(--muted);white-space:nowrap">${rightMeta}</div>
+        <span id="twarr-${id}" style="font-size:11px;color:var(--muted);transition:transform .2s ease;flex-shrink:0">▼</span>
+      </div>
+      <div id="twbody-${id}" style="display:none;padding:2px 8px 12px 8px">${detailHtml}</div>
+    </div>`;
+  const detRow=(left,right)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0">${left}</span><span style="font-size:11px;color:var(--muted);white-space:nowrap;text-align:right">${right}</span></div>`;
 
-  // WEIGHT — all athletes, recent first
-  const wLogs=(d.logs||[]).filter(l=>l.type==='weight'||l.type==='plyo').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,10);
-  wWrap.innerHTML = wLogs.length ? wLogs.map(l=>{
-    const grp=(athByName[l.athleteName]?.group)||l.group;
-    const exs=(l.exercises||[]).slice(0,3).map(e=>{
-      const w=e.isBodyweight?`BW${(e.bwBase||e.extraKg)?'+'+(e.bwBase||e.extraKg)+'kg':''}`:(e.weight?e.weight+'kg':'');
-      const sr=(e.setRows&&e.setRows.length)?`${e.setRows.length} sets`:(e.sets?`${e.sets}×${e.reps||''}`:'');
-      return `<span style="color:var(--text)">${e.name||'–'}</span> <span style="color:var(--muted)">${[w,sr].filter(Boolean).join(' · ')}</span>`;
-    }).join('<br>');
-    const more=(l.exercises||[]).length>3?`<div style="font-size:10px;color:var(--muted);margin-top:2px">+${l.exercises.length-3} more</div>`:'';
-    const body=`<div style="flex:1;font-size:11px;line-height:1.5;min-width:0">${exs||'<span style="color:var(--muted)">–</span>'}${more}</div>`;
-    return rowWrap(head(l.athleteName,grp,fmtDate(l.date),l.athleteName===me)+body,l.athleteName===me);
+  // WEIGHT — name | date · total volume → exercises
+  const wLogs=(d.logs||[]).filter(l=>l.type==='weight'||l.type==='plyo').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,20);
+  wWrap.innerHTML = wLogs.length ? wLogs.map((l,i)=>{
+    const vol=l.totalVolume!=null?l.totalVolume:(l.exercises||[]).reduce((t,e)=>t+(parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
+    const rightMeta=`${fmtDate(l.date)} · <span style="color:#f7a94f;font-weight:700">${Math.round(vol).toLocaleString()} kg</span>`;
+    const det=(l.exercises||[]).map(e=>{
+      const w=e.isBodyweight?`BW${(e.bwBase||e.extraKg)?'+'+(e.bwBase||e.extraKg)+'kg':''}`:(e.weight?e.weight+'kg':'—');
+      const sr=(e.setRows&&e.setRows.length)
+        ? e.setRows.map(r=>`${r.kg||r.extraKg||(e.isBodyweight?'BW':'—')}${(r.kg||r.extraKg)?'kg':''}×${r.reps||'—'}`).join('  ')
+        : (e.sets?`${e.sets}×${e.reps||'—'}`:'—');
+      return detRow(e.name||'—',`${w} · ${sr}`);
+    }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">세부 기록 없음</div>';
+    return logRow('w'+i,l.athleteName,l.athleteName===me,rightMeta,det);
   }).join('') : empty;
 
-  // SPRINT — all athletes, recent first (includes coach/Bulk-entered)
-  const sLogs=(d.logs||[]).filter(l=>l.type==='sprint').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,10);
-  sWrap.innerHTML = sLogs.length ? sLogs.map(l=>{
-    const grp=(athByName[l.athleteName]?.group)||l.group;
-    const sets=(l.sets||[]).slice(0,4).map(s=>{
+  // SPRINT — name | date · total distance → actual sets the athlete ran
+  const sLogs=(d.logs||[]).filter(l=>l.type==='sprint').sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,20);
+  sWrap.innerHTML = sLogs.length ? sLogs.map((l,i)=>{
+    const td=l.totalDistance!=null?l.totalDistance:(l.sets||[]).reduce((t,s)=>t+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
+    const tag=l.sprintType?` <span style="color:var(--muted)">· ${l.sprintType}</span>`:'';
+    const rightMeta=`${fmtDate(l.date)} · <span style="color:#3ecf8e;font-weight:700">${Math.round(td).toLocaleString()} m</span>${tag}`;
+    const det=(l.sets||[]).map(s=>{
       const t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:(s.totalTime!=null?s.totalTime:null);
-      return `<span style="color:var(--text)">${s.distance||'–'}m</span>${t!=null?` <span style="color:#3ecf8e;font-weight:700">${t}s</span>`:''}${s.intensity?` <span style="color:var(--muted)">${s.intensity}%</span>`:''}`;
-    }).join(' &nbsp; ');
-    const more=(l.sets||[]).length>4?` <span style="font-size:10px;color:var(--muted)">+${l.sets.length-4}</span>`:'';
-    const tag=l.sprintType?`<span style="font-size:10px;color:var(--muted)"> · ${l.sprintType}</span>`:'';
-    const body=`<div style="flex:1;font-size:11px;line-height:1.6;min-width:0">${sets||'<span style="color:var(--muted)">–</span>'}${more}${tag}</div>`;
-    return rowWrap(head(l.athleteName,grp,fmtDate(l.date),l.athleteName===me)+body,l.athleteName===me);
+      const reps=`${s.sets||1}×${s.reps||1}`;
+      const right=`${t!=null?`<span style="color:#3ecf8e;font-weight:700">${t}s</span>`:'<span style="color:var(--muted)">—</span>'}${s.intensity?`  <span style="color:var(--muted)">${s.intensity}%</span>`:''}`;
+      return detRow(`${s.distance||'—'}m <span style="color:var(--muted);font-size:11px">${reps}</span>`,right);
+    }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">기록 없음</div>';
+    return logRow('s'+i,l.athleteName,l.athleteName===me,rightMeta,det);
   }).join('') : empty;
 }
 
