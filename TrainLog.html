@@ -2113,7 +2113,19 @@ function renderTeamTrainingData(){
         const t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:(s.totalTime!=null?s.totalTime:null);
         const reps=`${s.sets||1}×${s.reps||1}`;
         const right=`${t!=null?`<span style="color:#3ecf8e;font-weight:700">${t}s</span>`:'<span style="color:var(--muted)">—</span>'}${s.intensity?`  <span style="color:var(--muted)">${s.intensity}%</span>`:''}`;
-        return detRow(`${s.distance||'—'}m <span style="color:var(--muted);font-size:11px">${reps}</span>`,right);
+        let _row=detRow(`${s.distance||'—'}m <span style="color:var(--muted);font-size:11px">${reps}</span>`,right);
+        const _rt=Array.isArray(s.repTimes)?s.repTimes:[];
+        if(_rt.some(x=>x!=null&&x!=='')){
+          const _nr=parseInt(s.reps)||_rt.length||1;
+          const _ns=Math.max(1,Math.ceil(_rt.length/_nr));
+          let _laps='';
+          for(let _g=0;_g<_ns;_g++){
+            const _chunk=_rt.slice(_g*_nr,_g*_nr+_nr).map(x=>(x!=null&&x!=='')?x+'s':'—').join(' · ');
+            if(_chunk) _laps+=`<div>${_ns>1?`<span style="color:var(--muted)">S${_g+1}:</span> `:''}${_chunk}</div>`;
+          }
+          _row+=`<div style="padding:1px 0 7px 4px;font-size:11px;color:#3ecf8e;line-height:1.6">🏁 ${_laps}</div>`;
+        }
+        return _row;
       }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
       const rd=Math.round(td);
       const right=`${rd>0?`<span style="color:#3ecf8e;font-weight:700">${rd.toLocaleString()} m</span>`:`<span style="color:var(--muted)">kein Eintrag</span>`}${tag}`;
@@ -4143,6 +4155,7 @@ function renderSprintSets(){
       ${_ytEmbedHtml(s.ytUrl)}
       ${spCoachBadge}
       ${spPrevHtml}
+      ${_spLapInputsHtml(s,i)}
       ${effortHtml}
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
         <button onclick="_toggleSprintSkip(${i})"
@@ -4170,6 +4183,30 @@ function setSprintEffort(i,val){
 }
 function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
 function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length) ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
+function _spLapInputsHtml(s,i){
+  if(!ST._editFromCoach) return '';
+  const ns=Math.max(0,parseInt(s.sets)||0), nr=Math.max(0,parseInt(s.reps)||0);
+  const target=ns*nr;
+  if(!Array.isArray(s.repTimes)) s.repTimes = target>0 ? Array.from({length:target},()=>'') : [];
+  let cells='';
+  s.repTimes.forEach((t,k)=>{
+    const setNo=(nr>0)?Math.floor(k/nr)+1:1;
+    const repNo=(nr>0)?(k%nr)+1:k+1;
+    cells+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">`
+      +`<span style="font-size:11px;color:var(--muted);width:54px;flex-shrink:0;font-weight:700">S${setNo}·R${repNo}</span>`
+      +`<input class="mini-in" type="number" step="0.01" inputmode="decimal" placeholder="s" value="${t!=null?t:''}" oninput="ST.sprintSets[${i}].repTimes[${k}]=this.value" style="flex:1;color:#3ecf8e">`
+      +`<button onclick="_rmLap(${i},${k})" style="width:28px;height:28px;flex-shrink:0;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.08);color:#ff6b6b;font-size:14px;cursor:pointer">×</button>`
+      +`</div>`;
+  });
+  const body = cells || `<div style="font-size:11px;color:var(--muted);padding:2px 0 6px">Sets·Reps eingeben, dann + Lap</div>`;
+  return `<div style="margin-top:10px;padding:10px 12px;background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.2);border-radius:10px">`
+    +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">`
+    +`<span style="font-size:11px;font-weight:800;color:#4f8ef7;letter-spacing:.04em">🏁 COACH · Lap-Zeiten (s)</span>`
+    +`<button onclick="_addLap(${i})" style="padding:4px 12px;border-radius:8px;border:1px solid rgba(79,142,247,.35);background:rgba(79,142,247,.12);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer">+ Lap</button>`
+    +`</div>${body}</div>`;
+}
+function _addLap(i){ const s=ST.sprintSets[i]; if(!Array.isArray(s.repTimes)) s.repTimes=[]; s.repTimes.push(''); renderSprintSets(); }
+function _rmLap(i,k){ const s=ST.sprintSets[i]; if(Array.isArray(s.repTimes)) s.repTimes.splice(k,1); renderSprintSets(); }
 
 function saveSprint(dupMode){
   const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0 && !s.skipped && s.done!==false);
@@ -4219,7 +4256,13 @@ function saveSprint(dupMode){
     phase:document.getElementById('sp-phase').value,
     week:document.getElementById('sp-week').value,
     sprintType:ST.sprintSets[0]?.subCategory||'Sprint Training',
-    sets:sets.map(s=>({name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:parseFloat(s.actualTime)||null,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]})),
+    sets:sets.map(s=>{
+      const _rtRaw=(Array.isArray(s.repTimes)?s.repTimes:[]).map(t=>(t===''||t==null)?null:(isNaN(parseFloat(t))?null:parseFloat(t)));
+      const _rtVals=_rtRaw.filter(t=>t!=null);
+      const _rt=_rtVals.length?_rtRaw:[];
+      const _best=_rtVals.length?Math.min(..._rtVals):(parseFloat(s.actualTime)||null);
+      return {name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:_best,repTimes:_rt,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]};
+    }),
     totalDistance:Math.round(totalDist),
     rpe:parseInt(document.getElementById('sl-srpe').value),
     notes:document.getElementById('sprint-notes').value,
@@ -6741,6 +6784,7 @@ function _editLog(logId){
       distance:s.distance?String(s.distance):'',
       sets:s.sets?String(s.sets):'', reps:s.reps?String(s.reps):'',
       actualTime:s.actualTime?String(s.actualTime):'', pb:s.pb?String(s.pb):'',
+      repTimes:(Array.isArray(s.repTimes)&&s.repTimes.length)?s.repTimes.map(t=>t==null?'':String(t)):undefined,
       effort:s.effort||null, done:true
     }));
     const phEl=document.getElementById('sp-phase'); if(phEl) phEl.value=log.phase||'';
