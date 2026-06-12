@@ -1504,13 +1504,14 @@ async function initFirebase(){
       _backupLocal();
       localStorage.setItem(SK,JSON.stringify(merged));
       console.log(`[TrainLog] Loaded from Firebase ✓ (${merged.logs.length} logs)`);
-      // ── One-time seed: Uphill 50m team bests → records (idempotent) ──
-      if(_seedUphillRecords(merged)){
+      // ── One-time seeds: Uphill 50m bests + 100m HST test splits → records (idempotent) ──
+      const _su=_seedUphillRecords(merged), _sf=_seedFlatSprintRecords(merged);
+      if(_su||_sf){
         merged._lastUpdated=Date.now();
         localStorage.setItem(SK,JSON.stringify(merged));
         COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:merged._lastUpdated}))
-          .then(()=>console.log('[TrainLog] Uphill 50m seed → cloud ✓'))
-          .catch(e=>console.warn('[TrainLog] Uphill seed push failed:',e));
+          .then(()=>console.log('[TrainLog] Record seeds → cloud ✓ (uphill:'+_su+' flat:'+_sf+')'))
+          .catch(e=>console.warn('[TrainLog] Seed push failed:',e));
       }
       // ── Recovery: if this device holds plan-days the cloud lost, push them back ──
       if(Object.keys(merged.sessionPlans||{}).length>Object.keys(cloudData.sessionPlans||{}).length){
@@ -1521,7 +1522,8 @@ async function initFirebase(){
     } else {
       // No cloud data yet — push local data to new structure
       const localData=getData();
-      if(_seedUphillRecords(localData)){ localData._lastUpdated=Date.now(); localStorage.setItem(SK,JSON.stringify(localData)); }
+      const _su2=_seedUphillRecords(localData), _sf2=_seedFlatSprintRecords(localData);
+      if(_su2||_sf2){ localData._lastUpdated=Date.now(); localStorage.setItem(SK,JSON.stringify(localData)); }
       // Force full sync: push coach doc + all athlete docs
       await _fullSyncToCloud(localData);
       console.log('[TrainLog] First run — pushed to Firebase ✓');
@@ -5693,6 +5695,33 @@ function _seedUphillRecords(d){
     const ath=(d.athletes||[]).find(a=>a.name===row.name);
     d.records.push({id:genId(),date:'2026-06-12',athleteName:row.name,group:ath?ath.group:'',type:'uphill',distance:50,time:row.time,notes:'[Uphill 50m Best]'});
     added++;
+  });
+  return added>0;
+}
+
+// ── Flat 100m test (HST cumulative splits) seed — Kienbaum 2026-05-31, idempotent ──
+// [distance(m), HST cumulative time(s)] per athlete; distance differs by athlete.
+const FLAT100_SEED={
+  'Sarah Klose':     [[10,2.06],[20,3.56],[30,5.00],[40,6.41],[50,7.84],[60,9.28]],
+  'Laura Bründl':    [[10,2.04],[20,3.54],[30,4.97],[40,6.42],[50,7.90],[60,9.37],[70,10.94],[80,12.84]],
+  'Nele Fröbus':     [[10,2.22],[20,3.87],[30,5.43],[40,7.06],[50,8.67],[60,10.29],[70,11.91],[80,13.70]],
+  'Marie Angerer':   [[10,1.85],[20,3.15],[30,4.42],[40,5.66],[50,6.93],[60,8.19],[70,9.47],[80,10.78],[90,12.11],[100,13.45]],
+  'Charlize Reimann':[[10,1.98],[20,3.47],[30,4.87],[40,6.22],[50,7.66],[60,9.11],[70,10.59],[80,12.10],[90,13.66],[100,15.21]],
+  'Maria Votz':      [[10,1.99],[20,3.44],[30,4.78],[40,6.13],[50,7.48],[60,8.79],[70,10.21],[80,11.58],[90,13.02],[100,14.48]],
+  'Niklas Brandtner':[[10,1.80],[20,3.04],[30,4.24],[40,5.39],[50,6.54],[60,7.69],[70,8.86],[80,10.04],[90,11.26],[100,12.48]]
+};
+function _seedFlatSprintRecords(d){
+  if(!d) return false;
+  if(!d.records) d.records=[];
+  let added=0;
+  Object.entries(FLAT100_SEED).forEach(([name,rows])=>{
+    const ath=(d.athletes||[]).find(a=>a.name===name);
+    rows.forEach(([dist,time])=>{
+      const exists=d.records.some(r=>r.type==='sprint'&&r.athleteName===name&&Math.abs((parseFloat(r.distance)||0)-dist)<0.5&&(r.notes||'').indexOf('100m Test KB')>=0);
+      if(exists) return;
+      d.records.push({id:genId(),date:'2026-05-31',athleteName:name,group:ath?ath.group:'',type:'sprint',distance:dist,time:time,notes:'[100m Test KB 2026-05-31]'});
+      added++;
+    });
   });
   return added>0;
 }
