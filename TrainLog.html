@@ -2118,12 +2118,16 @@ function renderTeamTrainingData(){
         if(_rt.some(x=>x!=null&&x!=='')){
           const _nr=parseInt(s.reps)||_rt.length||1;
           const _ns=Math.max(1,Math.ceil(_rt.length/_nr));
+          const _pb=parseFloat(s.pb)||null;
+          const _pct=parseFloat(s.intensity)||null;
+          const _tgt=(_pb&&_pct&&_pct>0)?(_pb/(_pct/100)):null;
+          const _fmt=x=>{ if(x==null||x==='') return '<span style="color:var(--muted)">—</span>'; const _ov=(_tgt!=null&&parseFloat(x)>_tgt); return `<span style="color:${_ov?'#ff5252':'#3ecf8e'};font-weight:700">${x}s</span>`; };
           let _laps='';
           for(let _g=0;_g<_ns;_g++){
-            const _chunk=_rt.slice(_g*_nr,_g*_nr+_nr).map(x=>(x!=null&&x!=='')?x+'s':'—').join(' · ');
+            const _chunk=_rt.slice(_g*_nr,_g*_nr+_nr).map(_fmt).join(' <span style="color:var(--muted)">·</span> ');
             if(_chunk) _laps+=`<div>${_ns>1?`<span style="color:var(--muted)">S${_g+1}:</span> `:''}${_chunk}</div>`;
           }
-          _row+=`<div style="padding:1px 0 7px 4px;font-size:11px;color:#3ecf8e;line-height:1.6">🏁 ${_laps}</div>`;
+          _row+=`<div style="padding:1px 0 7px 4px;font-size:11px;line-height:1.6">🏁 ${_laps}</div>`;
         }
         return _row;
       }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
