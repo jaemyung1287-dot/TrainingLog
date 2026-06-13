@@ -2119,7 +2119,8 @@ function renderTeamTrainingData(){
         const _pctH=parseFloat(s.intensity)||null;
         const _tgtH=(_pbH&&_pctH&&_pctH>0)?(_pbH/(_pctH/100)):null;
         const _nmH=(s.name||'').trim();
-        const _paceH=(_pctH!=null)?` <span style="color:var(--muted)">· 🎯 ${_pctH}%${_tgtH!=null?` → <span style="color:#3ecf8e;font-weight:700">${_f2(_tgtH)}s</span>`:''}</span>`:'';
+        const _pbStr=(_pbH!=null&&_pctH!=null)?` <span style="color:var(--muted)">· 🏆 PB <span style="color:#ffb300;font-weight:700">${_f2(_pbH)}s</span></span>`:'';
+        const _paceH=(_pctH!=null)?`${_pbStr} <span style="color:var(--muted)">· 🎯 ${_pctH}%${_tgtH!=null?` → <span style="color:#3ecf8e;font-weight:700">${_f2(_tgtH)}s</span>`:''}</span>`:'';
         let _row=detRow(`${_nmH?`${_nmH} `:''}<span style="font-weight:700">${s.distance||'—'}m</span> <span style="color:var(--muted);font-size:11px">${reps}</span>${_paceH}`,'');
         const _rt=Array.isArray(s.repTimes)?s.repTimes:[];
         if(_rt.some(x=>x!=null&&x!=='')){
