@@ -3568,7 +3568,7 @@ function renderExList(){
       const mobPlanSummary=_mobParts.length?`<div class="plan-summary-row">📋 Plan: ${_mobParts.join(' · ')}${_mobRestStr}</div>`:'';
       let mobCoachBadge='';
       if(ex.coachComment){
-        mobCoachBadge=`<div style="margin-top:6px;display:flex;align-items:flex-start;gap:7px;padding:6px 10px;background:rgba(198,168,90,.08);border:1px solid rgba(198,168,90,.25);border-radius:8px"><span style="font-size:10px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.05em;flex-shrink:0;margin-top:1px">💬 COACH</span><span style="font-size:12px;color:var(--text);line-height:1.4">${ex.coachComment}</span></div>`;
+        mobCoachBadge=`<div style="margin-top:6px;display:flex;align-items:flex-start;gap:7px;padding:6px 10px;background:rgba(198,168,90,.08);border:1px solid rgba(198,168,90,.25);border-radius:8px"><span style="font-size:10px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.05em;flex-shrink:0;margin-top:1px">💬 TRAINER</span><span style="font-size:12px;color:var(--text);line-height:1.4">${ex.coachComment}</span></div>`;
       }
       paramsHtml=`${mobPlanSummary}${ytEmbed}${mobCoachBadge}`;
     } else {
@@ -3664,11 +3664,11 @@ function renderExList(){
       ?`<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
         <button onclick="_toggleExSkip(${i})"
           style="padding:7px 14px;border-radius:10px;border:1.5px solid ${ex.skipped?'rgba(255,255,255,.3)':'rgba(255,255,255,.1)'};background:${ex.skipped?'rgba(255,255,255,.1)':'transparent'};color:${ex.skipped?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${ex.skipped?'↩ Skip':'Skip'}
+          ${ex.skipped?'↩ Übersprungen':'Überspringen'}
         </button>
         <button class="_ex-done-btn" onclick="_toggleExDone(${i})"
           style="padding:7px 16px;border-radius:10px;border:1.5px solid ${ex.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${ex.done?'rgba(62,207,142,.12)':'transparent'};color:${ex.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${ex.done?'✅ Done':'○ Mark as Done'}
+          ${ex.done?'✅ Erledigt':'○ Als erledigt markieren'}
         </button>
       </div>`
       :`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
@@ -8059,7 +8059,7 @@ function renderPlanAccordion(){
           fieldsHtml=`
           <div class="ex-nums" style="grid-template-columns:1fr 1fr;gap:6px">
             <div class="mini-wrap"><input class="mini-in" type="text" inputmode="numeric" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
-            <div class="mini-wrap"><input class="mini-in" type="text" placeholder="z.B. 10 / 30s / 1min" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Wdh. / Zeit</div></div>
+            <div class="mini-wrap"><input class="mini-in" type="text" placeholder="e.g. 10 / 30s / 1min" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Reps / Time</div></div>
           </div>`;
         }
         const restTime=ex.planRestTime||'';
@@ -8083,6 +8083,12 @@ function renderPlanAccordion(){
               oninput="_updatePlanEx(${globalIdx},'ytUrl',this.value)"
               style="flex:1;padding:5px 10px;background:var(--input);border:1px solid rgba(255,60,60,.2);border-radius:8px;color:var(--text);font-size:11px;outline:none;min-width:0">
             ${ex.ytUrl?`<a href="${ex.ytUrl}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:12px;font-weight:800;text-decoration:none">▶</a>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+            <span style="font-size:10px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.3px;flex-shrink:0">💬</span>
+            <input type="text" placeholder="Coach comment…" value="${(ex.coachComment||'').replace(/"/g,'&quot;')}"
+              oninput="_updatePlanEx(${globalIdx},'coachComment',this.value)"
+              style="flex:1;padding:5px 10px;background:var(--input);border:1px solid rgba(198,168,90,.25);border-radius:8px;color:var(--text);font-size:11px;outline:none;min-width:0">
           </div>`;
         subWrap.appendChild(item);
       });
