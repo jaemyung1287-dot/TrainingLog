@@ -1716,9 +1716,9 @@ const TRAINING_STRUCTURE={
     color:'#6A4A8A',
     params:'plyo'
   },
-  'Mobility & Conditioning':{
+  'Conditioning':{
     icon:'🌀',
-    subs:['Hip Joint','Foot Exercise','Balance','Mobility','Activation','Conditioning'],
+    subs:['Hip Joint','Foot Exercise','Balance','Mobility','Activation','General'],
     color:'#E07B39',
     params:'mobility'
   }
@@ -1881,7 +1881,7 @@ const EXERCISE_LIBRARY={
   // Mobility & Conditioning — generic
   'Mobility':['Cat-Cow','Thoracic Rotation','Worlds Greatest Stretch','Adductor Rocks'],
   'Activation':['Glute Bridge','Mini Band Lateral Walk','Mini Band Monster Walk','Clamshell'],
-  'Conditioning':['Bike Intervals','Sled Push','Aqua Training','Copenhagen Plank']
+  'General':['Bike Intervals','Sled Push','Aqua Training','Copenhagen Plank','Plank','Dead Bug']
 };
 
 // Exercises that are bodyweight by nature (BW auto-mode)
@@ -8276,8 +8276,9 @@ function renderPlanAccordion(){
   });
   if(ST._planActiveInput==='__circuit__') setTimeout(()=>{ const el=document.getElementById('pinp-circuit'); if(el)el.focus(); },40);
 
-  // ── Conditioning Card ────────────────────────────────────────
-  _makeConditioningCard(wrap, sessObj?.conditioningText||'');
+  // ── Conditioning is now a full exercise category (params:'mobility'),
+  //    rendered by the TRAINING_STRUCTURE accordion loop above. The old
+  //    text-only Conditioning card is removed to avoid duplication.
 
   // ── Cool-down Card (bottom) ──────────────────────────────────
   _makePlanTextCard(wrap,'cooldown','Cool-down','❄️','#4f8ef7',
