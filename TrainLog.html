@@ -786,6 +786,8 @@ const APP_VERSION = '20260527-7';
   </div>
   <div class="ttl" id="astats-name">My Stats</div>
   <div class="sub">Last 14 days</div>
+  <!-- Readiness + Streak -->
+  <div id="ath-readiness-card" style="margin:4px 0 16px"></div>
   <!-- vol-split-summary removed -->
   <div class="chart-box">
     <div class="chart-title">🏋️ Power Development Volume (kg)</div>
@@ -1988,6 +1990,88 @@ function getLast(n){
   return out;
 }
 function fmtDate(s){ const p=s.split('-'); return `${p[1]}/${p[2]}`; }
+
+// ════════════════════════════════════════════════
+//  READINESS SCORE & LOGGING STREAK
+//  Personal-baseline (z-score vs. each athlete's own last 21 days)
+// ════════════════════════════════════════════════
+// Daily soreness severity = worst affected part (0 = none)
+function _soreSev(log){
+  const s=log&&log.soreness; if(!s||!s.length) return 0;
+  return Math.max(...s.map(x=>(+x.intensity||0)));
+}
+// Latest condition log for an athlete on a given date (null if none)
+function _condOn(logs,name,dt){
+  const c=logs.filter(l=>l.type==='condition'&&l.athleteName===name&&l.date===dt);
+  return c.length?c[c.length-1]:null;
+}
+function _mean(a){ return a.reduce((s,x)=>s+x,0)/a.length; }
+function _sd(a,m){ if(a.length<2) return 0; return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/(a.length-1)); }
+function _lightColor(l){ return l==='g'?'#3ecf8e':l==='y'?'#f7a94f':'#e94560'; }
+// Berlin date string offset days from today
+function _dayStr(off){
+  const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit'});
+  const d=new Date(); d.setDate(d.getDate()+(off||0));
+  const p={}; fmt.formatToParts(d).forEach(x=>p[x.type]=x.value);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+// Readiness for an athlete on a date.
+// Compares today's wellness to that athlete's own prior baseline (≤21 condition logs).
+// Each metric → z-score (flipped so + = more ready) → weighted → 0–100.
+// Cold start (<4 baseline days) falls back to absolute normalization.
+// Returns {ok, score 0–100, z, light:'g'|'y'|'r', color, n, mode}
+function _readiness(allLogs,name,dt){
+  const today=_condOn(allLogs,name,dt);
+  if(!today) return {ok:false};
+  // sdMin = floor on personal SD so a near-constant baseline still reacts to a real change
+  const M=[
+    {k:'fatigue',     w:.30, bad:true,  sdMin:1.0, get:l=>l.fatigue},
+    {k:'sore',        w:.30, bad:true,  sdMin:1.5, get:l=>_soreSev(l)},
+    {k:'sleepQuality',w:.20, bad:false, sdMin:1.0, get:l=>l.sleepQuality},
+    {k:'sleepHours',  w:.10, bad:false, sdMin:0.5, get:l=>l.sleepHours},
+    {k:'mood',        w:.10, bad:false, sdMin:1.0, get:l=>l.mood}
+  ];
+  const hist=allLogs.filter(l=>l.type==='condition'&&l.athleteName===name&&l.date<dt)
+                    .sort((a,b)=>a.date.localeCompare(b.date)).slice(-21);
+  const n=hist.length;
+  let zsum=0,wsum=0,absSum=0,absW=0;
+  M.forEach(m=>{
+    const tv=m.get(today); if(tv==null||isNaN(tv)) return;
+    let abs;
+    if(m.k==='fatigue') abs=(11-tv)/10*100;
+    else if(m.k==='sore') abs=(10-Math.min(tv,10))/10*100;
+    else if(m.k==='sleepQuality'||m.k==='mood') abs=tv/10*100;
+    else abs=tv>=7?(tv>9.5?Math.max(60,100-(tv-9.5)*15):100):Math.max(0,tv/7*100); // sleepHours
+    absSum+=abs*m.w; absW+=m.w;
+    const vals=hist.map(m.get).filter(v=>v!=null&&!isNaN(v));
+    if(vals.length>=4){
+      const mn=_mean(vals), sd=Math.max(_sd(vals,mn), m.sdMin);
+      let z = (tv-mn)/sd;
+      if(m.bad) z=-z;
+      z=Math.max(-3,Math.min(3,z));
+      zsum+=z*m.w; wsum+=m.w;
+    }
+  });
+  const absScore=absW?Math.round(absSum/absW):50;
+  if(n>=4 && wsum>0){
+    const z=zsum/wsum;
+    const score=Math.max(0,Math.min(100,Math.round(75+z*15)));
+    const light = z>=-0.5?'g' : z>=-1.5?'y' : 'r';
+    return {ok:true,score,z,light,color:_lightColor(light),n,mode:'z'};
+  }
+  const light = absScore>=67?'g' : absScore>=34?'y' : 'r';
+  return {ok:true,score:absScore,z:null,light,color:_lightColor(light),n,mode:'abs'};
+}
+// Consecutive-day logging streak (any log type).
+// Grace: if today not yet logged, streak continues from yesterday until a full day is missed.
+function _streak(allLogs,name){
+  const dset=new Set(allLogs.filter(l=>l.athleteName===name).map(l=>l.date));
+  let i=0;
+  if(!dset.has(_dayStr(0))){ if(!dset.has(_dayStr(-1))) return 0; i=-1; }
+  let c=0;
+  while(dset.has(_dayStr(i))){ c++; i--; }
+  return c;
+}
 
 // ════════════════════════════════════════════════
 //  STATE
@@ -4595,10 +4679,47 @@ function _exVolSplit(logs){
 }
 
 
+// Athlete-facing Readiness + Streak card (self-awareness; no load-management data)
+function _renderReadinessCard(allLogs,name){
+  const card=document.getElementById('ath-readiness-card'); if(!card) return;
+  const r=_readiness(allLogs,name,todayStr());
+  const stk=_streak(allLogs,name);
+  const streakTile=`
+    <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 12px;text-align:center">
+      <div style="font-size:26px;font-weight:800;color:#ff8c42;line-height:1">🔥 ${stk}</div>
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:6px">Tage in Folge · Streak</div>
+    </div>`;
+  let readyTile;
+  if(!r.ok){
+    readyTile=`
+      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 12px;text-align:center">
+        <div style="font-size:22px;line-height:1">—</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4">Heute noch kein<br>Morgen-Check</div>
+      </div>`;
+  } else {
+    const lbl=r.light==='g'?'Bereit · Ready':r.light==='y'?'Achtung · Caution':'Erholung · Recovery';
+    const note=r.mode==='abs'?'Baseline wird aufgebaut':'vs. dein 21-Tage-Schnitt';
+    readyTile=`
+      <div style="flex:1.4;background:var(--card);border:1px solid ${r.color}55;border-radius:14px;padding:14px 12px;text-align:center;position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${r.color}"></div>
+        <div style="display:flex;align-items:baseline;justify-content:center;gap:6px">
+          <div style="font-size:30px;font-weight:800;color:${r.color};line-height:1">${r.score}</div>
+          <div style="font-size:13px;color:var(--muted)">/100</div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:${r.color};margin-top:5px">${lbl}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px">${note}</div>
+      </div>`;
+  }
+  card.innerHTML=`
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">⚡ Readiness</div>
+    <div style="display:flex;gap:10px;align-items:stretch">${readyTile}${streakTile}</div>`;
+}
 function renderAthStats(){
   const d=getData(); const name=ST.athlete.name;
   const dates=getLast(14); const labels=dates.map(fmtDate);
   const myLogs=d.logs.filter(l=>l.athleteName===name);
+
+  _renderReadinessCard(d.logs, name);
 
   // Per-day volume by training type
   const liftingVol=dates.map(dt=>_exVolSplit(myLogs.filter(l=>l.date===dt)).lifting);
@@ -5717,11 +5838,16 @@ function renderAthletesTab(){
     const sd=logs.filter(l=>l.type==='sprint').reduce((s,l)=>s+l.totalDistance,0);
     const cl=logs.filter(l=>l.type==='condition');
     const af=cl.length?Math.round(cl.reduce((s,l)=>s+l.fatigue,0)/cl.length*10)/10:'-';
+    // Readiness traffic-light (today, vs. athlete's own 21-day baseline)
+    const r=_readiness(d.logs,a.name,todayStr());
+    const dot=r.ok
+      ? `<span title="Readiness ${r.score}/100${r.mode==='abs'?' (baseline building)':''}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${r.color};box-shadow:0 0 6px ${r.color}aa;flex-shrink:0"></span>`
+      : `<span title="No morning check today" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.12);flex-shrink:0"></span>`;
     const div=document.createElement('div'); div.className='ath-row';
     div.innerHTML=`<div style="width:40px;height:40px;border-radius:50%;background:${a.group==='A'?'rgba(79,142,247,.2)':'rgba(62,207,142,.2)'};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${a.name[0]}</div>
       <div class="ath-row-info"><div class="ath-row-name">${a.name} <span class="badge ${a.group==='A'?'b-w':'b-s'}">Grp ${a.group}</span></div>
       <div class="ath-row-meta">${a.dob||''} ${a.gender?'· '+a.gender:''} · 7d: ${wv.toLocaleString()}kg · ${sd.toLocaleString()}m · fatigue ${af}</div></div>
-      <span style="color:var(--muted);font-size:20px">›</span>`;
+      <span style="display:flex;align-items:center;gap:8px"><span title="Readiness" style="display:flex;align-items:center;gap:5px">${dot}</span><span style="color:var(--muted);font-size:20px">›</span></span>`;
     div.onclick=()=>openAthDetail(a.name);
     wrap.appendChild(div);
   });
