@@ -1628,6 +1628,10 @@ function renderCondition(){
       ${pOpts}
     </div>
     <div class="card" style="margin-bottom:12px">
+      <div class="card-hd">⚡ Readiness Trend &nbsp;<span style="font-weight:400;color:var(--muted);font-size:10px">🟢 양호 · 🟡 주의 · 🔴 회복 — 개인 21일 기준선 대비</span></div>
+      <div class="chart-h"><canvas id="ch-readiness"></canvas></div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
       <div class="card-hd">Fatigue · Mood · Sleep Quality</div>
       <div class="chart-h"><canvas id="ch-cond-main"></canvas></div>
     </div>
@@ -1651,6 +1655,18 @@ function renderCondition(){
   </div>`;
 
   setTimeout(()=>{
+    // Readiness trend (daily score over the period; points colored by traffic light)
+    killChart('readiness');
+    const cRd=document.getElementById('ch-readiness');
+    if(cRd){
+      const rd=dates.map(d=>_readiness(logs,condAth,d));
+      const rdScores=rd.map(r=>r.ok?r.score:null);
+      const rdColors=rd.map(r=>r.ok?r.color:'rgba(255,255,255,.2)');
+      charts['readiness']=new Chart(cRd,{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[{
+        label:'Readiness',data:rdScores,borderColor:'#f7a94f',backgroundColor:'rgba(247,169,79,.07)',fill:true,
+        pointBackgroundColor:rdColors,pointBorderColor:rdColors,pointRadius:4,pointHoverRadius:6,spanGaps:true,tension:.35
+      }]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const r=rd[c.dataIndex];return 'Readiness '+c.parsed.y+(r&&r.mode==='abs'?' (baseline building)':'');}}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},min:0,max:100}}}});
+    }
     killChart('cond-main');
     const cMain=document.getElementById('ch-cond-main');
     if(cMain)charts['cond-main']=new Chart(cMain,{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[
