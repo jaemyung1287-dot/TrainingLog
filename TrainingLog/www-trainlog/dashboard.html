@@ -635,6 +635,52 @@ function getLogsByName(name){
   return[];
 }
 function getAllLogs(){return Object.values(athLogs).flat();}
+// ── Readiness (personal-baseline z-score vs. athlete's own last 21 condition logs) ──
+// Mirrors the TrainLog app logic. Weights: fatigue30/sore30/sleepQ20/sleepH10/mood10.
+function _soreSev(log){const s=log&&log.soreness;if(!s||!s.length)return 0;return Math.max(...s.map(x=>(+x.intensity||0)));}
+function _condOn(logs,name,dt){const c=logs.filter(l=>l.type==='condition'&&l.athleteName===name&&l.date===dt);return c.length?c[c.length-1]:null;}
+function _mean(a){return a.reduce((s,x)=>s+x,0)/a.length;}
+function _sdv(a,m){if(a.length<2)return 0;return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/(a.length-1));}
+function _lightColor(l){return l==='g'?'#3ecf8e':l==='y'?'#f7a94f':'#e94560';}
+function _readiness(allLogs,name,dt){
+  const today=_condOn(allLogs,name,dt);
+  if(!today)return{ok:false};
+  const M=[
+    {k:'fatigue',w:.30,bad:true,sdMin:1.0,get:l=>l.fatigue},
+    {k:'sore',w:.30,bad:true,sdMin:1.5,get:l=>_soreSev(l)},
+    {k:'sleepQuality',w:.20,bad:false,sdMin:1.0,get:l=>l.sleepQuality},
+    {k:'sleepHours',w:.10,bad:false,sdMin:0.5,get:l=>l.sleepHours},
+    {k:'mood',w:.10,bad:false,sdMin:1.0,get:l=>l.mood}
+  ];
+  const hist=allLogs.filter(l=>l.type==='condition'&&l.athleteName===name&&l.date<dt)
+                    .sort((a,b)=>a.date.localeCompare(b.date)).slice(-21);
+  const n=hist.length;
+  let zsum=0,wsum=0,absSum=0,absW=0;
+  M.forEach(m=>{
+    const tv=m.get(today);if(tv==null||isNaN(tv))return;
+    let abs;
+    if(m.k==='fatigue')abs=(11-tv)/10*100;
+    else if(m.k==='sore')abs=(10-Math.min(tv,10))/10*100;
+    else if(m.k==='sleepQuality'||m.k==='mood')abs=tv/10*100;
+    else abs=tv>=7?(tv>9.5?Math.max(60,100-(tv-9.5)*15):100):Math.max(0,tv/7*100);
+    absSum+=abs*m.w;absW+=m.w;
+    const vals=hist.map(m.get).filter(v=>v!=null&&!isNaN(v));
+    if(vals.length>=4){
+      const mn=_mean(vals),sd=Math.max(_sdv(vals,mn),m.sdMin);
+      let z=(tv-mn)/sd;if(m.bad)z=-z;z=Math.max(-3,Math.min(3,z));
+      zsum+=z*m.w;wsum+=m.w;
+    }
+  });
+  const absScore=absW?Math.round(absSum/absW):50;
+  if(n>=4&&wsum>0){
+    const z=zsum/wsum;
+    const score=Math.max(0,Math.min(100,Math.round(75+z*15)));
+    const light=z>=-0.5?'g':z>=-1.5?'y':'r';
+    return{ok:true,score,z,light,color:_lightColor(light),n,mode:'z'};
+  }
+  const light=absScore>=67?'g':absScore>=34?'y':'r';
+  return{ok:true,score:absScore,z:null,light,color:_lightColor(light),n,mode:'abs'};
+}
 function vol(logs){
   return logs.filter(l=>l.type==='weight'||l.type==='plyo').reduce((s,log)=>s+(log.exercises||[]).reduce((ss,e)=>{
     if(e.isBodyweight)return ss;
@@ -804,6 +850,11 @@ function renderOverview(){
     const logs=getLogsByName(ath.name);
     const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
     const grpBg=ath.group==='A'?'rgba(88,166,255,.15)':'rgba(62,207,142,.15)';
+    // Today's readiness traffic-light
+    const rd=_readiness(logs,ath.name,today);
+    const rdDot=rd.ok
+      ? `<span title="Readiness ${rd.score}/100${rd.mode==='abs'?' · baseline building':''}" style="display:inline-flex;align-items:center;gap:4px;margin-left:6px"><span style="width:8px;height:8px;border-radius:50%;background:${rd.color};box-shadow:0 0 5px ${rd.color}aa"></span><span style="font-size:10px;font-weight:700;color:${rd.color}">${rd.score}</span></span>`
+      : `<span title="No morning check today" style="display:inline-flex;align-items:center;margin-left:6px"><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.18)"></span></span>`;
 
     table+=`<tr>
       <td class="td-ath">
@@ -814,6 +865,7 @@ function renderOverview(){
             <div class="td-ath-meta">
               <span class="td-ath-badge" style="background:${grpBg};color:${grpColor}">Group ${ath.group}</span>
               ${ath.dob?`<span style="margin-left:4px;font-size:9px;color:var(--hint)">${ath.dob}</span>`:''}
+              ${rdDot}
             </div>
           </div>
         </div>
@@ -1761,6 +1813,11 @@ function renderAthletes(){
     const grpColor=ath.group==='A'?'#58a6ff':'#3ecf8e';
     const grpBg=ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)';
     const isSel=compareSet.has(ath.name);
+    // Readiness traffic-light (today, vs. athlete's own 21-day baseline)
+    const rd=_readiness(logs,ath.name,todayStr());
+    const rdChip=rd.ok
+      ? `<span title="Readiness ${rd.score}/100${rd.mode==='abs'?' · baseline building':' · vs 21d baseline'}" style="display:inline-flex;align-items:center;gap:5px;margin-left:auto;padding:3px 9px;border-radius:20px;background:${rd.color}1f;border:1px solid ${rd.color}66"><span style="width:8px;height:8px;border-radius:50%;background:${rd.color};box-shadow:0 0 6px ${rd.color}aa"></span><span style="font-size:12px;font-weight:700;color:${rd.color}">${rd.score}</span></span>`
+      : `<span title="No morning check today" style="display:inline-flex;align-items:center;gap:5px;margin-left:auto;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--border2)"><span style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.18)"></span><span style="font-size:11px;color:var(--muted)">—</span></span>`;
     // brief per-log exercise summary (top weights / sprint sets)
     const _logBrief=(l)=>{
       if(l.type==='weight'||l.type==='plyo'){
@@ -1778,7 +1835,7 @@ function renderAthletes(){
 
     cardsHtml+=`<div class="ath-card ${isSel?'selected':''}">
       <button class="cmp-toggle" onclick="toggleCompare('${ath.name.replace(/'/g,"\\'")}')" title="Compare">✓</button>
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px">
+      <div style="padding:14px 34px 14px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px">
         <div style="width:38px;height:38px;border-radius:8px;background:${grpBg};color:${grpColor};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">${ath.name[0]}</div>
         <div>
           <div style="font-size:13px;font-weight:700">${ath.name}</div>
@@ -1787,6 +1844,7 @@ function renderAthletes(){
             ${ath.dob?`<span style="font-size:10px;color:var(--muted);margin-left:6px">${ath.dob}</span>`:''}
           </div>
         </div>
+        ${rdChip}
       </div>
       <div style="padding:14px 16px">
         <div class="g3" style="margin-bottom:12px">
