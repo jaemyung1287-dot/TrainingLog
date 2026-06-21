@@ -786,8 +786,6 @@ const APP_VERSION = '20260527-7';
   </div>
   <div class="ttl" id="astats-name">My Stats</div>
   <div class="sub">Last 14 days</div>
-  <!-- Readiness + Streak -->
-  <div id="ath-readiness-card" style="margin:4px 0 16px"></div>
   <!-- vol-split-summary removed -->
   <div class="chart-box">
     <div class="chart-title">🏋️ Power Development Volume (kg)</div>
@@ -2008,13 +2006,6 @@ function _condOn(logs,name,dt){
 function _mean(a){ return a.reduce((s,x)=>s+x,0)/a.length; }
 function _sd(a,m){ if(a.length<2) return 0; return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/(a.length-1)); }
 function _lightColor(l){ return l==='g'?'#3ecf8e':l==='y'?'#f7a94f':'#e94560'; }
-// Berlin date string offset days from today
-function _dayStr(off){
-  const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit'});
-  const d=new Date(); d.setDate(d.getDate()+(off||0));
-  const p={}; fmt.formatToParts(d).forEach(x=>p[x.type]=x.value);
-  return `${p.year}-${p.month}-${p.day}`;
-}
 // Readiness for an athlete on a date.
 // Compares today's wellness to that athlete's own prior baseline (≤21 condition logs).
 // Each metric → z-score (flipped so + = more ready) → weighted → 0–100.
@@ -2061,16 +2052,6 @@ function _readiness(allLogs,name,dt){
   }
   const light = absScore>=67?'g' : absScore>=34?'y' : 'r';
   return {ok:true,score:absScore,z:null,light,color:_lightColor(light),n,mode:'abs'};
-}
-// Consecutive-day logging streak (any log type).
-// Grace: if today not yet logged, streak continues from yesterday until a full day is missed.
-function _streak(allLogs,name){
-  const dset=new Set(allLogs.filter(l=>l.athleteName===name).map(l=>l.date));
-  let i=0;
-  if(!dset.has(_dayStr(0))){ if(!dset.has(_dayStr(-1))) return 0; i=-1; }
-  let c=0;
-  while(dset.has(_dayStr(i))){ c++; i--; }
-  return c;
 }
 
 // ════════════════════════════════════════════════
@@ -4679,47 +4660,10 @@ function _exVolSplit(logs){
 }
 
 
-// Athlete-facing Readiness + Streak card (self-awareness; no load-management data)
-function _renderReadinessCard(allLogs,name){
-  const card=document.getElementById('ath-readiness-card'); if(!card) return;
-  const r=_readiness(allLogs,name,todayStr());
-  const stk=_streak(allLogs,name);
-  const streakTile=`
-    <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 12px;text-align:center">
-      <div style="font-size:26px;font-weight:800;color:#ff8c42;line-height:1">🔥 ${stk}</div>
-      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:6px">Tage in Folge · Streak</div>
-    </div>`;
-  let readyTile;
-  if(!r.ok){
-    readyTile=`
-      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 12px;text-align:center">
-        <div style="font-size:22px;line-height:1">—</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4">Heute noch kein<br>Morgen-Check</div>
-      </div>`;
-  } else {
-    const lbl=r.light==='g'?'Bereit · Ready':r.light==='y'?'Achtung · Caution':'Erholung · Recovery';
-    const note=r.mode==='abs'?'Baseline wird aufgebaut':'vs. dein 21-Tage-Schnitt';
-    readyTile=`
-      <div style="flex:1.4;background:var(--card);border:1px solid ${r.color}55;border-radius:14px;padding:14px 12px;text-align:center;position:relative;overflow:hidden">
-        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${r.color}"></div>
-        <div style="display:flex;align-items:baseline;justify-content:center;gap:6px">
-          <div style="font-size:30px;font-weight:800;color:${r.color};line-height:1">${r.score}</div>
-          <div style="font-size:13px;color:var(--muted)">/100</div>
-        </div>
-        <div style="font-size:12px;font-weight:700;color:${r.color};margin-top:5px">${lbl}</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:3px">${note}</div>
-      </div>`;
-  }
-  card.innerHTML=`
-    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">⚡ Readiness</div>
-    <div style="display:flex;gap:10px;align-items:stretch">${readyTile}${streakTile}</div>`;
-}
 function renderAthStats(){
   const d=getData(); const name=ST.athlete.name;
   const dates=getLast(14); const labels=dates.map(fmtDate);
   const myLogs=d.logs.filter(l=>l.athleteName===name);
-
-  _renderReadinessCard(d.logs, name);
 
   // Per-day volume by training type
   const liftingVol=dates.map(dt=>_exVolSplit(myLogs.filter(l=>l.date===dt)).lifting);
