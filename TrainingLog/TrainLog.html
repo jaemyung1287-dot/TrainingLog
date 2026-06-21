@@ -272,6 +272,8 @@ tr:last-child td{border-bottom:none}
 .btn-athlete,.btn-coach{transition:box-shadow .35s ease,transform .25s ease}
 .btn-athlete:hover{transform:translateY(-3px) scale(1.012);box-shadow:0 28px 70px rgba(0,0,0,.92),0 0 0 1.5px rgba(198,168,90,.6),0 0 50px rgba(180,50,60,.3),0 0 80px rgba(198,168,90,.1)!important}
 .btn-coach:hover{transform:translateY(-3px) scale(1.012);box-shadow:0 28px 70px rgba(0,0,0,.92),0 0 0 1.5px rgba(0,100,220,.65),0 0 50px rgba(0,61,165,.35),0 0 80px rgba(200,16,46,.08)!important}
+.tl-pb-pill{animation:tlPbPulse 1.5s ease-in-out infinite}
+@keyframes tlPbPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,196,0,0)}50%{box-shadow:0 0 9px 1px rgba(255,196,0,.5)}}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
@@ -390,6 +392,46 @@ const APP_VERSION = '20260527-7';
     <div class="menu-card" onclick="goAthleteStats()">
       <span class="ico">📈</span>
       <div class="lbl">My Data</div>
+    </div>
+  </div>
+
+  <!-- ── TEAM TRAINING DATA — tap to open ── -->
+  <div onclick="goTeamData()" style="border-radius:18px;background:var(--card);border:2px solid var(--border);padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+    <span style="font-size:26px;line-height:1">🏟️</span>
+    <div style="flex:1">
+      <div style="font-size:15px;font-weight:800;color:var(--text)">Team Training Data</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">alle Athleten · all athletes</div>
+    </div>
+    <span style="font-size:20px;color:var(--muted)">→</span>
+  </div>
+</div>
+
+<!-- TEAM TRAINING DATA SCREEN -->
+<div id="s-team-data" class="screen">
+  <div class="hdr">
+    <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
+    <span class="logo">🏔️ Team Bayern Skeleton</span>
+  </div>
+  <div class="ttl">🏟️ Team Training Data</div>
+  <div class="sub">alle Athleten · all athletes</div>
+  <div style="margin-top:10px">
+    <!-- Weight accordion -->
+    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);margin-bottom:12px;overflow:hidden">
+      <div onclick="toggleTeamAcc('weight')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
+        <span style="font-size:22px;line-height:1">🏋️</span>
+        <div style="flex:1;font-size:16px;font-weight:800;color:#f7a94f">Weight</div>
+        <span id="team-acc-arrow-weight" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
+      </div>
+      <div id="team-acc-body-weight" style="display:none;padding:0 14px 10px"></div>
+    </div>
+    <!-- Sprint accordion -->
+    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);overflow:hidden">
+      <div onclick="toggleTeamAcc('sprint')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
+        <span style="font-size:22px;line-height:1">⚡</span>
+        <div style="flex:1;font-size:16px;font-weight:800;color:#3ecf8e">Sprint</div>
+        <span id="team-acc-arrow-sprint" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
+      </div>
+      <div id="team-acc-body-sprint" style="display:none;padding:0 14px 10px"></div>
     </div>
   </div>
 </div>
@@ -667,6 +709,13 @@ const APP_VERSION = '20260527-7';
         <span class="ico">🏃</span>
         <div class="lbl">Track Start</div>
       </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div class="type-card" id="rt-uphill" onclick="selectRecType('uphill')">
+        <span class="ico">⛰️</span>
+        <div class="lbl">Uphill</div>
+      </div>
+      <div></div>
     </div>
   </div>
 
@@ -1076,6 +1125,7 @@ const APP_VERSION = '20260527-7';
       <select class="fi" id="bulk-sprint-type">
         <option value="acc">Acceleration</option>
         <option value="maxv">Max Velocity</option>
+        <option value="uphill">⛰️ Uphill</option>
         <option value="se1">SE1</option>
         <option value="se2">SE2</option>
         <option value="tempo">Tempo</option>
@@ -1496,6 +1546,15 @@ async function initFirebase(){
       _backupLocal();
       localStorage.setItem(SK,JSON.stringify(merged));
       console.log(`[TrainLog] Loaded from Firebase ✓ (${merged.logs.length} logs)`);
+      // ── One-time seeds: Uphill 50m bests + 100m HST test splits → records (idempotent) ──
+      const _su=_seedUphillRecords(merged), _sf=_seedFlatSprintRecords(merged);
+      if(_su||_sf){
+        merged._lastUpdated=Date.now();
+        localStorage.setItem(SK,JSON.stringify(merged));
+        COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:merged._lastUpdated}))
+          .then(()=>console.log('[TrainLog] Record seeds → cloud ✓ (uphill:'+_su+' flat:'+_sf+')'))
+          .catch(e=>console.warn('[TrainLog] Seed push failed:',e));
+      }
       // ── Recovery: if this device holds plan-days the cloud lost, push them back ──
       if(Object.keys(merged.sessionPlans||{}).length>Object.keys(cloudData.sessionPlans||{}).length){
         COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:Date.now()}))
@@ -1505,6 +1564,8 @@ async function initFirebase(){
     } else {
       // No cloud data yet — push local data to new structure
       const localData=getData();
+      const _su2=_seedUphillRecords(localData), _sf2=_seedFlatSprintRecords(localData);
+      if(_su2||_sf2){ localData._lastUpdated=Date.now(); localStorage.setItem(SK,JSON.stringify(localData)); }
       // Force full sync: push coach doc + all athlete docs
       await _fullSyncToCloud(localData);
       console.log('[TrainLog] First run — pushed to Firebase ✓');
@@ -1654,6 +1715,12 @@ const TRAINING_STRUCTURE={
     subs:['Vertical Power','Horizontal Power','Reactive / Elastic'],
     color:'#6A4A8A',
     params:'plyo'
+  },
+  'Conditioning':{
+    icon:'🌀',
+    subs:['General'],
+    color:'#E07B39',
+    params:'mobility'
   }
 };
 
@@ -1794,6 +1861,16 @@ const EXERCISE_LIBRARY={
     'Fast Leg Drill','Reactive Lateral Bound','Continuous Hurdle Jump (High)',
     'Single Leg Hurdle Hop','In-Place Reactive Jump','Max Stiffness Bounding',
     'Single Leg Reactive Jump'
+  ],
+  // Conditioning — single 'General' list (no sub-classification)
+  'General':[
+    'Quadruped Hip CARs','Standing Hip CARs','Tall Kneeling Hip CARs',
+    '90/90 Switching + Get Up w/Reach','90/90 Hip Switch',
+    'Hurdle Mobilization w/Reach','Hurdle Position Switching','Hurdle Mob to Side Lunge',
+    'Big Toe Stretch','Toe Yoga','Seated Big Toe Flexion w/Band','Short Foot (3s Hold)','Towel Curl',
+    'Eyes Closed','Trunk Rotation (Side)','Gaze Fixation (4 Directions)','KB Passes','Halo',
+    'Single Leg Balance','Split Stance Balance','Mini Band Lateral Walk','Glute Bridge',
+    'Bike Intervals','Sled Push','Aqua Training','Copenhagen Plank','Plank','Dead Bug'
   ]
 };
 
@@ -1941,6 +2018,161 @@ function backToAthleteMenu(){
   if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;}
   if(ST._editFromCoach){ ST._editFromCoach=false; document.getElementById('coach-tabbar').classList.remove('show'); showScreen('s-ath-detail'); return; }
   showScreen('s-athlete-menu');
+}
+// ── Team Training Data (all athletes) — shown on athlete home ──
+function toggleTeamAcc(which){
+  const body=document.getElementById('team-acc-body-'+which);
+  const arrow=document.getElementById('team-acc-arrow-'+which);
+  if(!body) return;
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  if(arrow) arrow.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+function goTeamData(){
+  // Render fresh, start collapsed
+  renderTeamTrainingData();
+  ['weight','sprint'].forEach(w=>{
+    const b=document.getElementById('team-acc-body-'+w); if(b) b.style.display='none';
+    const a=document.getElementById('team-acc-arrow-'+w); if(a) a.style.transform='rotate(0deg)';
+  });
+  showScreen('s-team-data');
+}
+function toggleTeamRow(id){
+  const b=document.getElementById('twbody-'+id);
+  const a=document.getElementById('twarr-'+id);
+  if(!b) return;
+  const open=b.style.display!=='none';
+  b.style.display=open?'none':'block';
+  if(a) a.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+let TEAM_WEEK_OFFSET=0; // 0 = current week, -1 = last week, ...
+function teamWeekShift(delta){
+  TEAM_WEEK_OFFSET=Math.min(0,TEAM_WEEK_OFFSET+delta); // never go into the future
+  renderTeamTrainingData();
+}
+function renderTeamTrainingData(){
+  const wWrap=document.getElementById('team-acc-body-weight');
+  const sWrap=document.getElementById('team-acc-body-sprint');
+  if(!wWrap||!sWrap) return;
+  const d=getData();
+  const me=ST.athlete?ST.athlete.name:'';
+  const fmtDate=ds=>ds?ds.slice(5).replace('-','/'):'';
+  // ── current selected week (Mon–Sun, Europe/Berlin) ──
+  const todayB=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const base=new Date(todayB+'T12:00:00');
+  const dow=(base.getDay()+6)%7; // Monday=0
+  const mon=new Date(base); mon.setDate(base.getDate()-dow+TEAM_WEEK_OFFSET*7);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const f=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  const wkStart=f(mon), wkEnd=f(sun);
+  const inWeek=l=>l.date&&l.date>=wkStart&&l.date<=wkEnd;
+  // ── week navigation bar ──
+  const lbl=TEAM_WEEK_OFFSET===0?'diese Woche':(TEAM_WEEK_OFFSET===-1?'letzte Woche':`vor ${-TEAM_WEEK_OFFSET} Wochen`);
+  const atNow=TEAM_WEEK_OFFSET>=0;
+  const nav=`<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;margin:2px 4px 8px;background:rgba(255,255,255,.04);border-radius:8px">
+      <span onclick="teamWeekShift(-1)" style="cursor:pointer;padding:2px 12px;color:#f7a94f;font-size:14px;user-select:none">◀</span>
+      <span style="font-size:12px;color:var(--text);text-align:center">${lbl} <span style="font-size:11px;color:var(--muted)">(${fmtDate(wkStart)} – ${fmtDate(wkEnd)})</span></span>
+      <span ${atNow?'':'onclick="teamWeekShift(1)"'} style="cursor:${atNow?'default':'pointer'};padding:2px 12px;color:${atNow?'rgba(255,255,255,.15)':'#f7a94f'};font-size:14px;user-select:none">▶</span>
+    </div>`;
+  const emptyWeek=`<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">Keine Daten diese Woche · 이번 주 기록 없음</div>`;
+  // detail line (level 3)
+  const detRow=(left,right)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0">${left}</span><span style="font-size:11px;color:var(--muted);white-space:nowrap;text-align:right">${right}</span></div>`;
+  // generic collapsible row — level 1 (athlete) and level 2 (session)
+  const row=(id,leftHtml,rightHtml,bodyHtml,mine,padL)=>`
+    <div style="border-bottom:1px solid rgba(255,255,255,.06)">
+      <div onclick="toggleTeamRow('${id}')" style="display:flex;align-items:center;gap:8px;padding:11px 6px;cursor:pointer;border-radius:8px;${mine?'background:rgba(247,169,79,.07)':''}">
+        <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${leftHtml}</div>
+        <div style="text-align:right;font-size:11px;color:var(--muted);white-space:nowrap">${rightHtml}</div>
+        <span id="twarr-${id}" style="font-size:11px;color:var(--muted);transition:transform .2s ease;flex-shrink:0">▼</span>
+      </div>
+      <div id="twbody-${id}" style="display:none;padding:0 0 6px ${padL}px">${bodyHtml}</div>
+    </div>`;
+  // group week-filtered logs by athlete
+  const groupByAthlete=logs=>{
+    const map=new Map();
+    logs.forEach(l=>{const k=l.athleteName||'—';if(!map.has(k))map.set(k,[]);map.get(k).push(l);});
+    const arr=[...map.entries()].map(([name,ls])=>{
+      ls.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      return {name,ls,latest:ls[0]?ls[0].date:''};
+    });
+    arr.sort((a,b)=>(b.latest||'').localeCompare(a.latest||''));
+    return arr;
+  };
+
+  // ===== WEIGHT (week → name → dates → exercises) =====
+  const wGroups=groupByAthlete((d.logs||[]).filter(l=>(l.type==='weight'||l.type==='plyo')&&inWeek(l)));
+  wWrap.innerHTML = nav + (wGroups.length ? wGroups.map((g,ai)=>{
+    const mine=g.name===me;
+    const sess=g.ls.map((l,si)=>{
+      const vol=l.totalVolume!=null?l.totalVolume:(l.exercises||[]).reduce((t,e)=>t+(parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
+      const det=(l.exercises||[]).map(e=>{
+        const w=e.isBodyweight?`BW${(e.bwBase||e.extraKg)?'+'+(e.bwBase||e.extraKg)+'kg':''}`:(e.weight?e.weight+'kg':'—');
+        const sr=(e.setRows&&e.setRows.length)
+          ? e.setRows.map(r=>`${r.kg||r.extraKg||(e.isBodyweight?'BW':'—')}${(r.kg||r.extraKg)?'kg':''}×${r.reps||'—'}`).join('  ')
+          : (e.sets?`${e.sets}×${e.reps||'—'}`:'—');
+        return detRow(e.name||'—',`${w} · ${sr}`);
+      }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Details · No details</div>';
+      const rv=Math.round(vol);
+      const right=rv>0?`<span style="color:#f7a94f;font-weight:700">${rv.toLocaleString()} kg</span>`:`<span style="color:var(--muted)">kein Eintrag</span>`;
+      return row('wA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,det,false,16);
+    }).join('');
+    const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
+    return row('wA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
+  }).join('') : emptyWeek);
+
+  // ===== SPRINT (week → name → dates → sets) =====
+  const sGroups=groupByAthlete((d.logs||[]).filter(l=>l.type==='sprint'&&inWeek(l)));
+  sWrap.innerHTML = nav + (sGroups.length ? sGroups.map((g,ai)=>{
+    const mine=g.name===me;
+    const sess=g.ls.map((l,si)=>{
+      const td=l.totalDistance!=null?l.totalDistance:(l.sets||[]).reduce((t,s)=>t+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
+      const tag=l.sprintType?` <span style="color:var(--muted)">· ${l.sprintType}</span>`:'';
+      const det=(l.sets||[]).map(s=>{
+        const _f2=x=>{ const n=parseFloat(x); return isNaN(n)?x:n.toFixed(2); };
+        const t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:(s.totalTime!=null?s.totalTime:null);
+        const reps=`${s.sets||1}×${s.reps||1}`;
+        const _pbH=parseFloat(s.pb)||null;
+        const _pctH=parseFloat(s.intensity)||null;
+        const _tgtH=(_pbH&&_pctH&&_pctH>0)?(_pbH/(_pctH/100)):null;
+        const _nmH=(s.name||'').trim();
+        const _pbStr=(_pbH!=null&&_pctH!=null)?` <span style="color:var(--muted)">· 🏆 PB <span style="color:#ffb300;font-weight:700">${_f2(_pbH)}s</span></span>`:'';
+        const _paceH=(_pctH!=null)?`${_pbStr} <span style="color:var(--muted)">· 🎯 ${_pctH}%${_tgtH!=null?` → <span style="color:#3ecf8e;font-weight:700">${_f2(_tgtH)}s</span>`:''}</span>`:'';
+        let _row=detRow(`${_nmH?`${_nmH} `:''}<span style="font-weight:700">${s.distance||'—'}m</span> <span style="color:var(--muted);font-size:11px">${reps}</span>${_paceH}`,'');
+        const _rt=Array.isArray(s.repTimes)?s.repTimes:[];
+        if(_rt.some(x=>x!=null&&x!=='')){
+          const _nr=parseInt(s.reps)||_rt.length||1;
+          const _ns=Math.max(1,Math.ceil(_rt.length/_nr));
+          const _pb=parseFloat(s.pb)||null;
+          const _pct=parseFloat(s.intensity)||null;
+          const _tgt=(_pb&&_pct&&_pct>0)?(_pb/(_pct/100)):null;
+          const _recPB=_pbForAthlete(l.athleteName,parseFloat(s.distance)||0,_setDisc(s),d.records);
+          const _pill=(x,n)=>{
+            if(x==null||x==='') return '';
+            const _xv=parseFloat(x);
+            if(_recPB!=null && _xv<=_recPB+1e-9){
+              return `<span class="tl-pb-pill" style="display:inline-flex;align-items:baseline;gap:5px;padding:2px 9px;border-radius:8px;background:rgba(255,196,0,.15);border:1px solid rgba(255,196,0,.55)"><span style="font-size:9px;font-weight:700;color:#c79a2e;min-width:11px">${n}.</span><span style="font-size:12px;font-weight:800;color:#ffb300">${_f2(x)}<span style="font-size:9px;font-weight:600;opacity:.7">s</span></span><span style="font-size:8px;font-weight:900;color:#3a2c00;background:#ffc400;padding:1px 5px;border-radius:4px;letter-spacing:.02em">🏆 PB</span></span>`;
+            }
+            const _ov=(_tgt!=null&&_xv>_tgt);
+            const _c=_ov?'#ff5252':'#3ecf8e';
+            return `<span style="display:inline-flex;align-items:baseline;gap:4px;padding:2px 8px;border-radius:8px;background:${_ov?'rgba(255,82,82,.1)':'rgba(62,207,142,.1)'};border:1px solid ${_ov?'rgba(255,82,82,.25)':'rgba(62,207,142,.25)'}"><span style="font-size:9px;font-weight:700;color:var(--muted);min-width:11px">${n}.</span><span style="font-size:12px;font-weight:800;color:${_c}">${_f2(x)}<span style="font-size:9px;font-weight:600;opacity:.65">s</span></span></span>`;
+          };
+          let _laps='';
+          for(let _g=0;_g<_ns;_g++){
+            const _grp=_rt.slice(_g*_nr,_g*_nr+_nr);
+            const _pills=_grp.map((x,_k)=>_pill(x,_k+1)).filter(Boolean).join('');
+            if(_pills) _laps+=`<div style="display:flex;gap:8px;align-items:flex-start;margin-top:5px"><span style="font-size:10px;font-weight:800;color:var(--muted);white-space:nowrap;padding-top:4px;min-width:42px">${_ns>1?`${_g+1}. Satz`:'Läufe'}</span><div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">${_pills}</div></div>`;
+          }
+          _row+=`<div style="padding:3px 0 9px 2px"><div style="font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.06em">🏁 LAUF-ZEITEN</div>${_laps}</div>`;
+        }
+        return _row;
+      }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
+      const rd=Math.round(td);
+      const right=`${rd>0?`<span style="color:#3ecf8e;font-weight:700">${rd.toLocaleString()} m</span>`:`<span style="color:var(--muted)">kein Eintrag</span>`}${tag}`;
+      return row('sA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,det,false,16);
+    }).join('');
+    const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
+    return row('sA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
+  }).join('') : emptyWeek);
 }
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('Please select your name'); return; }
@@ -2319,13 +2551,14 @@ function goLogTraining(){
       // ── Actual logged status for today ──
       const _todayLogs=getData().logs.filter(l=>
         l.athleteName===ST.athlete.name&&l.date===today&&
-        (l.type==='weight'||l.type==='plyo'||l.type==='sprint'));
+        (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility'));
       // Which types does this session require?
       const _sessTypes=new Set();
       exs.forEach(e=>{
         const p=TRAINING_STRUCTURE[e.trainingType]?.params;
         if(p==='sprint') _sessTypes.add('sprint');
         else if(p==='plyo') _sessTypes.add('plyo');
+        else if(p==='mobility') _sessTypes.add('mobility');
         else _sessTypes.add('weight');
       });
       const _loggedTypes=new Set(_todayLogs.map(l=>l.type));
@@ -2334,7 +2567,7 @@ function goLogTraining(){
       const _skippedExNames=new Set(_todayLogs.flatMap(l=>l.skippedExercises||[]));
       // Actually logged exercise names (excluding skipped)
       const _actualLogNames=new Set(_todayLogs.flatMap(l=>{
-        const arr=(l.type==='weight'||l.type==='plyo')?(l.exercises||[]):(l.sets||[]);
+        const arr=(l.type==='weight'||l.type==='plyo'||l.type==='mobility')?(l.exercises||[]):(l.sets||[]);
         return arr.map(e=>e.name||'').filter(Boolean);
       }));
       // Combined (for missing check — skipped counts as "handled")
@@ -2557,7 +2790,9 @@ function selectType(t){
       const hasWeight=planExs.some(e=>TRAINING_STRUCTURE[e.trainingType]?.params!=='sprint');
       const screenTitle=document.getElementById('w-screen-title');
       const screenLogo=document.getElementById('w-screen-logo');
+      const allMob=planExs.length&&planExs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='mobility');
       if(allSprint){ screenTitle.textContent='Sprint Training'; screenLogo.textContent='⚡ Sprint'; }
+      else if(allMob){ screenTitle.textContent='Mobility & Conditioning'; screenLogo.textContent='🌀 Mobility'; }
       else if(hasSprint&&hasWeight){ screenTitle.textContent='Combined Session'; screenLogo.textContent='🏋️⚡ Session'; }
       else { screenTitle.textContent='Weight Training'; screenLogo.textContent='🏋️ Weights'; }
       addBtn.style.display='none';
@@ -2756,6 +2991,7 @@ function _renderAthRecentLogs(targetId){
       const p=TRAINING_STRUCTURE[e.trainingType]?.params;
       if(p==='sprint') types.add('sprint');
       else if(p==='plyo') types.add('plyo');
+      else if(p==='mobility') types.add('mobility');
       else if(p==='lifting') types.add('weight');
     });
     return types;
@@ -2764,7 +3000,7 @@ function _renderAthRecentLogs(targetId){
   // Get recent logs (last 14 days)
   const myLogs=d.logs.filter(l=>
     l.athleteName===ST.athlete.name&&
-    (l.type==='weight'||l.type==='plyo'||l.type==='sprint')&&
+    (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility')&&
     l.date>=cutoff
   );
   const logsByDate={};
@@ -3323,10 +3559,32 @@ function renderExList(){
           </div>
         </div>
         ${plyoPlanSummary}${ytEmbed}`;
+    } else if(params==='mobility'){
+      // Mobility & Conditioning — completion check only (no load/intensity)
+      const _mobParts=[];
+      if(fromPlan&&(ex.planSets||ex.planReps)) _mobParts.push(`${ex.planSets||'—'} × ${ex.planReps||'—'}`);
+      let _mobRestStr='';
+      if(fromPlan&&ex.planRestTime){ _mobRestStr=` <span style="color:#4f8ef7">/ Rest: ${ex.planRestTime}${ex.planRestUnit||'s'}</span>`; }
+      const mobPlanSummary=_mobParts.length?`<div class="plan-summary-row">📋 Plan: ${_mobParts.join(' · ')}${_mobRestStr}</div>`:'';
+      let mobCoachBadge='';
+      if(ex.coachComment){
+        mobCoachBadge=`<div style="margin-top:6px;display:flex;align-items:flex-start;gap:7px;padding:6px 10px;background:rgba(198,168,90,.08);border:1px solid rgba(198,168,90,.25);border-radius:8px"><span style="font-size:10px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.05em;flex-shrink:0;margin-top:1px">💬 TRAINER</span><span style="font-size:12px;color:var(--text);line-height:1.4">${ex.coachComment}</span></div>`;
+      }
+      paramsHtml=`${mobPlanSummary}${ytEmbed}${mobCoachBadge}`;
     } else {
       // Sprint — fallback for sprint exercises in mixed (weight) session
+      // PB / target pace — boxed layout matching the dedicated sprint form (consistent across session types)
+      const _spDisc=_setDisc(ex);
+      const _spPbDist=parseFloat(ex.distance||ex.planDistance)||null;
+      const _spPbEntered=parseFloat(ex.pb)||null;
+      const _spPbAuto=(!_spPbEntered&&_spPbDist)?_getSprintPB(_spPbDist,_spDisc):null;
+      const _spPb=_spPbEntered||_spPbAuto;
+      const _spPct=parseFloat(ex.intensity||ex.planIntensity)||null;
+      const _spTarget=(_spPb&&_spPct&&_spPct>0)?(_spPb/(_spPct/100)).toFixed(2):null;
+      const _spPbVal=ex.pb||(_spPbAuto!=null?_spPbAuto:'');
       const sprintSetsEdited=fromPlan&&ex.planSets&&ex.sets&&String(ex.sets)!==String(ex.planSets);
       const sprintRepsEdited=fromPlan&&ex.planReps&&ex.reps&&String(ex.reps)!==String(ex.planReps);
+      const distEdited=fromPlan&&ex.planDistance!==''&&ex.planDistance!=null&&ex.distance&&String(ex.distance)!==String(ex.planDistance);
       const _sprintPlanParts=[];
       if(fromPlan&&ex.planIntensity) _sprintPlanParts.push(`${ex.planIntensity}%`);
       if(fromPlan&&ex.planDistance) _sprintPlanParts.push(`${ex.planDistance}m`);
@@ -3341,8 +3599,15 @@ function renderExList(){
       const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
       paramsHtml=`
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-bottom:6px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="%" value="${ex.intensity||''}" oninput="ST.exercises[${i}].intensity=this.value"><div class="mini-lbl">Int %</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="m" value="${ex.distance||''}" oninput="ST.exercises[${i}].distance=this.value"><div class="mini-lbl">Dist (m)</div></div>
+          <div class="mini-wrap"><input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${ex.distance||''}" oninput="ST.exercises[${i}].distance=this.value" onblur="renderExList()"><div class="mini-lbl">Distance (m)${distEdited?' ✎':''}</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="3.58" value="${_spPbVal}" oninput="ST.exercises[${i}].pb=this.value" onblur="renderExList()" style="color:#3ecf8e"><div class="mini-lbl" style="color:#3ecf8e">${_spDisc!=='flat'?_discMeta(_spDisc).ic+' '+_discMeta(_spDisc).lbl+' PB':'My PB'} (s)</div></div>
+        </div>
+        <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-bottom:6px">
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="%" value="${ex.intensity||''}" oninput="ST.exercises[${i}].intensity=this.value" onblur="renderExList()"><div class="mini-lbl">Intensity %</div></div>
+          <div class="mini-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-size:18px;font-weight:800;color:${_spTarget?'#3ecf8e':'var(--muted)'}">${_spTarget?_spTarget+'s':'—'}</div>
+            <div class="mini-lbl"${_spTarget?' style="color:#3ecf8e"':''}>🎯 Target (s)</div>
+          </div>
         </div>
         <div class="ex-nums" style="grid-template-columns:1fr 1fr">
           <div class="mini-wrap">
@@ -3383,9 +3648,9 @@ function renderExList(){
         </div>`;
     }
 
-    // Effort buttons (athlete only — always shown)
+    // Effort buttons (athlete only — always shown). Mobility = completion check only → no effort.
     const eff=ex.effort||'';
-    const effortHtml=`
+    const effortHtml=(params==='mobility')?'':`
       <div style="margin-top:10px">
         <div class="effort-lbl">Effort</div>
         <div class="effort-row">
@@ -3395,7 +3660,18 @@ function renderExList(){
         </div>
       </div>`;
 
-    const doneHtml=`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
+    const doneHtml=(params==='mobility')
+      ?`<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
+        <button onclick="_toggleExSkip(${i})"
+          style="padding:7px 14px;border-radius:10px;border:1.5px solid ${ex.skipped?'rgba(255,255,255,.3)':'rgba(255,255,255,.1)'};background:${ex.skipped?'rgba(255,255,255,.1)':'transparent'};color:${ex.skipped?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          ${ex.skipped?'↩ Übersprungen':'Überspringen'}
+        </button>
+        <button class="_ex-done-btn" onclick="_toggleExDone(${i})"
+          style="padding:7px 16px;border-radius:10px;border:1.5px solid ${ex.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${ex.done?'rgba(62,207,142,.12)':'transparent'};color:${ex.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+          ${ex.done?'✅ Erledigt':'○ Als erledigt markieren'}
+        </button>
+      </div>`
+      :`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
       <button onclick="addSetToEx(${i})"
         style="padding:7px 14px;border-radius:10px;border:1.5px solid rgba(79,142,247,.4);background:rgba(79,142,247,.1);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
         + Set
@@ -3565,10 +3841,12 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   const liftingExs=allExs.filter(e=>_params(e)==='lifting'&&!e.skipped);
   const plyoExs=allExs.filter(e=>_params(e)==='plyo'&&!e.skipped);
   const sprintExs=allExs.filter(e=>_params(e)==='sprint'&&!e.skipped);
+  const mobilityExs=allExs.filter(e=>_params(e)==='mobility'&&!e.skipped);
   // Collect skipped exercise names by type (for not-logged detection)
   const _skippedLifting=allExs.filter(e=>_params(e)==='lifting'&&e.skipped).map(e=>e.name).filter(Boolean);
   const _skippedPlyo=allExs.filter(e=>_params(e)==='plyo'&&e.skipped).map(e=>e.name).filter(Boolean);
   const _skippedSprint=allExs.filter(e=>_params(e)==='sprint'&&e.skipped).map(e=>e.name).filter(Boolean);
+  const _skippedMob=allExs.filter(e=>_params(e)==='mobility'&&e.skipped).map(e=>e.name).filter(Boolean);
 
   // ── Duplicate detection (runs after confirmation, before actual save) ──
   if(!ST.editingLogId && dupMode==='confirmed'){
@@ -3577,6 +3855,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     if(liftingExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='weight')) dups.push({lbl:'Weight',type:'weight'});
     if(plyoExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='plyo')) dups.push({lbl:'Plyo',type:'plyo'});
     if(sprintExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint')) dups.push({lbl:'Sprint',type:'sprint'});
+    if(mobilityExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='mobility')) dups.push({lbl:'Mobility',type:'mobility'});
     if(dups.length){
       _showDupModal(dups.map(d=>d.lbl).join(' + '),
         ()=>saveWeight('replace'),
@@ -3608,6 +3887,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     if(liftingExs.length) d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='weight'));
     if(plyoExs.length)    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='plyo'));
     if(sprintExs.length)  d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='sprint'));
+    if(mobilityExs.length) d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='mobility'));
   }
   const phase=document.getElementById('w-phase').value;
   const week=document.getElementById('w-week').value;
@@ -3659,6 +3939,24 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       skippedExercises:_skippedLifting
     });
     summaryParts.push(`${Math.round(totalVol).toLocaleString()} kg 🏋️`);
+  }
+
+  // ── Mobility & Conditioning log (completion check only — no load/volume) ──
+  if(mobilityExs.length){
+    d.logs.push({
+      id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'mobility',
+      phase,week,
+      exercises:mobilityExs.map(e=>({
+        name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
+        planSets:e.planSets||null, planReps:e.planReps||null,
+        done:!!e.done, fromPlan:e.fromPlan||false,
+        coachComment:e.coachComment||null, ytUrl:e.ytUrl||null
+      })),
+      totalVolume:0, rpe, notes,
+      skippedExercises:_skippedMob
+    });
+    const _mobDone=mobilityExs.filter(e=>e.done).length;
+    summaryParts.push(`${_mobDone}/${mobilityExs.length} 🌀`);
   }
 
   // ── Plyo log ──
@@ -3729,14 +4027,48 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
 // ════════════════════════════════════════════════
 //  SPRINT FORM
 // ════════════════════════════════════════════════
-function _getSprintPB(distanceM){
-  const d=getData();
-  const recs=(d.records||[]).filter(r=>
-    r.athleteName===ST.athlete.name && r.type==='sprint' &&
-    Math.abs((parseFloat(r.distance)||0)-parseFloat(distanceM))<0.5
-  );
-  if(!recs.length) return null;
-  return Math.min(...recs.map(r=>parseFloat(r.time)).filter(Boolean));
+function _normName(s){return (s||'').normalize('NFC').trim().toLowerCase().replace(/\s+/g,' ');}
+// ── Sprint discipline model ──────────────────────────────────────────────
+// 'flat' = normal track sprint. Otherwise a Resistance Sprinting MODALITY: 'uphill', 'sled', …
+// Uphill is NOT a top-level discipline beside flat — it's one modality under Resistance Sprinting.
+// PB pool is per-modality (record.type): flat→'sprint', uphill→'uphill', sled→'sled'.
+const _DISC_META={
+  flat  :{ic:'🏃', lbl:'Flat',         rec:'sprint'},
+  uphill:{ic:'⛰️', lbl:'Uphill',       rec:'uphill'},
+  sled  :{ic:'🛷', lbl:'Towing Sled',  rec:'sled'}
+};
+const _RESIST_MODS=['uphill','sled']; // selectable modalities inside Resistance Sprinting
+function _discMeta(k){ return _DISC_META[k]||{ic:'🏔️',lbl:'Resistance',rec:k||'sprint'}; }
+function _discRecType(k){ return (k&&k!=='flat')?_discMeta(k).rec:'sprint'; }
+function _pbForAthlete(name,distanceM,discipline,recs){
+  if(!name) return null;
+  const recType=_discRecType(discipline);
+  recs=recs||((getData().records)||[]);
+  const m=recs.filter(r=>_normName(r.athleteName)===_normName(name)&&r.type===recType&&Math.abs((parseFloat(r.distance)||0)-parseFloat(distanceM))<0.5).map(r=>parseFloat(r.time)).filter(Boolean);
+  return m.length?Math.min(...m):null;
+}
+function _getSprintPB(distanceM,discipline){
+  if(!ST.athlete) return null;
+  return _pbForAthlete(ST.athlete.name,distanceM,discipline);
+}
+// Resolve a sprint set's discipline/modality: explicit tag (s.discipline) wins; otherwise auto-detect.
+// Returns 'flat' | 'uphill' | 'sled'. Keeps legacy data working while letting the user override per set.
+function _setDisc(s){
+  if(s&&typeof s.discipline==='string'&&_DISC_META[s.discipline]) return s.discipline;
+  const _txt=(s&&(s.name||''))+' '+(s&&(s.subCategory||''));
+  if(/towing\s*sled|sled|schlitten/i.test(_txt)) return 'sled';
+  if(/uphill|bergauf|berg\b/i.test(_txt)) return 'uphill';
+  if(/resistance\s*sprint/i.test(_txt)) return 'uphill'; // Resistance Sprinting w/o explicit modality → uphill (primary)
+  return 'flat';
+}
+function _setIsResistance(s){ return _setDisc(s)!=='flat'; }
+function _setIsUphill(s){ return _setDisc(s)==='uphill'; } // legacy helper
+// Manual override. Tap the active value again → back to AUTO. Resets PB so it re-resolves from the matching modality pool.
+function _setSprintDisc(i,val){
+  const s=ST.sprintSets[i]; if(!s) return;
+  s.discipline=(s.discipline===val)?undefined:val;
+  s.pb=''; s._pbAuto=false;
+  renderSprintSets();
 }
 function _updateSprintCalc(i){
   const s=ST.sprintSets[i];
@@ -3750,9 +4082,10 @@ function _updateSprintCalc(i){
       <div style="font-size:18px;font-weight:800;color:#3ecf8e">${targetT}s</div>
       <div class="mini-lbl" style="color:#3ecf8e">🎯 Target (s)</div>`;
   } else {
+    const _noPb=(pct&&pct>0&&!pb);
     calcDiv.innerHTML=`
       <div style="font-size:18px;font-weight:800;color:var(--muted)">—</div>
-      <div class="mini-lbl">🎯 Target (s)</div>`;
+      <div class="mini-lbl">🎯 Target (s)</div>${_noPb?'<div style="font-size:9px;color:var(--muted);margin-top:1px">kein PB</div>':''}`;
   }
 }
 
@@ -3817,11 +4150,35 @@ function renderSprintSets(){
     const intEdited=fromPlan&&s.planIntensity!==''&&String(s.intensity)!==String(s.planIntensity);
     const distEdited=fromPlan&&s.planDistance!==''&&String(s.distance)!==String(s.planDistance);
 
+    const _disc=_setDisc(s);                       // 'flat' | 'uphill' | 'sled'
+    const _isResist=(_disc!=='flat');
+    const _discManual=(typeof s.discipline==='string'&&_DISC_META[s.discipline]);
+    // Row 1: Flat 🏃 vs Resistance Sprinting 🏔️. Row 2 (only if Resistance): modality chips (Uphill / Towing Sled).
+    const _btnBase='flex:1;padding:7px 10px;border-radius:9px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .12s';
+    const _modRow=_isResist?`<div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding-left:2px">
+      <span style="font-size:10px;color:var(--muted);flex-shrink:0">↳ Typ</span>
+      ${_RESIST_MODS.map(mk=>{const sel=(_disc===mk);const mm=_discMeta(mk);return `<button onclick="_setSprintDisc(${i},'${mk}')" style="flex:1;padding:5px 8px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;border:1.5px solid ${sel?'#c6a85a':'rgba(255,255,255,.12)'};background:${sel?'rgba(198,168,90,.15)':'transparent'};color:${sel?'#c6a85a':'var(--muted)'}">${mm.ic} ${mm.lbl}</button>`;}).join('')}
+    </div>`:'';
+    const _discToggle=`<div style="margin-top:8px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="_setSprintDisc(${i},'flat')" style="${_btnBase};border:1.5px solid ${!_isResist?'#3ecf8e':'rgba(255,255,255,.12)'};background:${!_isResist?'rgba(62,207,142,.12)':'transparent'};color:${!_isResist?'#3ecf8e':'var(--muted)'}">🏃 Flat</button>
+        <button onclick="_setSprintDisc(${i},'uphill')" style="${_btnBase};border:1.5px solid ${_isResist?'#c6a85a':'rgba(255,255,255,.12)'};background:${_isResist?'rgba(198,168,90,.15)':'transparent'};color:${_isResist?'#c6a85a':'var(--muted)'}">🏔️ Resistance</button>
+        <span style="font-size:9px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:6px;background:${_discManual?'rgba(167,139,250,.15)':'rgba(255,255,255,.05)'};color:${_discManual?'#a78bfa':'var(--muted)'};flex-shrink:0">${_discManual?'MANUELL':'AUTO'}</span>
+      </div>
+      ${_modRow}
+    </div>`;
+    // Auto-fill PB from coach records when empty → links records to pace automatically
+    // fall back to planned distance so PB resolves even before the athlete types a distance (e.g. combined sessions)
+    const _pbDist=parseFloat(s.distance||s.planDistance)||null;
+    if((s.pb===''||s.pb==null) && _pbDist){
+      const _autoPB=_getSprintPB(_pbDist,_disc);
+      if(_autoPB){ s.pb=String(_autoPB); s._pbAuto=true; }
+    }
     const pb=parseFloat(s.pb)||null;
     const pct=parseFloat(s.intensity||s.planIntensity)||null;
     const targetT=(pb&&pct&&pct>0)?(pb/(pct/100)).toFixed(2):null;
     const calcHtml=`<div id="sp-calc-${i}" style="margin:8px 0 2px;padding:8px 12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2);border-radius:8px;font-size:12px;display:${targetT?'flex':'none'};justify-content:space-between;align-items:center">
-      ${targetT?`<span style="color:var(--muted)">🎯 Target @ ${pct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${targetT}s</span><span style="color:var(--muted);font-size:11px">PB ${pb}s</span>`:''}
+      ${targetT?`<span style="color:var(--muted)">🎯 ${_disc!=='flat'?_discMeta(_disc).ic+' ':''}Target @ ${pct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${targetT}s</span><span style="color:var(--muted);font-size:11px">${s._pbAuto?'🔗 ':''}PB ${pb}s</span>`:''}
     </div>`;
 
     // Effort buttons
@@ -3896,17 +4253,18 @@ function renderSprintSets(){
     if(s.done){ div.style.border='1.5px solid rgba(62,207,142,.4)'; div.style.background='rgba(62,207,142,.04)'; }
     div.innerHTML=`
       <div class="ex-top">${headerHtml}</div>
+      ${_discToggle}
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${s.distance||''}"
-            oninput="ST.sprintSets[${i}].distance=this.value;ST.sprintSets[${i}].pb='';renderSprintSets()">
+            oninput="ST.sprintSets[${i}].distance=this.value;ST.sprintSets[${i}].pb='';ST.sprintSets[${i}]._pbAuto=false;renderSprintSets()">
           <div class="mini-lbl">Distance (m)${distEdited?' ✎':''}</div>
         </div>
         <div class="mini-wrap">
           <input class="mini-in" type="number" step="0.001" placeholder="3.58" value="${s.pb||''}"
-            oninput="ST.sprintSets[${i}].pb=this.value;_updateSprintCalc(${i})"
+            oninput="ST.sprintSets[${i}].pb=this.value;ST.sprintSets[${i}]._pbAuto=false;_updateSprintCalc(${i})"
             style="color:#3ecf8e">
-          <div class="mini-lbl" style="color:#3ecf8e">My PB (s)</div>
+          <div class="mini-lbl" style="color:#3ecf8e">${_disc!=='flat'?_discMeta(_disc).ic+' '+_discMeta(_disc).lbl+' PB':'My PB'} (s)</div>
         </div>
       </div>
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
@@ -3931,6 +4289,7 @@ function renderSprintSets(){
       ${_ytEmbedHtml(s.ytUrl)}
       ${spCoachBadge}
       ${spPrevHtml}
+      ${_spLapInputsHtml(s,i)}
       ${effortHtml}
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
         <button onclick="_toggleSprintSkip(${i})"
@@ -3958,6 +4317,30 @@ function setSprintEffort(i,val){
 }
 function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
 function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length) ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
+function _spLapInputsHtml(s,i){
+  if(!ST._editFromCoach) return '';
+  const ns=Math.max(0,parseInt(s.sets)||0), nr=Math.max(0,parseInt(s.reps)||0);
+  const target=ns*nr;
+  if(!Array.isArray(s.repTimes)) s.repTimes = target>0 ? Array.from({length:target},()=>'') : [];
+  let cells='';
+  s.repTimes.forEach((t,k)=>{
+    const setNo=(nr>0)?Math.floor(k/nr)+1:1;
+    const repNo=(nr>0)?(k%nr)+1:k+1;
+    cells+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">`
+      +`<span style="font-size:11px;color:var(--muted);width:58px;flex-shrink:0;font-weight:700">S${setNo}·L${repNo}</span>`
+      +`<input class="mini-in" type="number" step="0.01" inputmode="decimal" placeholder="s" value="${t!=null?t:''}" oninput="ST.sprintSets[${i}].repTimes[${k}]=this.value" style="flex:1;color:#3ecf8e">`
+      +`<button onclick="_rmLap(${i},${k})" style="width:28px;height:28px;flex-shrink:0;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.08);color:#ff6b6b;font-size:14px;cursor:pointer">×</button>`
+      +`</div>`;
+  });
+  const body = cells || `<div style="font-size:11px;color:var(--muted);padding:2px 0 6px">Sets·Reps eingeben, dann + Lap</div>`;
+  return `<div style="margin-top:10px;padding:10px 12px;background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.2);border-radius:10px">`
+    +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">`
+    +`<span style="font-size:11px;font-weight:800;color:#4f8ef7;letter-spacing:.04em">🏁 COACH · Lap-Zeiten (Satz·Lauf, s)</span>`
+    +`<button onclick="_addLap(${i})" style="padding:4px 12px;border-radius:8px;border:1px solid rgba(79,142,247,.35);background:rgba(79,142,247,.12);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer">+ Lap</button>`
+    +`</div>${body}</div>`;
+}
+function _addLap(i){ const s=ST.sprintSets[i]; if(!Array.isArray(s.repTimes)) s.repTimes=[]; s.repTimes.push(''); renderSprintSets(); }
+function _rmLap(i,k){ const s=ST.sprintSets[i]; if(Array.isArray(s.repTimes)) s.repTimes.splice(k,1); renderSprintSets(); }
 
 function saveSprint(dupMode){
   const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0 && !s.skipped && s.done!==false);
@@ -4007,15 +4390,44 @@ function saveSprint(dupMode){
     phase:document.getElementById('sp-phase').value,
     week:document.getElementById('sp-week').value,
     sprintType:ST.sprintSets[0]?.subCategory||'Sprint Training',
-    sets:sets.map(s=>({name:s.name||null,subCategory:s.subCategory||null,planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:parseFloat(s.actualTime)||null,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]})),
+    sets:sets.map(s=>{
+      const _rtRaw=(Array.isArray(s.repTimes)?s.repTimes:[]).map(t=>(t===''||t==null)?null:(isNaN(parseFloat(t))?null:parseFloat(t)));
+      const _rtVals=_rtRaw.filter(t=>t!=null);
+      const _rt=_rtVals.length?_rtRaw:[];
+      const _best=_rtVals.length?Math.min(..._rtVals):(parseFloat(s.actualTime)||null);
+      return {name:s.name||null,subCategory:s.subCategory||null,discipline:_setDisc(s),planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:_best,repTimes:_rt,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]};
+    }),
     totalDistance:Math.round(totalDist),
     rpe:parseInt(document.getElementById('sl-srpe').value),
     notes:document.getElementById('sprint-notes').value,
     skippedExercises:_skippedSprintSets
   };
+  if(!d.records) d.records=[];
+  const _pbHits=[];
+  (log.sets||[]).forEach(s=>{
+    const _sd=parseFloat(s.distance)||0; if(!_sd) return;
+    const _disc=_setDisc(s);                 // 'flat' | 'uphill' | 'sled'
+    const _recType=_discRecType(_disc);      // record.type: flat→'sprint', else modality
+    const _times=(Array.isArray(s.repTimes)?s.repTimes:[]).map(parseFloat).filter(tt=>!isNaN(tt)&&tt>0);
+    const _b=_times.length?Math.min(..._times):(parseFloat(s.actualTime)||0);
+    if(!_b) return;
+    const _prev=_pbForAthlete(log.athleteName,_sd,_disc,d.records);
+    if(_prev==null || _b<_prev-1e-9){
+      s.pbAchieved=true; s.pbTime=_b;
+      d.records.push({id:genId(),date:log.date,athleteName:log.athleteName,group:log.group,type:_recType,distance:_sd,time:_b,notes:'[Auto PB · Training]'});
+      _pbHits.push({d:_sd,disc:_disc,t:_b});
+    }
+  });
   d.logs.push(log); saveData(d);
   ST._logDate=null;
-  document.getElementById('success-msg').textContent=`Sprint Training saved! Total: ${Math.round(totalDist).toLocaleString()} m ⚡`;
+  const _sm=document.getElementById('success-msg');
+  if(_pbHits.length){
+    const _m=_pbHits.map(h=>`${h.d}m${(h.disc&&h.disc!=='flat'&&h.disc!=='sprint')?' '+_discMeta(h.disc).ic:''} ${h.t.toFixed(2)}s`).join(' · ');
+    showToast(`🏆 NEUER PB! ${log.athleteName}: ${_m} 🎉`);
+    if(_sm) _sm.innerHTML=`<span style="color:#ffc400;font-weight:900">🏆 NEUER PB!</span> ${_m}<br><span style="font-size:13px">Sprint gespeichert · ${Math.round(totalDist).toLocaleString()} m ⚡</span>`;
+  } else {
+    if(_sm) _sm.textContent=`Sprint Training saved! Total: ${Math.round(totalDist).toLocaleString()} m ⚡`;
+  }
   _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
 }
@@ -4069,6 +4481,12 @@ function renderProgram(){
     if(e.planSets||e.planReps) dp.push(`${e.planSets||'—'}×${e.planReps||'—'}`);
     if(dp.length) p+=` ${dp.join(' · ')}`; }
     const bwTag=e.isBW?`<span style="font-size:9px;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:4px;padding:1px 5px;margin-right:4px;font-weight:700">BW</span>`:'';
+    // Uphill ⛰️ / Flat 🏃 tag for sprint exercises (mirrors the log view → keeps plan & log in sync)
+    let discTag='';
+    if(e.trainingType==='Sprint Training'){
+      const _dk=_setDisc(e); const _rs=(_dk!=='flat'); const _dm=_discMeta(_dk);
+      discTag=`<span style="font-size:9px;font-weight:800;border-radius:5px;padding:1px 6px;margin-right:5px;background:${_rs?'rgba(198,168,90,.18)':'rgba(62,207,142,.15)'};color:${_rs?'#c6a85a':'#3ecf8e'}">${_dm.ic} ${_dm.lbl}</span>`;
+    }
     // Rest info
     let restStr='';
     if(e.planRestTime||e.planRestTimeReps){
@@ -4083,7 +4501,7 @@ function renderProgram(){
       const cVal=e.planContractionValue?` · ${e.planContractionValue}`:'';
       contractStr=`<span style="font-size:11px;color:rgba(167,139,250,.75)"> / ${e.planContractionType}${cVal}</span>`;
     }
-    return `<div style="font-size:13px;padding:3px 0;color:var(--text);display:flex;align-items:baseline;gap:2px;flex-wrap:wrap">${bwTag}<span>${e.name}</span><span style="color:var(--muted);font-size:12px">${p}</span>${restStr}${contractStr}</div>`;
+    return `<div style="font-size:13px;padding:3px 0;color:var(--text);display:flex;align-items:baseline;gap:2px;flex-wrap:wrap">${bwTag}${discTag}<span>${e.name}</span><span style="color:var(--muted);font-size:12px">${p}</span>${restStr}${contractStr}</div>`;
   }
   function _sessBlock(exs,sd,label,color){
     const wu=sd?.warmup||''; const cd=sd?.cooldown||'';
@@ -4378,7 +4796,7 @@ function renderToday(){
   const d=getData(); const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
   const cl=tl.filter(l=>l.type==='condition');
-  const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo');
+  const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='mobility');
   const dw=new Date();
   document.getElementById('coach-date-ttl').textContent=`${DAYS[dw.getDay()]}, ${dw.toLocaleString('en',{month:'long'})} ${dw.getDate()}`;
   const tvol=_exVolSplit(tr.filter(l=>l.type==='weight')).total;
@@ -4408,10 +4826,14 @@ function renderToday(){
     return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)">${items}</div>`;
   };
   const _logCard=(l)=>{
-    const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':'b-w';
-    const badgeText=l.type==='sprint'?'sprint':l.type==='plyo'?'plyo':'weight';
+    const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':l.type==='mobility'?'b-c':'b-w';
+    const badgeText=l.type==='sprint'?'sprint':l.type==='plyo'?'plyo':l.type==='mobility'?'mobility':'weight';
     let statsHtml='';
-    if(l.type==='sprint'){
+    if(l.type==='mobility'){
+      const _md=(l.exercises||[]).filter(e=>e.done).length;
+      const _mt=(l.exercises||[]).length;
+      statsHtml=`<div class="detail-row"><span class="detail-key">Completed</span><span class="detail-val">${_md}/${_mt} ✓</span></div>`;
+    } else if(l.type==='sprint'){
       statsHtml=`<div class="detail-row"><span class="detail-key">Distance</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`;
     } else if(l.type==='plyo'){
       // Derive contacts/reps — handles both new format (totalContacts defined) and old format (all in totalReps)
@@ -5646,6 +6068,57 @@ function _renderPerfSparklines(recs){
   Object.keys(byDist.strength).forEach(ex=>_spark(`spark-str-${ex.replace(/[^a-z0-9]/gi,'_')}`,byDist.strength[ex],false));
 }
 
+// ── Uphill 50m team-best seed (one-time, idempotent) ──
+const UPHILL50_SEED=[
+  {name:'Niklas Brandtner', time:8.40},
+  {name:'Moritz Menning',   time:8.70},
+  {name:'Marie Angerer',    time:9.28},
+  {name:'Charlize Reimann', time:10.54},
+  {name:'Sarah Klose',      time:10.40},
+  {name:'Laura Bründl',     time:10.90},
+  {name:'Nele Fröbus',      time:12.30}
+];
+function _seedUphillRecords(d){
+  if(!d) return false;
+  if(!d.records) d.records=[];
+  let added=0;
+  UPHILL50_SEED.forEach(row=>{
+    const exists=d.records.some(r=>r.type==='uphill'&&r.athleteName===row.name&&Math.abs((parseFloat(r.distance)||0)-50)<0.5);
+    if(exists) return;
+    const ath=(d.athletes||[]).find(a=>a.name===row.name);
+    d.records.push({id:genId(),date:'2026-06-12',athleteName:row.name,group:ath?ath.group:'',type:'uphill',distance:50,time:row.time,notes:'[Uphill 50m Best]'});
+    added++;
+  });
+  return added>0;
+}
+
+// ── Flat 100m test (HST cumulative splits) seed — Kienbaum 2026-05-31, idempotent ──
+// [distance(m), HST cumulative time(s)] per athlete; distance differs by athlete.
+const FLAT100_SEED={
+  'Sarah Klose':     [[10,2.06],[20,3.56],[30,5.00],[40,6.41],[50,7.84],[60,9.28]],
+  'Laura Bründl':    [[10,2.04],[20,3.54],[30,4.97],[40,6.42],[50,7.90],[60,9.37],[70,10.94],[80,12.84]],
+  'Nele Fröbus':     [[10,2.22],[20,3.87],[30,5.43],[40,7.06],[50,8.67],[60,10.29],[70,11.91],[80,13.70]],
+  'Marie Angerer':   [[10,1.85],[20,3.15],[30,4.42],[40,5.66],[50,6.93],[60,8.19],[70,9.47],[80,10.78],[90,12.11],[100,13.45]],
+  'Charlize Reimann':[[10,1.98],[20,3.47],[30,4.87],[40,6.22],[50,7.66],[60,9.11],[70,10.59],[80,12.10],[90,13.66],[100,15.21]],
+  'Maria Votz':      [[10,1.99],[20,3.44],[30,4.78],[40,6.13],[50,7.48],[60,8.79],[70,10.21],[80,11.58],[90,13.02],[100,14.48]],
+  'Niklas Brandtner':[[10,1.80],[20,3.04],[30,4.24],[40,5.39],[50,6.54],[60,7.69],[70,8.86],[80,10.04],[90,11.26],[100,12.48]]
+};
+function _seedFlatSprintRecords(d){
+  if(!d) return false;
+  if(!d.records) d.records=[];
+  let added=0;
+  Object.entries(FLAT100_SEED).forEach(([name,rows])=>{
+    const ath=(d.athletes||[]).find(a=>a.name===name);
+    rows.forEach(([dist,time])=>{
+      const exists=d.records.some(r=>r.type==='sprint'&&r.athleteName===name&&Math.abs((parseFloat(r.distance)||0)-dist)<0.5&&(r.notes||'').indexOf('100m Test KB')>=0);
+      if(exists) return;
+      d.records.push({id:genId(),date:'2026-05-31',athleteName:name,group:ath?ath.group:'',type:'sprint',distance:dist,time:time,notes:'[100m Test KB 2026-05-31]'});
+      added++;
+    });
+  });
+  return added>0;
+}
+
 // ── Auto-feed records from Bulk ──
 function _autoFeedRecordsFromBulk(saves){
   if(!saves||!saves.length) return;
@@ -5654,9 +6127,10 @@ function _autoFeedRecordsFromBulk(saves){
   let added=0;
   saves.forEach(s=>{
     if(s.type==='sprint'){
+      const _rt=_discRecType(s.discipline);
       (s.data||[]).forEach(attempt=>{
         if(!attempt.distance||!attempt.time) return;
-        d.records.push({id:genId(),date:s.date,athleteName:s.athleteName,group:s.group,type:'sprint',distance:attempt.distance,time:attempt.time,notes:'[Bulk]'});
+        d.records.push({id:genId(),date:s.date,athleteName:s.athleteName,group:s.group,type:_rt,distance:attempt.distance,time:attempt.time,notes:'[Bulk]'});
         added++;
       });
     } else if(s.type==='start'){
@@ -6477,6 +6951,7 @@ function _editLog(logId){
       distance:s.distance?String(s.distance):'',
       sets:s.sets?String(s.sets):'', reps:s.reps?String(s.reps):'',
       actualTime:s.actualTime?String(s.actualTime):'', pb:s.pb?String(s.pb):'',
+      repTimes:(Array.isArray(s.repTimes)&&s.repTimes.length)?s.repTimes.map(t=>t==null?'':String(t)):undefined,
       effort:s.effort||null, done:true
     }));
     const phEl=document.getElementById('sp-phase'); if(phEl) phEl.value=log.phase||'';
@@ -6635,7 +7110,7 @@ function goCoachRecord(){
   document.getElementById('rec-distance').value='';
   document.getElementById('rec-notes').value='';
   document.getElementById('rec-load').value='';
-  document.querySelectorAll('#rt-sprint,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
+  document.querySelectorAll('#rt-sprint,#rt-uphill,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
   document.getElementById('rt-sprint').classList.add('sel');
   document.getElementById('rec-timed-fields').style.display='';
   document.getElementById('rec-strength-fields').style.display='none';
@@ -6653,13 +7128,14 @@ function backFromRecord(){
 
 function selectRecType(t){
   recType=t;
-  document.querySelectorAll('#rt-sprint,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
-  const idMap={sprint:'rt-sprint',icestart:'rt-ice',trackstart:'rt-track',strength:'rt-strength'};
+  document.querySelectorAll('#rt-sprint,#rt-uphill,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
+  const idMap={sprint:'rt-sprint',uphill:'rt-uphill',icestart:'rt-ice',trackstart:'rt-track',strength:'rt-strength'};
   document.getElementById(idMap[t]).classList.add('sel');
   const isStrength=t==='strength';
   document.getElementById('rec-timed-fields').style.display=isStrength?'none':'';
   document.getElementById('rec-strength-fields').style.display=isStrength?'':'none';
   if(t!=='strength') document.getElementById('rec-distance').value='';
+  if(t==='uphill') document.getElementById('rec-distance').value='50';
 }
 
 function selectExercise(ex,el){
@@ -6697,15 +7173,17 @@ function saveRecord(){
 
 function _timedRecHtml(recs, maxRows){
   const byKey={};
-  recs.filter(r=>r.type==='sprint'||r.type==='icestart').forEach(r=>{
+  const _TLBL={sprint:'⚡ Sprint',uphill:'⛰️ Uphill',icestart:'🧊 Ice Start'};
+  const _TORD={sprint:0,uphill:1,icestart:2};
+  recs.filter(r=>r.type==='sprint'||r.type==='uphill'||r.type==='icestart').forEach(r=>{
     const k=`${r.type}:${r.distance}`;
     if(!byKey[k]) byKey[k]={type:r.type,distance:r.distance,entries:[]};
     byKey[k].entries.push(r);
   });
   let html='';
-  Object.values(byKey).sort((a,b)=>{ if(a.type!==b.type)return a.type==='sprint'?-1:1; return a.distance-b.distance; }).forEach(grp=>{
+  Object.values(byKey).sort((a,b)=>{ if(a.type!==b.type)return (_TORD[a.type]??9)-(_TORD[b.type]??9); return a.distance-b.distance; }).forEach(grp=>{
     const best=grp.entries.reduce((b,e)=>e.time<b.time?e:b);
-    html+=`<div class="rec-group-hdr">${grp.type==='sprint'?'⚡ Sprint':'🧊 Ice Start'} · ${grp.distance}m</div>`;
+    html+=`<div class="rec-group-hdr">${_TLBL[grp.type]||grp.type} · ${grp.distance}m</div>`;
     grp.entries.slice(0,maxRows).forEach((r,i)=>{
       const isBest=r.id===best.id;
       html+=`<div class="rec-row${isBest?' rec-pr':''}">
@@ -7629,6 +8107,13 @@ function renderPlanAccordion(){
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
             <div class="mini-wrap"><input class="mini-in" type="number" placeholder="—" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">${repType==='contacts'?'Contacts':'Reps'}</div></div>
           </div>`;
+        } else if(typeParams==='mobility'){
+          // Mobility & Conditioning — no load/intensity, just Sets & Reps/Time (text allows "30s", "1min")
+          fieldsHtml=`
+          <div class="ex-nums" style="grid-template-columns:1fr 1fr;gap:6px">
+            <div class="mini-wrap"><input class="mini-in" type="text" inputmode="numeric" placeholder="—" value="${ex.planSets||''}" oninput="_updatePlanEx(${globalIdx},'planSets',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Sets</div></div>
+            <div class="mini-wrap"><input class="mini-in" type="text" placeholder="e.g. 10 / 30s / 1min" value="${ex.planReps||''}" oninput="_updatePlanEx(${globalIdx},'planReps',this.value)" style="font-size:13px;padding:8px 4px"><div class="mini-lbl">Reps / Time</div></div>
+          </div>`;
         }
         const restTime=ex.planRestTime||'';
         const restUnit=ex.planRestUnit||'s';
@@ -7651,6 +8136,12 @@ function renderPlanAccordion(){
               oninput="_updatePlanEx(${globalIdx},'ytUrl',this.value)"
               style="flex:1;padding:5px 10px;background:var(--input);border:1px solid rgba(255,60,60,.2);border-radius:8px;color:var(--text);font-size:11px;outline:none;min-width:0">
             ${ex.ytUrl?`<a href="${ex.ytUrl}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:12px;font-weight:800;text-decoration:none">▶</a>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+            <span style="font-size:10px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.3px;flex-shrink:0">💬</span>
+            <input type="text" placeholder="Coach comment…" value="${(ex.coachComment||'').replace(/"/g,'&quot;')}"
+              oninput="_updatePlanEx(${globalIdx},'coachComment',this.value)"
+              style="flex:1;padding:5px 10px;background:var(--input);border:1px solid rgba(198,168,90,.25);border-radius:8px;color:var(--text);font-size:11px;outline:none;min-width:0">
           </div>`;
         subWrap.appendChild(item);
       });
@@ -7834,8 +8325,9 @@ function renderPlanAccordion(){
   });
   if(ST._planActiveInput==='__circuit__') setTimeout(()=>{ const el=document.getElementById('pinp-circuit'); if(el)el.focus(); },40);
 
-  // ── Conditioning Card ────────────────────────────────────────
-  _makeConditioningCard(wrap, sessObj?.conditioningText||'');
+  // ── Conditioning is now a full exercise category (params:'mobility'),
+  //    rendered by the TRAINING_STRUCTURE accordion loop above. The old
+  //    text-only Conditioning card is removed to avoid duplication.
 
   // ── Cool-down Card (bottom) ──────────────────────────────────
   _makePlanTextCard(wrap,'cooldown','Cool-down','❄️','#4f8ef7',
@@ -7915,6 +8407,7 @@ function _addPlanExToData(type,sub,name){
   if(params==='lifting'){ exObj.planIntensity=''; exObj.planSets=''; exObj.planReps=''; exObj.planContractionType=''; exObj.planContractionValue=''; }
   else if(params==='sprint'){ exObj.planIntensity=''; exObj.planSets=''; exObj.planReps=''; exObj.planDistance=''; exObj.planEnergySystem=''; }
   else if(params==='plyo'){ exObj.planSets=''; exObj.planReps=''; exObj.planRepType='reps'; exObj.planLegMode='DL'; }
+  else if(params==='mobility'){ exObj.planSets=''; exObj.planReps=''; }
   grpPlan[sess].exercises.push(exObj);
   plan[ST._planGroup]=grpPlan;
   plan.phase=document.getElementById('sp-plan-phase').value;
@@ -9716,7 +10209,7 @@ function saveBulkEntry(){
       });
       // Auto-feed: all timed sprint attempts → records
       const timedAttempts=sprintSets.filter(s=>s.totalTime&&s.distance).map(s=>({distance:s.distance,time:s.totalTime}));
-      if(timedAttempts.length) autoFeedSaves.push({type:'sprint',athleteName:a.name,group:a.group,date:dateVal,data:timedAttempts});
+      if(timedAttempts.length) autoFeedSaves.push({type:'sprint',discipline:sprintType==='uphill'?'uphill':'sprint',athleteName:a.name,group:a.group,date:dateVal,data:timedAttempts});
       saved++;
     }
   });
