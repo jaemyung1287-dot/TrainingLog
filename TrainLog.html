@@ -819,10 +819,6 @@ const APP_VERSION = '20260527-7';
     <canvas id="chart-my-rpe"></canvas>
   </div>
 
-  <!-- Soreness Log -->
-  <div class="sec-ttl" style="margin-top:20px">🔴 Soreness Log · Muskelkater</div>
-  <div id="my-soreness-list"></div>
-
   <!-- Recent Sessions -->
   <div class="sec-ttl" style="margin-top:20px">📋 Recent Sessions · Letzte Sitzungen</div>
   <div id="my-recent-list"></div>
@@ -4727,7 +4723,6 @@ function renderAthStats(){
   const dates5 = getLast(5);
   const dateSet5 = new Set(dates5);
   const myLogs5 = myLogs.filter(l=>dateSet5.has(l.date));
-  _renderLoadSoreness(myLogs5, 'my-soreness-list');
   _renderLoadRecent(myLogs5, 'my-recent-list', {splitByType:true});
 }
 
@@ -5662,36 +5657,34 @@ function _renderLoadRecent(logs, wrapId, opts){
       ▼
     </button>`;
 
-  // ── Athlete My Data: split into Weight / Sprint / Condition sections ──
-  // Each session card stays collapsed by default (built by _renderCard) and expands on tap.
+  // ── Athlete My Data: split into Condition / Weight / Sprint sections ──
+  // All 3 sections are ALWAYS rendered (even if empty for this period) and stay
+  // collapsed by default. Each session card inside also expands on tap (_renderCard).
   if(opts.splitByType){
     const _sections = [
-      {types:['weight','plyo'], icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
-      {types:['sprint'],        icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
-      {types:['tabata'],        icon:'🔥', label:'Tabata',                  color:'#e94560'},
-      {types:['condition'],     icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'}
+      {types:['condition'],            icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'},
+      {types:['weight','plyo'],        icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
+      {types:['sprint','tabata'],      icon:'⚡', label:'Sprint',                  color:'#3ecf8e'}
     ];
     let shtml = '';
-    let first = true;
-    let si = 0;
-    _sections.forEach(sec=>{
+    _sections.forEach((sec,si)=>{
       const items = sorted.filter(l=>sec.types.includes(l.type));
-      if(!items.length) return;
       const bodyId = `lr-sec-${si}`;
       const chevId = `lr-secchev-${si}`;
-      si++;
       // Collapsible section header — default collapsed (body display:none)
-      shtml += `<div onclick="_toggleLogDetail('${bodyId}','${chevId}')" style="display:flex;align-items:center;gap:6px;margin-top:${first?4:16}px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+      shtml += `<div onclick="_toggleLogDetail('${bodyId}','${chevId}')" style="display:flex;align-items:center;gap:6px;margin-top:${si===0?4:16}px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
         <span style="font-size:13px">${sec.icon}</span>
         <span style="font-size:10px;font-weight:700;color:${sec.color};letter-spacing:.7px;text-transform:uppercase">${sec.label}</span>
         <span style="font-size:10px;font-weight:700;color:var(--muted)">${items.length}</span>
         <div style="flex:1;height:1px;background:${sec.color}33;margin-left:4px"></div>
         <span id="${chevId}" style="font-size:13px;color:var(--muted)">▼</span>
       </div>`;
-      shtml += `<div id="${bodyId}" style="display:none">${items.map(_renderCard).join('')}</div>`;
-      first = false;
+      const body = items.length
+        ? items.map(_renderCard).join('')
+        : '<div class="empty" style="padding:14px 2px;font-size:12px;color:var(--muted)">No sessions in this period</div>';
+      shtml += `<div id="${bodyId}" style="display:none">${body}</div>`;
     });
-    wrap.innerHTML = shtml || '<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>';
+    wrap.innerHTML = shtml;
     return;
   }
 
