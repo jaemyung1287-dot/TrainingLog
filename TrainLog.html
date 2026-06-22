@@ -2174,13 +2174,16 @@ function renderTeamTrainingData(){
         const reps=`${s.sets||1}×${s.reps||1}`;
         const _nmH=(s.name||'').trim();
         const _rt=(Array.isArray(s.repTimes)?s.repTimes:[]).filter(x=>x!=null&&x!=='');
+        // PB(개인 최고기록)와 일치하는 렙타임은 고급 금색으로 — 배지/표시 없이 색상만
+        const _pb=_pbForAthlete(g.name,s.distance,_setDisc(s),d.records);
+        const _repHtml=x=>{ const n=parseFloat(x); const _isPb=(_pb!=null&&!isNaN(n)&&n<=_pb+0.005); return _isPb?`<span style="color:var(--gold);font-weight:700">${_f2(x)}s</span>`:`${_f2(x)}s`; };
         const _left=`${_nmH?`${_nmH} `:''}<span style="font-weight:700">${s.distance||'—'}m</span> <span style="color:var(--muted);font-size:11px">${reps}</span>`;
         let _right;
         if(_rt.length){
-          _right=_rt.map(x=>`${_f2(x)}s`).join('  ');
+          _right=_rt.map(_repHtml).join('  ');
         } else {
           const _t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:null;
-          _right=_t!=null?`${_f2(_t)}s`:'—';
+          _right=_t!=null?_repHtml(_t):'—';
         }
         return detRow(_left,_right);
       }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
