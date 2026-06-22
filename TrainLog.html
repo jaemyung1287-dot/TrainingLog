@@ -5841,7 +5841,11 @@ function openAthDetail(name){
 }
 
 // ── Render detail-logs list (shared by openAthDetail + filterDetailLogs) ──
-function _renderDetailLogs(logs){
+// Grouped into collapsible Condition / Weight / Sprint sections (always shown,
+// default collapsed) — same structure as Recent Sessions elsewhere. Soreness
+// shows inside the Condition card detail. opts.expand auto-opens non-empty sections.
+function _renderDetailLogs(logs, opts){
+  opts = opts || {};
   const d=getData();
   const wrap=document.getElementById('detail-logs');
   if(!wrap) return;
@@ -5878,9 +5882,16 @@ function _renderDetailLogs(logs){
   const _typeColor={weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c'};
   const _typeIcon={weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥'};
 
-  if(!logs.length){ wrap.innerHTML='<div class="empty">No logs found</div>'; return; }
-  wrap.innerHTML=logs.map(l=>{
-    const hasDetail=(l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length>0||(l.type==='sprint'&&(l.sets||[]).length>0);
+  // Soreness chip colors by intensity (mild / moderate / severe)
+  const _intensityCol = n => n>=7?{color:'#e94560',bg:'rgba(233,69,96,.15)',border:'rgba(233,69,96,.35)'}
+    : n>=4?{color:'#f7a94f',bg:'rgba(247,169,79,.15)',border:'rgba(247,169,79,.35)'}
+    : {color:'#3ecf8e',bg:'rgba(62,207,142,.15)',border:'rgba(62,207,142,.35)'};
+
+  const _renderCard = l => {
+    const hasSore = l.type==='condition' && (l.soreness||[]).length>0;
+    const hasDetail=((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length>0)
+                  ||(l.type==='sprint'&&(l.sets||[]).length>0)
+                  || hasSore;
     const detailId=`ld-${l.id}`, chevId=`lc-${l.id}`;
     const borderColor=_typeBorder[l.type]||'rgba(255,255,255,.1)';
 
@@ -5909,6 +5920,12 @@ function _renderDetailLogs(logs){
       detailHtml=`<div style="margin-top:4px;padding-top:4px">${_exDetailRows(l.exercises||[])}</div>`;
     } else if(l.type==='sprint'&&(l.sets||[]).length){
       detailHtml=`<div style="margin-top:4px;padding-top:4px">${_sprintDetailRows(l.sets||[])}</div>`;
+    } else if(hasSore){
+      const chips=l.soreness.map(s=>{const c=_intensityCol(s.intensity);return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;}).join('');
+      detailHtml=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--muted);font-weight:600">🔴 Soreness · Muskelkater</span>
+        <span style="font-size:10px;color:var(--muted)"><span style="color:#3ecf8e">●</span> mild<span style="color:#f7a94f;margin-left:6px">●</span> moderate<span style="color:#e94560;margin-left:6px">●</span> severe</span>
+      </div><div style="display:flex;flex-wrap:wrap;gap:0">${chips}</div>`;
     }
 
     return `<div class="detail-card" style="cursor:${hasDetail?'pointer':'default'};border-left:3px solid ${borderColor}" onclick="${hasDetail?`_toggleLogDetail('${detailId}','${chevId}')`:''}" >
@@ -5926,9 +5943,34 @@ function _renderDetailLogs(logs){
         </div>
       </div>
       ${summaryHtml}
-      <div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>
+      ${hasDetail?`<div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>`:''}
     </div>`;
-  }).join('');
+  };
+
+  // Always-shown collapsible sections: Condition → Weight → Sprint (default collapsed)
+  const _sections=[
+    {types:['condition'],       icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'},
+    {types:['weight','plyo'],   icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
+    {types:['sprint','tabata'], icon:'⚡', label:'Sprint',                  color:'#3ecf8e'}
+  ];
+  let html='';
+  _sections.forEach((sec,si)=>{
+    const items=logs.filter(l=>sec.types.includes(l.type));
+    const bodyId=`dl-sec-${si}`, chevId=`dl-secchev-${si}`;
+    const open = !!(opts.expand && items.length);
+    html += `<div onclick="_toggleLogDetail('${bodyId}','${chevId}')" style="display:flex;align-items:center;gap:6px;margin-top:${si===0?4:16}px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+      <span style="font-size:13px">${sec.icon}</span>
+      <span style="font-size:10px;font-weight:700;color:${sec.color};letter-spacing:.7px;text-transform:uppercase">${sec.label}</span>
+      <span style="font-size:10px;font-weight:700;color:var(--muted)">${items.length}</span>
+      <div style="flex:1;height:1px;background:${sec.color}33;margin-left:4px"></div>
+      <span id="${chevId}" style="font-size:13px;color:var(--muted);transition:transform .2s;transform:rotate(${open?180:0}deg)">▼</span>
+    </div>`;
+    const body = items.length
+      ? items.map(_renderCard).join('')
+      : '<div class="empty" style="padding:14px 2px;font-size:12px;color:var(--muted)">No logs in this period</div>';
+    html += `<div id="${bodyId}" style="display:${open?'block':'none'}">${body}</div>`;
+  });
+  wrap.innerHTML = html;
 }
 
 // ── Search filter ──
@@ -5943,7 +5985,7 @@ function filterDetailLogs(query){
     if(l.type==='condition') return 'condition'.includes(q);
     return true;
   }):all;
-  _renderDetailLogs(filtered);
+  _renderDetailLogs(filtered, {expand:!!q});
 }
 
 // ── 7-day summary card ──
