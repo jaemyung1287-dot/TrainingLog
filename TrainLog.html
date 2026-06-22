@@ -827,13 +827,6 @@ const APP_VERSION = '20260527-7';
   <div class="sec-ttl" style="margin-top:20px">📋 Recent Sessions · Letzte Sitzungen</div>
   <div id="my-recent-list"></div>
 
-  <div class="sec-ttl" style="margin-top:20px">🏆 Team Ranking</div>
-  <div style="display:flex;gap:8px;margin-bottom:12px">
-    <button class="period-btn on" id="ts-week" onclick="setTeamPeriod('week',this)">Weekly</button>
-    <button class="period-btn" id="ts-month" onclick="setTeamPeriod('month',this)">Monthly</button>
-    <button class="period-btn" id="ts-year" onclick="setTeamPeriod('year',this)">Yearly</button>
-  </div>
-  <div id="team-anon-stats"></div>
   <div class="sec-ttl" style="margin-top:20px">🏅 My Records · Meine Bestzeiten</div>
   <div id="my-records-list"></div>
 </div>
@@ -4738,11 +4731,9 @@ function renderAthStats(){
   const dateSet5 = new Set(dates5);
   const myLogs5 = myLogs.filter(l=>dateSet5.has(l.date));
   _renderLoadSoreness(myLogs5, 'my-soreness-list');
-  _renderLoadRecent(myLogs5, 'my-recent-list');
+  _renderLoadRecent(myLogs5, 'my-recent-list', {splitByType:true});
 
   renderMyRecords();
-  ST._teamPeriod=ST._teamPeriod||'week';
-  renderTeamRanking(d,ST._teamPeriod);
 }
 
 // ════════════════════════════════════════════════
@@ -5527,7 +5518,8 @@ function _renderLoadRPE(logs, dates, canvasId){
 }
 
 // ── Single-athlete: Recent Sessions (compact one-line cards, expand for detail) ──
-function _renderLoadRecent(logs, wrapId){
+function _renderLoadRecent(logs, wrapId, opts){
+  opts = opts || {};
   const wrap = document.getElementById(wrapId || 'load-recent-list');
   if(!wrap) return;
   const sorted = logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
@@ -5674,6 +5666,28 @@ function _renderLoadRecent(logs, wrapId){
       style="width:100%;margin-top:5px;padding:5px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.35);font-size:12px;cursor:pointer;font-family:inherit">
       ▼
     </button>`;
+
+  // ── Athlete My Data: split into Weight / Sprint / Condition sections ──
+  // Each session card stays collapsed by default (built by _renderCard) and expands on tap.
+  if(opts.splitByType){
+    const _sections = [
+      {types:['weight','plyo'], icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
+      {types:['sprint'],        icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
+      {types:['tabata'],        icon:'🔥', label:'Tabata',                  color:'#e94560'},
+      {types:['condition'],     icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'}
+    ];
+    let shtml = '';
+    let first = true;
+    _sections.forEach(sec=>{
+      const items = sorted.filter(l=>sec.types.includes(l.type));
+      if(!items.length) return;
+      shtml += _sectionHdr(sec.icon, sec.label, sec.color, first?4:16);
+      shtml += items.map(_renderCard).join('');
+      first = false;
+    });
+    wrap.innerHTML = shtml || '<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>';
+    return;
+  }
 
   // Split into Training vs Condition groups
   const trainTypes = new Set(['weight','plyo','sprint','tabata']);
