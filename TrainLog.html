@@ -826,9 +826,6 @@ const APP_VERSION = '20260527-7';
   <!-- Recent Sessions -->
   <div class="sec-ttl" style="margin-top:20px">📋 Recent Sessions · Letzte Sitzungen</div>
   <div id="my-recent-list"></div>
-
-  <div class="sec-ttl" style="margin-top:20px">🏅 My Records · Meine Bestzeiten</div>
-  <div id="my-records-list"></div>
 </div>
 
 <!-- COACH LOGIN -->
@@ -4732,8 +4729,6 @@ function renderAthStats(){
   const myLogs5 = myLogs.filter(l=>dateSet5.has(l.date));
   _renderLoadSoreness(myLogs5, 'my-soreness-list');
   _renderLoadRecent(myLogs5, 'my-recent-list', {splitByType:true});
-
-  renderMyRecords();
 }
 
 // ════════════════════════════════════════════════
@@ -5678,11 +5673,22 @@ function _renderLoadRecent(logs, wrapId, opts){
     ];
     let shtml = '';
     let first = true;
+    let si = 0;
     _sections.forEach(sec=>{
       const items = sorted.filter(l=>sec.types.includes(l.type));
       if(!items.length) return;
-      shtml += _sectionHdr(sec.icon, sec.label, sec.color, first?4:16);
-      shtml += items.map(_renderCard).join('');
+      const bodyId = `lr-sec-${si}`;
+      const chevId = `lr-secchev-${si}`;
+      si++;
+      // Collapsible section header — default collapsed (body display:none)
+      shtml += `<div onclick="_toggleLogDetail('${bodyId}','${chevId}')" style="display:flex;align-items:center;gap:6px;margin-top:${first?4:16}px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+        <span style="font-size:13px">${sec.icon}</span>
+        <span style="font-size:10px;font-weight:700;color:${sec.color};letter-spacing:.7px;text-transform:uppercase">${sec.label}</span>
+        <span style="font-size:10px;font-weight:700;color:var(--muted)">${items.length}</span>
+        <div style="flex:1;height:1px;background:${sec.color}33;margin-left:4px"></div>
+        <span id="${chevId}" style="font-size:13px;color:var(--muted)">▼</span>
+      </div>`;
+      shtml += `<div id="${bodyId}" style="display:none">${items.map(_renderCard).join('')}</div>`;
       first = false;
     });
     wrap.innerHTML = shtml || '<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>';
