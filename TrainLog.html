@@ -6073,7 +6073,7 @@ function _buildExPBHtml(name, d){
 
 // ── Build performance HTML ──
 function _buildPerfHtml(recs){
-  if(!recs.length) return `<div class="empty" style="padding:28px 0"><div class="ei">🏅</div><div style="font-size:15px;font-weight:700;margin-bottom:6px">No records yet</div><div style="font-size:12px">Add manually with the button above, or records will be auto-filled when you save Bulk Entry data</div></div>`;
+  recs = recs||[];
   let html='';
   const _distBlock=(entries,prColor,prBg,unit,isTime,cPrefix)=>{
     const sorted=isTime?[...entries].sort((a,b)=>a.time-b.time):[...entries].sort((a,b)=>b.load-a.load);
@@ -6097,40 +6097,40 @@ function _buildPerfHtml(recs){
     return `<div class="perf-dist-block" style="padding:0">${rows}${sparkHtml}</div>`;
   };
 
-  // Ice Start
-  const iceRecs=recs.filter(r=>r.type==='icestart');
-  if(iceRecs.length){
-    html+=`<div class="perf-sec-hdr">🧊 Ice Start</div><div class="perf-cat-card">`;
-    const byDist={};
-    iceRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
-    Object.keys(byDist).sort().forEach(dist=>{
-      html+=_distBlock(byDist[dist],'var(--blue)','rgba(79,142,247,.12)','s',true,`spark-ice-${String(dist).replace(/[^a-z0-9]/gi,'_')}`);
-    });
-    html+='</div>';
-  }
-  // Track Start
-  const trackRecs=recs.filter(r=>r.type==='trackstart');
-  if(trackRecs.length){
-    html+=`<div class="perf-sec-hdr">🏃 Track Start</div><div class="perf-cat-card">`;
-    const byDist={};
-    trackRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
-    Object.keys(byDist).sort().forEach(dist=>{
-      html+=_distBlock(byDist[dist],'var(--orange)','rgba(247,169,79,.12)','s',true,`spark-track-${String(dist).replace(/[^a-z0-9]/gi,'_')}`);
-    });
-    html+='</div>';
-  }
-  // Strength
-  const strRecs=recs.filter(r=>r.type==='strength');
-  if(strRecs.length){
-    html+=`<div class="perf-sec-hdr">🏋️ Strength</div><div class="perf-cat-card">`;
-    const byEx={};
-    strRecs.forEach(r=>{ if(!byEx[r.exercise])byEx[r.exercise]=[]; byEx[r.exercise].push(r); });
-    Object.keys(byEx).sort().forEach(ex=>{
-      html+=_distBlock(byEx[ex],'var(--green)','rgba(62,207,142,.12)','kg',false,`spark-str-${ex.replace(/[^a-z0-9]/gi,'_')}`);
-    });
-    html+='</div>';
-  }
-  return html||`<div class="empty" style="padding:20px 0"><div class="ei">🏅</div>No records yet</div>`;
+  // All 4 categories ALWAYS shown as collapsible sections (default collapsed),
+  // same structure as the session-log sections. Records only appear when actually
+  // measured; empty categories show a placeholder.
+  const _cats=[
+    {type:'icestart',   icon:'🧊', label:'Ice Start',   color:'#4f8ef7', prColor:'var(--blue)',  prBg:'rgba(79,142,247,.12)', unit:'s',  isTime:true,  groupKey:'distance', sortNum:false, spark:k=>`spark-ice-${String(k).replace(/[^a-z0-9]/gi,'_')}`},
+    {type:'trackstart', icon:'🏃', label:'Track Start', color:'#f7a94f', prColor:'var(--orange)',prBg:'rgba(247,169,79,.12)', unit:'s',  isTime:true,  groupKey:'distance', sortNum:false, spark:k=>`spark-track-${String(k).replace(/[^a-z0-9]/gi,'_')}`},
+    {type:'sprint',     icon:'⚡', label:'Sprint',      color:'#c9a84c', prColor:'var(--gold)',  prBg:'rgba(201,168,76,.12)', unit:'s',  isTime:true,  groupKey:'distance', sortNum:true,  spark:k=>`spark-sprint-${k}`},
+    {type:'strength',   icon:'🏋️', label:'Strength',    color:'#3ecf8e', prColor:'var(--green)', prBg:'rgba(62,207,142,.12)', unit:'kg', isTime:false, groupKey:'exercise', sortNum:false, spark:k=>`spark-str-${k.replace(/[^a-z0-9]/gi,'_')}`}
+  ];
+  _cats.forEach((cat,ci)=>{
+    const catRecs=recs.filter(r=>r.type===cat.type);
+    const bodyId=`perf-sec-${ci}`, chevId=`perf-chev-${ci}`;
+    const groups={};
+    catRecs.forEach(r=>{ const k=r[cat.groupKey]; if(k==null) return; (groups[k]=groups[k]||[]).push(r); });
+    const keys=Object.keys(groups);
+    // Collapsible header
+    html+=`<div onclick="_togglePerfSec('${bodyId}','${chevId}')" style="display:flex;align-items:center;gap:6px;margin-top:${ci===0?4:16}px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+      <span style="font-size:13px">${cat.icon}</span>
+      <span style="font-size:10px;font-weight:700;color:${cat.color};letter-spacing:.7px;text-transform:uppercase">${cat.label}</span>
+      <span style="font-size:10px;font-weight:700;color:var(--muted)">${catRecs.length}</span>
+      <div style="flex:1;height:1px;background:${cat.color}33;margin-left:4px"></div>
+      <span id="${chevId}" style="font-size:13px;color:var(--muted);transition:transform .2s">▼</span>
+    </div>`;
+    // Body — records only when actually measured, else placeholder
+    let body;
+    if(keys.length){
+      const sortedKeys = cat.sortNum ? keys.sort((a,b)=>parseFloat(a)-parseFloat(b)) : keys.sort();
+      body=`<div class="perf-cat-card">`+sortedKeys.map(k=>_distBlock(groups[k],cat.prColor,cat.prBg,cat.unit,cat.isTime,cat.spark(k))).join('')+`</div>`;
+    } else {
+      body=`<div class="empty" style="padding:14px 2px;font-size:12px;color:var(--muted)">측정 기록 없음 · Noch keine Messung</div>`;
+    }
+    html+=`<div id="${bodyId}" style="display:none">${body}</div>`;
+  });
+  return html;
 }
 
 // ── Render sparkline charts ──
@@ -6157,12 +6157,14 @@ function _renderPerfSparklines(recs){
       }
     });
   };
-  const byDist={icestart:{},trackstart:{},strength:{}};
+  const byDist={sprint:{},icestart:{},trackstart:{},strength:{}};
   recs.forEach(r=>{
-    if(r.type==='icestart'){ if(!byDist.icestart[r.distance])byDist.icestart[r.distance]=[]; byDist.icestart[r.distance].push(r); }
+    if(r.type==='sprint'){ if(!byDist.sprint[r.distance])byDist.sprint[r.distance]=[]; byDist.sprint[r.distance].push(r); }
+    else if(r.type==='icestart'){ if(!byDist.icestart[r.distance])byDist.icestart[r.distance]=[]; byDist.icestart[r.distance].push(r); }
     else if(r.type==='trackstart'){ if(!byDist.trackstart[r.distance])byDist.trackstart[r.distance]=[]; byDist.trackstart[r.distance].push(r); }
     else if(r.type==='strength'){ if(!byDist.strength[r.exercise])byDist.strength[r.exercise]=[]; byDist.strength[r.exercise].push(r); }
   });
+  Object.keys(byDist.sprint).forEach(d=>_spark(`spark-sprint-${d}`,byDist.sprint[d],true));
   Object.keys(byDist.icestart).forEach(d=>_spark(`spark-ice-${String(d).replace(/[^a-z0-9]/gi,'_')}`,byDist.icestart[d],true));
   Object.keys(byDist.trackstart).forEach(d=>_spark(`spark-track-${String(d).replace(/[^a-z0-9]/gi,'_')}`,byDist.trackstart[d],true));
   Object.keys(byDist.strength).forEach(ex=>_spark(`spark-str-${ex.replace(/[^a-z0-9]/gi,'_')}`,byDist.strength[ex],false));
@@ -7073,6 +7075,19 @@ function _toggleLogDetail(detailId, chevId){
   const open=el.style.display==='block';
   el.style.display=open?'none':'block';
   if(ch) ch.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+// Performance category collapse — resizes sparkline charts when a section is expanded
+// (charts created in a hidden container need a resize to size correctly).
+function _togglePerfSec(bodyId, chevId){
+  const el=document.getElementById(bodyId);
+  const ch=document.getElementById(chevId);
+  if(!el) return;
+  const open=el.style.display==='block';
+  el.style.display=open?'none':'block';
+  if(ch) ch.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+  if(!open){
+    el.querySelectorAll('canvas').forEach(c=>{ const ch2=ST.charts&&ST.charts[c.id]; if(ch2&&ch2.resize) try{ch2.resize();}catch(_){} });
+  }
 }
 
 // ── Collapsible chart boxes (persisted to localStorage) ──
