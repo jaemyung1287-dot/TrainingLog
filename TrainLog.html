@@ -2171,42 +2171,18 @@ function renderTeamTrainingData(){
       const tag=l.sprintType?` <span style="color:var(--muted)">· ${l.sprintType}</span>`:'';
       const det=(l.sets||[]).map(s=>{
         const _f2=x=>{ const n=parseFloat(x); return isNaN(n)?x:n.toFixed(2); };
-        const t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:(s.totalTime!=null?s.totalTime:null);
         const reps=`${s.sets||1}×${s.reps||1}`;
-        const _pbH=parseFloat(s.pb)||null;
-        const _pctH=parseFloat(s.intensity)||null;
-        const _tgtH=(_pbH&&_pctH&&_pctH>0)?(_pbH/(_pctH/100)):null;
         const _nmH=(s.name||'').trim();
-        const _pbStr=(_pbH!=null&&_pctH!=null)?` <span style="color:var(--muted)">· 🏆 PB <span style="color:#ffb300;font-weight:700">${_f2(_pbH)}s</span></span>`:'';
-        const _paceH=(_pctH!=null)?`${_pbStr} <span style="color:var(--muted)">· 🎯 ${_pctH}%${_tgtH!=null?` → <span style="color:#3ecf8e;font-weight:700">${_f2(_tgtH)}s</span>`:''}</span>`:'';
-        let _row=detRow(`${_nmH?`${_nmH} `:''}<span style="font-weight:700">${s.distance||'—'}m</span> <span style="color:var(--muted);font-size:11px">${reps}</span>${_paceH}`,'');
-        const _rt=Array.isArray(s.repTimes)?s.repTimes:[];
-        if(_rt.some(x=>x!=null&&x!=='')){
-          const _nr=parseInt(s.reps)||_rt.length||1;
-          const _ns=Math.max(1,Math.ceil(_rt.length/_nr));
-          const _pb=parseFloat(s.pb)||null;
-          const _pct=parseFloat(s.intensity)||null;
-          const _tgt=(_pb&&_pct&&_pct>0)?(_pb/(_pct/100)):null;
-          const _recPB=_pbForAthlete(l.athleteName,parseFloat(s.distance)||0,_setDisc(s),d.records);
-          const _pill=(x,n)=>{
-            if(x==null||x==='') return '';
-            const _xv=parseFloat(x);
-            if(_recPB!=null && _xv<=_recPB+1e-9){
-              return `<span class="tl-pb-pill" style="display:inline-flex;align-items:baseline;gap:5px;padding:2px 9px;border-radius:8px;background:rgba(255,196,0,.15);border:1px solid rgba(255,196,0,.55)"><span style="font-size:9px;font-weight:700;color:#c79a2e;min-width:11px">${n}.</span><span style="font-size:12px;font-weight:800;color:#ffb300">${_f2(x)}<span style="font-size:9px;font-weight:600;opacity:.7">s</span></span><span style="font-size:8px;font-weight:900;color:#3a2c00;background:#ffc400;padding:1px 5px;border-radius:4px;letter-spacing:.02em">🏆 PB</span></span>`;
-            }
-            const _ov=(_tgt!=null&&_xv>_tgt);
-            const _c=_ov?'#ff5252':'#3ecf8e';
-            return `<span style="display:inline-flex;align-items:baseline;gap:4px;padding:2px 8px;border-radius:8px;background:${_ov?'rgba(255,82,82,.1)':'rgba(62,207,142,.1)'};border:1px solid ${_ov?'rgba(255,82,82,.25)':'rgba(62,207,142,.25)'}"><span style="font-size:9px;font-weight:700;color:var(--muted);min-width:11px">${n}.</span><span style="font-size:12px;font-weight:800;color:${_c}">${_f2(x)}<span style="font-size:9px;font-weight:600;opacity:.65">s</span></span></span>`;
-          };
-          let _laps='';
-          for(let _g=0;_g<_ns;_g++){
-            const _grp=_rt.slice(_g*_nr,_g*_nr+_nr);
-            const _pills=_grp.map((x,_k)=>_pill(x,_k+1)).filter(Boolean).join('');
-            if(_pills) _laps+=`<div style="display:flex;gap:8px;align-items:flex-start;margin-top:5px"><span style="font-size:10px;font-weight:800;color:var(--muted);white-space:nowrap;padding-top:4px;min-width:42px">${_ns>1?`${_g+1}. Satz`:'Läufe'}</span><div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">${_pills}</div></div>`;
-          }
-          _row+=`<div style="padding:3px 0 9px 2px"><div style="font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.06em">🏁 LAUF-ZEITEN</div>${_laps}</div>`;
+        const _rt=(Array.isArray(s.repTimes)?s.repTimes:[]).filter(x=>x!=null&&x!=='');
+        const _left=`${_nmH?`${_nmH} `:''}<span style="font-weight:700">${s.distance||'—'}m</span> <span style="color:var(--muted);font-size:11px">${reps}</span>`;
+        let _right;
+        if(_rt.length){
+          _right=_rt.map(x=>`${_f2(x)}s`).join('  ');
+        } else {
+          const _t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:null;
+          _right=_t!=null?`${_f2(_t)}s`:'—';
         }
-        return _row;
+        return detRow(_left,_right);
       }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
       const rd=Math.round(td);
       const right=`${rd>0?`<span style="color:#3ecf8e;font-weight:700">${rd.toLocaleString()} m</span>`:`<span style="color:var(--muted)">kein Eintrag</span>`}${tag}`;
