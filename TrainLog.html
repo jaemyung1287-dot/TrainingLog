@@ -6119,17 +6119,6 @@ function _buildPerfHtml(recs){
     });
     html+='</div>';
   }
-  // Sprint
-  const sprintRecs=recs.filter(r=>r.type==='sprint');
-  if(sprintRecs.length){
-    html+=`<div class="perf-sec-hdr">⚡ Sprint</div><div class="perf-cat-card">`;
-    const byDist={};
-    sprintRecs.forEach(r=>{ if(!byDist[r.distance])byDist[r.distance]=[]; byDist[r.distance].push(r); });
-    Object.keys(byDist).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(dist=>{
-      html+=_distBlock(byDist[dist],'var(--gold)','rgba(201,168,76,.12)','s',true,`spark-sprint-${dist}`);
-    });
-    html+='</div>';
-  }
   // Strength
   const strRecs=recs.filter(r=>r.type==='strength');
   if(strRecs.length){
@@ -6168,14 +6157,12 @@ function _renderPerfSparklines(recs){
       }
     });
   };
-  const byDist={sprint:{},icestart:{},trackstart:{},strength:{}};
+  const byDist={icestart:{},trackstart:{},strength:{}};
   recs.forEach(r=>{
-    if(r.type==='sprint'){ if(!byDist.sprint[r.distance])byDist.sprint[r.distance]=[]; byDist.sprint[r.distance].push(r); }
-    else if(r.type==='icestart'){ if(!byDist.icestart[r.distance])byDist.icestart[r.distance]=[]; byDist.icestart[r.distance].push(r); }
+    if(r.type==='icestart'){ if(!byDist.icestart[r.distance])byDist.icestart[r.distance]=[]; byDist.icestart[r.distance].push(r); }
     else if(r.type==='trackstart'){ if(!byDist.trackstart[r.distance])byDist.trackstart[r.distance]=[]; byDist.trackstart[r.distance].push(r); }
     else if(r.type==='strength'){ if(!byDist.strength[r.exercise])byDist.strength[r.exercise]=[]; byDist.strength[r.exercise].push(r); }
   });
-  Object.keys(byDist.sprint).forEach(d=>_spark(`spark-sprint-${d}`,byDist.sprint[d],true));
   Object.keys(byDist.icestart).forEach(d=>_spark(`spark-ice-${String(d).replace(/[^a-z0-9]/gi,'_')}`,byDist.icestart[d],true));
   Object.keys(byDist.trackstart).forEach(d=>_spark(`spark-track-${String(d).replace(/[^a-z0-9]/gi,'_')}`,byDist.trackstart[d],true));
   Object.keys(byDist.strength).forEach(ex=>_spark(`spark-str-${ex.replace(/[^a-z0-9]/gi,'_')}`,byDist.strength[ex],false));
