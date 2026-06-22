@@ -939,15 +939,6 @@ const APP_VERSION = '20260527-7';
       <div id="load-recent-list"></div>
     </div>
 
-    <!-- Single-athlete only: Soreness Log -->
-    <div id="load-soreness-wrap" style="display:none">
-      <div style="display:flex;align-items:center;gap:6px;margin-top:20px;margin-bottom:6px;padding:0 2px">
-        <span style="font-size:13px">🔴</span>
-        <span style="font-size:10px;font-weight:700;color:#e94560;letter-spacing:.7px;text-transform:uppercase">Soreness Log</span>
-        <div style="flex:1;height:1px;background:#e9456033;margin-left:4px"></div>
-      </div>
-      <div id="load-soreness-list"></div>
-    </div>
   </div>
 
   <!-- ATHLETES -->
@@ -5230,17 +5221,15 @@ function renderLoadTab(){
   if(condSingle) condSingle.style.display=isAll?'none':'block';
   if(condAll) condAll.style.display=isAll?'block':'none';
 
-  // Single-athlete only: Overview, Session RPE chart, Recent Sessions cards, Soreness Log, ACWR
+  // Single-athlete only: Overview, Session RPE chart, Recent Sessions cards, ACWR
   const overviewWrap=document.getElementById('load-overview-wrap');
   const rpeBox=document.getElementById('load-rpe-box');
   const acwrBox=document.getElementById('load-acwr-box');
   const recentWrap=document.getElementById('load-recent-wrap');
-  const sorenessWrap=document.getElementById('load-soreness-wrap');
   if(overviewWrap) overviewWrap.style.display=isAll?'none':'block';
   if(rpeBox) rpeBox.style.display=isAll?'none':'block';
   if(acwrBox) acwrBox.style.display=isAll?'none':'block';
   if(recentWrap) recentWrap.style.display=isAll?'none':'block';
-  if(sorenessWrap) sorenessWrap.style.display=isAll?'none':'block';
 
   // Helper: compute volume for a weight log by training type
   // Must mirror _exVolSplit: use setRows when available, exclude bodyweight
@@ -5322,8 +5311,7 @@ function renderLoadTab(){
     const myLogs = d.logs.filter(l=>l.athleteName===fn && periodSet.has(l.date));
     _renderLoadOverview(d.logs, fn);
     _renderLoadRPE(myLogs, periodDates);
-    _renderLoadRecent(myLogs);
-    _renderLoadSoreness(myLogs);
+    _renderLoadRecent(myLogs, 'load-recent-list', {splitByType:true});
     // ACWR chart always computes against full 14-day window (independent of period filter)
     // because ACWR itself rolls 7d/28d internally — period only affects how many points we plot
     _renderACWRChart(d.logs, fn, periodDates, 'chart-load-acwr');
