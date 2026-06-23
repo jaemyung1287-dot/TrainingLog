@@ -953,8 +953,9 @@ const REGION_COLOR={Lower:'#f7a94f',Upper:'#4f8ef7',Core:'#a78bfa',Power:'#e2b71
 const SPRINT_COLOR={'Acceleration':'#3ecf8e','Maximum Velocity':'#22d3ee','Speed Endurance':'#4f8ef7','Special Endurance 1':'#a78bfa','Special Endurance 2':'#7c5cd6','Resistance Sprinting':'#f7a94f','Sprint':'#6b7280'};
 function _exVolOne(e){
   if(e.isBodyweight)return 0;
-  if(e.setRows&&e.setRows.length)return e.setRows.reduce((s,r)=>s+(parseFloat(r.kg)||0)*(parseFloat(r.reps)||0),0);
-  return (parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0);
+  const slMult=(e.isSL||e.isSA)?2:1; // vol()·앱 _exVolSplit과 동일: 한쪽 다리/팔 ×2
+  if(e.setRows&&e.setRows.length)return e.setRows.reduce((s,r)=>s+(parseFloat(r.kg)||0)*(parseFloat(r.reps)||0),0)*slMult;
+  return (parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0)*slMult;
 }
 function _regionOf(e){
   if(e.trainingType==='Power Development')return 'Power';
@@ -2084,7 +2085,7 @@ function downloadCSV(type='all'){
     rows.push(['날짜','선수','그룹','종류','볼륨(kg)','거리(m)','총렙','RPE','Phase','Week','메모']);
     athletes.forEach(ath=>{
       getLogsByName(ath.name).filter(l=>l.type!=='condition').sort((a,b)=>a.date.localeCompare(b.date)).forEach(l=>{
-        rows.push([l.date,ath.name,ath.group,l.type,l.type==='weight'?(l.totalVolume||vol([l])):0,l.type==='sprint'?(l.totalDistance||0):0,l.type==='plyo'?(l.totalReps||0):0,l.rpe||'',l.phase||'',l.week||'',l.notes||'']);
+        rows.push([l.date,ath.name,ath.group,l.type,l.type==='weight'?vol([l]):0,l.type==='sprint'?(l.totalDistance||0):0,l.type==='plyo'?(l.totalReps||0):0,l.rpe||'',l.phase||'',l.week||'',l.notes||'']);
       });
     });
   }
@@ -2562,21 +2563,16 @@ function _renderLogEditor(){
     </div>`);
   _modalGuard=()=>JSON.stringify(_eLog)!==_eSig0;
 }
-// Recompute totals using the SAME rules as the phone app (SL/SA ×2, BW = base + extra)
+// Recompute totals using the SAME rules as the phone app (맨몸 운동 제외 — 횟수로만 추적, SL/SA ×2)
 function _recompTotals(l){
   if(l.type==='weight'||l.type==='plyo'){
     l.totalVolume=(l.exercises||[]).reduce((s,e)=>{
+      if(e.isBodyweight) return s; // 맨몸 운동은 kg 볼륨 제외 — 횟수로만 추적
       const slMult=(e.isSL||e.isSA)?2:1;
-      const isBW=e.isBodyweight||false;
-      const bwBase=isBW?(parseFloat(e.bwBase??e.weight)||0):0;
       if(e.setRows&&e.setRows.length){
-        return s+e.setRows.reduce((ss,r)=>{
-          const kg=isBW?(bwBase+(parseFloat(r.extraKg)||0)):(parseFloat(r.kg)||0);
-          return ss+kg*(parseFloat(r.reps)||0)*slMult;
-        },0);
+        return s+e.setRows.reduce((ss,r)=>ss+(parseFloat(r.kg)||0)*(parseFloat(r.reps)||0)*slMult,0);
       }
-      const w=isBW?(bwBase+(parseFloat(e.extraKg)||0)):(parseFloat(e.weight)||0);
-      return s+w*(parseFloat(e.sets)||0)*(parseFloat(e.reps)||0)*slMult;
+      return s+(parseFloat(e.weight)||0)*(parseFloat(e.sets)||0)*(parseFloat(e.reps)||0)*slMult;
     },0);
   } else if(l.type==='sprint'){
     l.totalDistance=(l.sets||[]).reduce((s,st)=>s+(parseFloat(st.distance)||0)*(parseInt(st.sets)||1)*(parseInt(st.reps)||1),0);
