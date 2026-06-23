@@ -874,7 +874,7 @@ function renderOverview(){
     wk.forEach(({ds,d},i)=>{
       const isToday=ds===today;
       const dayLogs=logs.filter(l=>l.date===ds);
-      const trainLogs=dayLogs.filter(l=>l.type!=='condition');
+      const trainLogs=dayLogs.filter(l=>l.type!=='condition').sort((a,b)=>String(a.id).localeCompare(String(b.id)));
       const condLog=dayLogs.find(l=>l.type==='condition');
       const plan=coachData.sessionPlans?.[ds];
       const gd=planGrp(plan,ath);
