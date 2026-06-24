@@ -1242,13 +1242,13 @@ function renderLoad(){
     if(_regAths.length){
       const chips=(_bdOne||_bdMulti)?'':[_chip(!loadRegSel,'전체','#f7a94f',"loadRegSel=null;renderLoad()")]
         .concat(_regPresent.map(r=>_chip(loadRegSel===r,r,REGION_COLOR[r],`loadRegSel=loadRegSel==='${r}'?null:'${r}';renderLoad()`))).join('');
-      html+=`<div class="card"><div class="card-hd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🏋️ Weight Volume${_bdOne?` <span style="font-size:11px;color:var(--green)">· ${_esc(_bdName)}</span>`:_bdMulti?` <span style="font-size:11px;color:var(--muted)">· 선수 비교</span>`:''} <span style="display:flex;gap:4px;flex-wrap:wrap;margin-left:6px">${chips}</span></div>
+      html+=`<div class="card"><div class="card-hd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🏋️ Weight Volume <span style="display:flex;gap:4px;flex-wrap:wrap">${chips}</span>${_bdOne?`<span style="margin-left:auto;font-size:11px;color:var(--green);font-weight:600">${_esc(_bdName)}</span>`:_bdMulti?`<span style="margin-left:auto;font-size:11px;color:var(--muted)">선수 비교</span>`:''}</div>
         <div style="position:relative;height:${_bdOne?210:(_bdMulti?260:Math.max(120,_regAths.length*34+50))}px"><canvas id="ch-ld-reg"></canvas></div></div>`;
     }
     if(_sprAths.length){
       const sChips=(_bdOne||_bdMulti)?'':[_chip(!loadSprSel,'전체','#3ecf8e',"loadSprSel=null;renderLoad()")]
         .concat(bd.sprintTypes.map(t=>_chip(loadSprSel===t,t,SPRINT_COLOR[t]||'#6b7280',`loadSprSel=loadSprSel==='${t.replace(/'/g,"\\'")}'?null:'${t.replace(/'/g,"\\'")}';renderLoad()`))).join('');
-      html+=`<div class="card"><div class="card-hd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">⚡ Sprint Distance${_bdOne?` <span style="font-size:11px;color:var(--green)">· ${_esc(_bdName)}</span>`:_bdMulti?` <span style="font-size:11px;color:var(--muted)">· 선수 비교</span>`:''} <span style="display:flex;gap:4px;flex-wrap:wrap;margin-left:6px">${sChips}</span></div>
+      html+=`<div class="card"><div class="card-hd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">⚡ Sprint Distance <span style="display:flex;gap:4px;flex-wrap:wrap">${sChips}</span>${_bdOne?`<span style="margin-left:auto;font-size:11px;color:var(--green);font-weight:600">${_esc(_bdName)}</span>`:_bdMulti?`<span style="margin-left:auto;font-size:11px;color:var(--muted)">선수 비교</span>`:''}</div>
         <div style="position:relative;height:${_bdOne?210:(_bdMulti?260:Math.max(120,_sprAths.length*34+50))}px"><canvas id="ch-ld-spr"></canvas></div></div>`;
     }
     html+=`</div>`;
