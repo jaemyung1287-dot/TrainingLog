@@ -1648,6 +1648,7 @@ function renderLoad(){
   // 공통 컨트롤: 모드 / 기간
   ltMode='ex';   // 종목 비교 기본(선수 비교 UI 제거)
   ltCmp=false; // 연도 비교 토글 제거
+  if(ltAB){ltAB=false;ltBucket='none';} // 비교 '직접 기간'(A vs B) 제거
   const _ltBaseOpt=(v,l)=>`<option value="${v}" ${ltPeriod===v?'selected':''}>${l}</option>`;
   const _ltCompVal=ltAB?'custom':ltBucket;
   const _ltCompOpt=(v,l)=>`<option value="${v}" ${_ltCompVal===v?'selected':''}>${l}</option>`;
@@ -1659,7 +1660,7 @@ function renderLoad(){
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
     +`<span class="lt-lbl" style="width:auto">비교</span>`
     +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
-    + _ltCompOpt('none','없음')+_ltCompOpt('week','주별')+_ltCompOpt('month','월별')+_ltCompOpt('year','연도별')+_ltCompOpt('custom','직접 기간')
+    + _ltCompOpt('none','없음')+_ltCompOpt('week','주별')+_ltCompOpt('month','월별')+_ltCompOpt('year','연도별')
     +`</select>`
     +(ltAB?`<input type="date" class="lt-date" value="${ltCB1}" onchange="ltCB1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltCB2}" onchange="ltCB2=this.value;renderLoad()">`:'')
     +`</div>`;
