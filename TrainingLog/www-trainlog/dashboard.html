@@ -1569,17 +1569,34 @@ function renderLoad(){
     LT+=`<div class="lt-hint" style="padding:0 0 10px 60px">카테고리를 누르면 하위 종목이 펼쳐집니다 · 세션 카드의 운동명 클릭으로도 추가</div>`;
     const selExs=selKeys.filter(k=>!_LT_SPECIAL[k]&&_lt.exMap[k]);
     const units=new Set(selExs.map(n=>_lt.exMap[n].unit));
-    if(selExs.length){
+    const hasVol=ltSel.has('__vol__'), hasDist=ltSel.has('__dist__');
+    const volDistOverlay=ltChartMode==='overlay'&&!ltCmp&&hasVol&&hasDist;
+    if(selExs.length||(hasVol&&hasDist)){
       LT+=`<div class="lt-row"><span class="lt-lbl">표시</span><div class="lt-seg"><button class="${ltChartMode==='grid'?'on':''}" onclick="ltChartMode='grid';renderLoad()">개별</button><button class="${ltChartMode==='overlay'?'on':''}" onclick="ltChartMode='overlay';renderLoad()">겹쳐서</button></div>`;
-      if(ltChartMode==='overlay'&&units.size>1&&!ltCmp){LT+=`<div class="lt-seg"><button class="${ltMix==='dual'?'on':''}" onclick="ltMix='dual';renderLoad()">이중 축</button><button class="${ltMix==='index'?'on':''}" onclick="ltMix='index';renderLoad()">% 변화</button></div>`;}
+      if(ltChartMode==='overlay'&&units.size>1&&!ltCmp&&selExs.length){LT+=`<div class="lt-seg"><button class="${ltMix==='dual'?'on':''}" onclick="ltMix='dual';renderLoad()">이중 축</button><button class="${ltMix==='index'?'on':''}" onclick="ltMix='index';renderLoad()">% 변화</button></div>`;}
       LT+=`</div>`;
     }
     LT+=`<div class="lt-grid">`;
     if(!selKeys.length){
       LT+=`<div class="lt-hint" style="grid-column:1/-1">위에서 종목을 추가하면 추이가 표시됩니다 (전체 볼륨·스프린트 거리도 선택해야 표시)</div>`;
     } else {
-      if(ltSel.has('__vol__')){const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('전체 볼륨 (Total Volume)',ltCmp?'올해 vs 작년':'kg/세션',_ltLineCfg(s,'#f7a94f',false,ltCmp),null,_ltCat.indexOf('__vol__'));}
-      if(ltSel.has('__dist__')){const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('스프린트 총 거리',ltCmp?'올해 vs 작년':'m/세션',_ltLineCfg(s,'#3ecf8e',false,ltCmp),null,_ltCat.indexOf('__dist__'));}
+      if(volDistOverlay){
+        const vs=_flt(_ltVolS), ds=_flt(_ltDistS);
+        const dates=[...new Set(vs.map(p=>p.d).concat(ds.map(p=>p.d)))].sort();
+        const vByD={};vs.forEach(p=>vByD[p.d]=p);const dByD={};ds.forEach(p=>dByD[p.d]=p);
+        const opt=_ltTip(false,true);
+        opt.scales={x:opt.scales.x,
+          y:{position:'left',grid:{color:'rgba(247,169,79,.1)'},ticks:{color:'#f7a94f',font:{size:9}},title:{display:true,text:'볼륨(kg)',color:'#f7a94f',font:{size:10}}},
+          y1:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#3ecf8e',font:{size:9}},title:{display:true,text:'거리(m)',color:'#3ecf8e',font:{size:10}}}};
+        const cfg={type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[
+          {label:'전체 볼륨',yAxisID:'y',data:dates.map(d=>vByD[d]?vByD[d].v:null),_metas:dates.map(d=>vByD[d]?vByD[d].meta:''),borderColor:'#f7a94f',backgroundColor:'#f7a94f18',fill:true,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
+          {label:'스프린트 거리',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
+        ]},options:opt};
+        LT+=_ltCard('전체 볼륨 + 스프린트 거리 (흐름)','kg · m 이중축',cfg,240);
+      } else {
+        if(hasVol){const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('전체 볼륨 (Total Volume)',ltCmp?'올해 vs 작년':'kg/세션',_ltLineCfg(s,'#f7a94f',false,ltCmp),null,_ltCat.indexOf('__vol__'));}
+        if(hasDist){const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('스프린트 총 거리',ltCmp?'올해 vs 작년':'m/세션',_ltLineCfg(s,'#3ecf8e',false,ltCmp),null,_ltCat.indexOf('__dist__'));}
+      }
       if(selExs.length){
         if(ltChartMode==='overlay'&&!ltCmp){
           LT+=_ltOverlayCard(selExs,units);
