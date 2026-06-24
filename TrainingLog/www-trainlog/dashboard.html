@@ -1049,6 +1049,8 @@ function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;ltSel.has(n)?ltSel.de
 function ltAddEx(n){if(!n)return;ltMode='ex';ltSel.add(n);renderLoad();}
 function ltToggleAth(i){const n=_ltAthList[i];if(n==null)return;ltAthSel.has(n)?ltAthSel.delete(n):ltAthSel.add(n);renderLoad();}
 function ltSetMetricI(i){const k=_ltMetricList[i];if(k==null)return;ltMetric=k;renderLoad();}
+function ltAddIdx(v){const i=parseInt(v);if(isNaN(i))return;const n=_ltCat[i];if(n){ltSel.add(n);renderLoad();}}
+function ltSetMetricVal(v){if(v){ltMetric=v;renderLoad();}}
 // 로그 → {exMap:{name:{sprint,unit,pts:{date:{v,meta}}}}, volByDate, distByDate}
 function _ltBuild(logs){
   const exMap={},volByDate={},distByDate={};
@@ -1384,8 +1386,11 @@ function renderLoad(){
     LT+=`<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:12px"><input type="checkbox" ${ltCmp?'checked':''} onchange="ltCmp=this.checked;renderLoad()" style="width:15px;height:15px">올해 vs 작년 비교</label>`;
     const cat=Object.keys(_lt.exMap).map(n=>({n,c:Object.keys(_lt.exMap[n].pts).length})).sort((a,b)=>b.c-a.c);
     _ltCat=cat.map(o=>o.n);
-    const chips=cat.map((o,i)=>{const on=ltSel.has(o.n);const col=_LT_PAL[i%_LT_PAL.length];return `<button onclick="ltToggleEx(${i})" style="font-size:11px;padding:4px 9px;border-radius:16px;cursor:pointer;font-family:inherit;border:1px solid ${on?col:'var(--border)'};background:${on?col+'22':'transparent'};color:${on?col:'var(--muted)'};font-weight:${on?'700':'400'}">${_esc(o.n)} <span style="opacity:.55">${o.c}</span></button>`;}).join('');
-    LT+=`<div style="font-size:10px;color:var(--hint);margin-bottom:5px">종목 선택 (다중) · 세션 카드의 운동명도 클릭 가능</div><div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">${chips||'<span style="font-size:11px;color:var(--hint)">기록된 종목 없음</span>'}</div>`;
+    const selPills=_ltCat.map((n,i)=>({n,i})).filter(o=>ltSel.has(o.n))
+      .map(o=>{const col=_LT_PAL[o.i%_LT_PAL.length];return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 6px 4px 11px;border-radius:16px;border:1px solid ${col};background:${col}22;color:${col};font-weight:700">${_esc(o.n)}<span onclick="ltToggleEx(${o.i})" title="제거" style="cursor:pointer;opacity:.65;font-size:14px;line-height:1">×</span></span>`;}).join('');
+    const opts=cat.map((o,i)=>ltSel.has(o.n)?'':`<option value="${i}">${_esc(o.n)} (${o.c})</option>`).join('');
+    LT+=`<div style="font-size:10px;color:var(--hint);margin-bottom:6px"><i style="font-style:normal">종목 선택</i> — 세션 카드의 운동명을 클릭하거나, 아래에서 추가</div>`;
+    LT+=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px">${selPills}<select onchange="ltAddIdx(this.value);this.selectedIndex=0" style="font-size:11px;padding:5px 9px;background:var(--card);border:1px dashed var(--border);border-radius:16px;color:var(--muted);cursor:pointer;font-family:inherit;max-width:200px"><option value="">+ 종목 추가…</option>${opts}</select>${selPills?`<button onclick="ltSel.clear();renderLoad()" style="font-size:10px;padding:4px 9px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--hint);cursor:pointer;font-family:inherit">모두 지우기</button>`:''}</div>`;
     const selArr=[...ltSel].filter(n=>_lt.exMap[n]);
     const units=new Set(selArr.map(n=>_lt.exMap[n].unit));
     LT+=`<div style="display:flex;gap:6px;align-items:center;margin-bottom:12px"><span style="font-size:10px;color:var(--hint)">표시</span>${_miniBtn(ltChartMode==='grid','개별 그리드',"ltChartMode='grid';renderLoad()")}${_miniBtn(ltChartMode==='overlay','겹쳐서',"ltChartMode='overlay';renderLoad()")}`;
@@ -1416,8 +1421,10 @@ function renderLoad(){
     _ltMetricList=['__vol__','__dist__',...Object.keys(mset).sort()];
     if(_ltMetricList.indexOf(ltMetric)<0)ltMetric='__vol__';
     const mLabel=k=>k==='__vol__'?'전체 볼륨':k==='__dist__'?'스프린트 거리':k;
-    const mChips=_ltMetricList.map((k,i)=>{const on=ltMetric===k;return `<button onclick="ltSetMetricI(${i})" style="font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;font-family:inherit;border:1px solid ${on?'#58a6ff':'var(--border)'};background:${on?'rgba(88,166,255,.14)':'transparent'};color:${on?'#58a6ff':'var(--muted)'};font-weight:${on?'700':'400'}">${_esc(mLabel(k))}</button>`;}).join('');
-    LT+=`<div style="font-size:10px;color:var(--hint);margin-bottom:5px">지표 선택</div><div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">${mChips}</div>`;
+    const exMetrics=_ltMetricList.filter(k=>k!=='__vol__'&&k!=='__dist__');
+    const isVolM=ltMetric==='__vol__', isDistM=ltMetric==='__dist__';
+    const exOpts=exMetrics.map(k=>`<option value="${_esc(k)}" ${ltMetric===k?'selected':''}>${_esc(k)}</option>`).join('');
+    LT+=`<div style="font-size:10px;color:var(--hint);margin-bottom:6px">지표 선택</div><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px">${_miniBtn(isVolM,'전체 볼륨',"ltMetric='__vol__';renderLoad()",'#f7a94f')}${_miniBtn(isDistM,'스프린트 거리',"ltMetric='__dist__';renderLoad()",'#3ecf8e')}<select onchange="ltSetMetricVal(this.value)" style="font-size:11px;padding:5px 9px;background:var(--card);border:1px ${(!isVolM&&!isDistM)?'solid #58a6ff':'dashed var(--border)'};border-radius:16px;color:${(!isVolM&&!isDistM)?'#58a6ff':'var(--muted)'};cursor:pointer;font-family:inherit;max-width:200px"><option value="">${(!isVolM&&!isDistM)?_esc(mLabel(ltMetric)):'+ 종목 지표…'}</option>${exOpts}</select></div>`;
     const isSpr=ltMetric!=='__vol__'&&ltMetric!=='__dist__'&&!!mset[ltMetric];
     const seriesByAth=selAthArr.map((n,i)=>{
       const b=builts[n];let s=[];
