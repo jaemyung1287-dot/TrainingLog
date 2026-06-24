@@ -1549,11 +1549,11 @@ function renderLoad(){
     +`<select class="lt-date" style="min-width:130px;cursor:pointer" onchange="ltPeriod=this.value;if(ltPeriod!=='custom'){ltD1='';ltD2='';}renderLoad()">`
     + [['1d','최근 1일'],['1w','최근 1주일'],['1m','최근 1개월'],['1y','최근 1년'],['all','전체'],['custom','직접 선택…']].map(([v,l])=>`<option value="${v}" ${ltPeriod===v?'selected':''}>${l}</option>`).join('')
     +`</select>`
-    +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;renderLoad()">`:'')
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 5px"></span>`
     +`<select class="lt-date" style="cursor:pointer" title="기간을 주/월/연 단위로 묶어 막대로 비교" onchange="ltBucket=this.value;renderLoad()">`
     + [['none','비교 없음'],['week','주별 비교'],['month','월별 비교'],['year','연도별 비교']].map(([v,l])=>`<option value="${v}" ${ltBucket===v?'selected':''}>${l}</option>`).join('')
     +`</select>`
+    +(ltPeriod==='custom'?`<span style="width:1px;height:15px;background:var(--border);margin:0 5px"></span><input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;renderLoad()">`:'')
     +`</div>`;
 
   if(ltMode==='ex'){
