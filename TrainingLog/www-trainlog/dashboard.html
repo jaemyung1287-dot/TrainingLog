@@ -1104,7 +1104,7 @@ function _ltBuild(logs,ath){
         const setLines=(e.setRows&&e.setRows.length)
           ? e.setRows.map(r=>`${(parseFloat(r.kg)||0)}kg × ${parseFloat(r.reps)||0}${(parseFloat(r.extraKg)?' (+'+parseFloat(r.extraKg)+')':'')}`)
           : [rec];
-        const lines=[`🏋️ 세션 볼륨 ${_fmtKg(volByDate[l.date]||0)}`,(sl?sl.trim()+' ':'')+'세트별:'].concat(setLines);
+        const lines=[`세션 볼륨 ${_fmtKg(volByDate[l.date]||0)}`,(sl?sl.trim()+' ':'')+'세트별:'].concat(setLines);
         {const _en=_dEffNum(e.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta:lines,short:rec};
