@@ -1189,16 +1189,16 @@ function renderLoad(){
       style="padding:2px 9px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;
       border:1px solid ${on?color:'var(--border)'};background:${on?color+'22':'none'};color:${on?color:'var(--muted)'}">${label}</button>`;
     if(_regAths.length){
-      const chips=[_chip(!loadRegSel,'전체','#f7a94f',"loadRegSel=null;renderLoad()")]
+      const chips=_bdOne?'':[_chip(!loadRegSel,'전체','#f7a94f',"loadRegSel=null;renderLoad()")]
         .concat(_regPresent.map(r=>_chip(loadRegSel===r,r,REGION_COLOR[r],`loadRegSel=loadRegSel==='${r}'?null:'${r}';renderLoad()`))).join('');
       html+=`<div class="card"><div class="card-hd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🏋️ Weight Volume${_bdOne?` <span style="font-size:11px;color:var(--green)">· ${_esc(_bdName)}</span>`:''} <span style="display:flex;gap:4px;flex-wrap:wrap;margin-left:6px">${chips}</span></div>
-        <div style="position:relative;height:${Math.max(120,_regAths.length*34+50)}px"><canvas id="ch-ld-reg"></canvas></div></div>`;
+        <div style="position:relative;height:${_bdOne?210:Math.max(120,_regAths.length*34+50)}px"><canvas id="ch-ld-reg"></canvas></div></div>`;
     }
     if(_sprAths.length){
-      const sChips=[_chip(!loadSprSel,'전체','#3ecf8e',"loadSprSel=null;renderLoad()")]
+      const sChips=_bdOne?'':[_chip(!loadSprSel,'전체','#3ecf8e',"loadSprSel=null;renderLoad()")]
         .concat(bd.sprintTypes.map(t=>_chip(loadSprSel===t,t,SPRINT_COLOR[t]||'#6b7280',`loadSprSel=loadSprSel==='${t.replace(/'/g,"\\'")}'?null:'${t.replace(/'/g,"\\'")}';renderLoad()`))).join('');
       html+=`<div class="card"><div class="card-hd" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">⚡ Sprint Distance${_bdOne?` <span style="font-size:11px;color:var(--green)">· ${_esc(_bdName)}</span>`:''} <span style="display:flex;gap:4px;flex-wrap:wrap;margin-left:6px">${sChips}</span></div>
-        <div style="position:relative;height:${Math.max(120,_sprAths.length*34+50)}px"><canvas id="ch-ld-spr"></canvas></div></div>`;
+        <div style="position:relative;height:${_bdOne?210:Math.max(120,_sprAths.length*34+50)}px"><canvas id="ch-ld-spr"></canvas></div></div>`;
     }
     html+=`</div>`;
   }
@@ -1209,21 +1209,33 @@ function renderLoad(){
       plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.5)',font:{size:10},boxWidth:10}}},
       scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}},
               y:{stacked:true,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}}}};
+    const _donutCenter=unit=>({id:'ctr',afterDraw(ch){const ds=ch.data.datasets[0];if(!ds)return;const ca=ch.chartArea;if(!ca)return;const tot=ds.data.reduce((a,b)=>a+(+b||0),0);const x=(ca.left+ca.right)/2,y=(ca.top+ca.bottom)/2;const c=ch.ctx;c.save();c.textAlign='center';c.textBaseline='middle';c.fillStyle='rgba(230,237,243,.9)';c.font='700 16px sans-serif';c.fillText(unit==='kg'?(tot>=1000?(tot/1000).toFixed(1)+'t':Math.round(tot)+'kg'):Math.round(tot)+'m',x,y-3);c.fillStyle='rgba(230,237,243,.4)';c.font='9px sans-serif';c.fillText('total',x,y+13);c.restore();}});
+    const _donutOpts=unit=>({responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'rgba(230,237,243,.6)',font:{size:11},boxWidth:10,padding:8}},tooltip:{callbacks:{label:c=>{const d=c.dataset.data,tot=d.reduce((a,b)=>a+(+b||0),0),v=c.parsed,pct=tot?Math.round(v/tot*100):0;return ` ${c.label}: ${Math.round(v)}${unit} (${pct}%)`;}}}}});
     const cReg=document.getElementById('ch-ld-reg');
     if(cReg&&_regAths.length){
-      const regs=(loadRegSel?[loadRegSel]:REGION_ORDER).filter(r=>_regAths.some(a=>bd.region[a.name][r]));
-      charts['ld-reg']=new Chart(cReg,{type:'bar',data:{
-        labels:_regAths.map(a=>a.name.split(' ')[0]),
-        datasets:regs.map(r=>({label:r,data:_regAths.map(a=>Math.round(bd.region[a.name][r]||0)),backgroundColor:REGION_COLOR[r]+'cc',borderRadius:2}))
-      },options:_stackOpts});
+      if(_bdOne){
+        const a=_regAths[0], regs=REGION_ORDER.filter(r=>bd.region[a.name][r]);
+        charts['ld-reg']=new Chart(cReg,{type:'doughnut',data:{labels:regs,datasets:[{data:regs.map(r=>Math.round(bd.region[a.name][r]||0)),backgroundColor:regs.map(r=>REGION_COLOR[r]+'cc'),borderWidth:0}]},options:_donutOpts('kg'),plugins:[_donutCenter('kg')]});
+      } else {
+        const regs=(loadRegSel?[loadRegSel]:REGION_ORDER).filter(r=>_regAths.some(a=>bd.region[a.name][r]));
+        charts['ld-reg']=new Chart(cReg,{type:'bar',data:{
+          labels:_regAths.map(a=>a.name.split(' ')[0]),
+          datasets:regs.map(r=>({label:r,data:_regAths.map(a=>Math.round(bd.region[a.name][r]||0)),backgroundColor:REGION_COLOR[r]+'cc',borderRadius:2}))
+        },options:_stackOpts});
+      }
     }
     const cSpr=document.getElementById('ch-ld-spr');
     if(cSpr&&_sprAths.length){
-      const types=loadSprSel?[loadSprSel]:bd.sprintTypes;
-      charts['ld-spr']=new Chart(cSpr,{type:'bar',data:{
-        labels:_sprAths.map(a=>a.name.split(' ')[0]),
-        datasets:types.map(t=>({label:t,data:_sprAths.map(a=>Math.round(bd.sprint[a.name][t]||0)),backgroundColor:(SPRINT_COLOR[t]||'#6b7280')+'cc',borderRadius:2}))
-      },options:_stackOpts});
+      if(_bdOne){
+        const a=_sprAths[0], types=bd.sprintTypes.filter(t=>bd.sprint[a.name][t]);
+        charts['ld-spr']=new Chart(cSpr,{type:'doughnut',data:{labels:types,datasets:[{data:types.map(t=>Math.round(bd.sprint[a.name][t]||0)),backgroundColor:types.map(t=>(SPRINT_COLOR[t]||'#6b7280')+'cc'),borderWidth:0}]},options:_donutOpts('m'),plugins:[_donutCenter('m')]});
+      } else {
+        const types=loadSprSel?[loadSprSel]:bd.sprintTypes;
+        charts['ld-spr']=new Chart(cSpr,{type:'bar',data:{
+          labels:_sprAths.map(a=>a.name.split(' ')[0]),
+          datasets:types.map(t=>({label:t,data:_sprAths.map(a=>Math.round(bd.sprint[a.name][t]||0)),backgroundColor:(SPRINT_COLOR[t]||'#6b7280')+'cc',borderRadius:2}))
+        },options:_stackOpts});
+      }
     }
   };
 
