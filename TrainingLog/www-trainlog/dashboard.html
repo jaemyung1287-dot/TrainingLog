@@ -575,7 +575,8 @@ let ltD1='', ltD2='';         // 커스텀 기간
 let ltCmp=false;              // 올해 vs 작년 연도 오버레이
 let ltChartMode='grid';       // grid|overlay
 let ltMix='dual';             // dual|index (단위 다른 종목 겹칠 때)
-let _ltCat=[],_ltAthList=[],_ltMetricList=[];
+let ltOpenCat=null;           // 종목 선택: 펼쳐진 카테고리
+let _ltCat=[],_ltAthList=[],_ltMetricList=[],_ltCatNames=[];
 const _LT_PAL=['#58a6ff','#bc8cff','#3ecf8e','#f7a94f','#f85149','#56d4dd','#e879c9','#a3e635','#fbbf24','#f472b6'];
 const _LT_MON=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const charts={};
@@ -1048,7 +1049,7 @@ function _sprintProgression(logs){
 function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;ltSel.has(n)?ltSel.delete(n):ltSel.add(n);renderLoad();}
 function ltAddEx(n){if(!n)return;ltMode='ex';ltSel.add(n);renderLoad();}
 function ltToggleAth(i){const n=_ltAthList[i];if(n==null)return;ltAthSel.has(n)?ltAthSel.delete(n):ltAthSel.add(n);renderLoad();}
-function ltAddIdx(v){const i=parseInt(v);if(isNaN(i))return;const n=_ltCat[i];if(n){ltSel.add(n);renderLoad();}}
+function ltToggleCat(i){const c=_ltCatNames[i];if(c==null)return;ltOpenCat=ltOpenCat===c?null:c;renderLoad();}
 function ltSetMetricVal(v){if(v){ltMetric=v;renderLoad();}}
 // 로그 → {exMap:{name:{sprint,unit,pts:{date:{v,meta}}}}, volByDate, distByDate}
 function _ltBuild(logs){
@@ -1064,7 +1065,7 @@ function _ltBuild(logs){
         const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
         const sl=e.isSL?'SL ':e.isSA?'SA ':'';
         const meta=`${sl}${sets}×${reps} @ ${top}kg${l.rpe?' · RPE '+l.rpe:''}`;
-        const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',pts:{}});
+        const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta};
       });
     } else if(l.type==='sprint'){
@@ -1076,7 +1077,7 @@ function _ltBuild(logs){
         if(best==null)return;
         const key=dist+'m Sprint', reps=s.reps||s.sets||1, inten=s.intensity?` @ ${s.intensity}%`:'';
         const meta=`${reps}×${dist}m${inten} · best ${best}s${l.rpe?' · RPE '+l.rpe:''}`;
-        const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:s.sprintType||s.subCategory||l.sprintType||'Sprint',pts:{}});
+        const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:'Sprint',sub:s.sprintType||s.subCategory||l.sprintType||'기타',pts:{}});
         if(!m.pts[l.date]||best<m.pts[l.date].v) m.pts[l.date]={v:best,meta};
       });
     }
@@ -1376,15 +1377,19 @@ function renderLoad(){
   const _ltLabel=k=>k==='__vol__'?'전체 볼륨':k==='__dist__'?'스프린트 거리':k;
   const _LT_SPECIAL={'__vol__':'#f7a94f','__dist__':'#3ecf8e'};
   const _CATORD=['Resistance Training','Power Development'];
-  // 카테고리별 그룹 + 평탄화된 선택 키 목록(_ltCat). 종합(볼륨/거리) → 웨이트 카테고리 → 스프린트 카테고리
-  const _ltGroups=[{label:'종합 (세션 합계)',items:[{k:'__vol__',label:'전체 볼륨'},{k:'__dist__',label:'스프린트 거리'}]}];
-  const _wCats=[...new Set(Object.keys(_lt.exMap).filter(n=>!_lt.exMap[n].sprint).map(n=>_lt.exMap[n].cat||'기타'))]
-    .sort((a,b)=>((_CATORD.indexOf(a)+1||99)-(_CATORD.indexOf(b)+1||99))||a.localeCompare(b));
-  _wCats.forEach(c=>_ltGroups.push({label:c,items:Object.keys(_lt.exMap).filter(n=>!_lt.exMap[n].sprint&&(_lt.exMap[n].cat||'기타')===c).sort().map(n=>({k:n,label:n+' ('+Object.keys(_lt.exMap[n].pts).length+')'}))}));
-  const _sCats=[...new Set(Object.keys(_lt.exMap).filter(n=>_lt.exMap[n].sprint).map(n=>_lt.exMap[n].cat||'Sprint'))].sort();
-  _sCats.forEach(c=>_ltGroups.push({label:'Sprint · '+c,items:Object.keys(_lt.exMap).filter(n=>_lt.exMap[n].sprint&&(_lt.exMap[n].cat||'Sprint')===c).sort().map(n=>({k:n,label:n+' ('+Object.keys(_lt.exMap[n].pts).length+')'}))}));
-  _ltCat=[];_ltGroups.forEach(g=>g.items.forEach(it=>_ltCat.push(it.k)));
+  // 카테고리(트레이닝타입/Sprint) → 하위분류(subCategory/sprintType) → 종목
+  const _ltCatNamesAll=[...new Set(Object.keys(_lt.exMap).map(n=>_lt.exMap[n].cat||'기타'))]
+    .sort((a,b)=>{const ra=a==='Sprint'?98:(_CATORD.indexOf(a)+1||50), rb=b==='Sprint'?98:(_CATORD.indexOf(b)+1||50);return ra-rb||a.localeCompare(b);});
+  _ltCatNames=_ltCatNamesAll;
+  // _ltCat: 평탄 인덱스(색/토글용) — 종합 먼저, 그 다음 카테고리→하위분류→종목 순
+  _ltCat=['__vol__','__dist__'];
+  _ltCatNamesAll.forEach(c=>{
+    const subs=[...new Set(Object.keys(_lt.exMap).filter(n=>(_lt.exMap[n].cat||'기타')===c).map(n=>_lt.exMap[n].sub||'기타'))].sort();
+    subs.forEach(sb=>Object.keys(_lt.exMap).filter(n=>(_lt.exMap[n].cat||'기타')===c&&(_lt.exMap[n].sub||'기타')===sb).sort().forEach(n=>_ltCat.push(n)));
+  });
   const _ltColor=k=>_LT_SPECIAL[k]||_LT_PAL[(_ltCat.indexOf(k)<0?0:_ltCat.indexOf(k))%_LT_PAL.length];
+  // 한 카테고리의 하위분류별 종목 묶음
+  const _ltCatSubs=c=>{const subs=[...new Set(Object.keys(_lt.exMap).filter(n=>(_lt.exMap[n].cat||'기타')===c).map(n=>_lt.exMap[n].sub||'기타'))].sort();return subs.map(sb=>({sub:sb,names:Object.keys(_lt.exMap).filter(n=>(_lt.exMap[n].cat||'기타')===c&&(_lt.exMap[n].sub||'기타')===sb).sort()}));};
 
   let LT=`<style>
     .lt-wrap{margin-top:24px}
@@ -1421,10 +1426,25 @@ function renderLoad(){
   if(ltMode==='ex'){
     LT+=`<div class="lt-row"><span class="lt-lbl">비교</span><label class="lt-ck"><input type="checkbox" ${ltCmp?'checked':''} onchange="ltCmp=this.checked;renderLoad()" style="width:15px;height:15px">올해 vs 작년 겹쳐보기</label></div>`;
     const selKeys=_ltCat.filter(k=>ltSel.has(k));
-    const selTags=selKeys.map(k=>{const col=_ltColor(k);const i=_ltCat.indexOf(k);return `<span class="lt-tag" style="border:1px solid ${col};background:${col}22;color:${col}">${_esc(_ltLabel(k))}<span class="x" title="제거" onclick="ltToggleEx(${i})">×</span></span>`;}).join('');
-    const optGroups=_ltGroups.map(g=>{const inner=g.items.filter(it=>!ltSel.has(it.k)).map(it=>`<option value="${_ltCat.indexOf(it.k)}">${_esc(it.label)}</option>`).join('');return inner?`<optgroup label="${_esc(g.label)}">${inner}</optgroup>`:'';}).join('');
-    LT+=`<div class="lt-row"><span class="lt-lbl">종목</span>${selTags}<select class="lt-add" onchange="ltAddIdx(this.value);this.selectedIndex=0"><option value="">+ 추가 (카테고리)…</option>${optGroups}</select>${selKeys.length?`<button class="lt-clear" onclick="ltSel.clear();renderLoad()">모두 지우기</button>`:''}</div>`;
-    LT+=`<div class="lt-hint" style="padding:0 0 8px 60px">세션 카드의 운동명을 클릭해도 추가됩니다</div>`;
+    const _vi=_ltCat.indexOf('__vol__'), _di=_ltCat.indexOf('__dist__');
+    // 종목 행: Total Volume / Total Sprint Distance 고정 버튼 + 카테고리 버튼들
+    let pickRow=`<div class="lt-row"><span class="lt-lbl">종목</span>`
+      +`<button class="lt-chip ${ltSel.has('__vol__')?'on':''}" style="${ltSel.has('__vol__')?'border-color:#f7a94f;background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltToggleEx(${_vi})">Total Volume</button>`
+      +`<button class="lt-chip ${ltSel.has('__dist__')?'on':''}" style="${ltSel.has('__dist__')?'border-color:#3ecf8e;background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltToggleEx(${_di})">Total Sprint Distance</button>`
+      +`<span style="width:1px;height:16px;background:var(--border);margin:0 3px"></span>`;
+    _ltCatNames.forEach((c,ci)=>{const open=ltOpenCat===c;const sel=Object.keys(_lt.exMap).some(n=>(_lt.exMap[n].cat||'기타')===c&&ltSel.has(n));pickRow+=`<button class="lt-chip ${open?'on':''}" style="${sel&&!open?'border-color:#58a6ff;color:#58a6ff':''}" onclick="ltToggleCat(${ci})">${_esc(c)} <span style="opacity:.6">${open?'▾':'▸'}</span></button>`;});
+    pickRow+=(selKeys.length?`<button class="lt-clear" onclick="ltSel.clear();ltOpenCat=null;renderLoad()">모두 지우기</button>`:'')+`</div>`;
+    LT+=pickRow;
+    // 펼친 카테고리: 하위분류별 종목 칩
+    if(ltOpenCat){
+      let panel='';
+      _ltCatSubs(ltOpenCat).forEach(grp=>{
+        const chips=grp.names.map(n=>{const i=_ltCat.indexOf(n);const on=ltSel.has(n);const col=_ltColor(n);const cnt=Object.keys(_lt.exMap[n].pts).length;return `<button class="lt-chip" style="${on?`border-color:${col};background:${col}22;color:${col};font-weight:700`:''}" onclick="ltToggleEx(${i})">${_esc(n)} <span style="opacity:.5">${cnt}</span></button>`;}).join('');
+        panel+=`<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.4px;margin:0 0 5px 2px">${_esc(grp.sub)}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div></div>`;
+      });
+      LT+=`<div style="margin:0 0 10px 60px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02)">${panel||'<span class="lt-hint">기록된 종목 없음</span>'}</div>`;
+    }
+    LT+=`<div class="lt-hint" style="padding:0 0 10px 60px">카테고리를 누르면 하위 종목이 펼쳐집니다 · 세션 카드의 운동명 클릭으로도 추가</div>`;
     const selExs=selKeys.filter(k=>!_LT_SPECIAL[k]&&_lt.exMap[k]);
     const units=new Set(selExs.map(n=>_lt.exMap[n].unit));
     if(selExs.length){
