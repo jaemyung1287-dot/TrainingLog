@@ -1496,11 +1496,11 @@ function renderLoad(){
     const bset={};specs.forEach(sp=>sp.series.forEach(p=>{const o=_ltBKey(p.d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;bset[o.k]=o.l;}));
     const keys=Object.keys(bset).sort(), labels=keys.map(k=>bset[k]);
     const units=new Set(specs.map(s=>s.unit)), mixed=units.size>1;
-    const dss=specs.map(sp=>{const m={};sp.series.forEach(p=>{const o=_ltBKey(p.d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;(m[o.k]=m[o.k]||[]).push(p.v);});const data=keys.map(k=>{const a=m[k];if(!a)return null;return sp.agg==='min'?Math.min(...a):sp.agg==='max'?Math.max(...a):a.reduce((x,y)=>x+y,0);});return {label:sp.label,data,backgroundColor:sp.color+'cc',borderRadius:3,yAxisID:mixed?(sp.unit==='kg'?'y':'y1'):'y'};});
-    const opt=_ltTip(false,true);opt.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:10}}}};
+    const dss=specs.map(sp=>{const m={};sp.series.forEach(p=>{const o=_ltBKey(p.d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;(m[o.k]=m[o.k]||[]).push(p.v);});const data=keys.map(k=>{const a=m[k];if(!a)return null;return sp.agg==='min'?Math.min(...a):sp.agg==='max'?Math.max(...a):a.reduce((x,y)=>x+y,0);});return {label:sp.label,data,borderColor:sp.color,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2,yAxisID:mixed?(sp.unit==='kg'?'y':'y1'):'y'};});
+    const opt=_ltTip(false,true);opt.scales={x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.7)',font:{size:10}}}};
     if(mixed){opt.scales.y={position:'left',grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},title:{display:true,text:'kg',color:'#f7a94f',font:{size:10}},beginAtZero:true};opt.scales.y1={position:'right',grid:{drawOnChartArea:false},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},title:{display:true,text:'m · s',color:'#3ecf8e',font:{size:10}},beginAtZero:true};}
     else opt.scales.y={grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true};
-    return _ltCard(_ltBkSub+' · 겹쳐보기','',{type:'bar',data:{labels,datasets:dss},options:opt},240);
+    return _ltCard(_ltBkSub+' · 겹쳐보기','',{type:'line',data:{labels,datasets:dss},options:opt},240);
   };
   const _ltOverlayCard=(names,units)=>{
     const mixed=units.size>1, idxMode=mixed&&ltMix==='index';
