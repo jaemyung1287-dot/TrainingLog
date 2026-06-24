@@ -1127,7 +1127,8 @@ function renderLoad(){
   let html=_scopeBar();
   const fAthletes=loadGrpFilter==='all'?athletes:athletes.filter(a=>a.group===loadGrpFilter);
 
-  // ── 1. Weekly Load Summary ──
+  // ── 1. Weekly Load Summary (전체/그룹 보기에서만, 개별 선수 선택 시 숨김) ──
+  if(!loadAth){
   html+=`<div class="card" style="margin-bottom:20px;overflow-x:auto">
     <div class="card-hd">Team Weekly Summary</div>
     <table class="data-table">
@@ -1161,6 +1162,7 @@ function renderLoad(){
     </tr>`;
   });
   html+=`</table><div style="font-size:10px;color:#484f58;margin-top:8px;text-align:right">Click an athlete row to see session detail ↓</div></div>`;
+  }
 
   // ── 1b. Weekly Breakdown — 부위별 웨이트 볼륨 & 스프린트 유형별 거리 ──
   // 그룹 보기: 전체 선수 / 선수 클릭 시: 그 선수만
