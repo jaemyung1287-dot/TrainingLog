@@ -1352,18 +1352,9 @@ function renderLoad(){
   const selLogs=getLogsByName(selAth.name);
   const grpColor=selAth.group==='A'?'#58a6ff':'#3ecf8e';
 
-  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <div style="display:flex;align-items:center;gap:10px">
+  html+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="width:32px;height:32px;border-radius:8px;background:${selAth.group==='A'?'rgba(88,166,255,.15)':'rgba(62,207,142,.15)'};color:${grpColor};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${selAth.name[0]}</div>
-      <div>
-        <div style="font-weight:700;font-size:14px">${selAth.name}</div>
-        <div style="font-size:11px;color:#8b949e">Session Detail · ${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}</div>
-      </div>
-    </div>
-    <select class="fsel" onchange="setScope(this.value||'all')">
-      <option value="">— close —</option>
-      ${athletes.map(a=>`<option value="${a.name}" ${loadAth===a.name?'selected':''}>${a.name}</option>`).join('')}
-    </select>
+      <div style="font-weight:700;font-size:14px">${selAth.name}</div>
   </div>`;
 
   // 7일 세션 카드
@@ -1676,7 +1667,7 @@ function renderLoad(){
       +`<button class="lt-chip ${ltSel.has('__vol__')?'on':''}" style="${ltSel.has('__vol__')?'border-color:#f7a94f;background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltToggleEx(${_vi})">Total Volume</button>`
       +`<button class="lt-chip ${ltSel.has('__dist__')?'on':''}" style="${ltSel.has('__dist__')?'border-color:#3ecf8e;background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltToggleEx(${_di})">Total Sprint Distance</button>`
       +`<span style="width:1px;height:16px;background:var(--border);margin:0 3px"></span>`;
-    _ltCatNames.forEach((c,ci)=>{const open=ltOpenCat===c;const sel=Object.keys(_lt.exMap).some(n=>(_lt.exMap[n].cat||'기타')===c&&ltSel.has(n));pickRow+=`<button class="lt-chip ${open?'on':''}" style="${sel&&!open?'border-color:#58a6ff;color:#58a6ff':''}" onclick="ltToggleCat(${ci})">${_esc(c)} <span style="opacity:.6">${open?'▾':'▸'}</span></button>`;});
+    _ltCatNames.forEach((c,ci)=>{const open=ltOpenCat===c;const sel=Object.keys(_lt.exMap).some(n=>(_lt.exMap[n].cat||'기타')===c&&ltSel.has(n));const cc=(c==='Sprint Training')?'#3ecf8e':'#f7a94f';pickRow+=`<button class="lt-chip" style="${open?`border-color:${cc};background:${cc}26;color:${cc};font-weight:700`:(sel?`border-color:${cc};color:${cc}`:'')}" onclick="ltToggleCat(${ci})">${_esc(c)} <span style="opacity:.6">${open?'▾':'▸'}</span></button>`;});
     pickRow+=(selKeys.length?`<button class="lt-clear" onclick="ltSel.clear();ltOpenCat=null;renderLoad()">모두 지우기</button>`:'')+`</div>`;
     LT+=pickRow;
     // 펼친 카테고리: 하위분류별 종목 칩
@@ -1704,12 +1695,12 @@ function renderLoad(){
       LT+=`<div class="lt-row" style="align-items:flex-start"><span class="lt-lbl" style="margin-top:6px">비교 대상</span><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${bch}${ltBuckSel.size?`<button class="lt-clear" onclick="ltBuckSel.clear();renderLoad()">전체</button>`:''}</div></div>`;
     }
     if(hasVol&&!ltAB&&!volDistOverlay){
-      const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" onclick="ltVolBreak='${v}';renderLoad()">${l}</button>`;
-      LT+=`<div class="lt-row"><span class="lt-lbl">볼륨</span><div class="lt-seg">${_vb('none','합계')}${_vb('sub','카테고리')}${_vb('region','상·하체')}${_vb('type','타입')}</div><span class="lt-hint" style="padding:0 2px">Total Volume 분해</span></div>`;
+      const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" style="${ltVolBreak===v?'background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltVolBreak='${v}';renderLoad()">${l}</button>`;
+      LT+=`<div class="lt-row"><span class="lt-lbl">볼륨</span><div class="lt-seg">${_vb('none','Total')}${_vb('type','Type of Training')}${_vb('sub','Category')}${_vb('region','Upper / Lower')}</div></div>`;
     }
     if(hasDist&&!ltAB&&!volDistOverlay){
-      const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" onclick="ltDistBreak='${v}';renderLoad()">${l}</button>`;
-      LT+=`<div class="lt-row"><span class="lt-lbl">거리</span><div class="lt-seg">${_db('none','합계')}${_db('sub','카테고리')}${_db('disc','디시플린')}</div><span class="lt-hint" style="padding:0 2px">Sprint Distance 분해</span></div>`;
+      const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak='${v}';renderLoad()">${l}</button>`;
+      LT+=`<div class="lt-row"><span class="lt-lbl">거리</span><div class="lt-seg">${_db('none','Total')}${_db('disc','Discipline')}${_db('sub','Category')}</div></div>`;
     }
     if(bucketing&&((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))){
       const _bb=(v,l)=>`<button class="${ltBrkBars===v?'on':''}" onclick="ltBrkBars='${v}';renderLoad()">${l}</button>`;
