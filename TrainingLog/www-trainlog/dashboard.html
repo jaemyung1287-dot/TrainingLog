@@ -570,7 +570,7 @@ let ltMode='ex';              // 'ex' 종목비교(한 선수) | 'ath' 선수비
 let ltSel=new Set();          // 선택된 종목명 (ex 모드)
 let ltAthSel=new Set();       // 선택된 선수명 (ath 모드)
 let ltMetric='__vol__';       // ath 모드 지표 키 (__vol__/__dist__/운동명)
-let ltPeriod='all';           // this|last|3m|6m|all|custom
+let ltPeriod='this';          // this|all|custom (기본 올해)
 let ltD1='', ltD2='';         // 커스텀 기간
 let ltCmp=false;              // 올해 vs 작년 연도 오버레이
 let ltChartMode='grid';       // grid|overlay
@@ -1048,7 +1048,6 @@ function _sprintProgression(logs){
 function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;ltSel.has(n)?ltSel.delete(n):ltSel.add(n);renderLoad();}
 function ltAddEx(n){if(!n)return;ltMode='ex';ltSel.add(n);renderLoad();}
 function ltToggleAth(i){const n=_ltAthList[i];if(n==null)return;ltAthSel.has(n)?ltAthSel.delete(n):ltAthSel.add(n);renderLoad();}
-function ltSetMetricI(i){const k=_ltMetricList[i];if(k==null)return;ltMetric=k;renderLoad();}
 function ltAddIdx(v){const i=parseInt(v);if(isNaN(i))return;const n=_ltCat[i];if(n){ltSel.add(n);renderLoad();}}
 function ltSetMetricVal(v){if(v){ltMetric=v;renderLoad();}}
 // 로그 → {exMap:{name:{sprint,unit,pts:{date:{v,meta}}}}, volByDate, distByDate}
@@ -1065,7 +1064,7 @@ function _ltBuild(logs){
         const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
         const sl=e.isSL?'SL ':e.isSA?'SA ':'';
         const meta=`${sl}${sets}×${reps} @ ${top}kg${l.rpe?' · RPE '+l.rpe:''}`;
-        const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',pts:{}});
+        const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta};
       });
     } else if(l.type==='sprint'){
@@ -1077,7 +1076,7 @@ function _ltBuild(logs){
         if(best==null)return;
         const key=dist+'m Sprint', reps=s.reps||s.sets||1, inten=s.intensity?` @ ${s.intensity}%`:'';
         const meta=`${reps}×${dist}m${inten} · best ${best}s${l.rpe?' · RPE '+l.rpe:''}`;
-        const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',pts:{}});
+        const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:s.sprintType||s.subCategory||l.sprintType||'Sprint',pts:{}});
         if(!m.pts[l.date]||best<m.pts[l.date].v) m.pts[l.date]={v:best,meta};
       });
     }
@@ -1374,58 +1373,101 @@ function renderLoad(){
     return _ltCard('겹친 추이 ('+sm.length+'종목)',mixed?(idxMode?'% 변화 지수':'이중 축 (kg·s)'):'',{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt},220);
   };
 
-  let LT=`<div style="margin-top:24px"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">📈 추이 분석 (Trends)</div>`;
-  const _segBtn=(on,l,handler,col)=>`<button onclick="${handler}" style="font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;border:1px solid ${on?(col||'#58a6ff'):'var(--border)'};background:${on?(col||'#58a6ff')+'22':'transparent'};color:${on?(col||'#58a6ff'):'var(--muted)'};font-weight:${on?'700':'400'}">${l}</button>`;
-  const _miniBtn=(on,l,handler,col)=>`<button onclick="${handler}" style="font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;border:1px solid ${on?(col||'#58a6ff'):'var(--border)'};background:${on?(col||'#58a6ff')+'18':'transparent'};color:${on?(col||'#58a6ff'):'var(--muted)'}">${l}</button>`;
-  LT+=`<div style="display:flex;gap:6px;margin-bottom:12px">${_segBtn(ltMode==='ex','종목 비교 (한 선수)',"ltMode='ex';renderLoad()",grpColor)}${_segBtn(ltMode==='ath','선수 비교',"ltMode='ath';renderLoad()",grpColor)}</div>`;
-  LT+=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px"><span style="font-size:10px;color:var(--hint)">기간</span>${_miniBtn(ltPeriod==='this','올해',"ltPeriod='this';renderLoad()")}${_miniBtn(ltPeriod==='last','작년',"ltPeriod='last';renderLoad()")}${_miniBtn(ltPeriod==='3m','최근 3개월',"ltPeriod='3m';renderLoad()")}${_miniBtn(ltPeriod==='6m','최근 6개월',"ltPeriod='6m';renderLoad()")}${_miniBtn(ltPeriod==='all','전체',"ltPeriod='all';renderLoad()")}${_miniBtn(ltPeriod==='custom','커스텀',"ltPeriod='custom';renderLoad()")}`;
-  if(ltPeriod==='custom'){LT+=`<input type="date" value="${ltD1}" onchange="ltD1=this.value;renderLoad()" style="font-size:11px;padding:3px 6px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text)"><span style="color:var(--hint)">~</span><input type="date" value="${ltD2}" onchange="ltD2=this.value;renderLoad()" style="font-size:11px;padding:3px 6px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text)">`;}
-  LT+=`</div>`;
+  const _ltLabel=k=>k==='__vol__'?'전체 볼륨':k==='__dist__'?'스프린트 거리':k;
+  const _LT_SPECIAL={'__vol__':'#f7a94f','__dist__':'#3ecf8e'};
+  const _CATORD=['Resistance Training','Power Development'];
+  // 카테고리별 그룹 + 평탄화된 선택 키 목록(_ltCat). 종합(볼륨/거리) → 웨이트 카테고리 → 스프린트 카테고리
+  const _ltGroups=[{label:'종합 (세션 합계)',items:[{k:'__vol__',label:'전체 볼륨'},{k:'__dist__',label:'스프린트 거리'}]}];
+  const _wCats=[...new Set(Object.keys(_lt.exMap).filter(n=>!_lt.exMap[n].sprint).map(n=>_lt.exMap[n].cat||'기타'))]
+    .sort((a,b)=>((_CATORD.indexOf(a)+1||99)-(_CATORD.indexOf(b)+1||99))||a.localeCompare(b));
+  _wCats.forEach(c=>_ltGroups.push({label:c,items:Object.keys(_lt.exMap).filter(n=>!_lt.exMap[n].sprint&&(_lt.exMap[n].cat||'기타')===c).sort().map(n=>({k:n,label:n+' ('+Object.keys(_lt.exMap[n].pts).length+')'}))}));
+  const _sCats=[...new Set(Object.keys(_lt.exMap).filter(n=>_lt.exMap[n].sprint).map(n=>_lt.exMap[n].cat||'Sprint'))].sort();
+  _sCats.forEach(c=>_ltGroups.push({label:'Sprint · '+c,items:Object.keys(_lt.exMap).filter(n=>_lt.exMap[n].sprint&&(_lt.exMap[n].cat||'Sprint')===c).sort().map(n=>({k:n,label:n+' ('+Object.keys(_lt.exMap[n].pts).length+')'}))}));
+  _ltCat=[];_ltGroups.forEach(g=>g.items.forEach(it=>_ltCat.push(it.k)));
+  const _ltColor=k=>_LT_SPECIAL[k]||_LT_PAL[(_ltCat.indexOf(k)<0?0:_ltCat.indexOf(k))%_LT_PAL.length];
+
+  let LT=`<style>
+    .lt-wrap{margin-top:24px}
+    .lt-h{font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+    .lt-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:11px}
+    .lt-lbl{font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--hint);text-transform:uppercase;width:52px;flex-shrink:0}
+    .lt-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+    .lt-seg button{font-size:12px;padding:6px 13px;background:transparent;border:none;border-right:1px solid var(--border);color:var(--muted);cursor:pointer;font-family:inherit}
+    .lt-seg button:last-child{border-right:none}
+    .lt-seg button.on{background:rgba(88,166,255,.16);color:#58a6ff;font-weight:700}
+    .lt-chip{font-size:11px;padding:5px 11px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit}
+    .lt-chip.on{border-color:#58a6ff;background:rgba(88,166,255,.14);color:#58a6ff;font-weight:700}
+    .lt-date{font-size:11px;padding:5px 8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit}
+    .lt-add{font-size:11px;padding:6px 10px;background:var(--card);border:1px dashed var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-family:inherit;max-width:230px}
+    .lt-ck{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
+    .lt-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 7px 4px 11px;border-radius:16px;font-weight:600}
+    .lt-tag .x{cursor:pointer;opacity:.6;font-size:14px;line-height:1}
+    .lt-clear{font-size:10px;padding:5px 9px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--hint);cursor:pointer;font-family:inherit}
+    .lt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:4px}
+    .lt-hint{font-size:11px;color:var(--hint);padding:6px 0}
+  </style>`;
+  LT+=`<div class="lt-wrap"><div class="lt-h"><span>📈</span>추이 분석 (Trends)</div>`;
+  // 공통 컨트롤: 모드 / 기간
+  LT+=`<div class="lt-row"><span class="lt-lbl">보기</span><div class="lt-seg"><button class="${ltMode==='ex'?'on':''}" onclick="ltMode='ex';renderLoad()">종목 비교</button><button class="${ltMode==='ath'?'on':''}" onclick="ltMode='ath';renderLoad()">선수 비교</button></div></div>`;
+  LT+=`<div class="lt-row"><span class="lt-lbl">기간</span>`
+    +`<button class="lt-chip ${ltPeriod==='this'?'on':''}" onclick="ltPeriod='this';ltD1='';ltD2='';renderLoad()">올해</button>`
+    +`<button class="lt-chip ${ltPeriod==='all'?'on':''}" onclick="ltPeriod='all';ltD1='';ltD2='';renderLoad()">전체</button>`
+    +`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;ltPeriod='custom';renderLoad()">`
+    +`<span style="color:var(--hint);font-size:11px">~</span>`
+    +`<input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;ltPeriod='custom';renderLoad()">`
+    +(ltPeriod==='custom'?`<button class="lt-clear" onclick="ltPeriod='this';ltD1='';ltD2='';renderLoad()">초기화</button>`:'')
+    +`</div>`;
 
   if(ltMode==='ex'){
-    LT+=`<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:12px"><input type="checkbox" ${ltCmp?'checked':''} onchange="ltCmp=this.checked;renderLoad()" style="width:15px;height:15px">올해 vs 작년 비교</label>`;
-    const cat=Object.keys(_lt.exMap).map(n=>({n,c:Object.keys(_lt.exMap[n].pts).length})).sort((a,b)=>b.c-a.c);
-    _ltCat=cat.map(o=>o.n);
-    const selPills=_ltCat.map((n,i)=>({n,i})).filter(o=>ltSel.has(o.n))
-      .map(o=>{const col=_LT_PAL[o.i%_LT_PAL.length];return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 6px 4px 11px;border-radius:16px;border:1px solid ${col};background:${col}22;color:${col};font-weight:700">${_esc(o.n)}<span onclick="ltToggleEx(${o.i})" title="제거" style="cursor:pointer;opacity:.65;font-size:14px;line-height:1">×</span></span>`;}).join('');
-    const opts=cat.map((o,i)=>ltSel.has(o.n)?'':`<option value="${i}">${_esc(o.n)} (${o.c})</option>`).join('');
-    LT+=`<div style="font-size:10px;color:var(--hint);margin-bottom:6px"><i style="font-style:normal">종목 선택</i> — 세션 카드의 운동명을 클릭하거나, 아래에서 추가</div>`;
-    LT+=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px">${selPills}<select onchange="ltAddIdx(this.value);this.selectedIndex=0" style="font-size:11px;padding:5px 9px;background:var(--card);border:1px dashed var(--border);border-radius:16px;color:var(--muted);cursor:pointer;font-family:inherit;max-width:200px"><option value="">+ 종목 추가…</option>${opts}</select>${selPills?`<button onclick="ltSel.clear();renderLoad()" style="font-size:10px;padding:4px 9px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--hint);cursor:pointer;font-family:inherit">모두 지우기</button>`:''}</div>`;
-    const selArr=[...ltSel].filter(n=>_lt.exMap[n]);
-    const units=new Set(selArr.map(n=>_lt.exMap[n].unit));
-    LT+=`<div style="display:flex;gap:6px;align-items:center;margin-bottom:12px"><span style="font-size:10px;color:var(--hint)">표시</span>${_miniBtn(ltChartMode==='grid','개별 그리드',"ltChartMode='grid';renderLoad()")}${_miniBtn(ltChartMode==='overlay','겹쳐서',"ltChartMode='overlay';renderLoad()")}`;
-    if(ltChartMode==='overlay'&&units.size>1&&!ltCmp){LT+=`<span style="width:1px;height:14px;background:var(--border);margin:0 2px"></span>${_miniBtn(ltMix==='dual','이중 축',"ltMix='dual';renderLoad()",'#3ecf8e')}${_miniBtn(ltMix==='index','% 변화',"ltMix='index';renderLoad()",'#3ecf8e')}`;}
-    LT+=`</div>`;
-    LT+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">`;
-    const volSer=ltCmp?_ltVolS:_flt(_ltVolS), distSer=ltCmp?_ltDistS:_flt(_ltDistS);
-    if(volSer.length) LT+=_ltCard('전체 볼륨 (Total Volume)',ltCmp?'올해 vs 작년':'kg/세션',_ltLineCfg(volSer,'#f7a94f',false,ltCmp));
-    if(distSer.length) LT+=_ltCard('스프린트 총 거리',ltCmp?'올해 vs 작년':'m/세션',_ltLineCfg(distSer,'#3ecf8e',false,ltCmp));
-    if(selArr.length){
-      if(ltChartMode==='overlay'&&!ltCmp){
-        LT+=_ltOverlayCard(selArr,units);
-      } else {
-        selArr.forEach(n=>{const i=_ltCat.indexOf(n);const col=_LT_PAL[(i<0?0:i)%_LT_PAL.length];const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp));});
-      }
+    LT+=`<div class="lt-row"><span class="lt-lbl">비교</span><label class="lt-ck"><input type="checkbox" ${ltCmp?'checked':''} onchange="ltCmp=this.checked;renderLoad()" style="width:15px;height:15px">올해 vs 작년 겹쳐보기</label></div>`;
+    const selKeys=_ltCat.filter(k=>ltSel.has(k));
+    const selTags=selKeys.map(k=>{const col=_ltColor(k);const i=_ltCat.indexOf(k);return `<span class="lt-tag" style="border:1px solid ${col};background:${col}22;color:${col}">${_esc(_ltLabel(k))}<span class="x" title="제거" onclick="ltToggleEx(${i})">×</span></span>`;}).join('');
+    const optGroups=_ltGroups.map(g=>{const inner=g.items.filter(it=>!ltSel.has(it.k)).map(it=>`<option value="${_ltCat.indexOf(it.k)}">${_esc(it.label)}</option>`).join('');return inner?`<optgroup label="${_esc(g.label)}">${inner}</optgroup>`:'';}).join('');
+    LT+=`<div class="lt-row"><span class="lt-lbl">종목</span>${selTags}<select class="lt-add" onchange="ltAddIdx(this.value);this.selectedIndex=0"><option value="">+ 추가 (카테고리)…</option>${optGroups}</select>${selKeys.length?`<button class="lt-clear" onclick="ltSel.clear();renderLoad()">모두 지우기</button>`:''}</div>`;
+    LT+=`<div class="lt-hint" style="padding:0 0 8px 60px">세션 카드의 운동명을 클릭해도 추가됩니다</div>`;
+    const selExs=selKeys.filter(k=>!_LT_SPECIAL[k]&&_lt.exMap[k]);
+    const units=new Set(selExs.map(n=>_lt.exMap[n].unit));
+    if(selExs.length){
+      LT+=`<div class="lt-row"><span class="lt-lbl">표시</span><div class="lt-seg"><button class="${ltChartMode==='grid'?'on':''}" onclick="ltChartMode='grid';renderLoad()">개별</button><button class="${ltChartMode==='overlay'?'on':''}" onclick="ltChartMode='overlay';renderLoad()">겹쳐서</button></div>`;
+      if(ltChartMode==='overlay'&&units.size>1&&!ltCmp){LT+=`<div class="lt-seg"><button class="${ltMix==='dual'?'on':''}" onclick="ltMix='dual';renderLoad()">이중 축</button><button class="${ltMix==='index'?'on':''}" onclick="ltMix='index';renderLoad()">% 변화</button></div>`;}
+      LT+=`</div>`;
+    }
+    LT+=`<div class="lt-grid">`;
+    if(!selKeys.length){
+      LT+=`<div class="lt-hint" style="grid-column:1/-1">위에서 종목을 추가하면 추이가 표시됩니다 (전체 볼륨·스프린트 거리도 선택해야 표시)</div>`;
     } else {
-      LT+=`<div style="font-size:11px;color:var(--hint);grid-column:1/-1;padding:4px 0">위에서 종목을 선택하면 추이가 추가됩니다 (전체 볼륨·스프린트 거리는 항상 표시)</div>`;
+      if(ltSel.has('__vol__')){const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('전체 볼륨 (Total Volume)',ltCmp?'올해 vs 작년':'kg/세션',_ltLineCfg(s,'#f7a94f',false,ltCmp));}
+      if(ltSel.has('__dist__')){const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('스프린트 총 거리',ltCmp?'올해 vs 작년':'m/세션',_ltLineCfg(s,'#3ecf8e',false,ltCmp));}
+      if(selExs.length){
+        if(ltChartMode==='overlay'&&!ltCmp){
+          LT+=_ltOverlayCard(selExs,units);
+        } else {
+          selExs.forEach(n=>{const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp));});
+        }
+      }
     }
     LT+=`</div>`;
   } else {
     _ltAthList=fAthletes.map(a=>a.name);
     if(!ltAthSel.size&&selAth)ltAthSel.add(selAth.name);
-    const aChips=fAthletes.map((a,i)=>{const on=ltAthSel.has(a.name);const col=_LT_PAL[i%_LT_PAL.length];return `<button onclick="ltToggleAth(${i})" style="font-size:11px;padding:4px 10px;border-radius:16px;cursor:pointer;font-family:inherit;border:1px solid ${on?col:'var(--border)'};background:${on?col+'22':'transparent'};color:${on?col:'var(--muted)'};font-weight:${on?'700':'400'}">${_esc(a.name)}</button>`;}).join('');
-    LT+=`<div style="font-size:10px;color:var(--hint);margin-bottom:5px">비교할 선수 선택 (다중)</div><div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">${aChips}</div>`;
+    const aChips=fAthletes.map((a,i)=>{const on=ltAthSel.has(a.name);const col=_LT_PAL[i%_LT_PAL.length];return `<button class="lt-chip" style="${on?`border-color:${col};background:${col}22;color:${col};font-weight:700`:''}" onclick="ltToggleAth(${i})">${_esc(a.name)}</button>`;}).join('');
+    LT+=`<div class="lt-row" style="align-items:flex-start"><span class="lt-lbl" style="margin-top:6px">선수</span><div style="display:flex;flex-wrap:wrap;gap:6px">${aChips}</div></div>`;
     const selAthArr=[...ltAthSel];
     const builts={};selAthArr.forEach(n=>builts[n]=_ltBuild(getLogsByName(n)));
-    const mset={};selAthArr.forEach(n=>Object.keys(builts[n].exMap).forEach(k=>{mset[k]=builts[n].exMap[k].sprint;}));
-    _ltMetricList=['__vol__','__dist__',...Object.keys(mset).sort()];
+    // 지표 그룹(선택 선수들의 종목 합집합)
+    const exKeys=[...new Set(selAthArr.flatMap(n=>Object.keys(builts[n].exMap)))];
+    _ltMetricList=['__vol__','__dist__',...exKeys];
     if(_ltMetricList.indexOf(ltMetric)<0)ltMetric='__vol__';
-    const mLabel=k=>k==='__vol__'?'전체 볼륨':k==='__dist__'?'스프린트 거리':k;
-    const exMetrics=_ltMetricList.filter(k=>k!=='__vol__'&&k!=='__dist__');
-    const isVolM=ltMetric==='__vol__', isDistM=ltMetric==='__dist__';
-    const exOpts=exMetrics.map(k=>`<option value="${_esc(k)}" ${ltMetric===k?'selected':''}>${_esc(k)}</option>`).join('');
-    LT+=`<div style="font-size:10px;color:var(--hint);margin-bottom:6px">지표 선택</div><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px">${_miniBtn(isVolM,'전체 볼륨',"ltMetric='__vol__';renderLoad()",'#f7a94f')}${_miniBtn(isDistM,'스프린트 거리',"ltMetric='__dist__';renderLoad()",'#3ecf8e')}<select onchange="ltSetMetricVal(this.value)" style="font-size:11px;padding:5px 9px;background:var(--card);border:1px ${(!isVolM&&!isDistM)?'solid #58a6ff':'dashed var(--border)'};border-radius:16px;color:${(!isVolM&&!isDistM)?'#58a6ff':'var(--muted)'};cursor:pointer;font-family:inherit;max-width:200px"><option value="">${(!isVolM&&!isDistM)?_esc(mLabel(ltMetric)):'+ 종목 지표…'}</option>${exOpts}</select></div>`;
-    const isSpr=ltMetric!=='__vol__'&&ltMetric!=='__dist__'&&!!mset[ltMetric];
+    const metaSprint={};selAthArr.forEach(n=>Object.keys(builts[n].exMap).forEach(k=>metaSprint[k]=builts[n].exMap[k].sprint));
+    const metaCat={};selAthArr.forEach(n=>Object.keys(builts[n].exMap).forEach(k=>{if(!metaCat[k])metaCat[k]=builts[n].exMap[k].cat||(builts[n].exMap[k].sprint?'Sprint':'기타');}));
+    const wC=[...new Set(exKeys.filter(k=>!metaSprint[k]).map(k=>metaCat[k]))].sort((a,b)=>((_CATORD.indexOf(a)+1||99)-(_CATORD.indexOf(b)+1||99))||a.localeCompare(b));
+    const sC=[...new Set(exKeys.filter(k=>metaSprint[k]).map(k=>metaCat[k]))].sort();
+    let mOpt='';
+    wC.forEach(c=>{mOpt+=`<optgroup label="${_esc(c)}">`+exKeys.filter(k=>!metaSprint[k]&&metaCat[k]===c).sort().map(k=>`<option value="${_esc(k)}" ${ltMetric===k?'selected':''}>${_esc(k)}</option>`).join('')+`</optgroup>`;});
+    sC.forEach(c=>{mOpt+=`<optgroup label="Sprint · ${_esc(c)}">`+exKeys.filter(k=>metaSprint[k]&&metaCat[k]===c).sort().map(k=>`<option value="${_esc(k)}" ${ltMetric===k?'selected':''}>${_esc(k)}</option>`).join('')+`</optgroup>`;});
+    const isVolM=ltMetric==='__vol__', isDistM=ltMetric==='__dist__', isExM=!isVolM&&!isDistM;
+    LT+=`<div class="lt-row"><span class="lt-lbl">지표</span><button class="lt-chip ${isVolM?'on':''}" onclick="ltMetric='__vol__';renderLoad()">전체 볼륨</button><button class="lt-chip ${isDistM?'on':''}" onclick="ltMetric='__dist__';renderLoad()">스프린트 거리</button><select class="lt-add" style="${isExM?'border-style:solid;border-color:#58a6ff;color:#58a6ff':''}" onchange="ltSetMetricVal(this.value)"><option value="">${isExM?_esc(_ltLabel(ltMetric)):'+ 종목 (카테고리)…'}</option>${mOpt}</select></div>`;
+    const isSpr=isExM&&!!metaSprint[ltMetric];
     const seriesByAth=selAthArr.map((n,i)=>{
       const b=builts[n];let s=[];
       if(ltMetric==='__vol__')s=Object.entries(b.volByDate).map(([d,v])=>({d,v:Math.round(v),meta:n+' · '+(v>=1000?(v/1000).toFixed(1)+'t':Math.round(v)+'kg')}));
@@ -1434,13 +1476,15 @@ function renderLoad(){
       s=_flt(s).sort((a,b)=>a.d.localeCompare(b.d));
       return {n,s,col:_LT_PAL[i%_LT_PAL.length]};
     }).filter(o=>o.s.length);
+    LT+=`<div class="lt-grid" style="grid-template-columns:1fr">`;
     if(selAthArr.length&&seriesByAth.length){
       const dates=[...new Set(seriesByAth.flatMap(o=>o.s.map(p=>p.d)))].sort();
       const dss=seriesByAth.map(o=>{const byD={};o.s.forEach(p=>byD[p.d]=p);return{label:o.n,data:dates.map(d=>byD[d]?byD[d].v:null),_metas:dates.map(d=>byD[d]?byD[d].meta:''),borderColor:o.col,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2};});
-      LT+=`<div style="display:grid;grid-template-columns:1fr;gap:12px">`+_ltCard(mLabel(ltMetric)+' — 선수 비교',isSpr?'best time(s) · 낮을수록 좋음':(ltMetric==='__vol__'||ltMetric==='__dist__'?'세션 합계':'top set(kg)'),{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:_ltTip(isSpr,true)},250)+`</div>`;
+      LT+=_ltCard(_ltLabel(ltMetric)+' — 선수 비교',isSpr?'best time(s) · 낮을수록 좋음':(isExM?'top set(kg)':'세션 합계'),{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:_ltTip(isSpr,true)},250);
     } else {
-      LT+=`<div style="font-size:11px;color:var(--hint)">선수와 지표를 선택하면 비교 차트가 표시됩니다</div>`;
+      LT+=`<div class="lt-hint">선수와 지표를 선택하면 비교 차트가 표시됩니다</div>`;
     }
+    LT+=`</div>`;
   }
   LT+=`</div>`;
   html+=LT;
