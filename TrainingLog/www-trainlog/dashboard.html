@@ -556,6 +556,7 @@ const ALLOWED='jaemyung1287@gmail.com';
 // ══ STATE ══
 let coachData=null, athLogs={}, athNotes={}, unsubs=[], athUnsubs=[], curTab='plan';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
+let selScope='all';   // 공통 선수 셀렉터: 'all' | 'A' | 'B' | 선수이름 (탭 간 공유)
 let overviewFilter='all';
 let athletesFilter=null; // Athletes tab: 기본 미선택 — 선택해야 카드 표시
 let planGrpFilter=null; // Plan tab: which group's athletes are shown (null = groups only)
@@ -752,6 +753,24 @@ function setOverviewFilter(f){overviewFilter=f;renderOverview();}
 
 // ── Overview cell helpers (added) ──
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// 웨이트 볼륨 정확 표기 (톤 환산 없이 kg 전체, 독일식 천단위 4.867kg)
+function _fmtKg(v){ if(v==null||v==='')return '—'; const n=Math.round((+v)*1000)/1000; return n.toLocaleString('de-DE',{maximumFractionDigits:3})+'kg'; }
+// 공통 선수 셀렉터 (전체 / 그룹 / 이름 칩) — 모든 탭 공유, 같은 칩 재클릭 시 전체로 해제
+function setScope(v){ selScope=(selScope===v?'all':v); renderCurrent(); }
+function _scopeIsGroup(v){ return v==='A'||v==='B'; }
+function _scopeName(){ return (selScope!=='all'&&!_scopeIsGroup(selScope))?selScope:null; }
+function _scopeAthletes(){ const A=coachData.athletes||[]; if(selScope==='all')return A; if(_scopeIsGroup(selScope))return A.filter(a=>a.group===selScope); return A.filter(a=>a.name===selScope); }
+function _scopeBar(){
+  const A=coachData.athletes||[];
+  const groups=[...new Set(A.map(a=>a.group))].sort();
+  let fb=`<div class="filter-bar"><div class="filter-group"><button class="flt-btn ${selScope==='all'?'on':''}" onclick="setScope('all')">All Athletes</button>`;
+  groups.forEach(g=>{fb+=`<button class="flt-btn ${selScope===g?'on':''}" onclick="setScope('${g}')">Group ${g}</button>`;});
+  fb+=`</div><div class="flt-sep"></div><div class="filter-group">`;
+  const showA=_scopeIsGroup(selScope)?A.filter(a=>a.group===selScope):A;
+  showA.forEach(a=>{const c=a.group==='A'?'#58a6ff':'#3ecf8e';const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');fb+=`<button class="flt-btn ath-btn ${selScope===a.name?'on':''}" onclick="setScope('${a.name.replace(/'/g,"\\'")}')"><span class="flt-dot" style="background:${c}"></span>${_esc(short)}</button>`;});
+  fb+=`</div></div>`;
+  return fb;
+}
 // Effort 정규화 (0-10 숫자 / 기존 Low·Medium·High 문자 호환)
 function _dEffNum(e){ if(e==null||e==='')return null; if(typeof e==='number')return e; const s=String(e).toLowerCase(); if(s==='low')return 3; if(s==='medium')return 6; if(s==='high')return 8; const n=parseFloat(e); return isNaN(n)?null:n; }
 function _dEffCol(n){ return n==null?null:(n<=4?'#3ecf8e':n<=7?'#f7a94f':'#e94560'); }
@@ -792,7 +811,7 @@ function _ovEx(l){
 function _ovBlock(l,athId){
   const c=tc(l.type), bg=tcBg(l.type);
   const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
-  const val=l.type==='weight'?`${vol([l]).toLocaleString()} kg`
+  const val=l.type==='weight'?`${_fmtKg(vol([l]))}`
     :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
     :l.type==='plyo'?`${l.totalReps||0} reps`
     :l.type==='tabata'?'8 rounds':'—';
@@ -823,28 +842,11 @@ function renderOverview(){
   const groups=[...new Set(allAthletes.map(a=>a.group))].sort();
   const isGrp=f=>groups.includes(f);
 
-  // Filter bar
-  let fb=`<div class="filter-bar">
-    <div class="filter-group">
-      <button class="flt-btn ${overviewFilter==='all'?'on':''}" onclick="setOverviewFilter('all')">All Athletes</button>`;
-  groups.forEach(g=>{
-    const c=g==='A'?'#58a6ff':'#3ecf8e';
-    fb+=`<button class="flt-btn ${overviewFilter===g?'on':''}" onclick="setOverviewFilter('${g}')">Group ${g}</button>`;
-  });
-  fb+=`</div><div class="flt-sep"></div><div class="filter-group">`;
-  allAthletes.forEach(a=>{
-    const c=a.group==='A'?'#58a6ff':'#3ecf8e';
-    const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
-    fb+=`<button class="flt-btn ath-btn ${overviewFilter===a.name?'on':''}" onclick="setOverviewFilter('${a.name.replace(/'/g,"\\'")}')">
-      <span class="flt-dot" style="background:${c}"></span>${short}
-    </button>`;
-  });
-  fb+=`</div></div>`;
+  // Filter bar (공통 셀렉터)
+  const fb=_scopeBar();
 
-  // Filtered athletes
-  let athletes = overviewFilter==='all' ? allAthletes
-    : isGrp(overviewFilter) ? allAthletes.filter(a=>a.group===overviewFilter)
-    : allAthletes.filter(a=>a.name===overviewFilter);
+  // Filtered athletes (공통 scope)
+  let athletes=_scopeAthletes();
 
   const DN_DE=['Mo','Di','Mi','Do','Fr','Sa','So'];
   const DN_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -1085,7 +1087,7 @@ function _ltBuild(logs,ath){
         const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
         const sl=e.isSL?'SL ':e.isSA?'SA ':'';
         const rec=`${sl}${sets}×${reps} @ ${top}kg`;
-        const lines=[`🏋️ 세션 볼륨 ${Math.round(volByDate[l.date]||0).toLocaleString()}kg`, rec];
+        const lines=[`🏋️ 세션 볼륨 ${_fmtKg(volByDate[l.date]||0)}`, rec];
         {const _en=_dEffNum(e.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta:lines,short:rec};
@@ -1118,19 +1120,11 @@ function renderLoad(){
   const DN=['Mo','Di','Mi','Do','Fr','Sa','So'];
   const today=todayStr();
 
-  // ── 0. Group filter (전체 / A / B) — 토글식, 기본 미선택 ──
-  const gBtn=(val,label)=>{
-    const on=loadGrpFilter===val;
-    return `<button class="flt-btn ${on?'on':''}" onclick="loadGrpFilter=loadGrpFilter==='${val}'?null:'${val}';renderLoad()">${on?'✓ ':''}${label}</button>`;
-  };
-  let html=`<div class="filter-bar" style="margin-bottom:14px"><div class="filter-group">
-    ${gBtn('all','All Groups')}${gBtn('A','Group A')}${gBtn('B','Group B')}
-  </div></div>`;
-  if(!loadGrpFilter){
-    document.getElementById('tb-sub').textContent='Select a group';
-    wrap.innerHTML=html+`<div class="empty" style="padding:48px 0">그룹을 선택하면 주간 훈련 부하가 표시됩니다<br><span style="font-size:11px;color:var(--hint)">같은 버튼을 다시 누르면 닫힙니다 · 표에서 선수를 클릭하면 개인 상세가 열립니다</span></div>`;
-    return;
-  }
+  // ── 0. 공통 셀렉터 → Load 매핑 ──
+  if(selScope==='all'){loadGrpFilter='all';loadAth=null;}
+  else if(_scopeIsGroup(selScope)){loadGrpFilter=selScope;loadAth=null;}
+  else {const _a=athletes.find(x=>x.name===selScope);loadGrpFilter=_a?_a.group:'all';loadAth=selScope;}
+  let html=_scopeBar();
   const fAthletes=loadGrpFilter==='all'?athletes:athletes.filter(a=>a.group===loadGrpFilter);
 
   // ── 1. Weekly Load Summary ──
@@ -1150,19 +1144,19 @@ function renderLoad(){
       let cell=`<td style="text-align:center;vertical-align:top;${isToday?'background:rgba(88,166,255,.04)':''}">`;
       trains.forEach(l=>{
         const c=tc(l.type);
-        const val=l.type==='weight'?`${vol([l]).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0)}m`:l.type==='tabata'?'Tabata':'—';
+        const val=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0)}m`:l.type==='tabata'?'Tabata':'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
         cell+=`<div style="white-space:nowrap"><span class="type-pill" style="background:${tcBg(l.type)};color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'}</span> <b style="font-size:12px">${val}</b>${l.rpe?`<span style="font-size:10px;color:#8b949e"> ·${l.rpe}</span>`:''}</div>`;
       });
       return cell+'</td>';
     });
-    html+=`<tr style="cursor:pointer" onclick="loadAth=loadAth==='${ath.name.replace(/'/g,"\\'")}'?null:'${ath.name.replace(/'/g,"\\'")}';renderLoad()" title="Click for detail (재클릭 시 닫기)">
+    html+=`<tr style="cursor:pointer" onclick="setScope('${ath.name.replace(/'/g,"\\'")}')" title="Click for detail (재클릭 시 닫기)">
       <td style="font-weight:600;white-space:nowrap;border-left:2px solid ${loadAth===ath.name?grpColor:'transparent'}">
         ${ath.name} <span class="type-pill" style="background:${ath.group==='A'?'rgba(88,166,255,.12)':'rgba(62,207,142,.12)'};color:${grpColor}">Grp ${ath.group}</span>
       </td>
       ${cells.join('')}
-      <td style="font-weight:700;color:var(--gold);white-space:nowrap">${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'}</td>
+      <td style="font-weight:700;color:var(--gold);white-space:nowrap">${weekVol>0?(_fmtKg(weekVol)):'—'}</td>
       <td style="font-weight:700;color:var(--green);white-space:nowrap">${weekDist>0?weekDist+'m':'—'}</td>
     </tr>`;
   });
@@ -1205,7 +1199,7 @@ function renderLoad(){
       plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.5)',font:{size:10},boxWidth:10}}},
       scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}},
               y:{stacked:true,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}}}};
-    const _valLabel=unit=>({id:'vl',afterDatasetsDraw(ch){const c=ch.ctx,m=ch.getDatasetMeta(0);c.save();c.font='700 11px sans-serif';c.fillStyle='rgba(230,237,243,.85)';c.textAlign='center';m.data.forEach((bar,i)=>{const v=ch.data.datasets[0].data[i];if(v==null)return;const t=unit==='kg'?(v>=1000?(v/1000).toFixed(1)+'t':Math.round(v)+''):Math.round(v)+'';c.fillText(t,bar.x,bar.y-5);});c.restore();}});
+    const _valLabel=unit=>({id:'vl',afterDatasetsDraw(ch){const c=ch.ctx,m=ch.getDatasetMeta(0);c.save();c.font='700 11px sans-serif';c.fillStyle='rgba(230,237,243,.85)';c.textAlign='center';m.data.forEach((bar,i)=>{const v=ch.data.datasets[0].data[i];if(v==null)return;const t=unit==='kg'?_fmtKg(v):Math.round(v)+'';c.fillText(t,bar.x,bar.y-5);});c.restore();}});
     const _barOpts=unit=>({responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${Math.round(c.parsed.y)}${unit}`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:true}}});
     const cReg=document.getElementById('ch-ld-reg');
     if(cReg&&_regAths.length){
@@ -1257,7 +1251,7 @@ function renderLoad(){
         <div style="font-size:11px;color:#8b949e">Session Detail · ${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}</div>
       </div>
     </div>
-    <select class="fsel" onchange="loadAth=this.value||null;renderLoad()">
+    <select class="fsel" onchange="setScope(this.value||'all')">
       <option value="">— close —</option>
       ${athletes.map(a=>`<option value="${a.name}" ${loadAth===a.name?'selected':''}>${a.name}</option>`).join('')}
     </select>
@@ -1291,7 +1285,7 @@ function renderLoad(){
         html+=`<div style="margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
             <span class="type-pill" style="background:${bg};color:${c}">Weight</span>
-            <span style="font-size:11px;font-weight:700">${vol([l]).toLocaleString()} kg</span>
+            <span style="font-size:11px;font-weight:700">${_fmtKg(vol([l]))}</span>
             ${l.rpe?`<span style="font-size:10px;color:#8b949e;margin-left:auto">RPE ${l.rpe}</span>`:''}
           </div>`;
         // Non-BW exercises
@@ -1396,7 +1390,7 @@ function renderLoad(){
     return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltTip(sprint,false)};
   };
   const _ltExSeries=n=>Object.entries(_lt.exMap[n].pts).map(([d,o])=>({d,v:o.v,meta:o.meta})).sort((a,b)=>a.d.localeCompare(b.d));
-  const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>({d,v:Math.round(v),meta:'총 볼륨 '+(v>=1000?(v/1000).toFixed(1)+'t':Math.round(v)+'kg')})).sort((a,b)=>a.d.localeCompare(b.d));
+  const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>({d,v:Math.round(v),meta:'총 볼륨 '+(_fmtKg(v))})).sort((a,b)=>a.d.localeCompare(b.d));
   const _ltDistS=Object.entries(_lt.distByDate).map(([d,v])=>({d,v:Math.round(v),meta:'총 거리 '+Math.round(v)+'m'})).sort((a,b)=>a.d.localeCompare(b.d));
   const _flt=s=>s.filter(p=>_ltInPeriod(p.d));
   const _ltOverlayCard=(names,units)=>{
@@ -1531,7 +1525,7 @@ function renderLoad(){
     const isSpr=isExM&&!!metaSprint[ltMetric];
     const seriesByAth=selAthArr.map((n,i)=>{
       const b=builts[n];let s=[];
-      if(ltMetric==='__vol__')s=Object.entries(b.volByDate).map(([d,v])=>({d,v:Math.round(v),meta:n+' · '+(v>=1000?(v/1000).toFixed(1)+'t':Math.round(v)+'kg')}));
+      if(ltMetric==='__vol__')s=Object.entries(b.volByDate).map(([d,v])=>({d,v:Math.round(v),meta:n+' · '+(_fmtKg(v))}));
       else if(ltMetric==='__dist__')s=Object.entries(b.distByDate).map(([d,v])=>({d,v:Math.round(v),meta:n+' · '+Math.round(v)+'m'}));
       else if(b.exMap[ltMetric])s=Object.entries(b.exMap[ltMetric].pts).map(([d,o])=>({d,v:o.v,meta:n+' · '+(o.short||'')}));
       s=_flt(s).sort((a,b)=>a.d.localeCompare(b.d));
@@ -1732,7 +1726,7 @@ function _renderInsights(ath){
     hardSessions.forEach(l=>{
       const c=tc(l.type);
       const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[l.type]||l.type;
-      const v=l.type==='weight'?`${vol([l]).toLocaleString()} kg`:l.type==='sprint'?`${l.totalDistance||0} m`:'';
+      const v=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${l.totalDistance||0} m`:'';
       struggleCard+=`<div class="lr">
         <span class="ld">${fmt(l.date)}</span>
         <span class="lt" style="color:${c}">${label}</span>
@@ -1802,12 +1796,26 @@ function renderSoreness(){
   const wrap=document.getElementById('tab-soreness');
   const athletes=coachData.athletes||[];
   if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
-  if(!soreAth)soreAth=athletes[0].name;
-  document.getElementById('tb-sub').textContent=soreAth+' · Last 14 days';
+  const who=_scopeName();
+  document.getElementById('tb-sub').textContent=(who||(selScope==='all'?'All athletes':'Group '+selScope))+' · Last 14 days';
 
-  const athOpts=athletes.map(a=>`<option value="${a.name}" ${soreAth===a.name?'selected':''}>${a.name}</option>`).join('');
+  // 전체/그룹: 선수별 근육통 요약 (이름 클릭 시 상세 히트맵)
+  if(!who){
+    const d14=getLast(14);
+    let gh=_scopeBar()+`<div class="card"><div class="card-hd">근육통 요약 · 최근 14일 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">선수 클릭 → 히트맵</span></div>`;
+    _scopeAthletes().forEach(a=>{
+      const lg=getLogsByName(a.name), sm={};
+      lg.filter(l=>l.type==='condition').forEach(l=>{if(!d14.includes(l.date))return;(l.soreness||[]).forEach(s=>{sm[s.part]=Math.max(sm[s.part]||0,s.intensity);});});
+      const parts=Object.entries(sm).sort((x,y)=>y[1]-x[1]);
+      const chips=parts.length?parts.map(([p,v])=>{const c=v>=7?'248,81,73':v>=4?'247,169,79':'62,207,142';return `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(${c},.15);color:rgba(${c},1);border:1px solid rgba(${c},.35)">${_esc(p)} ${v}</span>`;}).join(' '):'<span style="font-size:11px;color:var(--hint)">기록 없음</span>';
+      const gc=a.group==='A'?'#58a6ff':'#3ecf8e';
+      gh+=`<div onclick="setScope('${a.name.replace(/'/g,"\\'")}')" style="cursor:pointer;display:flex;align-items:flex-start;gap:10px;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.05)"><span style="min-width:130px;flex-shrink:0;font-size:12px;font-weight:600"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${gc};margin-right:6px"></span>${_esc(a.name)}</span><span style="display:flex;flex-wrap:wrap;gap:5px">${chips}</span></div>`;
+    });
+    gh+=`</div>`; wrap.innerHTML=gh; return;
+  }
+
   const dates=getLast(14).reverse();
-  const logs=getLogsByName(soreAth);
+  const logs=getLogsByName(who);
   const map={};
   logs.filter(l=>l.type==='condition'&&(l.soreness||[]).length).forEach(l=>{
     if(!dates.includes(l.date))return;
@@ -1825,7 +1833,7 @@ function renderSoreness(){
     _td[d]={trains:trainMap[d]||[],soreLabel:soreToday};
   });
 
-  let html=`<div class="sel-bar"><select class="fsel" onchange="soreAth=this.value;renderSoreness()">${athOpts}</select></div>
+  let html=_scopeBar()+`
   <div class="card">
     <div class="card-hd">Soreness Heatmap
       <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">
@@ -1861,16 +1869,29 @@ function renderCondition(){
   const wrap=document.getElementById('tab-condition');
   const athletes=coachData.athletes||[];
   if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
-  if(!condAth)condAth=athletes[0].name;
-
-  const athOpts=athletes.map(a=>`<option value="${a.name}" ${condAth===a.name?'selected':''}>${a.name}</option>`).join('');
+  const who=_scopeName();
   const pOpts=[7,14,30,60].map(n=>`<button class="seg-btn ${loadPeriod===n?'on':''}" onclick="loadPeriod=${n};renderCondition()">${n} Days</button>`).join('');
 
+  // 전체/그룹: 선수별 컨디션 평균 테이블 (이름 클릭 → 상세 차트)
+  if(!who){
+    const dts=getLast(loadPeriod);
+    document.getElementById('tb-sub').textContent=(selScope==='all'?'All athletes':'Group '+selScope)+' · '+loadPeriod+' days';
+    let gh=_scopeBar()+`<div class="sel-bar">${pOpts}</div><div class="card"><div class="card-hd">컨디션 평균 · 최근 ${loadPeriod}일 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">선수 클릭 → 상세</span></div><div class="heatmap-wrap"><table class="data-table"><tr><th>Athlete</th><th>Fatigue</th><th>Mood</th><th>Sleep Q</th><th>Sleep h</th><th>Readiness</th></tr>`;
+    _scopeAthletes().forEach(a=>{
+      const lg=getLogsByName(a.name), cl=lg.filter(l=>l.type==='condition'&&dts.includes(l.date));
+      const av=k=>cl.length?(cl.reduce((s,l)=>s+(l[k]||0),0)/cl.length):null;
+      const cell=(v,hg)=>v==null?'<td style="color:var(--hint)">—</td>':`<td style="color:${iCol(v,hg)};font-weight:700">${v.toFixed(1)}</td>`;
+      const rd=_readiness(lg,a.name,todayStr());
+      const gc=a.group==='A'?'#58a6ff':'#3ecf8e';
+      gh+=`<tr style="cursor:pointer" onclick="setScope('${a.name.replace(/'/g,"\\'")}')"><td style="white-space:nowrap"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${gc};margin-right:6px"></span>${_esc(a.name)}</td>${cell(av('fatigue'),false)}${cell(av('mood'),true)}${cell(av('sleepQuality'),true)}${cell(av('sleepHours'),true)}<td>${rd&&rd.ok?`<span style="color:${rd.color};font-weight:700">${rd.score}</span>`:'<span style="color:var(--hint)">—</span>'}</td></tr>`;
+    });
+    gh+=`</table></div></div>`; wrap.innerHTML=gh; return;
+  }
+  condAth=who;
+
   wrap.innerHTML=`
-    <div class="sel-bar">
-      <select class="fsel" onchange="condAth=this.value;renderCondition()">${athOpts}</select>
-      ${pOpts}
-    </div>
+    ${_scopeBar()}
+    <div class="sel-bar">${pOpts}</div>
     <div class="card" style="margin-bottom:12px">
       <div class="card-hd">⚡ Readiness Trend &nbsp;<span style="font-weight:400;color:var(--muted);font-size:10px">🟢 양호 · 🟡 주의 · 🔴 회복 — 개인 21일 기준선 대비</span></div>
       <div class="chart-h"><canvas id="ch-readiness"></canvas></div>
@@ -2014,7 +2035,7 @@ function renderAthletes(){
       });
     };
 
-    const fmtV=v=>v>0?(v>=1000?(v/1000).toFixed(1)+'t':v.toLocaleString()+'kg'):'—';
+    const fmtV=v=>v>0?_fmtKg(v):'—';
     const fmtD=v=>v>0?v.toLocaleString()+'m':'—';
     const fmtN=(v,d=1)=>v!=null?parseFloat(v).toFixed(d):'—';
 
@@ -2109,7 +2130,7 @@ function renderAthletes(){
       <div style="padding:14px 16px">
         <div class="g3" style="margin-bottom:12px">
           <div class="stat-chip"><div class="sv" style="color:var(--gold)">${sess}</div><div class="sl">Sessions</div></div>
-          <div class="stat-chip"><div class="sv" style="color:var(--gold)">${wVol>0?(wVol>=1000?(wVol/1000).toFixed(1)+'t':wVol.toLocaleString()+'kg'):'—'}</div><div class="sl">Volume</div></div>
+          <div class="stat-chip"><div class="sv" style="color:var(--gold)">${wVol>0?_fmtKg(wVol):'—'}</div><div class="sl">Volume</div></div>
           <div class="stat-chip"><div class="sv" style="color:var(--green)">${sDist>0?sDist.toLocaleString()+'m':'—'}</div><div class="sl">Sprint</div></div>
         </div>
         ${keyLifts.length?`<div class="sec"><span class="sec-title">🏋️ Key Lifts · 현재 기록</span><div class="sec-line"></div></div>
@@ -2139,7 +2160,7 @@ function renderAthletes(){
         <div class="sec"><span class="sec-title">Training Logs</span><div class="sec-line"></div></div>
         ${recent.length?recent.map(l=>{
           const c=tc(l.type);
-          const v=l.type==='weight'?`${vol([l]).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+          const v=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
           const brief=_logBrief(l);
           return`<div class="lr" style="flex-wrap:wrap">
             <span class="ld">${fmt(l.date)}</span>
@@ -2226,7 +2247,7 @@ function genWeeklyReport(){
       if(!trains.length&&!cond){cell+='<span style="color:#9ca3af;font-size:10px">Rest</span>';}
       trains.forEach(l=>{
         const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626'}[l.type]||'#64748b';
-        const val=l.type==='weight'?`${vol([l]).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:'—';
+        const val=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
         sessCount++;
@@ -2249,7 +2270,7 @@ function genWeeklyReport(){
     const gb=ath.group==='A'?'#eff6ff':'#f0fdf4';
     rows+=`<tr style="background:${gb}"><td colspan="8" style="padding:10px 12px;border:1px solid #e5e7eb;font-weight:700;font-size:13px">
       ${ath.name} <span style="font-size:10px;font-weight:400;color:#64748b">Group ${ath.group}${ath.dob?' · '+ath.dob:''}</span>
-      <span style="font-size:11px;color:#94a3b8;margin-left:8px">${sessCount} sessions · ${weekVol>0?(weekVol>=1000?(weekVol/1000).toFixed(1)+'t':weekVol.toLocaleString()+'kg'):'—'} · ${weekDist>0?weekDist.toLocaleString()+'m':'—'}</span>
+      <span style="font-size:11px;color:#94a3b8;margin-left:8px">${sessCount} sessions · ${weekVol>0?(_fmtKg(weekVol)):'—'} · ${weekDist>0?weekDist.toLocaleString()+'m':'—'}</span>
     </td></tr><tr>${cells}</tr>`;
   });
   const html=`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
@@ -2283,7 +2304,7 @@ function genFullReport(){
     const avgM=cLogs.length?(cLogs.reduce((s,l)=>s+(l.mood||0),0)/cLogs.length).toFixed(1):null;
     const rows=tLogs.slice(0,20).map(l=>{
       const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626'}[l.type]||'#64748b';
-      const v=l.type==='weight'?`${vol([l]).toLocaleString()} kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+      const v=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
       return`<tr><td style="padding:5px 8px;border:1px solid #e5e7eb">${fmtFull(l.date)}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:700;color:${c}">${l.type}</td><td style="padding:5px 8px;border:1px solid #e5e7eb">${v}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;color:#64748b">${l.rpe||'—'}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;color:#64748b">${l.notes||''}</td></tr>`;
     }).join('');
     const gc=ath.group==='A'?'#1d4ed8':'#065f46';
@@ -2294,7 +2315,7 @@ function genFullReport(){
       </div>
       <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;padding:14px 16px">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
-          ${[['Volume',tVol>=1000?(tVol/1000).toFixed(1)+'t':tVol.toLocaleString()+'kg','#d97706'],['Sprint',tDist>=1000?(tDist/1000).toFixed(1)+'km':tDist.toLocaleString()+'m','#059669'],['Ø Fatigue',avgF||'—','#dc2626'],['Ø Mood',avgM||'—','#059669']].map(([l,v,c])=>`<div style="text-align:center;padding:8px;background:#f8fafc;border-radius:6px"><div style="font-size:17px;font-weight:800;color:${c}">${v}</div><div style="font-size:10px;color:#94a3b8">${l}</div></div>`).join('')}
+          ${[['Volume',tVol>0?_fmtKg(tVol):'—','#d97706'],['Sprint',tDist>=1000?(tDist/1000).toFixed(1)+'km':tDist.toLocaleString()+'m','#059669'],['Ø Fatigue',avgF||'—','#dc2626'],['Ø Mood',avgM||'—','#059669']].map(([l,v,c])=>`<div style="text-align:center;padding:8px;background:#f8fafc;border-radius:6px"><div style="font-size:17px;font-weight:800;color:${c}">${v}</div><div style="font-size:10px;color:#94a3b8">${l}</div></div>`).join('')}
         </div>
         ${rows?`<table style="width:100%;border-collapse:collapse;font-size:11px"><tr>${['Date','Type','Value','RPE','Notes'].map(h=>`<th style="padding:5px 8px;background:#f1f5f9;text-align:left;border:1px solid #e5e7eb;font-size:10px">${h}</th>`).join('')}</tr>${rows}</table>`:'<div style="color:#94a3b8;font-size:11px">No training data</div>'}
       </div>
@@ -3229,7 +3250,7 @@ function _schedLogBlock(a,l){
   const c=tc(l.type);
   const grpColor=a.group==='A'?'#58a6ff':'#3ecf8e';
   const typeLbl=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
-  const total=l.type==='weight'?`${vol([l]).toLocaleString()} kg`
+  const total=l.type==='weight'?`${_fmtKg(vol([l]))}`
     :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
     :l.type==='plyo'?`${l.totalReps||0} reps`:'';
   const sessChip=l.session?`<span class="pc-chip" style="background:${l.session==='am'?'rgba(247,169,79,.12)':'rgba(167,139,250,.12)'};color:${l.session==='am'?'#f7a94f':'#a78bfa'}">${l.session.toUpperCase()}</span>`:'';
