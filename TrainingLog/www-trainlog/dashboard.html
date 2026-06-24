@@ -1118,7 +1118,7 @@ function _ltBuild(logs,ath){
         const disc=_ltDisc(s), dlabel=_LT_DISC[disc]||'Flat';
         const key=_ltSprintKey(dist,disc), reps=s.reps||s.sets||1, inten=s.intensity?` @ ${s.intensity}%`:'';
         const rec=`${reps}×${dist}m ${dlabel}${inten} · best ${best}s`;
-        const lines=[`🏃 세션 거리 ${Math.round(distByDate[l.date]||0)}m`, rec];
+        const lines=[`세션 거리 ${Math.round(distByDate[l.date]||0)}m`, rec];
         {const _en=_dEffNum(s.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:'Sprint Training',sub:dlabel,pts:{}});
         if(!m.pts[l.date]||best<m.pts[l.date].v) m.pts[l.date]={v:best,meta:lines,short:rec};
