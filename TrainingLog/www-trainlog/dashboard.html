@@ -575,6 +575,8 @@ let ltMetric='__vol__';       // ath 모드 지표 키 (__vol__/__dist__/운동�
 let ltPeriod='all';           // 1d|1w|1m|1y|all|custom (기본 전체)
 let ltBucket='none';          // none|week|month|year (비교 단위 — 묶어서 막대 비교)
 let ltBuckSel=new Set();      // 비교 대상 버킷 선택(비면 전체)
+let ltAB=false;               // 기간 A vs 비교 B (직접 기간 비교)
+let ltCB1='', ltCB2='';       // 비교 기간 B 범위
 let ltD1='', ltD2='';         // 커스텀 기간
 let ltCmp=false;              // 올해 vs 작년 연도 오버레이
 let ltChartMode='grid';       // grid|overlay
@@ -1091,7 +1093,8 @@ function ltAddEx(n){if(!n)return;ltMode='ex';if(ltSel.has(n))ltSel.delete(n);els
 function ltToggleAth(i){const n=_ltAthList[i];if(n==null)return;ltAthSel.has(n)?ltAthSel.delete(n):ltAthSel.add(n);renderLoad();}
 function ltToggleCat(i){const c=_ltCatNames[i];if(c==null)return;ltOpenCat=ltOpenCat===c?null:c;renderLoad();}
 function ltSetMetricVal(v){if(v){ltMetric=v;renderLoad();}}
-function ltOnPeriodSel(v){ ltBuckSel.clear(); if(v.indexOf('b:')===0){ltBucket=v.slice(2);ltPeriod='all';} else if(v==='custom'){ltBucket='none';ltPeriod='custom';} else {ltBucket='none';ltPeriod=v;ltD1='';ltD2='';} renderLoad(); }
+function ltOnBaseSel(v){ if(v==='custom'){ltPeriod='custom';} else {ltPeriod=v;ltD1='';ltD2='';} renderLoad(); }
+function ltOnCompSel(v){ ltBuckSel.clear(); if(v==='custom'){ltAB=true;ltBucket='none';} else {ltAB=false;ltBucket=v;} renderLoad(); }
 function ltToggleBuck(k){ if(ltBuckSel.has(k))ltBuckSel.delete(k); else ltBuckSel.add(k); renderLoad(); }
 // 스프린트 discipline 판별 (앱 _setDisc 미러): explicit s.discipline → 운동명/하위분류 자동판별
 const _LT_DISC={flat:'Flat',uphill:'Uphill',sled:'Towing Sled'};
@@ -1502,6 +1505,20 @@ function renderLoad(){
     else opt.scales.y={grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true};
     return _ltCard(_ltBkSub+' · 겹쳐보기','',{type:'line',data:{labels,datasets:dss},options:opt},240);
   };
+  // 기간 A vs 비교 기간 B (합계/최고 비교 + 증감%)
+  const _ltABCard=sp=>{
+    const aS=_flt(sp.series);
+    const bS=sp.series.filter(p=>(!ltCB1||p.d>=ltCB1)&&(!ltCB2||p.d<=ltCB2));
+    const agg=arr=>!arr.length?null:(sp.agg==='min'?Math.min(...arr.map(p=>p.v)):sp.agg==='max'?Math.max(...arr.map(p=>p.v)):arr.reduce((s,p)=>s+p.v,0));
+    const av=agg(aS), bv=agg(bS);
+    const fv=v=>v==null?'—':(sp.unit==='kg'?_fmtKg(v):sp.unit==='m'?Math.round(v)+'m':v+'s');
+    let pct=null,sub='';
+    if(av!=null&&bv!=null&&av!==0){pct=Math.round((bv-av)/Math.abs(av)*100);sub=(pct>0?'▲ +':pct<0?'▼ ':'')+pct+'%';}
+    const opt=_ltTip(false,false);opt.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true}};
+    const cfg={type:'bar',data:{labels:['기간 A','비교 B'],datasets:[{data:[av,bv],_metas:[[fv(av)+' · '+aS.length+'세션'],[fv(bv)+' · '+bS.length+'세션']],backgroundColor:[sp.color+'cc','#9aa4b2aa'],borderRadius:4,maxBarThickness:80}]},options:opt};
+    return _ltCard(sp.label,sub,cfg,200,sp.idx);
+  };
+  const _ltSpecs=()=>{const a=[];if(ltSel.has('__vol__')){const s=_flt(_ltVolS);if(_ltVolS.length)a.push({label:'Total Volume',color:'#f7a94f',agg:'sum',unit:'kg',series:_ltVolS,idx:_ltCat.indexOf('__vol__')});}if(ltSel.has('__dist__')){if(_ltDistS.length)a.push({label:'Sprint Distance',color:'#3ecf8e',agg:'sum',unit:'m',series:_ltDistS,idx:_ltCat.indexOf('__dist__')});}_ltCat.filter(k=>!_LT_SPECIAL[k]&&ltSel.has(k)&&_lt.exMap[k]).forEach(n=>{const m=_lt.exMap[n];a.push({label:n,color:_ltColor(n),agg:m.sprint?'min':'max',unit:m.sprint?'s':'kg',series:_ltExSeries(n),idx:_ltCat.indexOf(n)});});return a;};
   const _ltOverlayCard=(names,units)=>{
     const mixed=units.size>1, idxMode=mixed&&ltMix==='index';
     const sm=names.map(n=>({n,s:_flt(_ltExSeries(n)),m:_lt.exMap[n]})).filter(o=>o.s.length);
@@ -1561,15 +1578,20 @@ function renderLoad(){
   // 공통 컨트롤: 모드 / 기간
   ltMode='ex';   // 종목 비교 기본(선수 비교 UI 제거)
   ltCmp=false; // 연도 비교 토글 제거
-  const _ltSelVal=ltBucket!=='none'?('b:'+ltBucket):(ltPeriod==='custom'?'custom':ltPeriod);
-  const _ltOpt=(v,l)=>`<option value="${v}" ${_ltSelVal===v?'selected':''}>${l}</option>`;
+  const _ltBaseOpt=(v,l)=>`<option value="${v}" ${ltPeriod===v?'selected':''}>${l}</option>`;
+  const _ltCompVal=ltAB?'custom':ltBucket;
+  const _ltCompOpt=(v,l)=>`<option value="${v}" ${_ltCompVal===v?'selected':''}>${l}</option>`;
   LT+=`<div class="lt-row"><span class="lt-lbl">기간</span>`
-    +`<select class="lt-date" style="min-width:140px;cursor:pointer" onchange="ltOnPeriodSel(this.value)">`
-    +`<optgroup label="기간">`+_ltOpt('all','전체')+_ltOpt('1w','최근 1주일')+_ltOpt('1m','최근 1개월')+_ltOpt('1y','최근 1년')+`</optgroup>`
-    +`<optgroup label="비교 (묶어서 막대)">`+_ltOpt('b:week','주별 비교')+_ltOpt('b:month','월별 비교')+_ltOpt('b:year','연도별 비교')+`</optgroup>`
-    +_ltOpt('custom','직접 선택…')
+    +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnBaseSel(this.value)">`
+    + _ltBaseOpt('all','전체')+_ltBaseOpt('1w','최근 1주일')+_ltBaseOpt('1m','최근 1개월')+_ltBaseOpt('1y','최근 1년')+_ltBaseOpt('custom','직접 선택…')
     +`</select>`
-    +((ltBucket==='none'&&ltPeriod==='custom')?`<span style="width:1px;height:15px;background:var(--border);margin:0 5px"></span><input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;renderLoad()">`:'')
+    +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;renderLoad()">`:'')
+    +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
+    +`<span class="lt-lbl" style="width:auto">비교</span>`
+    +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
+    + _ltCompOpt('none','없음')+_ltCompOpt('week','주별')+_ltCompOpt('month','월별')+_ltCompOpt('year','연도별')+_ltCompOpt('custom','직접 기간')
+    +`</select>`
+    +(ltAB?`<input type="date" class="lt-date" value="${ltCB1}" onchange="ltCB1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltCB2}" onchange="ltCB2=this.value;renderLoad()">`:'')
     +`</div>`;
 
   if(ltMode==='ex'){
@@ -1596,9 +1618,9 @@ function renderLoad(){
     const units=new Set(selExs.map(n=>_lt.exMap[n].unit));
     const hasVol=ltSel.has('__vol__'), hasDist=ltSel.has('__dist__');
     const bucketing=ltBucket!=='none';
-    const volDistOverlay=ltChartMode==='overlay'&&!ltCmp&&!bucketing&&hasVol&&hasDist;
+    const volDistOverlay=ltChartMode==='overlay'&&!ltCmp&&!bucketing&&!ltAB&&hasVol&&hasDist;
     const _seriesCount=(hasVol?1:0)+(hasDist?1:0)+selExs.length;
-    if(_seriesCount>1){
+    if(_seriesCount>1&&!ltAB){
       LT+=`<div class="lt-row"><span class="lt-lbl">표시</span><div class="lt-seg"><button class="${ltChartMode==='grid'?'on':''}" onclick="ltChartMode='grid';renderLoad()">개별</button><button class="${ltChartMode==='overlay'?'on':''}" onclick="ltChartMode='overlay';renderLoad()">겹쳐서</button></div>`;
       if(!bucketing&&ltChartMode==='overlay'&&units.size>1&&selExs.length){LT+=`<div class="lt-seg"><button class="${ltMix==='dual'?'on':''}" onclick="ltMix='dual';renderLoad()">이중 축</button><button class="${ltMix==='index'?'on':''}" onclick="ltMix='index';renderLoad()">% 변화</button></div>`;}
       LT+=`</div>`;
@@ -1620,6 +1642,8 @@ function renderLoad(){
       } else {
         specs.forEach(sp=>{const metaFn=sp.agg==='sum'?(sp.unit==='m'?(b=>['거리 합계 '+Math.round(b.v)+'m',b.n+'세션']):(b=>['볼륨 합계 '+_fmtKg(b.v),b.n+'세션'])):(sp.agg==='min'?(b=>['최고 '+b.v+'s',b.n+'세션']):(b=>['최고 '+_fmtKg(b.v),b.n+'세션']));LT+=_ltCard(sp.label,_ltBkSub,_ltBarCfg(_ltBucketize(sp.series,sp.agg),sp.color,metaFn),null,sp.idx);});
       }
+    } else if(ltAB){
+      _ltSpecs().forEach(sp=>LT+=_ltABCard(sp));
     } else {
       if(volDistOverlay){
         const vs=_flt(_ltVolS), ds=_flt(_ltDistS);
