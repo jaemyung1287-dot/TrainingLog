@@ -1565,7 +1565,7 @@ function renderLoad(){
   const _ltOpt=(v,l)=>`<option value="${v}" ${_ltSelVal===v?'selected':''}>${l}</option>`;
   LT+=`<div class="lt-row"><span class="lt-lbl">기간</span>`
     +`<select class="lt-date" style="min-width:140px;cursor:pointer" onchange="ltOnPeriodSel(this.value)">`
-    +`<optgroup label="기간">`+_ltOpt('all','전체')+_ltOpt('1d','최근 1일')+_ltOpt('1w','최근 1주일')+_ltOpt('1m','최근 1개월')+_ltOpt('1y','최근 1년')+`</optgroup>`
+    +`<optgroup label="기간">`+_ltOpt('all','전체')+_ltOpt('1w','최근 1주일')+_ltOpt('1m','최근 1개월')+_ltOpt('1y','최근 1년')+`</optgroup>`
     +`<optgroup label="비교 (묶어서 막대)">`+_ltOpt('b:week','주별 비교')+_ltOpt('b:month','월별 비교')+_ltOpt('b:year','연도별 비교')+`</optgroup>`
     +_ltOpt('custom','직접 선택…')
     +`</select>`
