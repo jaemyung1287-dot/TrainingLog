@@ -254,6 +254,9 @@ tr:last-child td{border-bottom:none}
 .effort-btn.sel-low{background:rgba(62,207,142,.18);border-color:#3ecf8e;color:#3ecf8e}
 .effort-btn.sel-med{background:rgba(247,169,79,.18);border-color:#f7a94f;color:#f7a94f}
 .effort-btn.sel-high{background:rgba(233,69,96,.18);border-color:#e94560;color:#e94560}
+.eff-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:5px;background:linear-gradient(90deg,#3ecf8e 0%,#3ecf8e 40%,#f7a94f 55%,#f7a94f 70%,#e94560 90%);outline:none;margin-top:9px;cursor:pointer}
+.eff-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #555;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.eff-slider::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #555;cursor:pointer}
 /* Edited field highlight */
 .mini-in.plan-edited{border-color:var(--orange)!important;background:rgba(247,169,79,.1)!important}
 .plan-val-tag{font-size:9px;color:var(--muted);margin-top:2px;display:block;text-align:center}
@@ -2783,7 +2786,7 @@ function selectType(t){
             extraKg:lg.extraKg!=null?String(lg.extraKg):'',
             bwBase:lg.bwBase!=null?String(lg.bwBase):'',
             distance:lg.distance?String(lg.distance):'',
-            effort:lg.effort||null, done:true,
+            effort:lg.effort??null, done:true,
             meanV:lg.meanV!=null?String(lg.meanV):'', peakV:lg.peakV!=null?String(lg.peakV):'', velLoss:lg.velLoss!=null?String(lg.velLoss):'',
             ytUrl:e.ytUrl||''
           };
@@ -2935,7 +2938,7 @@ function selectType(t){
             intensity:ls.intensity?String(ls.intensity):'',
             distance:ls.distance?String(ls.distance):'',
             sets:ls.sets?String(ls.sets):'', reps:ls.reps?String(ls.reps):'',
-            effort:ls.effort||null, done:true
+            effort:ls.effort??null, done:true
           };
         } else {
           return {
@@ -3669,16 +3672,15 @@ function renderExList(){
         </div>`;
     }
 
-    // Effort buttons (athlete only — always shown). Mobility = completion check only → no effort.
-    const eff=ex.effort||'';
+    // Effort 0-10 슬라이더 (athlete only — always shown). Mobility = completion check only → no effort.
+    const _en=_EFFNUM(ex.effort);
     const effortHtml=(params==='mobility')?'':`
       <div style="margin-top:10px">
-        <div class="effort-lbl">Effort</div>
-        <div class="effort-row">
-          <button class="effort-btn${eff==='Low'?' sel-low':''}" onclick="setExEffort(${i},'Low')">Low</button>
-          <button class="effort-btn${eff==='Medium'?' sel-med':''}" onclick="setExEffort(${i},'Medium')">Medium</button>
-          <button class="effort-btn${eff==='High'?' sel-high':''}" onclick="setExEffort(${i},'High')">High</button>
+        <div class="effort-lbl" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Effort</span>
+          <span id="eff-val-${i}" style="font-size:13px;font-weight:800;color:${_en==null?'var(--muted)':_EFFCOL(_en)}">${_en==null?'—':_en+' / 10'}</span>
         </div>
+        <input type="range" class="eff-slider" min="0" max="10" step="1" value="${_en==null?5:_en}" oninput="setExEffort(${i},this.value)">
       </div>`;
 
     const doneHtml=(params==='mobility')
@@ -3740,15 +3742,10 @@ function renderExList(){
 }
 // Edited check triggered on blur (onblur="renderExList()") to avoid losing input focus
 function setExEffort(i,val){
-  ST.exercises[i].effort=val;
-  const clsMap={Low:'sel-low',Medium:'sel-med',High:'sel-high'};
-  const btns=document.getElementById('exercise-list').querySelectorAll('.effort-row');
-  if(btns[i]){
-    btns[i].querySelectorAll('.effort-btn').forEach((btn,bi)=>{
-      const label=['Low','Medium','High'][bi];
-      btn.className='effort-btn'+(label===val?' '+clsMap[label]:'');
-    });
-  }
+  const n=parseInt(val,10);
+  ST.exercises[i].effort=isNaN(n)?'':n;
+  const lbl=document.getElementById('eff-val-'+i);
+  if(lbl){ lbl.textContent=isNaN(n)?'—':n+' / 10'; lbl.style.color=isNaN(n)?'var(--muted)':_EFFCOL(n); }
   _setExDone(i); // auto-check on effort selection
 }
 function toggleBW(i){
@@ -3944,7 +3941,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
           sets:e.setRows?.length||parseInt(e.sets)||0,
           reps:parseFloat(firstSet?.reps)||parseInt(e.reps)||0,
           setRows:e.setRows||null,
-          effort:e.effort||null, fromPlan:e.fromPlan||false,
+          effort:e.effort??null, fromPlan:e.fromPlan||false,
           meanV:e.meanV?parseFloat(e.meanV):null, peakV:e.peakV?parseFloat(e.peakV):null, velLoss:e.velLoss?parseFloat(e.velLoss):null,
           planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null, planRestType:e.planRestType||[],
           restTime:e.restTime||null, restUnit:e.restUnit||'s',
@@ -3987,7 +3984,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
         planSets:e.planSets||null, planReps:e.planReps||null,
         planLegMode:e.planLegMode||null, planRepType:e.planRepType||'reps',
         sets:parseInt(e.sets)||0, reps:parseInt(e.reps)||0,
-        effort:e.effort||null, fromPlan:e.fromPlan||false,
+        effort:e.effort??null, fromPlan:e.fromPlan||false,
         planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null
       })),
       totalReps, totalContacts, rpe, notes,
@@ -4013,7 +4010,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
         intensity:parseFloat(e.intensity)||0,
         distance:parseFloat(e.distance)||0,
         sets:parseInt(e.sets)||1, reps:parseInt(e.reps)||1,
-        effort:e.effort||null, fromPlan:e.fromPlan||false,
+        effort:e.effort??null, fromPlan:e.fromPlan||false,
         planSets:e.planSets||null, planReps:e.planReps||null,
         planDistance:e.planDistance?parseFloat(e.planDistance):null,
         planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null
@@ -4056,6 +4053,10 @@ const _DISC_META={
 const _RESIST_MODS=['uphill','sled']; // selectable modalities inside Resistance Sprinting
 function _discMeta(k){ return _DISC_META[k]||{ic:'🏔️',lbl:'Resistance',rec:k||'sprint'}; }
 function _discRecType(k){ return (k&&k!=='flat')?_discMeta(k).rec:'sprint'; }
+// Effort 정규화: 0-10 숫자 / 기존 Low·Medium·High 문자 모두 처리
+function _EFFNUM(e){ if(e==null||e==='')return null; if(typeof e==='number')return e; const s=String(e).toLowerCase(); if(s==='low')return 3; if(s==='medium')return 6; if(s==='high')return 8; const n=parseFloat(e); return isNaN(n)?null:n; }
+function _EFFCOL(n){ if(n==null)return undefined; return n<=4?'#3ecf8e':n<=7?'#f7a94f':'#e94560'; }
+const _EFF_PROXY=new Proxy({},{get:(t,k)=>_EFFCOL(_EFFNUM(k))});
 function _pbForAthlete(name,distanceM,discipline,recs){
   if(!name) return null;
   const recType=_discRecType(discipline);
@@ -4197,16 +4198,15 @@ function renderSprintSets(){
       ${targetT?`<span style="color:var(--muted)">🎯 ${_disc!=='flat'?_discMeta(_disc).ic+' ':''}Target @ ${pct}%</span><span style="color:#3ecf8e;font-weight:800;font-size:16px">${targetT}s</span><span style="color:var(--muted);font-size:11px">${s._pbAuto?'🔗 ':''}PB ${pb}s</span>`:''}
     </div>`;
 
-    // Effort buttons
-    const eff=s.effort||'';
+    // Effort 0-10 슬라이더
+    const _sen=_EFFNUM(s.effort);
     const effortHtml=`
       <div style="margin-top:10px">
-        <div class="effort-lbl">Effort</div>
-        <div class="effort-row">
-          <button class="effort-btn${eff==='Low'?' sel-low':''}" onclick="setSprintEffort(${i},'Low')">Low</button>
-          <button class="effort-btn${eff==='Medium'?' sel-med':''}" onclick="setSprintEffort(${i},'Medium')">Medium</button>
-          <button class="effort-btn${eff==='High'?' sel-high':''}" onclick="setSprintEffort(${i},'High')">High</button>
+        <div class="effort-lbl" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Effort</span>
+          <span id="speff-val-${i}" style="font-size:13px;font-weight:800;color:${_sen==null?'var(--muted)':_EFFCOL(_sen)}">${_sen==null?'—':_sen+' / 10'}</span>
         </div>
+        <input type="range" class="eff-slider" min="0" max="10" step="1" value="${_sen==null?5:_sen}" oninput="setSprintEffort(${i},this.value)">
       </div>`;
 
     // Header
@@ -4322,13 +4322,10 @@ function renderSprintSets(){
   _updateExProgress();
 }
 function setSprintEffort(i,val){
-  ST.sprintSets[i].effort=val;
-  const clsMap={Low:'sel-low',Medium:'sel-med',High:'sel-high'};
-  const rows=document.getElementById('sprint-sets-list').querySelectorAll('.effort-row');
-  if(rows[i]) rows[i].querySelectorAll('.effort-btn').forEach((btn,bi)=>{
-    const label=['Low','Medium','High'][bi];
-    btn.className='effort-btn'+(label===val?' '+clsMap[label]:'');
-  });
+  const n=parseInt(val,10);
+  ST.sprintSets[i].effort=isNaN(n)?'':n;
+  const lbl=document.getElementById('speff-val-'+i);
+  if(lbl){ lbl.textContent=isNaN(n)?'—':n+' / 10'; lbl.style.color=isNaN(n)?'var(--muted)':_EFFCOL(n); }
   _setSprintDone(i); // auto-check on effort selection
 }
 function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
@@ -4411,7 +4408,7 @@ function saveSprint(dupMode){
       const _rtVals=_rtRaw.filter(t=>t!=null);
       const _rt=_rtVals.length?_rtRaw:[];
       const _best=_rtVals.length?Math.min(..._rtVals):(parseFloat(s.actualTime)||null);
-      return {name:s.name||null,subCategory:s.subCategory||null,discipline:_setDisc(s),planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:_best,repTimes:_rt,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort||null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]};
+      return {name:s.name||null,subCategory:s.subCategory||null,discipline:_setDisc(s),planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:_best,repTimes:_rt,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort??null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[]};
     }),
     totalDistance:Math.round(totalDist),
     rpe:parseInt(document.getElementById('sl-srpe').value),
@@ -5483,9 +5480,9 @@ function _renderLoadRecent(logs, wrapId, opts){
   const _typeBorder = {weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa'};
 
   // Effort color helpers (for exercise rows)
-  const _effColor = {Low:'#3ecf8e',Medium:'#f7a94f',High:'#e94560'};
+  const _effColor = _EFF_PROXY;
   const _effBadge = eff => _effColor[eff]
-    ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_effColor[eff]}22;border:1px solid ${_effColor[eff]}55;color:${_effColor[eff]};font-weight:700;margin-left:5px;flex-shrink:0">${eff}</span>`
+    ? `<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_effColor[eff]}22;border:1px solid ${_effColor[eff]}55;color:${_effColor[eff]};font-weight:700;margin-left:5px;flex-shrink:0">E${_EFFNUM(eff)}</span>`
     : '';
 
   // One-line meta string per type
@@ -5827,12 +5824,12 @@ function _renderDetailLogs(logs, opts){
   const _dBtn=(id)=>`<button onclick="event.stopPropagation();deleteLog('${id}','detail')" style="padding:4px 9px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
   const _eBtn=(id)=>{const l=d.logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="event.stopPropagation();_editLog('${id}')" style="padding:4px 9px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';}
 
-  const _effColor={Low:'#3ecf8e',Medium:'#f7a94f',High:'#e94560'};
+  const _effColor=_EFF_PROXY;
   const _effChipStyle=(eff)=>_effColor[eff]
     ?`display:inline-block;padding:3px 9px;border-radius:20px;border:1px solid;font-size:11px;line-height:1.4;background:${_effColor[eff]}22;border-color:${_effColor[eff]}66;color:${_effColor[eff]}`
     :'display:inline-block;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:11px;color:var(--text);line-height:1.4';
   const _effBadge=(eff)=>_effColor[eff]
-    ?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_effColor[eff]}22;border:1px solid ${_effColor[eff]}55;color:${_effColor[eff]};font-weight:700;margin-left:5px;flex-shrink:0">${eff}</span>`
+    ?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_effColor[eff]}22;border:1px solid ${_effColor[eff]}55;color:${_effColor[eff]};font-weight:700;margin-left:5px;flex-shrink:0">E${_EFFNUM(eff)}</span>`
     :'';
   const _exChips=(exs)=>exs.length?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${exs.map(e=>`<span style="${_effChipStyle(e.effort)}">${e.name}</span>`).join('')}</div>`:'';
   const _exDetailRows=(exs)=>exs.map(e=>{
@@ -6990,7 +6987,7 @@ function _editLog(logId){
       intensity:e.intensity!=null?String(e.intensity):'',
       weight:e.weight!=null?String(e.weight):'',
       sets:e.sets?String(e.sets):'', reps:e.reps?String(e.reps):'',
-      effort:e.effort||null, done:true,
+      effort:e.effort??null, done:true,
       isBodyweight:e.isBodyweight||false,
       isSL:e.isSL||false, isSA:e.isSA||false,
       extraKg:e.extraKg!=null?String(e.extraKg):'',
@@ -7028,7 +7025,7 @@ function _editLog(logId){
       sets:s.sets?String(s.sets):'', reps:s.reps?String(s.reps):'',
       actualTime:s.actualTime?String(s.actualTime):'', pb:s.pb?String(s.pb):'',
       repTimes:(Array.isArray(s.repTimes)&&s.repTimes.length)?s.repTimes.map(t=>t==null?'':String(t)):undefined,
-      effort:s.effort||null, done:true
+      effort:s.effort??null, done:true
     }));
     const phEl=document.getElementById('sp-phase'); if(phEl) phEl.value=log.phase||'';
     const wkEl=document.getElementById('sp-week'); if(wkEl) wkEl.value=log.week||'';
@@ -10192,7 +10189,7 @@ function saveBulkEntry(){
           circuitMode:cMode, totalRounds,
           rounds,       // Mode A: overall round completion
           stations:stationData, // Mode B/C: per-station data
-          effort:entry.effort||null,
+          effort:entry.effort??null,
           source:'bulk', notes:'[Bulk Entry]'
         });
       });

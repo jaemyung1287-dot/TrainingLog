@@ -752,11 +752,14 @@ function setOverviewFilter(f){overviewFilter=f;renderOverview();}
 
 // ── Overview cell helpers (added) ──
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-// Effort 점 (Low=초록, Medium=주황, High=빨강) — 앱과 동일, 운동 이름 앞
+// Effort 정규화 (0-10 숫자 / 기존 Low·Medium·High 문자 호환)
+function _dEffNum(e){ if(e==null||e==='')return null; if(typeof e==='number')return e; const s=String(e).toLowerCase(); if(s==='low')return 3; if(s==='medium')return 6; if(s==='high')return 8; const n=parseFloat(e); return isNaN(n)?null:n; }
+function _dEffCol(n){ return n==null?null:(n<=4?'#3ecf8e':n<=7?'#f7a94f':'#e94560'); }
+// Effort 점 (낮음=초록, 중간=주황, 높음=빨강) — 운동 이름 앞
 function _effDot(eff){
-  const C={Low:'#3ecf8e',Medium:'#f7a94f',High:'#e94560'};
-  if(!eff||!C[eff]) return '';
-  return `<span title="Effort: ${eff}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${C[eff]};margin-right:5px;vertical-align:middle"></span>`;
+  const n=_dEffNum(eff), c=_dEffCol(n);
+  if(!c) return '';
+  return `<span title="Effort: ${n}/10" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${c};margin-right:5px;vertical-align:middle"></span>`;
 }
 function _ovEx(l){
   let lines=[];
@@ -1083,7 +1086,7 @@ function _ltBuild(logs,ath){
         const sl=e.isSL?'SL ':e.isSA?'SA ':'';
         const rec=`${sl}${sets}×${reps} @ ${top}kg`;
         const lines=[`🏋️ 세션 볼륨 ${Math.round(volByDate[l.date]||0).toLocaleString()}kg`, rec];
-        if(e.effort)lines.push('Effort: '+e.effort);
+        {const _en=_dEffNum(e.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta:lines,short:rec};
       });
@@ -1097,7 +1100,7 @@ function _ltBuild(logs,ath){
         const key=_ltSprintKey(dist,disc), reps=s.reps||s.sets||1, inten=s.intensity?` @ ${s.intensity}%`:'';
         const rec=`${reps}×${dist}m ${dlabel}${inten} · best ${best}s`;
         const lines=[`🏃 세션 거리 ${Math.round(distByDate[l.date]||0)}m`, rec];
-        if(s.effort)lines.push('Effort: '+s.effort);
+        {const _en=_dEffNum(s.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:'Sprint Training',sub:dlabel,pts:{}});
         if(!m.pts[l.date]||best<m.pts[l.date].v) m.pts[l.date]={v:best,meta:lines,short:rec};
       });
@@ -1299,11 +1302,10 @@ function renderLoad(){
           const sets=ex.setRows?.length||ex.sets||0;
           const reps=ex.setRows?.[0]?.reps||ex.reps||0;
           const slLabel=ex.isSL?'SL ':ex.isSA?'SA ':'';
-          // Effort dot (Low/Medium/High → 줄 끝 색깔 점)
-          const ECOL={Low:'62,207,142',Medium:'247,169,79',High:'233,69,96'};
-          const eff=ex.effort;
-          const effortDot=eff&&ECOL[eff]
-            ?`<span title="Effort: ${eff}" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(${ECOL[eff]},1);flex-shrink:0"></span>`
+          // Effort dot (0-10 → 색깔 점)
+          const _efn=_dEffNum(ex.effort), _efc=_dEffCol(_efn);
+          const effortDot=_efc
+            ?`<span title="Effort: ${_efn}/10" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${_efc};flex-shrink:0"></span>`
             :'';
           // VBT
           const vbt=(ex.meanV?`<span style="font-size:9px;color:#bc8cff;margin-left:4px">v${parseFloat(ex.meanV).toFixed(2)}</span>`:'')
