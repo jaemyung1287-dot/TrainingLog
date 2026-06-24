@@ -1090,6 +1090,7 @@ function ltAddEx(n){if(!n)return;ltMode='ex';if(ltSel.has(n))ltSel.delete(n);els
 function ltToggleAth(i){const n=_ltAthList[i];if(n==null)return;ltAthSel.has(n)?ltAthSel.delete(n):ltAthSel.add(n);renderLoad();}
 function ltToggleCat(i){const c=_ltCatNames[i];if(c==null)return;ltOpenCat=ltOpenCat===c?null:c;renderLoad();}
 function ltSetMetricVal(v){if(v){ltMetric=v;renderLoad();}}
+function ltOnPeriodSel(v){ if(v.indexOf('b:')===0){ltBucket=v.slice(2);ltPeriod='all';} else if(v==='custom'){ltBucket='none';ltPeriod='custom';} else {ltBucket='none';ltPeriod=v;ltD1='';ltD2='';} renderLoad(); }
 // 스프린트 discipline 판별 (앱 _setDisc 미러): explicit s.discipline → 운동명/하위분류 자동판별
 const _LT_DISC={flat:'Flat',uphill:'Uphill',sled:'Towing Sled'};
 function _ltDisc(s){
@@ -1545,15 +1546,15 @@ function renderLoad(){
   // 공통 컨트롤: 모드 / 기간
   ltMode='ex';   // 종목 비교 기본(선수 비교 UI 제거)
   ltCmp=false; // 연도 비교 토글 제거
+  const _ltSelVal=ltBucket!=='none'?('b:'+ltBucket):(ltPeriod==='custom'?'custom':ltPeriod);
+  const _ltOpt=(v,l)=>`<option value="${v}" ${_ltSelVal===v?'selected':''}>${l}</option>`;
   LT+=`<div class="lt-row"><span class="lt-lbl">기간</span>`
-    +`<select class="lt-date" style="min-width:130px;cursor:pointer" onchange="ltPeriod=this.value;if(ltPeriod!=='custom'){ltD1='';ltD2='';}renderLoad()">`
-    + [['1d','최근 1일'],['1w','최근 1주일'],['1m','최근 1개월'],['1y','최근 1년'],['all','전체'],['custom','직접 선택…']].map(([v,l])=>`<option value="${v}" ${ltPeriod===v?'selected':''}>${l}</option>`).join('')
+    +`<select class="lt-date" style="min-width:140px;cursor:pointer" onchange="ltOnPeriodSel(this.value)">`
+    +`<optgroup label="기간">`+_ltOpt('all','전체')+_ltOpt('1d','최근 1일')+_ltOpt('1w','최근 1주일')+_ltOpt('1m','최근 1개월')+_ltOpt('1y','최근 1년')+`</optgroup>`
+    +`<optgroup label="비교 (묶어서 막대)">`+_ltOpt('b:week','주별 비교')+_ltOpt('b:month','월별 비교')+_ltOpt('b:year','연도별 비교')+`</optgroup>`
+    +_ltOpt('custom','직접 선택…')
     +`</select>`
-    +`<span style="width:1px;height:15px;background:var(--border);margin:0 5px"></span>`
-    +`<select class="lt-date" style="cursor:pointer" title="기간을 주/월/연 단위로 묶어 막대로 비교" onchange="ltBucket=this.value;renderLoad()">`
-    + [['none','비교 없음'],['week','주별 비교'],['month','월별 비교'],['year','연도별 비교']].map(([v,l])=>`<option value="${v}" ${ltBucket===v?'selected':''}>${l}</option>`).join('')
-    +`</select>`
-    +(ltPeriod==='custom'?`<span style="width:1px;height:15px;background:var(--border);margin:0 5px"></span><input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;renderLoad()">`:'')
+    +((ltBucket==='none'&&ltPeriod==='custom')?`<span style="width:1px;height:15px;background:var(--border);margin:0 5px"></span><input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;renderLoad()">`:'')
     +`</div>`;
 
   if(ltMode==='ex'){
