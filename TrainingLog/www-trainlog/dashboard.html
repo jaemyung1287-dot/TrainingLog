@@ -572,7 +572,7 @@ let ltMode='ex';              // 'ex' 종목비교(한 선수) | 'ath' 선수비
 let ltSel=new Set();          // 선택된 종목명 (ex 모드)
 let ltAthSel=new Set();       // 선택된 선수명 (ath 모드)
 let ltMetric='__vol__';       // ath 모드 지표 키 (__vol__/__dist__/운동명)
-let ltPeriod='this';          // this|all|custom (기본 올해)
+let ltPeriod='1m';            // 1d|1w|1m|1y|all|custom (기본 최근 1개월)
 let ltD1='', ltD2='';         // 커스텀 기간
 let ltCmp=false;              // 올해 vs 작년 연도 오버레이
 let ltChartMode='grid';       // grid|overlay
@@ -1450,12 +1450,10 @@ function renderLoad(){
   const _lt=_ltBuild(selLogs,selAth);
   const _ltInPeriod=ds=>{
     if(ltPeriod==='all')return true;
-    const Y=new Date().getFullYear();
-    if(ltPeriod==='this')return ds.slice(0,4)===String(Y);
-    if(ltPeriod==='last')return ds.slice(0,4)===String(Y-1);
     if(ltPeriod==='custom')return (!ltD1||ds>=ltD1)&&(!ltD2||ds<=ltD2);
-    const dt=new Date();dt.setMonth(dt.getMonth()-(ltPeriod==='3m'?3:6));
-    return ds>=dsFromDate(dt);
+    const days={'1d':1,'1w':7,'1m':30,'1y':365}[ltPeriod];
+    if(days){const dt=new Date();dt.setDate(dt.getDate()-days+1);return ds>=dsFromDate(dt);}
+    return true;
   };
   const _ltTip=(sprint,legend)=>({responsive:true,maintainAspectRatio:false,interaction:{mode:'nearest',intersect:false},
     plugins:{legend:{display:!!legend,labels:{color:'rgba(230,237,243,.55)',font:{size:10},boxWidth:10}},
@@ -1536,15 +1534,12 @@ function renderLoad(){
   LT+=`<div class="lt-wrap"><div class="lt-h"><span>📈</span>추이 분석 (Trends)</div>`;
   // 공통 컨트롤: 모드 / 기간
   ltMode='ex';   // 종목 비교 기본(선수 비교 UI 제거)
+  ltCmp=false; // 연도 비교 토글 제거
   LT+=`<div class="lt-row"><span class="lt-lbl">기간</span>`
-    +`<button class="lt-chip ${ltPeriod==='this'?'on':''}" onclick="ltPeriod='this';ltD1='';ltD2='';renderLoad()">올해</button>`
-    +`<button class="lt-chip ${ltPeriod==='all'?'on':''}" onclick="ltPeriod='all';ltD1='';ltD2='';renderLoad()">전체</button>`
-    +`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;ltPeriod='custom';renderLoad()">`
-    +`<span style="color:var(--hint);font-size:11px">~</span>`
-    +`<input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;ltPeriod='custom';renderLoad()">`
-    +(ltPeriod==='custom'?`<button class="lt-clear" onclick="ltPeriod='this';ltD1='';ltD2='';renderLoad()">초기화</button>`:'')
-    +`<span style="width:1px;height:15px;background:var(--border);margin:0 5px"></span>`
-    +`<button class="lt-chip ${ltCmp?'on':''}" title="각 종목을 올해·작년 두 선으로 겹쳐 비교" onclick="ltCmp=!ltCmp;renderLoad()">올해 vs 작년</button>`
+    +`<select class="lt-date" style="min-width:130px;cursor:pointer" onchange="ltPeriod=this.value;if(ltPeriod!=='custom'){ltD1='';ltD2='';}renderLoad()">`
+    + [['1d','최근 1일'],['1w','최근 1주일'],['1m','최근 1개월'],['1y','최근 1년'],['all','전체'],['custom','직접 선택…']].map(([v,l])=>`<option value="${v}" ${ltPeriod===v?'selected':''}>${l}</option>`).join('')
+    +`</select>`
+    +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;renderLoad()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;renderLoad()">`:'')
     +`</div>`;
 
   if(ltMode==='ex'){
