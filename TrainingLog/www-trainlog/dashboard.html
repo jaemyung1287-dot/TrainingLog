@@ -1108,7 +1108,6 @@ function _ltBuild(logs,ath){
           : (()=>{exVol=_exVolOne(e);return [rec];})();
         const lines=[(sl?sl.trim()+' ':'')+'세트별:'].concat(setLines);
         lines.push('종목 볼륨 '+_fmtKg(exVol));
-        lines.push('세션 볼륨 '+_fmtKg(vol([l])));
         {const _en=_dEffNum(e.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta:lines,short:rec};
@@ -1122,7 +1121,7 @@ function _ltBuild(logs,ath){
         const disc=_ltDisc(s), dlabel=_LT_DISC[disc]||'Flat';
         const key=_ltSprintKey(dist,disc), reps=s.reps||s.sets||1, inten=s.intensity?` @ ${s.intensity}%`:'';
         const rec=`${reps}×${dist}m ${dlabel}${inten} · best ${best}s`;
-        const lines=[`세션 거리 ${Math.round(parseFloat(l.totalDistance)||0)}m`, rec];
+        const lines=[rec];
         {const _en=_dEffNum(s.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:'Sprint Training',sub:dlabel,pts:{}});
         if(!m.pts[l.date]||best<m.pts[l.date].v) m.pts[l.date]={v:best,meta:lines,short:rec};
