@@ -572,8 +572,9 @@ let ltMode='ex';              // 'ex' 종목비교(한 선수) | 'ath' 선수비
 let ltSel=new Set();          // 선택된 종목명 (ex 모드)
 let ltAthSel=new Set();       // 선택된 선수명 (ath 모드)
 let ltMetric='__vol__';       // ath 모드 지표 키 (__vol__/__dist__/운동명)
-let ltPeriod='1m';            // 1d|1w|1m|1y|all|custom (기본 최근 1개월)
+let ltPeriod='all';           // 1d|1w|1m|1y|all|custom (기본 전체)
 let ltBucket='none';          // none|week|month|year (비교 단위 — 묶어서 막대 비교)
+let ltBuckSel=new Set();      // 비교 대상 버킷 선택(비면 전체)
 let ltD1='', ltD2='';         // 커스텀 기간
 let ltCmp=false;              // 올해 vs 작년 연도 오버레이
 let ltChartMode='grid';       // grid|overlay
@@ -1090,7 +1091,8 @@ function ltAddEx(n){if(!n)return;ltMode='ex';if(ltSel.has(n))ltSel.delete(n);els
 function ltToggleAth(i){const n=_ltAthList[i];if(n==null)return;ltAthSel.has(n)?ltAthSel.delete(n):ltAthSel.add(n);renderLoad();}
 function ltToggleCat(i){const c=_ltCatNames[i];if(c==null)return;ltOpenCat=ltOpenCat===c?null:c;renderLoad();}
 function ltSetMetricVal(v){if(v){ltMetric=v;renderLoad();}}
-function ltOnPeriodSel(v){ if(v.indexOf('b:')===0){ltBucket=v.slice(2);ltPeriod='all';} else if(v==='custom'){ltBucket='none';ltPeriod='custom';} else {ltBucket='none';ltPeriod=v;ltD1='';ltD2='';} renderLoad(); }
+function ltOnPeriodSel(v){ ltBuckSel.clear(); if(v.indexOf('b:')===0){ltBucket=v.slice(2);ltPeriod='all';} else if(v==='custom'){ltBucket='none';ltPeriod='custom';} else {ltBucket='none';ltPeriod=v;ltD1='';ltD2='';} renderLoad(); }
+function ltToggleBuck(k){ if(ltBuckSel.has(k))ltBuckSel.delete(k); else ltBuckSel.add(k); renderLoad(); }
 // 스프린트 discipline 판별 (앱 _setDisc 미러): explicit s.discipline → 운동명/하위분류 자동판별
 const _LT_DISC={flat:'Flat',uphill:'Uphill',sled:'Towing Sled'};
 function _ltDisc(s){
@@ -1484,9 +1486,22 @@ function renderLoad(){
     if(ltBucket==='month')return {k:ds.slice(0,7),l:ds.slice(2,4)+'.'+ds.slice(5,7)};
     const d=new Date(ds),day=d.getDay(),mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));return {k:dsFromDate(mon),l:(mon.getMonth()+1)+'.'+mon.getDate()};
   };
-  const _ltBucketize=(series,agg)=>{const m={};series.forEach(p=>{const o=_ltBKey(p.d);if(!m[o.k])m[o.k]={l:o.l,vals:[]};m[o.k].vals.push(p.v);});return Object.keys(m).sort().map(k=>{const o=m[k];let v;if(agg==='min')v=Math.min(...o.vals);else if(agg==='max')v=Math.max(...o.vals);else v=o.vals.reduce((a,b)=>a+b,0);return {l:o.l,v:Math.round(v*100)/100,n:o.vals.length};});};
+  const _ltBucketize=(series,agg)=>{const m={};series.forEach(p=>{const o=_ltBKey(p.d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;if(!m[o.k])m[o.k]={l:o.l,vals:[]};m[o.k].vals.push(p.v);});return Object.keys(m).sort().map(k=>{const o=m[k];let v;if(agg==='min')v=Math.min(...o.vals);else if(agg==='max')v=Math.max(...o.vals);else v=o.vals.reduce((a,b)=>a+b,0);return {l:o.l,v:Math.round(v*100)/100,n:o.vals.length};});};
   const _ltBarCfg=(buck,color,metaFn)=>({type:'bar',data:{labels:buck.map(b=>b.l),datasets:[{data:buck.map(b=>b.v),_metas:buck.map(metaFn),backgroundColor:color+'cc',borderRadius:3,maxBarThickness:54}]},options:_ltTip(false,false)});
   const _ltBkSub={week:'주별 비교',month:'월별 비교',year:'연도별 비교'}[ltBucket]||'';
+  // 비교 대상 버킷 목록(기간 내 존재하는 주/월/연)
+  const _ltBuckList=(()=>{if(ltBucket==='none')return [];const all=[...new Set(Object.keys(_lt.volByDate).concat(Object.keys(_lt.distByDate)).concat([].concat(...Object.values(_lt.exMap).map(m=>Object.keys(m.pts)))))];const m={};all.filter(_ltInPeriod).forEach(ds=>{const o=_ltBKey(ds);m[o.k]=o.l;});return Object.keys(m).sort().map(k=>({k,l:m[k]}));})();
+  // 비교 모드 겹쳐보기(여러 지표를 한 차트 그룹막대, 단위 다르면 이중축)
+  const _ltBucketOverlay=specs=>{
+    const bset={};specs.forEach(sp=>sp.series.forEach(p=>{const o=_ltBKey(p.d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;bset[o.k]=o.l;}));
+    const keys=Object.keys(bset).sort(), labels=keys.map(k=>bset[k]);
+    const units=new Set(specs.map(s=>s.unit)), mixed=units.size>1;
+    const dss=specs.map(sp=>{const m={};sp.series.forEach(p=>{const o=_ltBKey(p.d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;(m[o.k]=m[o.k]||[]).push(p.v);});const data=keys.map(k=>{const a=m[k];if(!a)return null;return sp.agg==='min'?Math.min(...a):sp.agg==='max'?Math.max(...a):a.reduce((x,y)=>x+y,0);});return {label:sp.label,data,backgroundColor:sp.color+'cc',borderRadius:3,yAxisID:mixed?(sp.unit==='kg'?'y':'y1'):'y'};});
+    const opt=_ltTip(false,true);opt.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:10}}}};
+    if(mixed){opt.scales.y={position:'left',grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},title:{display:true,text:'kg',color:'#f7a94f',font:{size:10}},beginAtZero:true};opt.scales.y1={position:'right',grid:{drawOnChartArea:false},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},title:{display:true,text:'m · s',color:'#3ecf8e',font:{size:10}},beginAtZero:true};}
+    else opt.scales.y={grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true};
+    return _ltCard(_ltBkSub+' · 겹쳐보기','',{type:'bar',data:{labels,datasets:dss},options:opt},240);
+  };
   const _ltOverlayCard=(names,units)=>{
     const mixed=units.size>1, idxMode=mixed&&ltMix==='index';
     const sm=names.map(n=>({n,s:_flt(_ltExSeries(n)),m:_lt.exMap[n]})).filter(o=>o.s.length);
@@ -1582,18 +1597,29 @@ function renderLoad(){
     const hasVol=ltSel.has('__vol__'), hasDist=ltSel.has('__dist__');
     const bucketing=ltBucket!=='none';
     const volDistOverlay=ltChartMode==='overlay'&&!ltCmp&&!bucketing&&hasVol&&hasDist;
-    if((selExs.length||(hasVol&&hasDist))&&!bucketing){
+    const _seriesCount=(hasVol?1:0)+(hasDist?1:0)+selExs.length;
+    if(_seriesCount>1){
       LT+=`<div class="lt-row"><span class="lt-lbl">표시</span><div class="lt-seg"><button class="${ltChartMode==='grid'?'on':''}" onclick="ltChartMode='grid';renderLoad()">개별</button><button class="${ltChartMode==='overlay'?'on':''}" onclick="ltChartMode='overlay';renderLoad()">겹쳐서</button></div>`;
-      if(ltChartMode==='overlay'&&units.size>1&&!ltCmp&&selExs.length){LT+=`<div class="lt-seg"><button class="${ltMix==='dual'?'on':''}" onclick="ltMix='dual';renderLoad()">이중 축</button><button class="${ltMix==='index'?'on':''}" onclick="ltMix='index';renderLoad()">% 변화</button></div>`;}
+      if(!bucketing&&ltChartMode==='overlay'&&units.size>1&&selExs.length){LT+=`<div class="lt-seg"><button class="${ltMix==='dual'?'on':''}" onclick="ltMix='dual';renderLoad()">이중 축</button><button class="${ltMix==='index'?'on':''}" onclick="ltMix='index';renderLoad()">% 변화</button></div>`;}
       LT+=`</div>`;
+    }
+    if(bucketing&&_ltBuckList.length){
+      const bch=_ltBuckList.map(b=>{const on=ltBuckSel.size===0||ltBuckSel.has(b.k);return `<button class="lt-chip ${on?'on':''}" onclick="ltToggleBuck('${b.k}')">${b.l}</button>`;}).join('');
+      LT+=`<div class="lt-row" style="align-items:flex-start"><span class="lt-lbl" style="margin-top:6px">비교 대상</span><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${bch}${ltBuckSel.size?`<button class="lt-clear" onclick="ltBuckSel.clear();renderLoad()">전체</button>`:''}</div></div>`;
     }
     LT+=`<div class="lt-grid">`;
     if(!selKeys.length){
       LT+=`<div class="lt-hint" style="grid-column:1/-1">위에서 종목을 추가하면 추이가 표시됩니다 (전체 볼륨·스프린트 거리도 선택해야 표시)</div>`;
     } else if(bucketing){
-      if(hasVol){const s=_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume',_ltBkSub,_ltBarCfg(_ltBucketize(s,'sum'),'#f7a94f',b=>['볼륨 합계 '+_fmtKg(b.v),b.n+'세션']),null,_ltCat.indexOf('__vol__'));}
-      if(hasDist){const s=_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance',_ltBkSub,_ltBarCfg(_ltBucketize(s,'sum'),'#3ecf8e',b=>['거리 합계 '+Math.round(b.v)+'m',b.n+'세션']),null,_ltCat.indexOf('__dist__'));}
-      selExs.forEach(n=>{const col=_ltColor(n);const m=_lt.exMap[n];const s=_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,_ltBkSub+' · '+(m.sprint?'최고기록':'최고중량'),_ltBarCfg(_ltBucketize(s,m.sprint?'min':'max'),col,b=>[(m.sprint?'최고 '+b.v+'s':'최고 '+_fmtKg(b.v)),b.n+'세션']),null,_ltCat.indexOf(n));});
+      const specs=[];
+      if(hasVol){const s=_flt(_ltVolS);if(s.length)specs.push({label:'Total Volume',color:'#f7a94f',agg:'sum',unit:'kg',series:s,idx:_ltCat.indexOf('__vol__')});}
+      if(hasDist){const s=_flt(_ltDistS);if(s.length)specs.push({label:'Sprint Distance',color:'#3ecf8e',agg:'sum',unit:'m',series:s,idx:_ltCat.indexOf('__dist__')});}
+      selExs.forEach(n=>{const m=_lt.exMap[n];const s=_flt(_ltExSeries(n));if(s.length)specs.push({label:n,color:_ltColor(n),agg:m.sprint?'min':'max',unit:m.sprint?'s':'kg',series:s,idx:_ltCat.indexOf(n)});});
+      if(ltChartMode==='overlay'&&specs.length>1){
+        LT+=_ltBucketOverlay(specs);
+      } else {
+        specs.forEach(sp=>{const metaFn=sp.agg==='sum'?(sp.unit==='m'?(b=>['거리 합계 '+Math.round(b.v)+'m',b.n+'세션']):(b=>['볼륨 합계 '+_fmtKg(b.v),b.n+'세션'])):(sp.agg==='min'?(b=>['최고 '+b.v+'s',b.n+'세션']):(b=>['최고 '+_fmtKg(b.v),b.n+'세션']));LT+=_ltCard(sp.label,_ltBkSub,_ltBarCfg(_ltBucketize(sp.series,sp.agg),sp.color,metaFn),null,sp.idx);});
+      }
     } else {
       if(volDistOverlay){
         const vs=_flt(_ltVolS), ds=_flt(_ltDistS);
