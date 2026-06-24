@@ -1590,8 +1590,8 @@ function renderLoad(){
     if(!selKeys.length){
       LT+=`<div class="lt-hint" style="grid-column:1/-1">위에서 종목을 추가하면 추이가 표시됩니다 (전체 볼륨·스프린트 거리도 선택해야 표시)</div>`;
     } else if(bucketing){
-      if(hasVol){const s=_flt(_ltVolS); if(s.length)LT+=_ltCard('전체 볼륨',_ltBkSub,_ltBarCfg(_ltBucketize(s,'sum'),'#f7a94f',b=>['볼륨 합계 '+_fmtKg(b.v),b.n+'세션']),null,_ltCat.indexOf('__vol__'));}
-      if(hasDist){const s=_flt(_ltDistS); if(s.length)LT+=_ltCard('스프린트 총 거리',_ltBkSub,_ltBarCfg(_ltBucketize(s,'sum'),'#3ecf8e',b=>['거리 합계 '+Math.round(b.v)+'m',b.n+'세션']),null,_ltCat.indexOf('__dist__'));}
+      if(hasVol){const s=_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume',_ltBkSub,_ltBarCfg(_ltBucketize(s,'sum'),'#f7a94f',b=>['볼륨 합계 '+_fmtKg(b.v),b.n+'세션']),null,_ltCat.indexOf('__vol__'));}
+      if(hasDist){const s=_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance',_ltBkSub,_ltBarCfg(_ltBucketize(s,'sum'),'#3ecf8e',b=>['거리 합계 '+Math.round(b.v)+'m',b.n+'세션']),null,_ltCat.indexOf('__dist__'));}
       selExs.forEach(n=>{const col=_ltColor(n);const m=_lt.exMap[n];const s=_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,_ltBkSub+' · '+(m.sprint?'최고기록':'최고중량'),_ltBarCfg(_ltBucketize(s,m.sprint?'min':'max'),col,b=>[(m.sprint?'최고 '+b.v+'s':'최고 '+_fmtKg(b.v)),b.n+'세션']),null,_ltCat.indexOf(n));});
     } else {
       if(volDistOverlay){
@@ -1600,16 +1600,16 @@ function renderLoad(){
         const vByD={};vs.forEach(p=>vByD[p.d]=p);const dByD={};ds.forEach(p=>dByD[p.d]=p);
         const opt=_ltTip(false,true);
         opt.scales={x:opt.scales.x,
-          y:{position:'left',grid:{color:'rgba(247,169,79,.1)'},ticks:{color:'#f7a94f',font:{size:9}},title:{display:true,text:'볼륨(kg)',color:'#f7a94f',font:{size:10}}},
-          y1:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#3ecf8e',font:{size:9}},title:{display:true,text:'거리(m)',color:'#3ecf8e',font:{size:10}}}};
+          y:{position:'left',grid:{color:'rgba(247,169,79,.1)'},ticks:{color:'#f7a94f',font:{size:9}},title:{display:true,text:'Volume (kg)',color:'#f7a94f',font:{size:10}}},
+          y1:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#3ecf8e',font:{size:9}},title:{display:true,text:'Distance (m)',color:'#3ecf8e',font:{size:10}}}};
         const cfg={type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[
-          {label:'전체 볼륨',yAxisID:'y',data:dates.map(d=>vByD[d]?vByD[d].v:null),_metas:dates.map(d=>vByD[d]?vByD[d].meta:''),borderColor:'#f7a94f',backgroundColor:'transparent',fill:false,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
-          {label:'스프린트 거리',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
+          {label:'Total Volume',yAxisID:'y',data:dates.map(d=>vByD[d]?vByD[d].v:null),_metas:dates.map(d=>vByD[d]?vByD[d].meta:''),borderColor:'#f7a94f',backgroundColor:'transparent',fill:false,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
+          {label:'Sprint Distance',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
         ]},options:opt};
-        LT+=_ltCard('전체 볼륨 + 스프린트 거리 (흐름)','kg · m 이중축',cfg,240);
+        LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
       } else {
-        if(hasVol){const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('전체 볼륨 (Total Volume)',ltCmp?'올해 vs 작년':'kg/세션',_ltLineCfg(s,'#f7a94f',false,ltCmp),null,_ltCat.indexOf('__vol__'));}
-        if(hasDist){const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('스프린트 총 거리',ltCmp?'올해 vs 작년':'m/세션',_ltLineCfg(s,'#3ecf8e',false,ltCmp),null,_ltCat.indexOf('__dist__'));}
+        if(hasVol){const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_ltLineCfg(s,'#f7a94f',false,ltCmp),null,_ltCat.indexOf('__vol__'));}
+        if(hasDist){const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_ltLineCfg(s,'#3ecf8e',false,ltCmp),null,_ltCat.indexOf('__dist__'));}
       }
       if(selExs.length){
         if(ltChartMode==='overlay'&&!ltCmp){
