@@ -18,8 +18,13 @@ jobs:
       - name: Sync TrainLog.html → www-trainlog/index.html
         run: cp TrainLog.html TrainingLog/www-trainlog/index.html
 
+      - name: Authenticate to Google Cloud (service account)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Deploy to Firebase Hosting
-        run: firebase deploy --only hosting:trainlog --token "${{ secrets.FIREBASE_TOKEN }}" --project traininglogskeleton
+        run: firebase deploy --only hosting:trainlog --project traininglogskeleton
