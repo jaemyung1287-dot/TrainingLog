@@ -1066,17 +1066,12 @@ function _ltSprintKey(dist,disc){return dist+'m'+(disc==='uphill'?' Uphill':disc
 // meta = 툴팁 줄 배열(세션 총량 · 기록 · 계획 · RPE), short = 한 줄 요약(선수비교용)
 function _ltBuild(logs,ath){
   const exMap={},volByDate={},distByDate={};
-  const fmtVol=v=>v>=1000?(v/1000).toFixed(1)+'t':Math.round(v)+'kg';
   // pass 1: 세션 총량
   (logs||[]).forEach(l=>{
     if(l.type==='weight'||l.type==='plyo'){const vv=vol([l]);if(vv>0)volByDate[l.date]=(volByDate[l.date]||0)+vv;}
     else if(l.type==='sprint'&&l.totalDistance)distByDate[l.date]=(distByDate[l.date]||0)+(parseFloat(l.totalDistance)||0);
   });
-  // 계획(스케줄) 조회
-  const _planGd=date=>{try{if(!ath||typeof coachData==='undefined'||!coachData||!coachData.sessionPlans)return null;const p=coachData.sessionPlans[date];return p?planGrp(p,ath):null;}catch(e){return null;}};
-  const _planWeight=(date,exName)=>{const gd=_planGd(date);if(!gd)return'';let f=null;['am','pm'].forEach(s=>sessExs(gd,s).forEach(e=>{if(!f&&e.name===exName)f=e;}));if(!f)return'';const x=`${f.planSets?f.planSets+'×':''}${f.planReps||''}${f.planIntensity?' @ '+f.planIntensity+'%':''}`.trim();return x?'계획 '+x:'';};
-  const _planSprint=(date,dist)=>{const gd=_planGd(date);if(!gd)return'';let f=null;['am','pm'].forEach(s=>sessExs(gd,s).forEach(e=>{const ed=parseFloat(e.planDistance);if(!f&&ed&&Math.abs(ed-dist)<0.5)f=e;}));if(!f)return'';const x=`${f.planReps?f.planReps+'×':''}${dist}m${f.planIntensity?' @ '+f.planIntensity+'%':''}`.trim();return x?'계획 '+x:'';};
-  // pass 2: 종목별 포인트 + 메타
+  // pass 2: 종목별 포인트 + 메타 (그 운동 로그 정보만: 세션 볼륨/거리 · 기록 · Effort)
   (logs||[]).forEach(l=>{
     if(l.type==='weight'||l.type==='plyo'){
       (l.exercises||[]).forEach(e=>{
@@ -1087,9 +1082,8 @@ function _ltBuild(logs,ath){
         const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
         const sl=e.isSL?'SL ':e.isSA?'SA ':'';
         const rec=`${sl}${sets}×${reps} @ ${top}kg`;
-        const lines=[`🏋️ 세션 볼륨 ${fmtVol(volByDate[l.date]||0)}`, rec];
-        const pl=_planWeight(l.date,e.name); if(pl)lines.push(pl);
-        if(l.rpe)lines.push('RPE '+l.rpe);
+        const lines=[`🏋️ 세션 볼륨 ${Math.round(volByDate[l.date]||0).toLocaleString()}kg`, rec];
+        if(e.effort)lines.push('Effort: '+e.effort);
         const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta:lines,short:rec};
       });
@@ -1103,8 +1097,7 @@ function _ltBuild(logs,ath){
         const key=_ltSprintKey(dist,disc), reps=s.reps||s.sets||1, inten=s.intensity?` @ ${s.intensity}%`:'';
         const rec=`${reps}×${dist}m ${dlabel}${inten} · best ${best}s`;
         const lines=[`🏃 세션 거리 ${Math.round(distByDate[l.date]||0)}m`, rec];
-        const pl=_planSprint(l.date,dist); if(pl)lines.push(pl);
-        if(l.rpe)lines.push('RPE '+l.rpe);
+        if(s.effort)lines.push('Effort: '+s.effort);
         const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:'Sprint Training',sub:dlabel,pts:{}});
         if(!m.pts[l.date]||best<m.pts[l.date].v) m.pts[l.date]={v:best,meta:lines,short:rec};
       });
