@@ -1209,13 +1209,13 @@ function renderLoad(){
       plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.5)',font:{size:10},boxWidth:10}}},
       scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}},
               y:{stacked:true,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}}}};
-    const _donutCenter=unit=>({id:'ctr',afterDraw(ch){const ds=ch.data.datasets[0];if(!ds)return;const ca=ch.chartArea;if(!ca)return;const tot=ds.data.reduce((a,b)=>a+(+b||0),0);const x=(ca.left+ca.right)/2,y=(ca.top+ca.bottom)/2;const c=ch.ctx;c.save();c.textAlign='center';c.textBaseline='middle';c.fillStyle='rgba(230,237,243,.9)';c.font='700 16px sans-serif';c.fillText(unit==='kg'?(tot>=1000?(tot/1000).toFixed(1)+'t':Math.round(tot)+'kg'):Math.round(tot)+'m',x,y-3);c.fillStyle='rgba(230,237,243,.4)';c.font='9px sans-serif';c.fillText('total',x,y+13);c.restore();}});
-    const _donutOpts=unit=>({responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'rgba(230,237,243,.6)',font:{size:11},boxWidth:10,padding:8}},tooltip:{callbacks:{label:c=>{const d=c.dataset.data,tot=d.reduce((a,b)=>a+(+b||0),0),v=c.parsed,pct=tot?Math.round(v/tot*100):0;return ` ${c.label}: ${Math.round(v)}${unit} (${pct}%)`;}}}}});
+    const _valLabel=unit=>({id:'vl',afterDatasetsDraw(ch){const c=ch.ctx,m=ch.getDatasetMeta(0);c.save();c.font='700 11px sans-serif';c.fillStyle='rgba(230,237,243,.85)';c.textAlign='center';m.data.forEach((bar,i)=>{const v=ch.data.datasets[0].data[i];if(v==null)return;const t=unit==='kg'?(v>=1000?(v/1000).toFixed(1)+'t':Math.round(v)+''):Math.round(v)+'';c.fillText(t,bar.x,bar.y-5);});c.restore();}});
+    const _barOpts=unit=>({responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${Math.round(c.parsed.y)}${unit}`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:true}}});
     const cReg=document.getElementById('ch-ld-reg');
     if(cReg&&_regAths.length){
       if(_bdOne){
         const a=_regAths[0], regs=REGION_ORDER.filter(r=>bd.region[a.name][r]);
-        charts['ld-reg']=new Chart(cReg,{type:'doughnut',data:{labels:regs,datasets:[{data:regs.map(r=>Math.round(bd.region[a.name][r]||0)),backgroundColor:regs.map(r=>REGION_COLOR[r]+'cc'),borderWidth:0}]},options:_donutOpts('kg'),plugins:[_donutCenter('kg')]});
+        charts['ld-reg']=new Chart(cReg,{type:'bar',data:{labels:regs,datasets:[{data:regs.map(r=>Math.round(bd.region[a.name][r]||0)),backgroundColor:regs.map(r=>REGION_COLOR[r]+'cc'),borderRadius:3,maxBarThickness:64}]},options:_barOpts('kg'),plugins:[_valLabel('kg')]});
       } else {
         const regs=(loadRegSel?[loadRegSel]:REGION_ORDER).filter(r=>_regAths.some(a=>bd.region[a.name][r]));
         charts['ld-reg']=new Chart(cReg,{type:'bar',data:{
@@ -1228,7 +1228,7 @@ function renderLoad(){
     if(cSpr&&_sprAths.length){
       if(_bdOne){
         const a=_sprAths[0], types=bd.sprintTypes.filter(t=>bd.sprint[a.name][t]);
-        charts['ld-spr']=new Chart(cSpr,{type:'doughnut',data:{labels:types,datasets:[{data:types.map(t=>Math.round(bd.sprint[a.name][t]||0)),backgroundColor:types.map(t=>(SPRINT_COLOR[t]||'#6b7280')+'cc'),borderWidth:0}]},options:_donutOpts('m'),plugins:[_donutCenter('m')]});
+        charts['ld-spr']=new Chart(cSpr,{type:'bar',data:{labels:types,datasets:[{data:types.map(t=>Math.round(bd.sprint[a.name][t]||0)),backgroundColor:types.map(t=>(SPRINT_COLOR[t]||'#6b7280')+'cc'),borderRadius:3,maxBarThickness:64}]},options:_barOpts('m'),plugins:[_valLabel('m')]});
       } else {
         const types=loadSprSel?[loadSprSel]:bd.sprintTypes;
         charts['ld-spr']=new Chart(cSpr,{type:'bar',data:{
