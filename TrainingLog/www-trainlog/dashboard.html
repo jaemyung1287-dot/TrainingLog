@@ -1603,7 +1603,7 @@ function renderLoad(){
           y:{position:'left',grid:{color:'rgba(247,169,79,.1)'},ticks:{color:'#f7a94f',font:{size:9}},title:{display:true,text:'볼륨(kg)',color:'#f7a94f',font:{size:10}}},
           y1:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#3ecf8e',font:{size:9}},title:{display:true,text:'거리(m)',color:'#3ecf8e',font:{size:10}}}};
         const cfg={type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[
-          {label:'전체 볼륨',yAxisID:'y',data:dates.map(d=>vByD[d]?vByD[d].v:null),_metas:dates.map(d=>vByD[d]?vByD[d].meta:''),borderColor:'#f7a94f',backgroundColor:'#f7a94f18',fill:true,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
+          {label:'전체 볼륨',yAxisID:'y',data:dates.map(d=>vByD[d]?vByD[d].v:null),_metas:dates.map(d=>vByD[d]?vByD[d].meta:''),borderColor:'#f7a94f',backgroundColor:'transparent',fill:false,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
           {label:'스프린트 거리',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
         ]},options:opt};
         LT+=_ltCard('전체 볼륨 + 스프린트 거리 (흐름)','kg · m 이중축',cfg,240);
