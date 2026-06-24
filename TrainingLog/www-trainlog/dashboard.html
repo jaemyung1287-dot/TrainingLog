@@ -1543,10 +1543,11 @@ function renderLoad(){
     +`<span style="color:var(--hint);font-size:11px">~</span>`
     +`<input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;ltPeriod='custom';renderLoad()">`
     +(ltPeriod==='custom'?`<button class="lt-clear" onclick="ltPeriod='this';ltD1='';ltD2='';renderLoad()">초기화</button>`:'')
+    +`<span style="width:1px;height:15px;background:var(--border);margin:0 5px"></span>`
+    +`<button class="lt-chip ${ltCmp?'on':''}" title="각 종목을 올해·작년 두 선으로 겹쳐 비교" onclick="ltCmp=!ltCmp;renderLoad()">올해 vs 작년</button>`
     +`</div>`;
 
   if(ltMode==='ex'){
-    LT+=`<div class="lt-row"><span class="lt-lbl">비교</span><label class="lt-ck"><input type="checkbox" ${ltCmp?'checked':''} onchange="ltCmp=this.checked;renderLoad()" style="width:15px;height:15px">올해 vs 작년 겹쳐보기</label></div>`;
     const selKeys=_ltCat.filter(k=>ltSel.has(k));
     const _vi=_ltCat.indexOf('__vol__'), _di=_ltCat.indexOf('__dist__');
     // 종목 행: Total Volume / Total Sprint Distance 고정 버튼 + 카테고리 버튼들
@@ -1566,7 +1567,6 @@ function renderLoad(){
       });
       LT+=`<div style="margin:0 0 10px 60px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02)">${panel||'<span class="lt-hint">기록된 종목 없음</span>'}</div>`;
     }
-    LT+=`<div class="lt-hint" style="padding:0 0 10px 60px">카테고리를 누르면 하위 종목이 펼쳐집니다 · 세션 카드의 운동명 클릭으로도 추가</div>`;
     const selExs=selKeys.filter(k=>!_LT_SPECIAL[k]&&_lt.exMap[k]);
     const units=new Set(selExs.map(n=>_lt.exMap[n].unit));
     const hasVol=ltSel.has('__vol__'), hasDist=ltSel.has('__dist__');
