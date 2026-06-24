@@ -1699,11 +1699,11 @@ function renderLoad(){
       LT+=`<div class="lt-row" style="align-items:flex-start"><span class="lt-lbl" style="margin-top:6px">비교 대상</span><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${bch}${ltBuckSel.size?`<button class="lt-clear" onclick="ltBuckSel.clear();renderLoad()">전체</button>`:''}</div></div>`;
     }
     if(hasVol&&!ltAB&&!volDistOverlay){
-      const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" style="${ltVolBreak===v?'background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltVolBreak='${v}';renderLoad()">${l}</button>`;
+      const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" style="${ltVolBreak===v?'background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltVolBreak=ltVolBreak==='${v}'?'none':'${v}';renderLoad()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">볼륨</span><div class="lt-seg">${_vb('none','Total')}${_vb('type','Type of Training')}${_vb('sub','Category')}${_vb('region','Upper / Lower')}</div></div>`;
     }
     if(hasDist&&!ltAB&&!volDistOverlay){
-      const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak='${v}';renderLoad()">${l}</button>`;
+      const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak=ltDistBreak==='${v}'?'none':'${v}';renderLoad()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">거리</span><div class="lt-seg">${_db('none','Total')}${_db('disc','Discipline')}${_db('sub','Category')}</div></div>`;
     }
     if(((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))&&!ltAB&&!volDistOverlay){
