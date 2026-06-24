@@ -1101,10 +1101,14 @@ function _ltBuild(logs,ath){
         const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
         const sl=e.isSL?'SL ':e.isSA?'SA ':'';
         const rec=`${sl}${sets}×${reps} @ ${top}kg`;
+        const slM=(e.isSL||e.isSA)?2:1;
+        let exVol=0;
         const setLines=(e.setRows&&e.setRows.length)
-          ? e.setRows.map(r=>`${(parseFloat(r.kg)||0)}kg × ${parseFloat(r.reps)||0}${(parseFloat(r.extraKg)?' (+'+parseFloat(r.extraKg)+')':'')}`)
-          : [rec];
-        const lines=[`세션 볼륨 ${_fmtKg(volByDate[l.date]||0)}`,(sl?sl.trim()+' ':'')+'세트별:'].concat(setLines);
+          ? e.setRows.map(r=>{const kg=parseFloat(r.kg)||0,rp=parseFloat(r.reps)||0,vv=kg*rp*slM;exVol+=vv;return `${kg}kg × ${rp} = ${_fmtKg(vv)}`;})
+          : (()=>{exVol=_exVolOne(e);return [rec];})();
+        const lines=[(sl?sl.trim()+' ':'')+'세트별:'].concat(setLines);
+        lines.push('종목 볼륨 '+_fmtKg(exVol));
+        lines.push('세션 볼륨 '+_fmtKg(vol([l])));
         {const _en=_dEffNum(e.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta:lines,short:rec};
@@ -1118,7 +1122,7 @@ function _ltBuild(logs,ath){
         const disc=_ltDisc(s), dlabel=_LT_DISC[disc]||'Flat';
         const key=_ltSprintKey(dist,disc), reps=s.reps||s.sets||1, inten=s.intensity?` @ ${s.intensity}%`:'';
         const rec=`${reps}×${dist}m ${dlabel}${inten} · best ${best}s`;
-        const lines=[`세션 거리 ${Math.round(distByDate[l.date]||0)}m`, rec];
+        const lines=[`세션 거리 ${Math.round(parseFloat(l.totalDistance)||0)}m`, rec];
         {const _en=_dEffNum(s.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
         const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:'Sprint Training',sub:dlabel,pts:{}});
         if(!m.pts[l.date]||best<m.pts[l.date].v) m.pts[l.date]={v:best,meta:lines,short:rec};
