@@ -584,6 +584,7 @@ let ltMix='dual';             // dual|index (단위 다른 종목 겹칠 때)
 let ltOpenCat=null;           // 종목 선택: 펼쳐진 카테고리
 let ltVolBreak='none';        // none|sub|region|type — Total Volume 분해 보기(누적)
 let ltDistBreak='none';       // none|sub|disc — Sprint Distance 분해 보기(누적)
+let ltBrkBars='group';        // group|stack — 분해 비교(주/월/연) 막대 모양
 let _ltCat=[],_ltAthList=[],_ltMetricList=[],_ltCatNames=[];
 const _LT_PAL=['#58a6ff','#bc8cff','#3ecf8e','#f7a94f','#f85149','#56d4dd','#e879c9','#a3e635','#fbbf24','#f472b6'];
 const _LT_MON=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -1528,9 +1529,10 @@ function renderLoad(){
     const keys=Object.keys(bset).sort(),labels=keys.map(k=>bset[k]);
     const groups=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
     if(!keys.length||!groups.length)return '';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:keys.map(k=>Math.round((agg[k]&&agg[k][g])||0)),_metas:keys.map(k=>(agg[k]&&agg[k][g])?[g+' '+_fmtKg(agg[k][g])]:''),backgroundColor:col+'cc',stack:'v',borderRadius:2,maxBarThickness:54};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=true;opt.scales.y.stacked=true;opt.scales.y.beginAtZero=true;
-    return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],_ltBkSub+' · 누적',{type:'bar',data:{labels,datasets:dss},options:opt},260,_ltCat.indexOf('__vol__'));
+    const _stk=ltBrkBars==='stack';
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:keys.map(k=>Math.round((agg[k]&&agg[k][g])||0)),_metas:keys.map(k=>(agg[k]&&agg[k][g])?[g+' '+_fmtKg(agg[k][g])]:''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;
+    return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt},260,_ltCat.indexOf('__vol__'));
   };
   // ── Sprint Distance 분해(누적) ──
   const _LT_DBRK_LBL={sub:'카테고리별',disc:'디시플린별'};
@@ -1555,9 +1557,10 @@ function renderLoad(){
     const keys=Object.keys(bset).sort(),labels=keys.map(k=>bset[k]);
     const groups=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
     if(!keys.length||!groups.length)return '';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:keys.map(k=>Math.round((agg[k]&&agg[k][g])||0)),_metas:keys.map(k=>(agg[k]&&agg[k][g])?[g+' '+Math.round(agg[k][g])+'m']:''),backgroundColor:col+'cc',stack:'d',borderRadius:2,maxBarThickness:54};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=true;opt.scales.y.stacked=true;opt.scales.y.beginAtZero=true;
-    return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],_ltBkSub+' · 누적',{type:'bar',data:{labels,datasets:dss},options:opt},260,_ltCat.indexOf('__dist__'));
+    const _stk=ltBrkBars==='stack';
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:keys.map(k=>Math.round((agg[k]&&agg[k][g])||0)),_metas:keys.map(k=>(agg[k]&&agg[k][g])?[g+' '+Math.round(agg[k][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;
+    return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt},260,_ltCat.indexOf('__dist__'));
   };
   const _ltBucketize=(series,agg)=>{const m={};series.forEach(p=>{const o=_ltBKey(p.d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;if(!m[o.k])m[o.k]={l:o.l,vals:[]};m[o.k].vals.push(p.v);});return Object.keys(m).sort().map(k=>{const o=m[k];let v;if(agg==='min')v=Math.min(...o.vals);else if(agg==='max')v=Math.max(...o.vals);else v=o.vals.reduce((a,b)=>a+b,0);return {l:o.l,v:Math.round(v*100)/100,n:o.vals.length};});};
   const _ltBarCfg=(buck,color,metaFn)=>({type:'bar',data:{labels:buck.map(b=>b.l),datasets:[{data:buck.map(b=>b.v),_metas:buck.map(metaFn),backgroundColor:color+'cc',borderRadius:3,maxBarThickness:54}]},options:_ltTip(false,false)});
@@ -1707,6 +1710,10 @@ function renderLoad(){
     if(hasDist&&!ltAB&&!volDistOverlay){
       const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" onclick="ltDistBreak='${v}';renderLoad()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">거리</span><div class="lt-seg">${_db('none','합계')}${_db('sub','카테고리')}${_db('disc','디시플린')}</div><span class="lt-hint" style="padding:0 2px">Sprint Distance 분해</span></div>`;
+    }
+    if(bucketing&&((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))){
+      const _bb=(v,l)=>`<button class="${ltBrkBars===v?'on':''}" onclick="ltBrkBars='${v}';renderLoad()">${l}</button>`;
+      LT+=`<div class="lt-row"><span class="lt-lbl">막대</span><div class="lt-seg">${_bb('group','그룹')}${_bb('stack','누적')}</div><span class="lt-hint" style="padding:0 2px">그룹=카테고리별 비교 · 누적=합계 구성</span></div>`;
     }
     LT+=`<div class="lt-grid">`;
     if(!selKeys.length){
