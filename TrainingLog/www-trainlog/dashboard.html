@@ -1112,7 +1112,7 @@ function _ltBuild(logs,ath){
         const lines=[(sl?sl.trim()+' ':'')+'세트별:'].concat(setLines);
         lines.push('종목 볼륨 '+_fmtKg(exVol));
         {const _en=_dEffNum(e.effort); if(_en!=null)lines.push('Effort: '+_en+'/10');}
-        {const vk=(sl?sl:'')+e.name;const vd=volDetail[l.date]||(volDetail[l.date]={});const vo=vd[vk]||(vd[vk]={vol:0,sets:0,reps:reps});vo.vol+=exVol;vo.sets=sets;vo.reps=reps;}
+        {const vk=(sl?sl:'')+e.name;const vd=volDetail[l.date]||(volDetail[l.date]={});const vo=vd[vk]||(vd[vk]={vol:0,sets:0,reps:reps,lines:[]});vo.vol+=exVol;vo.sets=sets;vo.reps=reps;vo.lines=vo.lines.concat(setLines);}
         const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta:lines,short:rec};
       });
@@ -1439,7 +1439,7 @@ function renderLoad(){
     return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltTip(sprint,false)};
   };
   const _ltExSeries=n=>Object.entries(_lt.exMap[n].pts).map(([d,o])=>({d,v:o.v,meta:o.meta})).sort((a,b)=>a.d.localeCompare(b.d));
-  const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>{const det=_lt.volDetail[d]||{};const lines=['총 볼륨 '+_fmtKg(v)].concat(Object.entries(det).sort((a,b)=>b[1].vol-a[1].vol).map(([n,o])=>`${n} ${o.sets}×${o.reps}: ${_fmtKg(o.vol)}`));return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
+  const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>{const det=_lt.volDetail[d]||{};const lines=['총 볼륨 '+_fmtKg(v)];Object.entries(det).sort((a,b)=>b[1].vol-a[1].vol).forEach(([n,o])=>{lines.push(`${n} ${o.sets}×${o.reps} · ${_fmtKg(o.vol)}`);(o.lines||[]).forEach(s=>lines.push('   '+s));});return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
   const _ltDistS=Object.entries(_lt.distByDate).map(([d,v])=>{const det=_lt.distDetail[d]||{};const lines=['총 거리 '+Math.round(v)+'m'].concat(Object.entries(det).sort((a,b)=>b[1]-a[1]).map(([n,m])=>`${n}: ${Math.round(m)}m`));return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
   const _flt=s=>s.filter(p=>_ltInPeriod(p.d));
   const _ltOverlayCard=(names,units)=>{
