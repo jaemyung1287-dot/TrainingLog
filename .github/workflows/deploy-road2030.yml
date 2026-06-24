@@ -17,8 +17,11 @@ jobs:
       - name: Copy to www-road2030
         run: cp RoadTo2030.html www-road2030/index.html
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
-      - name: Deploy to Firebase Hosting
-        run: firebase deploy --only hosting:road2030 --token "${{ secrets.FIREBASE_TOKEN }}" --project traininglogskeleton
+      - name: Deploy to Firebase Hosting (service account)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: traininglogskeleton
+          channelId: live
+          target: road2030
