@@ -756,6 +756,25 @@ function setOverviewFilter(f){overviewFilter=f;renderOverview();}
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 // 웨이트 볼륨 정확 표기 (톤 환산 없이 kg 전체, 독일식 천단위 4.867kg)
 function _fmtKg(v){ if(v==null||v==='')return '—'; const n=Math.round((+v)*1000)/1000; return n.toLocaleString('de-DE',{maximumFractionDigits:3})+'kg'; }
+// 추이 차트용 외부(HTML) 툴팁 — 캔버스 밖으로 안 잘리고 길어지면 스크롤
+function _ltExtTip(context){
+  const tt=context.tooltip; const chart=context.chart;
+  let el=document.getElementById('lt-ext-tip');
+  if(!el){el=document.createElement('div');el.id='lt-ext-tip';el.style.cssText='position:fixed;pointer-events:none;z-index:99999;background:rgba(20,22,28,.97);border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:9px 12px;font-size:12px;color:#e6edf3;max-width:360px;max-height:78vh;overflow-y:auto;box-shadow:0 8px 28px rgba(0,0,0,.55);line-height:1.5';document.body.appendChild(el);}
+  if(!tt||tt.opacity===0){el.style.opacity='0';return;}
+  const title=(tt.title||[]).join(' ');
+  let body=[]; (tt.body||[]).forEach(b=>{body=body.concat(b.lines||[]);});
+  const esc=s=>(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  el.innerHTML=`<div style="font-weight:700;margin-bottom:5px">${esc(title)}</div>`+body.map(l=>`<div style="white-space:pre-wrap">${esc(l)}</div>`).join('');
+  const r=chart.canvas.getBoundingClientRect();
+  const tw=el.offsetWidth||320, th=el.offsetHeight||40;
+  let x=r.left+tt.caretX+14, y=r.top+tt.caretY-th/2;
+  if(x+tw>window.innerWidth-8) x=r.left+tt.caretX-tw-14;
+  if(x<8)x=8;
+  if(y+th>window.innerHeight-8) y=window.innerHeight-th-8;
+  if(y<8)y=8;
+  el.style.left=x+'px'; el.style.top=y+'px'; el.style.opacity='1';
+}
 // 공통 선수 셀렉터 (전체 / 그룹 / 이름 칩) — 모든 탭 공유, 같은 칩 재클릭 시 전체로 해제
 function setScope(v){
   if(v==='all'){selScope='all';selNames.clear();}
@@ -1245,19 +1264,19 @@ function renderLoad(){
     const _barOpts=unit=>({responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${unit==='kg'?_fmtKg(c.parsed.y):Math.round(c.parsed.y)+'m'}`}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:true}}});
     const _detLines=(name,cat,detailMap,unit)=>{const dd=((detailMap[name]||{})[cat])||{};const arr=Object.entries(dd).sort((x,y)=>y[1]-x[1]).map(([n,v])=>`${n}: ${unit==='kg'?_fmtKg(v):Math.round(v)+'m'}`);return arr.length?arr:['기록 없음'];};
     // 다중 비교(세로 그룹): 막대 호버 → 그 선수·카테고리 구성 상세
-    const _grpOpts=(unit,athArr,keys,detailMap)=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{color:'rgba(230,237,243,.6)',font:{size:10},boxWidth:10,padding:8}},tooltip:{backgroundColor:'rgba(20,22,28,.96)',borderColor:'rgba(255,255,255,.14)',borderWidth:1,padding:10,displayColors:false,callbacks:{
+    const _grpOpts=(unit,athArr,keys,detailMap)=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{color:'rgba(230,237,243,.6)',font:{size:10},boxWidth:10,padding:8}},tooltip:{enabled:false,external:_ltExtTip,callbacks:{
       title:items=>{const it=items[0];const nm=athArr[it.datasetIndex]?athArr[it.datasetIndex].name.split(' ')[0]:'';return nm+' · '+keys[it.dataIndex]+' · '+(unit==='kg'?_fmtKg(it.parsed.y):Math.round(it.parsed.y)+'m');},
       label:ctx=>_detLines(athArr[ctx.datasetIndex]?athArr[ctx.datasetIndex].name:'',keys[ctx.dataIndex],detailMap,unit)
     }}},scales:{x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:true}}});
     // 그룹/전체(가로 누적): 세그먼트 호버 → 그 선수·카테고리 구성 상세
     const _stackOptsD=(unit,athArr,keys,detailMap)=>({indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.5)',font:{size:10},boxWidth:10}},tooltip:{backgroundColor:'rgba(20,22,28,.96)',borderColor:'rgba(255,255,255,.14)',borderWidth:1,padding:10,displayColors:false,callbacks:{
+      plugins:{legend:{display:true,labels:{color:'rgba(230,237,243,.5)',font:{size:10},boxWidth:10}},tooltip:{enabled:false,external:_ltExtTip,callbacks:{
         title:items=>{const it=items[0];const nm=athArr[it.dataIndex]?athArr[it.dataIndex].name.split(' ')[0]:'';return nm+' · '+keys[it.datasetIndex]+' · '+(unit==='kg'?_fmtKg(it.parsed.x):Math.round(it.parsed.x)+'m');},
         label:ctx=>_detLines(athArr[ctx.dataIndex]?athArr[ctx.dataIndex].name:'',keys[ctx.datasetIndex],detailMap,unit)
       }}},
       scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}},y:{stacked:true,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}}}});
     // 단일 선수: 막대에 마우스 올리면 그 카테고리 구성 운동을 툴팁에 표시
-    const _detailTip=(a,keys,detailMap,unit)=>({responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(20,22,28,.96)',borderColor:'rgba(255,255,255,.14)',borderWidth:1,padding:10,titleFont:{size:12},bodyFont:{size:12},displayColors:false,callbacks:{
+    const _detailTip=(a,keys,detailMap,unit)=>({responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{enabled:false,external:_ltExtTip,callbacks:{
       title:items=>keys[items[0].dataIndex]+' · '+(unit==='kg'?_fmtKg(items[0].parsed.y):Math.round(items[0].parsed.y)+'m'),
       label:ctx=>{const k=keys[ctx.dataIndex];const dd=(detailMap[a.name]||{})[k]||{};const arr=Object.entries(dd).sort((x,y)=>y[1]-x[1]).map(([n,v])=>`${n}: ${unit==='kg'?_fmtKg(v):Math.round(v)+'m'}`);return arr.length?arr:['기록 없음'];}
     }}},scales:{x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:true}}});
@@ -1440,7 +1459,7 @@ function renderLoad(){
   };
   const _ltTip=(sprint,legend)=>({responsive:true,maintainAspectRatio:false,interaction:{mode:'nearest',intersect:false},
     plugins:{legend:{display:!!legend,labels:{color:'rgba(230,237,243,.55)',font:{size:10},boxWidth:10}},
-      tooltip:{backgroundColor:'rgba(20,22,28,.96)',borderColor:'rgba(255,255,255,.14)',borderWidth:1,padding:9,titleFont:{size:11},bodyFont:{size:12},
+      tooltip:{enabled:false,external:_ltExtTip,
         callbacks:{label:ctx=>{let m=ctx.dataset._metas&&ctx.dataset._metas[ctx.dataIndex];if(m==null||m==='')return ctx.formattedValue;if(Array.isArray(m))return (legend&&ctx.dataset.label)?[ctx.dataset.label].concat(m.map(x=>'  '+x)):m;return((legend&&ctx.dataset.label)?ctx.dataset.label+': ':'')+m;}}}},
     scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9},maxTicksLimit:8}},
       y:{reverse:!!sprint,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}}}});
