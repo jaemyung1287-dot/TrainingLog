@@ -1509,9 +1509,10 @@ function renderLoad(){
   const _ltVolStackCard=grp=>{
     const {byDate,dates,groups}=_ltBrkData(grp);
     if(!dates.length||!groups.length)return '';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?[g+' '+_fmtKg(byDate[d][g])]:''),borderColor:col,backgroundColor:col+'66',fill:true,stack:'v',tension:.25,pointRadius:2,pointHoverRadius:5,borderWidth:1.5};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=true;opt.scales.y.stacked=true;opt.scales.y.beginAtZero=true;
-    return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg · 누적',{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt},260,_ltCat.indexOf('__vol__'));
+    const _stk=ltBrkBars==='stack';
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?[g+' '+_fmtKg(byDate[d][g])]:''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;
+    return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
     const byDate=_lt.volBreak[grp]||{};
@@ -1537,9 +1538,10 @@ function renderLoad(){
   const _ltDistStackCard=grp=>{
     const {byDate,dates,groups}=_ltDistBrkData(grp);
     if(!dates.length||!groups.length)return '';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?[g+' '+Math.round(byDate[d][g])+'m']:''),borderColor:col,backgroundColor:col+'66',fill:true,stack:'d',tension:.25,pointRadius:2,pointHoverRadius:5,borderWidth:1.5};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=true;opt.scales.y.stacked=true;opt.scales.y.beginAtZero=true;
-    return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m · 누적',{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt},260,_ltCat.indexOf('__dist__'));
+    const _stk=ltBrkBars==='stack';
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?[g+' '+Math.round(byDate[d][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;
+    return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
     const byDate=_lt.distBreak[grp]||{};
@@ -1702,7 +1704,7 @@ function renderLoad(){
       const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak='${v}';renderLoad()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">거리</span><div class="lt-seg">${_db('none','Total')}${_db('disc','Discipline')}${_db('sub','Category')}</div></div>`;
     }
-    if(bucketing&&((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))){
+    if(((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))&&!ltAB&&!volDistOverlay){
       const _bb=(v,l)=>`<button class="${ltBrkBars===v?'on':''}" onclick="ltBrkBars='${v}';renderLoad()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">막대</span><div class="lt-seg">${_bb('group','그룹')}${_bb('stack','누적')}</div><span class="lt-hint" style="padding:0 2px">그룹=카테고리별 비교 · 누적=합계 구성</span></div>`;
     }
