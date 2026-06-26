@@ -1722,12 +1722,13 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const selKeys=_ltCat.filter(k=>ltSel.has(k));
     const _vi=_ltCat.indexOf('__vol__'), _di=_ltCat.indexOf('__dist__'), _ri=_ltCat.indexOf('__rdy__');
     // 종목 행: Readiness / Total Volume / Total Sprint Distance 고정 버튼 + 카테고리 버튼들
-    let pickRow=`<div class="lt-row"><span class="lt-lbl">종목</span>`
+    let pickRow=`<div class="lt-row"><span class="lt-lbl" style="width:auto;padding-right:8px">종합 지표</span>`
       +`<button class="lt-chip ${ltSel.has('__rdy__')?'on':''}" style="${ltSel.has('__rdy__')?'border-color:rgba(188,140,255,.4);background:rgba(188,140,255,.07);color:#bc8cff':''}" onclick="ltToggleEx(${_ri})">Readiness</button>`
       +`<span style="width:1px;height:16px;background:var(--border);margin:0 3px"></span>`
       +`<button class="lt-chip ${ltSel.has('__vol__')?'on':''}" style="${ltSel.has('__vol__')?'border-color:rgba(247,169,79,.4);background:rgba(247,169,79,.07);color:#f7a94f':''}" onclick="ltToggleEx(${_vi})">Total Volume</button>`
       +`<button class="lt-chip ${ltSel.has('__dist__')?'on':''}" style="${ltSel.has('__dist__')?'border-color:rgba(62,207,142,.4);background:rgba(62,207,142,.07);color:#3ecf8e':''}" onclick="ltToggleEx(${_di})">Total Sprint Distance</button>`
-      +`<span style="width:1px;height:16px;background:var(--border);margin:0 3px"></span>`;
+      +`</div>`;
+    pickRow+=`<div class="lt-row"><span class="lt-lbl">종목</span>`;
     _ltCatNames.forEach((c,ci)=>{const open=ltOpenCat===c;const sel=Object.keys(_lt.exMap).some(n=>(_lt.exMap[n].cat||'기타')===c&&ltSel.has(n));const cc=(c==='Sprint Training')?'#3ecf8e':'#f7a94f';pickRow+=`<button class="lt-chip" style="${open?`border-color:${cc}66;background:${cc}12;color:${cc};font-weight:700`:(sel?`border-color:${cc}66;color:${cc}`:'')}" onclick="ltToggleCat(${ci})">${_esc(c)} <span style="opacity:.6">${open?'▾':'▸'}</span></button>`;});
     pickRow+=(selKeys.length?`<button class="lt-clear" onclick="ltSel.clear();ltOpenCat=null;_rerenderTrends()">모두 지우기</button>`:'')+`</div>`;
     LT+=pickRow;
