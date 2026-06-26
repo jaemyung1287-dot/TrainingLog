@@ -2281,7 +2281,7 @@ function renderPerf(){
   setTimeout(()=>{
     const _perf=document.getElementById('perf-body');
     if(!_perf)return;
-    ['perf-voldist','perf-corr'].forEach(killChart);
+    ['perf-corr'].forEach(killChart);
     const _athObj=athletes.find(a=>a.name===condAth);
     const _winLogs=logs.filter(l=>dates.includes(l.date));
     const _lt=_ltBuild(_winLogs,_athObj);
@@ -2301,17 +2301,11 @@ function renderPerf(){
     }
     const _axX={grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}};
     const _leg={display:true,labels:{color:'#c9d1d9',font:{size:10},boxWidth:10}};
-    let _h=`<div class="g2">`;
-    if(_hasVolDist)_h+=`<div class="card"><div class="card-hd">📊 Total Volume + Sprint Distance</div><div class="chart-h"><canvas id="ch-perf-voldist"></canvas></div></div>`;
-    _h+=`</div>`;
-    if(_hasCorr)_h+=`<div class="card" style="margin-top:12px"><div class="card-hd">😴⚡ 컨디션 × 수행 상관 <span style="font-weight:400;color:var(--muted);font-size:10px">Readiness vs 세션 베스트 타임 — 컨디션 좋을 때 더 빠른지 확인</span></div><div class="chart-h"><canvas id="ch-perf-corr"></canvas></div></div>`;
+    let _h=``;
+    if(_hasCorr)_h+=`<div class="card"><div class="card-hd">😴⚡ 컨디션 × 수행 상관 <span style="font-weight:400;color:var(--muted);font-size:10px">Readiness vs 세션 베스트 타임 — 컨디션 좋을 때 더 빠른지 확인</span></div><div class="chart-h"><canvas id="ch-perf-corr"></canvas></div></div>`;
     _perf.innerHTML=_h;
     const _sprDss=ks=>ks.map((k,i)=>{const col=_LT_PAL[i%_LT_PAL.length];const pts=_lt.exMap[k].pts;return{label:k,data:dates.map(d=>pts[d]?pts[d].v:null),borderColor:col,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2};});
     const _sprY={reverse:true,grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},title:{display:true,text:'best time (s)',color:'#8b949e',font:{size:9}}};
-    if(_hasVolDist){const c=document.getElementById('ch-perf-voldist');if(c)charts['perf-voldist']=new Chart(c,{type:'line',data:{labels:_lbls,datasets:[
-      {label:'Volume',yAxisID:'y',data:dates.map(d=>_vD[d]?Math.round(_vD[d]):null),borderColor:'#f7a94f',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
-      {label:'Sprint Dist',yAxisID:'y1',data:dates.map(d=>_dD[d]?Math.round(_dD[d]):null),borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:_leg},scales:{x:_axX,y:{position:'left',grid:{color:'rgba(247,169,79,.08)'},ticks:{color:'#f7a94f',font:{size:9}},title:{display:true,text:'kg',color:'#f7a94f',font:{size:9}}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#3ecf8e',font:{size:9}},title:{display:true,text:'m',color:'#3ecf8e',font:{size:9}}}}}});}
     if(_hasCorr){const c=document.getElementById('ch-perf-corr');if(c){const rdS=dates.map(d=>{const r=_readiness(logs,condAth,d);return r&&r.ok?r.score:null;});charts['perf-corr']=new Chart(c,{type:'line',data:{labels:_lbls,datasets:[
       {label:'Readiness',yAxisID:'y',data:rdS,borderColor:'#f7a94f',backgroundColor:'rgba(247,169,79,.06)',fill:true,spanGaps:true,tension:.35,pointRadius:3,pointHoverRadius:6,borderWidth:2},
       {label:'세션 베스트(s)',yAxisID:'y1',data:dates.map(d=>_bestSpr[d]!=null?_bestSpr[d]:null),borderColor:'#56d4dd',backgroundColor:'transparent',spanGaps:true,tension:.35,pointRadius:4,pointHoverRadius:6,borderWidth:2}
