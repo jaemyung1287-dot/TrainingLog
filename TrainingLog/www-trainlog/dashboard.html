@@ -2269,7 +2269,7 @@ function renderPerf(){
   const condAth=who;
   const fAthletes=_scopeAthletes();
   const selAth=athletes.find(a=>a.name===condAth);
-  wrap.innerHTML=_scopeBar()+`<div class="sel-bar">${pOpts}</div><div id="perf-trends"></div><div id="perf-body" style="margin-top:14px"></div>`;
+  wrap.innerHTML=_scopeBar()+`<div class="sel-bar">${pOpts}</div><div id="perf-trends"></div>`;
   document.getElementById('tb-sub').textContent=condAth+' · '+loadPeriod+' days';
   const logs=getLogsByName(condAth);
   const dates=getLast(loadPeriod).reverse();
@@ -2278,39 +2278,7 @@ function renderPerf(){
   const _pt=document.getElementById('perf-trends'); if(_pt)_pt.innerHTML=_tr.html;
   Object.keys(charts).filter(k=>k.startsWith('lt-')).forEach(killChart);
   setTimeout(()=>{ _tr.jobs.forEach(j=>{const c=document.getElementById(j.id);if(c){killChart(j.id);try{charts[j.id]=new Chart(c,j.cfg);}catch(e){console.warn('lt chart',j.id,e);}}}); },50);
-  setTimeout(()=>{
-    const _perf=document.getElementById('perf-body');
-    if(!_perf)return;
-    ['perf-corr'].forEach(killChart);
-    const _athObj=athletes.find(a=>a.name===condAth);
-    const _winLogs=logs.filter(l=>dates.includes(l.date));
-    const _lt=_ltBuild(_winLogs,_athObj);
-    const _vD=_lt.volByDate||{}, _dD=_lt.distByDate||{};
-    const _sprKeys=Object.keys(_lt.exMap).filter(k=>_lt.exMap[k].sprint).sort((a,b)=>(parseFloat(a)||0)-(parseFloat(b)||0));
-    const _distOf=k=>{const m=/^(\d+(?:\.\d+)?)m/.exec(k);return m?parseFloat(m[1]):999;};
-    const _startKeys=_sprKeys.filter(k=>_distOf(k)<=30);
-    const _hasVolDist=Object.keys(_vD).length||Object.keys(_dD).length;
-    const _hasSpr=_sprKeys.length;
-    const _bestSpr={};
-    dates.forEach(d=>{let b=null;_sprKeys.forEach(k=>{const p=_lt.exMap[k].pts[d];if(p&&(b==null||p.v<b))b=p.v;});if(b!=null)_bestSpr[d]=b;});
-    const _hasCorr=Object.keys(_bestSpr).length;
-    const _lbls=dates.map(d=>fmt(d));
-    if(!_hasVolDist&&!_hasSpr){
-      _perf.innerHTML=`<div class="card"><div class="empty" style="padding:18px 0">이 기간에 스프린트·웨이트 기록이 없습니다</div></div>`;
-      return;
-    }
-    const _axX={grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}};
-    const _leg={display:true,labels:{color:'#c9d1d9',font:{size:10},boxWidth:10}};
-    let _h=``;
-    if(_hasCorr)_h+=`<div class="card"><div class="card-hd">😴⚡ 컨디션 × 수행 상관 <span style="font-weight:400;color:var(--muted);font-size:10px">Readiness vs 세션 베스트 타임 — 컨디션 좋을 때 더 빠른지 확인</span></div><div class="chart-h"><canvas id="ch-perf-corr"></canvas></div></div>`;
-    _perf.innerHTML=_h;
-    const _sprDss=ks=>ks.map((k,i)=>{const col=_LT_PAL[i%_LT_PAL.length];const pts=_lt.exMap[k].pts;return{label:k,data:dates.map(d=>pts[d]?pts[d].v:null),borderColor:col,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2};});
-    const _sprY={reverse:true,grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},title:{display:true,text:'best time (s)',color:'#8b949e',font:{size:9}}};
-    if(_hasCorr){const c=document.getElementById('ch-perf-corr');if(c){const rdS=dates.map(d=>{const r=_readiness(logs,condAth,d);return r&&r.ok?r.score:null;});charts['perf-corr']=new Chart(c,{type:'line',data:{labels:_lbls,datasets:[
-      {label:'Readiness',yAxisID:'y',data:rdS,borderColor:'#f7a94f',backgroundColor:'rgba(247,169,79,.06)',fill:true,spanGaps:true,tension:.35,pointRadius:3,pointHoverRadius:6,borderWidth:2},
-      {label:'세션 베스트(s)',yAxisID:'y1',data:dates.map(d=>_bestSpr[d]!=null?_bestSpr[d]:null),borderColor:'#56d4dd',backgroundColor:'transparent',spanGaps:true,tension:.35,pointRadius:4,pointHoverRadius:6,borderWidth:2}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:_leg},scales:{x:_axX,y:{position:'left',min:0,max:100,grid:{color:'rgba(247,169,79,.08)'},ticks:{color:'#f7a94f',font:{size:9}},title:{display:true,text:'Readiness',color:'#f7a94f',font:{size:9}}},y1:{position:'right',reverse:true,grid:{drawOnChartArea:false},ticks:{color:'#56d4dd',font:{size:9}},title:{display:true,text:'best (s)',color:'#56d4dd',font:{size:9}}}}}});}}
-  },50);
+  // (Performance 탭 하단 항상-표시 차트 영역 제거됨 — 추이는 위 종목 버튼으로만 표시)
 }
 
 function cBar2(label,val,max,hg){
