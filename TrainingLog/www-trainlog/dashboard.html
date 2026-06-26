@@ -1724,6 +1724,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     // 종목 행: Readiness / Total Volume / Total Sprint Distance 고정 버튼 + 카테고리 버튼들
     let pickRow=`<div class="lt-row"><span class="lt-lbl">종목</span>`
       +`<button class="lt-chip ${ltSel.has('__rdy__')?'on':''}" style="${ltSel.has('__rdy__')?'border-color:#bc8cff;background:rgba(188,140,255,.16);color:#bc8cff':''}" onclick="ltToggleEx(${_ri})">Readiness</button>`
+      +`<span style="width:1px;height:16px;background:var(--border);margin:0 3px"></span>`
       +`<button class="lt-chip ${ltSel.has('__vol__')?'on':''}" style="${ltSel.has('__vol__')?'border-color:#f7a94f;background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltToggleEx(${_vi})">Total Volume</button>`
       +`<button class="lt-chip ${ltSel.has('__dist__')?'on':''}" style="${ltSel.has('__dist__')?'border-color:#3ecf8e;background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltToggleEx(${_di})">Total Sprint Distance</button>`
       +`<span style="width:1px;height:16px;background:var(--border);margin:0 3px"></span>`;
@@ -1743,9 +1744,36 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const units=new Set(selExs.map(n=>_lt.exMap[n].unit));
     const hasVol=ltSel.has('__vol__'), hasDist=ltSel.has('__dist__'), hasRdy=ltSel.has('__rdy__');
     const bucketing=ltBucket!=='none';
+    const _stack=hasRdy&&!bucketing&&!ltAB;  // Readiness 선택 시: 같은 날짜축으로 위아래 스택 정렬
+    const _ltStackedAligned=()=>{
+      const dset=new Set();
+      const rdy=_flt(_ltRdyS); rdy.forEach(p=>dset.add(p.d));
+      const volS=hasVol?_flt(_ltVolS):[]; volS.forEach(p=>dset.add(p.d));
+      const distS=hasDist?_flt(_ltDistS):[]; distS.forEach(p=>dset.add(p.d));
+      const exSer={}; selExs.forEach(n=>{const s=_flt(_ltExSeries(n));exSer[n]=s;s.forEach(p=>dset.add(p.d));});
+      const cd=[...dset].sort();
+      if(!cd.length)return `<div class="lt-hint">표시할 데이터가 없습니다</div>`;
+      const labels=cd.map(d=>fmt(d));
+      const _mk=(series,color,sprint,unit,ptCol)=>{
+        const byD={};series.forEach(p=>byD[p.d]=p);
+        const opt=_ltTip(sprint,false);
+        opt.scales.y.afterFit=function(a){a.width=58;};
+        if(unit==='rdy'){opt.scales.y.min=0;opt.scales.y.max=100;}
+        const ds={data:cd.map(d=>byD[d]?byD[d].v:null),_metas:cd.map(d=>byD[d]?byD[d].meta:''),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,spanGaps:true};
+        if(ptCol){const cols=cd.map(d=>byD[d]?(byD[d].color||color):color);ds.pointBackgroundColor=cols;ds.pointBorderColor=cols;}
+        return {type:'line',data:{labels,datasets:[ds]},options:opt};
+      };
+      let h=`<div style="display:flex;flex-direction:column;gap:12px">`;
+      h+=_ltCard('Readiness','0~100 · 컨디션 합산',_mk(rdy,'#bc8cff',false,'rdy',true),150,_ltCat.indexOf('__rdy__'));
+      if(hasVol)h+=_ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false),150,_ltCat.indexOf('__vol__'));
+      if(hasDist)h+=_ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false),150,_ltCat.indexOf('__dist__'));
+      selExs.forEach(n=>{const m=_lt.exMap[n];h+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)'),_mk(exSer[n],_ltColor(n),m.sprint,m.sprint?'s':'kg',false),150,_ltCat.indexOf(n));});
+      h+=`</div>`;
+      return h;
+    };
     const volDistOverlay=ltChartMode==='overlay'&&!ltCmp&&!bucketing&&!ltAB&&hasVol&&hasDist;
     const _seriesCount=(hasVol?1:0)+(hasDist?1:0)+selExs.length;
-    if(_seriesCount>1&&!ltAB){
+    if(_seriesCount>1&&!ltAB&&!_stack){
       LT+=`<div class="lt-row"><span class="lt-lbl">표시</span><div class="lt-seg"><button class="${ltChartMode==='grid'?'on':''}" onclick="ltChartMode='grid';_rerenderTrends()">개별</button><button class="${ltChartMode==='overlay'?'on':''}" onclick="ltChartMode='overlay';_rerenderTrends()">겹쳐서</button></div>`;
       if(!bucketing&&ltChartMode==='overlay'&&units.size>1&&selExs.length){LT+=`<div class="lt-seg"><button class="${ltMix==='dual'?'on':''}" onclick="ltMix='dual';_rerenderTrends()">이중 축</button><button class="${ltMix==='index'?'on':''}" onclick="ltMix='index';_rerenderTrends()">% 변화</button></div>`;}
       LT+=`</div>`;
@@ -1754,20 +1782,22 @@ function _renderTrends(fAthletes, selAth, selLogs){
       const bch=_ltBuckList.map(b=>{const on=ltBuckSel.size===0||ltBuckSel.has(b.k);return `<button class="lt-chip ${on?'on':''}" onclick="ltToggleBuck('${b.k}')">${b.l}</button>`;}).join('');
       LT+=`<div class="lt-row" style="align-items:flex-start"><span class="lt-lbl" style="margin-top:6px">비교 대상</span><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${bch}${ltBuckSel.size?`<button class="lt-clear" onclick="ltBuckSel.clear();_rerenderTrends()">전체</button>`:''}</div></div>`;
     }
-    if(hasVol&&!ltAB&&!volDistOverlay){
+    if(hasVol&&!ltAB&&!volDistOverlay&&!_stack){
       const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" style="${ltVolBreak===v?'background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltVolBreak=ltVolBreak==='${v}'?'none':'${v}';_rerenderTrends()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">볼륨</span><div class="lt-seg">${_vb('none','Total')}${_vb('type','Type of Training')}${_vb('sub','Category')}${_vb('region','Upper / Lower')}</div></div>`;
     }
-    if(hasDist&&!ltAB&&!volDistOverlay){
+    if(hasDist&&!ltAB&&!volDistOverlay&&!_stack){
       const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak=ltDistBreak==='${v}'?'none':'${v}';_rerenderTrends()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">거리</span><div class="lt-seg">${_db('none','Total')}${_db('disc','Discipline')}${_db('sub','Category')}</div></div>`;
     }
-    if(((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))&&!ltAB&&!volDistOverlay){
+    if(((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))&&!ltAB&&!volDistOverlay&&!_stack){
       const _bb=(v,l)=>`<button class="${ltBrkBars===v?'on':''}" onclick="ltBrkBars='${v}';_rerenderTrends()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">막대</span><div class="lt-seg">${_bb('group','그룹')}${_bb('stack','누적')}</div><span class="lt-hint" style="padding:0 2px">그룹=카테고리별 비교 · 누적=합계 구성</span></div>`;
     }
+    if(_stack){
+    LT+=_ltStackedAligned();
+    } else {
     LT+=`<div class="lt-grid">`;
-    if(hasRdy)LT+=_ltRdyCard();
     if(!selKeys.length){
       LT+=`<div class="lt-hint" style="grid-column:1/-1">위에서 종목을 추가하면 추이가 표시됩니다 (전체 볼륨·스프린트 거리도 선택해야 표시)</div>`;
     } else if(bucketing){
@@ -1811,6 +1841,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
       }
     }
     LT+=`</div>`;
+    }
   } else {
     _ltAthList=fAthletes.map(a=>a.name);
     if(!ltAthSel.size&&selAth)ltAthSel.add(selAth.name);
