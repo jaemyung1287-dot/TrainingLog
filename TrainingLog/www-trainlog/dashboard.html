@@ -2291,19 +2291,17 @@ function renderPerf(){
   const athletes=coachData.athletes||[];
   if(!athletes.length){wrap.innerHTML='<div class="empty">No athletes</div>';return;}
   const who=_scopeName();
-  const pOpts=[7,14,30,60].map(n=>`<button class="seg-btn ${loadPeriod===n?'on':''}" onclick="loadPeriod=${n};renderPerf()">${n} Days</button>`).join('');
   if(!who){
-    document.getElementById('tb-sub').textContent=(selScope==='all'?'All athletes':'Group '+selScope)+' · '+loadPeriod+' days';
-    wrap.innerHTML=_scopeBar()+`<div class="sel-bar">${pOpts}</div><div class="card"><div class="empty" style="padding:24px 0">선수를 선택하면 스프린트·스타트 수행 추이가 표시됩니다</div></div>`;
+    document.getElementById('tb-sub').textContent=(selScope==='all'?'All athletes':'Group '+selScope);
+    wrap.innerHTML=_scopeBar()+`<div class="card"><div class="empty" style="padding:24px 0">선수를 선택하면 스프린트·스타트 수행 추이가 표시됩니다</div></div>`;
     return;
   }
   const condAth=who;
   const fAthletes=_scopeAthletes();
   const selAth=athletes.find(a=>a.name===condAth);
-  wrap.innerHTML=_scopeBar()+`<div class="sel-bar">${pOpts}</div><div id="perf-trends"></div>`;
-  document.getElementById('tb-sub').textContent=condAth+' · '+loadPeriod+' days';
+  wrap.innerHTML=_scopeBar()+`<div id="perf-trends"></div>`;
+  document.getElementById('tb-sub').textContent=condAth;
   const logs=getLogsByName(condAth);
-  const dates=getLast(loadPeriod).reverse();
   // Load 탭의 추이 모듈(_renderTrends)을 그대로 최상단에 렌더
   const _tr=_renderTrends(fAthletes, selAth, logs);
   const _pt=document.getElementById('perf-trends'); if(_pt)_pt.innerHTML=_tr.html;
