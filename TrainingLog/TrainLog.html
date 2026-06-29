@@ -4855,7 +4855,7 @@ function renderToday(){
     const exs=(l.type==='weight'||l.type==='plyo')?(l.exercises||[]):(l.sets||[]);
     const withEffort=exs.filter(e=>_EFFNUM(e.effort)!=null);
     if(!withEffort.length) return '';
-    const items=withEffort.map(e=>{const n=_EFFNUM(e.effort);return `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">${_effortDot(e.effort)}<span>${e.name}</span><span style="color:${_EFFCOL(n)};font-weight:700">${n}</span></span>`;}).join('');
+    const items=withEffort.map(e=>{const n=_EFFNUM(e.effort);return `<span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)"><span style="color:${_EFFCOL(n)};font-weight:800">${n}</span><span>${e.name}</span></span>`;}).join('');
     return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)">${items}</div>`;
   };
   const _logCard=(l)=>{
