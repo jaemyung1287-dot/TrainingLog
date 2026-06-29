@@ -2668,7 +2668,7 @@ function goLogTraining(){
         <!-- Expandable body -->
         <div id="_sess_body_${sess}" style="display:${isOpen?'block':'none'};padding:0 16px 16px">
           ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.85);padding:8px 10px;background:rgba(247,169,79,.07);border-radius:9px;margin-bottom:10px;line-height:1.7">🔆 <span style="font-weight:700">Aufwärmen</span><br>${_warmupHtml(_wuSb)}</div>`:''}
-          ${exs.length?`<div class="sess-chk-wrap" data-total="${exs.length}" style="margin-bottom:12px">${allLines}</div><button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log this session →</button>`:''}
+          ${exs.length?`${wu?`<div style="display:flex;align-items:center;gap:8px;margin:2px 0 9px"><span style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(62,207,142,.9)">💪 Haupttraining</span><div style="flex:1;height:1px;background:rgba(255,255,255,.08)"></div></div>`:''}<div class="sess-chk-wrap" data-total="${exs.length}" style="margin-bottom:12px">${allLines}</div><button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log this session →</button>`:''}
         </div>
       </div>`;
     }
@@ -2836,9 +2836,7 @@ function selectType(t){
       const condBox=document.getElementById('w-conditioning-box');
       const cd=sessBlock?.cooldown||'';
       const ct=sessBlock?.conditioningText||'';
-      const _wuH=_warmupHtml(sessBlock);
-      if(_wuH){ warmupBox.style.display='block'; document.getElementById('w-warmup-text').innerHTML=_wuH; }
-      else { warmupBox.style.display='none'; }
+      warmupBox.style.display='none'; // 웜업은 로그 전 미리보기에서만 표시, 입력화면에선 숨김
       if(cd.trim()){ cooldownBox.style.display='block'; document.getElementById('w-cooldown-text').textContent=cd; }
       else { cooldownBox.style.display='none'; }
       if(ct.trim()){ condBox.style.display='block'; document.getElementById('w-conditioning-text').textContent=ct; }
@@ -2874,9 +2872,7 @@ function selectType(t){
       const warmupBox2=document.getElementById('w-warmup-box');
       const cooldownBox2=document.getElementById('w-cooldown-box');
       const condBox2=document.getElementById('w-conditioning-box');
-      const _wuH2=_warmupHtml(_sbFallback);
-      if(_wuH2){ warmupBox2.style.display='block'; document.getElementById('w-warmup-text').innerHTML=_wuH2; }
-      else { warmupBox2.style.display='none'; }
+      warmupBox2.style.display='none'; // 웜업은 로그 전 미리보기에서만 표시, 입력화면에선 숨김
       if(cd2.trim()){ cooldownBox2.style.display='block'; document.getElementById('w-cooldown-text').textContent=cd2; }
       else { cooldownBox2.style.display='none'; }
       if(ct2.trim()){ condBox2.style.display='block'; document.getElementById('w-conditioning-text').textContent=ct2; }
@@ -2974,7 +2970,7 @@ function selectType(t){
       const spCd=_spSessBlock?.cooldown||'';
       const spWuBox=document.getElementById('sp-warmup-box');
       const spCdBox=document.getElementById('sp-cooldown-box');
-      if(spWuBox){ const _spWuH=_warmupHtml(_spSessBlock); if(_spWuH){ spWuBox.style.display='block'; document.getElementById('sp-warmup-text').innerHTML=_spWuH; } else { spWuBox.style.display='none'; } }
+      if(spWuBox){ spWuBox.style.display='none'; } // 웜업은 로그 전 미리보기에서만 표시, 입력화면에선 숨김
       if(spCdBox){ if(spCd.trim()){ spCdBox.style.display='block'; document.getElementById('sp-cooldown-text').textContent=spCd; } else { spCdBox.style.display='none'; } }
     })();
     renderSprintSets();
@@ -4555,6 +4551,7 @@ function renderProgram(){
     return `<div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.05)">
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:${color};margin-bottom:8px">${label}</div>
       ${wuH?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.6">🔆 Aufwärmen<br>${wuH}</div>`:''}
+      ${wuH&&exHtml?`<div style="display:flex;align-items:center;gap:8px;margin:4px 0 8px"><span style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(62,207,142,.85)">💪 Haupttraining</span><div style="flex:1;height:1px;background:rgba(255,255,255,.07)"></div></div>`:''}
       ${exHtml}
       ${ct?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.5">🌀 ${ct}</div>`:''}
       ${cd?`<div style="font-size:12px;color:rgba(79,142,247,.8);padding:5px 9px;background:rgba(79,142,247,.07);border-radius:7px;margin-top:4px;line-height:1.5">❄️ ${cd}</div>`:''}
@@ -4849,15 +4846,16 @@ function renderToday(){
   const _delBtn=(id,ctx)=>`<button onclick="deleteLog('${id}','${ctx}')" style="padding:3px 8px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>`;
   const _editBtn=(id)=>(()=>{const l=getData().logs.find(x=>x.id===id);return(l&&(l.type==='weight'||l.type==='plyo'||l.type==='sprint'))?`<button onclick="_editLog('${id}')" style="padding:3px 8px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">✏️</button>`:'';})()
   const _effortDot=(ef)=>{
-    if(!ef) return '';
-    const c=ef==='High'?'#e94560':ef==='Medium'?'#f7a94f':'#3ecf8e';
+    const n=_EFFNUM(ef);
+    if(n==null) return '';
+    const c=_EFFCOL(n);
     return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0"></span>`;
   };
   const _effortRow=(l)=>{
     const exs=(l.type==='weight'||l.type==='plyo')?(l.exercises||[]):(l.sets||[]);
-    const withEffort=exs.filter(e=>e.effort);
+    const withEffort=exs.filter(e=>_EFFNUM(e.effort)!=null);
     if(!withEffort.length) return '';
-    const items=withEffort.map(e=>`<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">${_effortDot(e.effort)}<span>${e.name}</span></span>`).join('');
+    const items=withEffort.map(e=>{const n=_EFFNUM(e.effort);return `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">${_effortDot(e.effort)}<span>${e.name}</span><span style="color:${_EFFCOL(n)};font-weight:700">${n}</span></span>`;}).join('');
     return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)">${items}</div>`;
   };
   const _logCard=(l)=>{
