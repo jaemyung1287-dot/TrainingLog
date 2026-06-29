@@ -587,6 +587,7 @@ let ltOpenCat=null;           // 종목 선택: 펼쳐진 카테고리
 let ltVolBreak='none';        // none|sub|region|type — Total Volume 분해 보기(누적)
 let ltDistBreak='none';       // none|sub|disc — Sprint Distance 분해 보기(누적)
 let ltBrkBars='group';        // group|stack — 분해 비교(주/월/연) 막대 모양
+let _ltPins=[];               // 추이 차트 점 클릭 → 아래 고정 비교할 세션 날짜들(YYYY-MM-DD)
 let _ltCat=[],_ltAthList=[],_ltMetricList=[],_ltCatNames=[];
 const _LT_PAL=['#58a6ff','#bc8cff','#3ecf8e','#f7a94f','#f85149','#56d4dd','#e879c9','#a3e635','#fbbf24','#f472b6'];
 const _LT_MON=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -1118,6 +1119,86 @@ function _ltDisc(s){
 function _ltSprintKey(dist,disc){return dist+'m'+(disc==='uphill'?' Uphill':disc==='sled'?' Sled':' Sprint');}
 // 로그 → {exMap:{name:{sprint,unit,cat,sub,pts:{date:{v,meta[],short}}}}, volByDate, distByDate}
 // meta = 툴팁 줄 배열(세션 총량 · 기록 · 계획 · RPE), short = 한 줄 요약(선수비교용)
+// ── 추이 차트: 주간 음영 밴드 + 라벨(예: "6/8 주") 플러그인 ──
+const _weekBandPlugin={
+  id:'lt_weekband',
+  beforeDatasetsDraw(chart){
+    const dates=(chart.options&&chart.options._weekDates)||(chart.config&&chart.config.options&&chart.config.options._weekDates); if(!dates||!dates.length)return;
+    const xs=chart.scales.x, area=chart.chartArea, ctx=chart.ctx; if(!xs||!area)return;
+    const wkKey=ds=>{const d=new Date(ds);const day=d.getDay();const m=new Date(d);m.setDate(d.getDate()-(day===0?6:day-1));return {key:m.getFullYear()+'-'+m.getMonth()+'-'+m.getDate(),mon:m};};
+    ctx.save();
+    let i=0, band=0; const n=dates.length;
+    while(i<n){
+      const w=wkKey(dates[i]); let j=i; while(j<n&&wkKey(dates[j]).key===w.key)j++;
+      const xStart=i===0?area.left:(xs.getPixelForValue(i-1)+xs.getPixelForValue(i))/2;
+      const xEnd=j>=n?area.right:(xs.getPixelForValue(j-1)+xs.getPixelForValue(j))/2;
+      if(band%2===1){ctx.fillStyle='rgba(255,255,255,.035)';ctx.fillRect(xStart,area.top,xEnd-xStart,area.bottom-area.top);}
+      if(i>0){ctx.strokeStyle='rgba(255,255,255,.07)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(xStart,area.top);ctx.lineTo(xStart,area.bottom);ctx.stroke();ctx.setLineDash([]);}
+      ctx.fillStyle='rgba(230,237,243,.32)';ctx.font='10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+      ctx.fillText((w.mon.getMonth()+1)+'/'+w.mon.getDate()+' 주',(xStart+xEnd)/2,area.top+2);
+      band++; i=j;
+    }
+    ctx.restore();
+  }
+};
+try{ if(window.Chart&&Chart.register) Chart.register(_weekBandPlugin); }catch(e){}
+// 라인 차트 옵션에 주간 밴드 날짜 + 점 클릭(핀) 연결
+function _ltAttachInteract(opt,dates){
+  if(!opt)return opt;
+  opt._weekDates=dates;
+  opt.onClick=function(evt,els,chart){
+    let idx=-1;
+    if(els&&els.length)idx=els[0].index;
+    else if(chart&&chart.scales&&chart.scales.x){const px=evt.x;let bd=1e9;(chart.data.labels||[]).forEach((_,k)=>{const cx=chart.scales.x.getPixelForValue(k);const dd=Math.abs(cx-px);if(dd<bd){bd=dd;idx=k;}});if(bd>34)idx=-1;}
+    if(idx>=0&&dates[idx])_ltTogglePin(dates[idx]);
+  };
+  return opt;
+}
+function _ltTogglePin(d){const i=_ltPins.indexOf(d);if(i>=0)_ltPins.splice(i,1);else _ltPins.push(d);_ltPins.sort();_rerenderTrends();}
+function _ltClearPins(){_ltPins=[];_rerenderTrends();}
+// 고정된 세션들을 차트 아래 카드로 나란히 표시(운동별 세부 + RPE)
+function _ltPinCards(selLogs){
+  if(!_ltPins||!_ltPins.length)return '';
+  const multi=new Set((selLogs||[]).map(l=>l.athleteName)).size>1;
+  const cards=_ltPins.map(d=>{
+    const dl=(selLogs||[]).filter(l=>l.date===d&&(l.type==='weight'||l.type==='sprint'||l.type==='plyo'));
+    if(!dl.length)return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(d)}</span><span class="lt-pin-x" onclick="_ltTogglePin('${d}')">×</span></div><div class="lt-hint" style="padding:8px 2px">이 날짜에 훈련 기록이 없습니다</div></div>`;
+    let totVol=0,totDist=0,rpe=null,rows='',aName='';
+    dl.forEach(l=>{
+      aName=l.athleteName||'';
+      if(l.rpe!=null&&rpe==null)rpe=l.rpe;
+      if(l.type==='sprint'){
+        totDist+=parseFloat(l.totalDistance)||0;
+        (l.sets||[]).forEach(s=>{
+          const dist=parseFloat(s.distance);if(!dist)return;
+          const reps=parseInt(s.reps)||parseInt(s.sets)||1, st=parseInt(s.sets)||1;
+          let best=parseFloat(s.actualTime)||null;(s.repTimes||[]).forEach(t=>{if(t!=null&&(best==null||t<best))best=t;});
+          const eff=_dEffNum(s.effort), note=(s.note||s.notes||'').trim();
+          const head=`${st}×${reps} · ${dist}m${s.intensity?' @ '+s.intensity+'%':''}${best!=null?' · best '+best+'s':''}`;
+          rows+=`<div class="lt-pin-ex"><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#3ecf8e"></span><b>${_esc(s.name||dist+'m')}</b> <span class="lt-pin-meta">${_esc(head)}</span>${eff!=null?` <span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`;
+        });
+      } else {
+        totVol+=vol([l]);
+        (l.exercises||[]).forEach(e=>{
+          if(!e.name)return;
+          const isBW=!!e.isBodyweight, slM=(e.isSL||e.isSA)?2:1, sl=e.isSL?'SL ':e.isSA?'SA ':'';
+          const sets=(e.setRows&&e.setRows.length)||parseInt(e.sets)||0;
+          const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
+          let exVol=0, setLines=[];
+          if(e.setRows&&e.setRows.length){
+            setLines=e.setRows.map(r=>{const kg=parseFloat(r.kg)||0,rp=parseFloat(r.reps)||0,exk=parseFloat(r.extraKg)||0;if(isBW){const vv=exk*rp*slM;exVol+=vv;return exk?`${rp}회 +${exk}kg = ${_fmtKg(vv)}`:`${rp}회 (BW)`;}const vv=kg*rp*slM;exVol+=vv;return `${kg}kg × ${rp} = ${_fmtKg(vv)}`;});
+          } else { exVol=_exVolOne(e); setLines=[isBW?`${sets}×${reps} (BW)`:`${sets}×${reps} @ ${(parseFloat(e.weight)||0)}kg`]; }
+          const eff=_dEffNum(e.effort), note=(e.note||e.notes||'').trim();
+          const head=`${sets}×${reps}${isBW?' (BW)':' · '+_fmtKg(exVol)}`;
+          rows+=`<div class="lt-pin-ex"><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#f7a94f"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta">${_esc(head)}</span>${eff!=null?` <span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${setLines.map(x=>`<div class="lt-pin-set">${_esc(x)}</div>`).join('')}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`;
+        });
+      }
+    });
+    const sub=[totVol>0?'Total '+_fmtKg(totVol):'',totDist>0?Math.round(totDist)+'m':'',rpe!=null?'Session RPE '+rpe:''].filter(Boolean).join(' · ');
+    return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(d)}${multi&&aName?' · '+_esc(aName):''}</span><span class="lt-pin-x" onclick="_ltTogglePin('${d}')">×</span></div>${sub?`<div class="lt-pin-sub">${_esc(sub)}</div>`:''}${rows}</div>`;
+  }).join('');
+  return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 고정 세션 비교 <span style="color:var(--hint);font-weight:400;font-size:11px">· 차트 점을 클릭하면 추가/제거</span></span><button class="lt-clear" onclick="_ltClearPins()">모두 닫기</button></div><div class="lt-pin-row">${cards}</div></div>`;
+}
 function _ltBuild(logs,ath){
   const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},volBreak={sub:{},region:{},type:{}},distBreak={sub:{},disc:{}};
   // pass 1: 세션 총량 + 날짜별 구성 상세(전 종목·BW 포함, 여러 세션 합산)
@@ -1504,7 +1585,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
       const dss=years.map((y,i)=>{const last=i===years.length-1;return{label:y,data:_LT_MON.map((_,mi)=>byY[y][mi]?byY[y][mi].v:null),_metas:_LT_MON.map((_,mi)=>byY[y][mi]?byY[y][mi].meta:''),borderColor:last?color:'rgba(160,160,160,.7)',backgroundColor:'transparent',borderDash:last?[]:[5,4],spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2};});
       return{type:'line',data:{labels:_LT_MON,datasets:dss},options:_ltTip(sprint,true)};
     }
-    return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltTip(sprint,false)};
+    return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d))};
   };
   const _ltExSeries=n=>Object.entries(_lt.exMap[n].pts).map(([d,o])=>({d,v:o.v,meta:o.meta})).sort((a,b)=>a.d.localeCompare(b.d));
   const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>{const det=_lt.volDetail[d]||{};const lines=['총 볼륨 '+_fmtKg(v)];Object.entries(det).sort((a,b)=>b[1].vol-a[1].vol).forEach(([n,o])=>{lines.push(`${n} ${o.sets}×${o.reps}${o.vol>0?' · '+_fmtKg(o.vol):''}`);(o.lines||[]).forEach(s=>lines.push('   '+s));});return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
@@ -1543,6 +1624,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const opt=_ltTip(false,false);
     opt.scales.y.min=0; opt.scales.y.max=100;
     const cols=s.map(p=>p.color||'#bc8cff');
+    _ltAttachInteract(opt,s.map(p=>p.d));
     const cfg={type:'line',data:{labels:s.map(p=>fmt(p.d)),datasets:[{data:s.map(p=>p.v),_metas:s.map(p=>p.meta),borderColor:'#bc8cff',backgroundColor:'rgba(188,140,255,.12)',fill:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:cols,pointBorderColor:cols}]},options:opt};
     return _ltCard('Readiness','0~100 · 컨디션 합산',cfg,null,_ltCat.indexOf('__rdy__'));
   };
@@ -1696,6 +1778,21 @@ function _renderTrends(fAthletes, selAth, selLogs){
     .lt-clear{font-size:10px;padding:5px 9px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--hint);cursor:pointer;font-family:inherit}
     .lt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:4px}
     .lt-hint{font-size:11px;color:var(--hint);padding:6px 0}
+    .lt-pin-wrap{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+    .lt-pin-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .lt-pin-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;align-items:flex-start}
+    .lt-pin{flex:0 0 300px;max-width:300px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.02);padding:11px 13px}
+    .lt-pin-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;color:var(--text)}
+    .lt-pin-x{cursor:pointer;color:var(--hint);font-size:16px;line-height:1;padding:0 3px}
+    .lt-pin-x:hover{color:var(--red)}
+    .lt-pin-sub{font-size:11px;color:var(--gold);margin:2px 0 9px}
+    .lt-pin-ex{padding:6px 0;border-top:1px solid rgba(255,255,255,.05)}
+    .lt-pin-exh{font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .lt-pin-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block}
+    .lt-pin-meta{color:var(--muted);font-size:11px;font-weight:400}
+    .lt-pin-rpe{font-size:11px;font-weight:700;margin-left:auto}
+    .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
+    .lt-pin-note{font-size:11px;color:#8b949e;font-style:italic;padding-left:13px;margin-top:2px;line-height:1.5}
   </style>`;
   LT+=`<div class="lt-wrap"><div class="lt-h"><span>📈</span>추이 분석 (Trends)</div>`;
   // 공통 컨트롤: 모드 / 기간
@@ -1761,6 +1858,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
         opt.scales.y.afterFit=function(a){a.width=58;};
         if(unit==='rdy'){opt.scales.y.min=0;opt.scales.y.max=100;}
         const ds={data:cd.map(d=>byD[d]?byD[d].v:null),_metas:cd.map(d=>byD[d]?byD[d].meta:''),borderColor:color,backgroundColor:color+'1f',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,spanGaps:true,pointBackgroundColor:color,pointBorderColor:color};
+        _ltAttachInteract(opt,cd);
         return {type:'line',data:{labels,datasets:[ds]},options:opt};
       };
       let h=`<div style="display:flex;flex-direction:column;gap:12px">`;
@@ -1891,6 +1989,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     }
     LT+=`</div>`;
   }
+  LT+=_ltPinCards(selLogs);
   LT+=`</div>`;
   return {html:LT, jobs:_ltJobs};
 }
