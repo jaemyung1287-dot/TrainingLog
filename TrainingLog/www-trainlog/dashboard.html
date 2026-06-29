@@ -1218,8 +1218,9 @@ function _ltBuild(logs,ath){
         } else { exVol=_exVolOne(e); setLines=[isBW?`${sets}×${reps} (BW)`:`${sets}×${reps} @ ${(parseFloat(e.weight)||0)}kg`]; }
         const vk=sl+e.name+(isBW?' (BW)':'');
         const vd=volDetail[l.date]||(volDetail[l.date]={});
-        const vo=vd[vk]||(vd[vk]={vol:0,sets:0,reps:reps,lines:[],bw:isBW});
+        const vo=vd[vk]||(vd[vk]={vol:0,sets:0,reps:reps,lines:[],bw:isBW,eff:null});
         vo.vol+=exVol;vo.sets=sets;vo.reps=reps;vo.lines=vo.lines.concat(setLines);
+        {const _ef=_dEffNum(e.effort); if(_ef!=null)vo.eff=_ef;}
         // 분해 누적(카테고리/상하체/타입)
         if(exVol>0){
           const _cSub=e.subCategory||'기타', _cType=e.trainingType||'기타', _cReg=_volRegionOf(e.subCategory);
@@ -1588,7 +1589,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d))};
   };
   const _ltExSeries=n=>Object.entries(_lt.exMap[n].pts).map(([d,o])=>({d,v:o.v,meta:o.meta})).sort((a,b)=>a.d.localeCompare(b.d));
-  const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>{const det=_lt.volDetail[d]||{};const lines=['총 볼륨 '+_fmtKg(v)];Object.entries(det).sort((a,b)=>b[1].vol-a[1].vol).forEach(([n,o])=>{lines.push(`${n} ${o.sets}×${o.reps}${o.vol>0?' · '+_fmtKg(o.vol):''}`);(o.lines||[]).forEach(s=>lines.push('   '+s));});return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
+  const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>{const det=_lt.volDetail[d]||{};const lines=['총 볼륨 '+_fmtKg(v)];Object.entries(det).sort((a,b)=>b[1].vol-a[1].vol).forEach(([n,o])=>{lines.push(`${n} ${o.sets}×${o.reps}${o.vol>0?' · '+_fmtKg(o.vol):''}${o.eff!=null?' · RPE '+o.eff:''}`);(o.lines||[]).forEach(s=>lines.push('   '+s));});return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
   const _ltDistS=Object.entries(_lt.distByDate).map(([d,v])=>{const det=_lt.distDetail[d]||{};const lines=['총 거리 '+Math.round(v)+'m'].concat(Object.entries(det).sort((a,b)=>b[1]-a[1]).map(([n,m])=>`${n}: ${Math.round(m)}m`));return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
   const _flt=s=>s.filter(p=>_ltInPeriod(p.d));
   // ── Readiness(컨디션 합산 점수) 시리즈 — 개인 21일 기준선, 신호등 색 점 ──
@@ -1964,7 +1965,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
       if(ltMetric==='__vol__'){
         s=Object.entries(b.volByDate).map(([d,v])=>{
           const lines=['총 볼륨 '+_fmtKg(v)];
-          getLogsByName(n).filter(l=>l.date===d&&(l.type==='weight'||l.type==='plyo')).forEach(l=>(l.exercises||[]).forEach(e=>{if(!e.name||e.isBodyweight)return;const ev=_exVolOne(e);if(ev>0)lines.push(`${e.isSL?'SL ':e.isSA?'SA ':''}${e.name}: ${_fmtKg(ev)}`);}));
+          getLogsByName(n).filter(l=>l.date===d&&(l.type==='weight'||l.type==='plyo')).forEach(l=>(l.exercises||[]).forEach(e=>{if(!e.name||e.isBodyweight)return;const ev=_exVolOne(e);if(ev>0){const _ef=_dEffNum(e.effort);lines.push(`${e.isSL?'SL ':e.isSA?'SA ':''}${e.name}: ${_fmtKg(ev)}${_ef!=null?' · RPE '+_ef:''}`);}}));
           return {d,v:Math.round(v),meta:lines};
         });
       } else if(ltMetric==='__dist__'){
