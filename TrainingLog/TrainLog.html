@@ -3844,9 +3844,36 @@ function addSetToEx(i){
   showToast(`Set ${ST.exercises[i].setRows.length} added`);
 }
 
+// ── 앞으로: 이전에 무게가 기록됐던 운동인데 done 세트에 kg 미입력 감지 ──
+//    (맨몸/코어/밴드 운동은 이전 기록에도 kg가 없으므로 경고하지 않음 → 오경고 방지)
+function _kgMissingLoaded(allExs){
+  const out=[];
+  (allExs||[]).forEach(e=>{
+    if(!e.name||e.skipped||e.isBodyweight) return;
+    if((TRAINING_STRUCTURE[e.trainingType]?.params||'lifting')!=='lifting') return;
+    const rows=e.setRows||[];
+    const miss=[];
+    rows.forEach((r,j)=>{ if(r.done && !(parseFloat(r.kg)>0)) miss.push(j+1); });
+    if(!miss.length) return;
+    const prev=_prevWeightPerf(e.name);
+    const hadLoad=prev&&(prev.rows||[]).some(r=>parseFloat(r.kg)>0);
+    if(hadLoad) out.push({name:e.name,sets:miss});
+  });
+  return out;
+}
+
 function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 'confirmed'
   const allExs=ST.exercises.filter(e=>e.name&&e.name.trim());
   if(!allExs.length){ showToast('Add at least one exercise'); return; }
+
+  // ── 무게(kg) 미입력 경고 (최초 호출 1회) — 이전에 무게가 있던 운동만 ──
+  if(dupMode===undefined){
+    const _kgMiss=_kgMissingLoaded(allExs);
+    if(_kgMiss.length){
+      const _l=_kgMiss.map(m=>`• ${m.name} (Satz ${m.sets.join(', ')})`).join('\n');
+      if(!confirm(`⚠️ Bei einigen Sätzen fehlt das Gewicht (kg):\n\n${_l}\n\nFür diese Übung wurde zuvor ein Gewicht eingetragen. Mit „Abbrechen“ zurückgehen und eintragen.\nTrotzdem speichern?`)) return;
+    }
+  }
 
   // Pre-save confirmation (first call only, not in edit mode)
   if(!dupMode && !ST.editingLogId){
