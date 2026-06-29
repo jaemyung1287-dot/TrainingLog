@@ -3242,7 +3242,7 @@ function _planSessOf(day,key,sess){
   const plan=coachData?.sessionPlans?.[day];if(!plan||!plan[key])return null;
   let s=plan[key][sess];
   if(!s&&sess==='am'&&Array.isArray(plan[key].exercises))s=plan[key];
-  return (s&&((s.exercises||[]).length||((s.warmup||'').trim())))?s:null;
+  return (s&&((s.exercises||[]).length||_wuDashHasContent(s)))?s:null;
 }
 function renderPlan(){
   const wrap=document.getElementById('tab-plan');
@@ -3470,7 +3470,7 @@ function renderSchedule(){
           <span style="flex:1"></span>
           <button class="m-btn ghost" style="font-size:10px;padding:3px 7px" onclick="openPlanEditorKeys('${ds}','${keysCsv}','${b.sess}')">✎ Edit</button>
         </div>
-        ${b.s.warmup?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">🔆 ${_esc(b.s.warmup)}</div>`:''}
+        ${_wuDashHasContent(b.s)?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">🔆 ${_esc(_wuDashSummary(b.s))}</div>`:''}
         ${exRows}
         <div style="margin-top:9px">
           <span class="m-lbl">📝 Coach note · 데이터/정리</span>
@@ -3735,7 +3735,7 @@ async function _schedSaveNote(day,sess,keysCsv,val){
 let _pe=null; // {day,key,keys:Set,sess,warmup,exs:[{name,sub,int,dist,sets,reps,rest,isSL}]}
 function _peSig(){
   // strip _-prefixed UI-state props (_orig, _showPrev) — they're not content changes
-  return JSON.stringify([_pe.warmup,_pe.sess,[..._pe.keys].sort(),
+  return JSON.stringify([_pe.warmup,_pe.warmupMode||'text',_pe.warmupItems||[],_pe.sess,[..._pe.keys].sort(),
     _pe.exs.map(e=>{const r={};Object.keys(e).forEach(k=>{if(!k.startsWith('_'))r[k]=e[k];});return r;})]);
 }
 function openPlanEditor(day,key,sess){
@@ -3744,7 +3744,7 @@ function openPlanEditor(day,key,sess){
   // Group cell clicked but group key itself is empty (e.g. plan was saved per-athlete
   // from the phone app) → adopt the members' INDIVIDUAL plans: load their content and
   // pre-select those athletes as targets so editing/saving goes back to them.
-  if(!_pe.exs.length&&!(_pe.warmup||'').trim()&&(key==='A'||key==='B'||key==='all')){
+  if(!_pe.exs.length&&!(_pe.warmup||'').trim()&&!((_pe.warmupItems||[]).some(it=>it&&(it.name||'').trim()))&&(key==='A'||key==='B'||key==='all')){
     const members=(coachData?.athletes||[]).filter(a=>key==='all'||a.group===key);
     const withSess=(ss)=>members.filter(a=>_planSessOf(day,'ath_'+a.id,ss));
     let useSess=sess, aths=withSess(sess);
@@ -3792,9 +3792,19 @@ function _peRowFrom(e){
   };
 }
 function _peNewRow(){return {name:'',sub:'',int:'',dist:'',sets:'',reps:'',isBW:false,isSL:false,isSA:false,restS:'',restSU:'m',restR:'',restRU:'m',ctype:'',cval:'',esys:'',yt:'',cmt:''};}
+// ── Warm-up (서술형/상세형) helpers ──
+function _peWuMode(m){ _pe.warmupMode=m; if(m==='detail'&&!Array.isArray(_pe.warmupItems))_pe.warmupItems=[]; _renderPlanEditor(); }
+function _peWuAdd(){ if(!Array.isArray(_pe.warmupItems))_pe.warmupItems=[]; _pe.warmupItems.push({name:'',sets:'',reps:'',ytUrl:'',comment:''}); _pe.warmupMode='detail'; _renderPlanEditor(); }
+function _peWuUpd(i,f,v){ if(Array.isArray(_pe.warmupItems)&&_pe.warmupItems[i])_pe.warmupItems[i][f]=v; }
+function _peWuDel(i){ if(Array.isArray(_pe.warmupItems))_pe.warmupItems.splice(i,1); _renderPlanEditor(); }
+function _wuDashItems(s){ return (s&&Array.isArray(s.warmupItems)?s.warmupItems:[]).filter(it=>it&&((it.name||'').trim()||(it.ytUrl||'').trim()||(it.comment||'').trim())); }
+function _wuDashHasContent(s){ if(!s)return false; if(s.warmupMode==='detail')return _wuDashItems(s).length>0; return !!(s.warmup||'').trim(); }
+function _wuDashSummary(s){ if(!s)return ''; if(s.warmupMode==='detail'){ const its=_wuDashItems(s); if(!its.length)return ''; return its.map(it=>{const sr=[String(it.sets||'').trim(),String(it.reps||'').trim()].filter(Boolean).join('×'); return (it.name||'').trim()+(sr?' '+sr:'')+(it.ytUrl?' 🎬':'');}).join(', '); } return (s.warmup||'').trim(); }
 function _loadPlanEditorRows(){
   const s=_planSessOf(_pe.day,_pe.key,_pe.sess);
   _pe.warmup=s?.warmup||'';
+  _pe.warmupMode=(s&&s.warmupMode==='detail')?'detail':'text';
+  _pe.warmupItems=(s&&Array.isArray(s.warmupItems))?JSON.parse(JSON.stringify(s.warmupItems)):[];
   _pe.exs=(s?.exercises||[]).map(_peRowFrom);
 }
 function _peSwitch(field,val){
@@ -3847,6 +3857,7 @@ function _peCopyFrom(encoded){
   if(!s)return;
   if(_pe.exs.length&&!confirm('Replace current rows with the copied session?'))return;
   _pe.warmup=s.warmup||_pe.warmup;
+  if(s.warmupMode==='detail'||(Array.isArray(s.warmupItems)&&s.warmupItems.length)){ _pe.warmupMode='detail'; _pe.warmupItems=JSON.parse(JSON.stringify(s.warmupItems||[])); }
   _pe.exs=(s.exercises||[]).map(_peRowFrom);
   _renderPlanEditor();
 }
@@ -3976,8 +3987,33 @@ function _renderPlanEditor(){
           <select class="m-in" style="width:100%" onchange="_peCopyFrom(this.value);this.value=''">
             <option value="">— select a session to copy —</option>${opts}
           </select></div>`; })()}
-      <div style="margin-bottom:12px"><span class="m-lbl">🔆 Warm-up</span>
-        <textarea class="m-in" style="width:100%;min-height:48px;resize:vertical" placeholder="e.g. 10 min dynamic stretching…" oninput="_pe.warmup=this.value">${_esc(_pe.warmup)}</textarea></div>
+      ${(()=>{
+        const mode=_pe.warmupMode==='detail'?'detail':'text';
+        const items=Array.isArray(_pe.warmupItems)?_pe.warmupItems:[];
+        const tb=(m,l)=>`<button class="m-btn" style="${mode===m?'background:rgba(247,169,79,.15);border-color:rgba(247,169,79,.5);color:#f7a94f':''}" onclick="_peWuMode('${m}')">${l}</button>`;
+        let h=`<div style="margin-bottom:12px"><span class="m-lbl">🔆 Warm-up</span>
+          <div style="display:flex;gap:6px;margin:4px 0 8px">${tb('text','Text')}${tb('detail','Detailed')}</div>`;
+        if(mode==='text'){
+          h+=`<textarea class="m-in" style="width:100%;min-height:48px;resize:vertical" placeholder="e.g. 10 min dynamic stretching…" oninput="_pe.warmup=this.value">${_esc(_pe.warmup||'')}</textarea>`;
+        } else {
+          items.forEach((it,idx)=>{ it=it||{};
+            h+=`<div style="border:1px solid var(--border);border-radius:10px;padding:9px;margin-bottom:8px;background:rgba(255,255,255,.02)">
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <input class="m-in" style="flex:1" value="${_esc(it.name||'')}" placeholder="Exercise (e.g. A-Skip)" oninput="_peWuUpd(${idx},'name',this.value)">
+                <button class="m-btn del" style="flex-shrink:0" onclick="_peWuDel(${idx})">×</button>
+              </div>
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <input class="m-in" style="flex:1" value="${_esc(it.sets||'')}" placeholder="Sets" oninput="_peWuUpd(${idx},'sets',this.value)">
+                <input class="m-in" style="flex:1" value="${_esc(it.reps||'')}" placeholder="Reps" oninput="_peWuUpd(${idx},'reps',this.value)">
+              </div>
+              <input class="m-in" style="width:100%;margin-bottom:6px" value="${_esc(it.ytUrl||'')}" placeholder="🎬 YouTube link (optional)" oninput="_peWuUpd(${idx},'ytUrl',this.value)">
+              <input class="m-in" style="width:100%" value="${_esc(it.comment||'')}" placeholder="Comment (optional)" oninput="_peWuUpd(${idx},'comment',this.value)">
+            </div>`;
+          });
+          h+=`<button class="m-btn" style="width:100%;border-style:dashed" onclick="_peWuAdd()">＋ Add warm-up item</button>`;
+        }
+        return h+`</div>`;
+      })()}
       <div class="pe-row" style="margin-bottom:6px;grid-template-columns:${gridCols};padding:0 11px">
         <span class="pe-hdr">Exercise</span><span class="pe-hdr">Category</span><span class="pe-hdr">Int%</span>${hasSprint?'<span class="pe-hdr">Dist</span>':''}<span class="pe-hdr">Sets</span><span class="pe-hdr">Reps</span><span class="pe-hdr">Order</span><span></span><span></span>
       </div>
@@ -4081,7 +4117,7 @@ function _peBuildSession(){
       planLegMode:e.isSL?'SL':e.isSA?'SA':(base.planLegMode==='SL'||base.planLegMode==='SA'?'DL':base.planLegMode||'DL')
     });
   });
-  return {warmup:_pe.warmup||'',cooldown:'',exercises};
+  return {warmup:_pe.warmup||'',warmupMode:_pe.warmupMode||'text',warmupItems:Array.isArray(_pe.warmupItems)?_pe.warmupItems.filter(it=>it&&((it.name||'').trim()||(it.ytUrl||'').trim()||(it.comment||'').trim())):[],cooldown:'',exercises};
 }
 async function savePlanEditor(){
   try{

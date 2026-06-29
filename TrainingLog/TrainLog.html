@@ -590,7 +590,7 @@ const APP_VERSION = '20260527-7';
     <div class="fg" style="margin:0"><label class="fl">Week</label><input class="fi" id="w-week" placeholder="e.g. 3" readonly></div>
   </div>
   <div id="w-warmup-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(247,169,79,.07);border:1px solid rgba(247,169,79,.25)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 Warm-up</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 Aufwärmen</div>
     <div id="w-warmup-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
   </div>
   <div id="exercise-list"></div>
@@ -648,7 +648,7 @@ const APP_VERSION = '20260527-7';
   </div>
   <div id="sp-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.25);font-size:12px;color:#3ecf8e"></div>
   <div id="sp-warmup-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(247,169,79,.07);border:1px solid rgba(247,169,79,.25)">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 Warm-up</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 Aufwärmen</div>
     <div id="sp-warmup-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
   </div>
   <div id="sp-cooldown-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.25)">
@@ -2237,7 +2237,7 @@ function _enterAthleteMenu(){
   const amExs=_sessExs(grpData,'am');
   const pmExs=_sessExs(grpData,'pm');
   const totalExs=amExs.length+pmExs.length;
-  const _hasSessionText=(s)=>(grpData?.[s]?.conditioningText||'').trim().length>0||(grpData?.[s]?.warmup||'').trim().length>0||(grpData?.[s]?.cooldown||'').trim().length>0;
+  const _hasSessionText=(s)=>(grpData?.[s]?.conditioningText||'').trim().length>0||_warmupHasContent(grpData?.[s])||(grpData?.[s]?.cooldown||'').trim().length>0;
   const hasCond=_hasSessionText('am')||_hasSessionText('pm');
   // Check if today's planned sessions are already logged
   const todayLogs=data.logs.filter(l=>l.athleteName===ST.athlete.name&&l.date===today);
@@ -2311,7 +2311,7 @@ function goTodayPlan(){
   if(!exs.length){ exs=_sessExs(grpData,fallback); chosenSess=fallback; }
   if(!exs.length){
     // No exercises but may have warmup/cooldown/conditioning text — go to type select so athlete picks sprint or weight
-    const _hasTxt=(s)=>!!(grpData?.[s]?.warmup?.trim()||grpData?.[s]?.cooldown?.trim()||grpData?.[s]?.conditioningText?.trim());
+    const _hasTxt=(s)=>!!(_warmupHasContent(grpData?.[s])||grpData?.[s]?.cooldown?.trim()||grpData?.[s]?.conditioningText?.trim());
     const txtSess=_hasTxt(preferred)?preferred:_hasTxt(fallback)?fallback:null;
     if(!txtSess) return;
     ST._todayPlanSession=txtSess;
@@ -2566,7 +2566,8 @@ function goLogTraining(){
       </div>`;
     }
     function _sessCard(sess,exs){
-      const wu=(grpData?.[sess]?.warmup||'').trim();
+      const _wuSb=grpData?.[sess]||(sess==='am'?grpData:null);
+      const wu=_warmupHasContent(_wuSb);
       if(!exs.length&&!wu) return '';
       const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
       const isSprintOnly=exs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
@@ -2666,7 +2667,7 @@ function goLogTraining(){
         </div>
         <!-- Expandable body -->
         <div id="_sess_body_${sess}" style="display:${isOpen?'block':'none'};padding:0 16px 16px">
-          ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.85);padding:8px 10px;background:rgba(247,169,79,.07);border-radius:9px;margin-bottom:10px;line-height:1.7">🔆 <span style="font-weight:700">Warm-up</span><br>${wu.split('\n').filter(l=>l.trim()).map(l=>`<span style="display:block;padding-left:10px">· ${l.trim()}</span>`).join('')}</div>`:''}
+          ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.85);padding:8px 10px;background:rgba(247,169,79,.07);border-radius:9px;margin-bottom:10px;line-height:1.7">🔆 <span style="font-weight:700">Aufwärmen</span><br>${_warmupHtml(_wuSb)}</div>`:''}
           ${exs.length?`<div class="sess-chk-wrap" data-total="${exs.length}" style="margin-bottom:12px">${allLines}</div><button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log this session →</button>`:''}
         </div>
       </div>`;
@@ -2833,10 +2834,10 @@ function selectType(t){
       const warmupBox=document.getElementById('w-warmup-box');
       const cooldownBox=document.getElementById('w-cooldown-box');
       const condBox=document.getElementById('w-conditioning-box');
-      const wu=sessBlock?.warmup||'';
       const cd=sessBlock?.cooldown||'';
       const ct=sessBlock?.conditioningText||'';
-      if(wu.trim()){ warmupBox.style.display='block'; document.getElementById('w-warmup-text').textContent=wu; }
+      const _wuH=_warmupHtml(sessBlock);
+      if(_wuH){ warmupBox.style.display='block'; document.getElementById('w-warmup-text').innerHTML=_wuH; }
       else { warmupBox.style.display='none'; }
       if(cd.trim()){ cooldownBox.style.display='block'; document.getElementById('w-cooldown-text').textContent=cd; }
       else { cooldownBox.style.display='none'; }
@@ -2868,13 +2869,13 @@ function selectType(t){
         if(grpData[other]) return grpData[other];
         return null;
       })();
-      const wu2=_sbFallback?.warmup||'';
       const cd2=_sbFallback?.cooldown||'';
       const ct2=_sbFallback?.conditioningText||'';
       const warmupBox2=document.getElementById('w-warmup-box');
       const cooldownBox2=document.getElementById('w-cooldown-box');
       const condBox2=document.getElementById('w-conditioning-box');
-      if(wu2.trim()){ warmupBox2.style.display='block'; document.getElementById('w-warmup-text').textContent=wu2; }
+      const _wuH2=_warmupHtml(_sbFallback);
+      if(_wuH2){ warmupBox2.style.display='block'; document.getElementById('w-warmup-text').innerHTML=_wuH2; }
       else { warmupBox2.style.display='none'; }
       if(cd2.trim()){ cooldownBox2.style.display='block'; document.getElementById('w-cooldown-text').textContent=cd2; }
       else { cooldownBox2.style.display='none'; }
@@ -2970,11 +2971,10 @@ function selectType(t){
         const other=sess==='am'?'pm':'am';
         return grpData[other]||null;
       })();
-      const spWu=_spSessBlock?.warmup||'';
       const spCd=_spSessBlock?.cooldown||'';
       const spWuBox=document.getElementById('sp-warmup-box');
       const spCdBox=document.getElementById('sp-cooldown-box');
-      if(spWuBox){ if(spWu.trim()){ spWuBox.style.display='block'; document.getElementById('sp-warmup-text').textContent=spWu; } else { spWuBox.style.display='none'; } }
+      if(spWuBox){ const _spWuH=_warmupHtml(_spSessBlock); if(_spWuH){ spWuBox.style.display='block'; document.getElementById('sp-warmup-text').innerHTML=_spWuH; } else { spWuBox.style.display='none'; } }
       if(spCdBox){ if(spCd.trim()){ spCdBox.style.display='block'; document.getElementById('sp-cooldown-text').textContent=spCd; } else { spCdBox.style.display='none'; } }
     })();
     renderSprintSets();
@@ -4544,7 +4544,7 @@ function renderProgram(){
     return `<div style="font-size:13px;padding:3px 0;color:var(--text);display:flex;align-items:baseline;gap:2px;flex-wrap:wrap">${bwTag}${discTag}<span>${e.name}</span><span style="color:var(--muted);font-size:12px">${p}</span>${restStr}${contractStr}</div>`;
   }
   function _sessBlock(exs,sd,label,color){
-    const wu=sd?.warmup||''; const cd=sd?.cooldown||'';
+    const wuH=_warmupHtml(sd); const cd=sd?.cooldown||'';
     const ct=sd?.conditioningText||'';
     if(!exs.length&&!ct.trim()) return '';
     // Group by trainingType
@@ -4554,7 +4554,7 @@ function renderProgram(){
     }).join('');
     return `<div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.05)">
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:${color};margin-bottom:8px">${label}</div>
-      ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.6">🔆 Warm-up<br>${wu.split('\n').filter(l=>l.trim()).map(l=>`<span style="display:block;padding-left:10px">· ${l.trim()}</span>`).join('')}</div>`:''}
+      ${wuH?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.6">🔆 Aufwärmen<br>${wuH}</div>`:''}
       ${exHtml}
       ${ct?`<div style="font-size:12px;color:rgba(224,123,57,.8);padding:5px 9px;background:rgba(224,123,57,.07);border-radius:7px;margin-top:4px;line-height:1.5">🌀 ${ct}</div>`:''}
       ${cd?`<div style="font-size:12px;color:rgba(79,142,247,.8);padding:5px 9px;background:rgba(79,142,247,.07);border-radius:7px;margin-top:4px;line-height:1.5">❄️ ${cd}</div>`:''}
@@ -7523,7 +7523,7 @@ function clearPlanSession(){
   const d=getData();
   const plan=d.sessionPlans[ST._planDay];
   if(plan&&plan[grp]){
-    if(plan[grp][sess]){ plan[grp][sess].exercises=[]; plan[grp][sess].warmup=''; plan[grp][sess].cooldown=''; }
+    if(plan[grp][sess]){ plan[grp][sess].exercises=[]; plan[grp][sess].warmup=''; plan[grp][sess].warmupItems=[]; plan[grp][sess].warmupMode='text'; plan[grp][sess].cooldown=''; }
     // backward compat: old flat format (treated as AM)
     if(sess==='am'&&Array.isArray(plan[grp].exercises)){ plan[grp].exercises=[]; if(plan[grp].warmup!==undefined) plan[grp].warmup=''; if(plan[grp].cooldown!==undefined) plan[grp].cooldown=''; }
     d.sessionPlans[ST._planDay]=plan;
@@ -7888,6 +7888,97 @@ function _makeConditioningCard(wrap,condText){
   card.appendChild(body);
   wrap.appendChild(card);
 }
+// ═══ Warm-up: shared render + coach editing (서술형/상세형) ═══
+function _wuEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function _warmupItemsClean(sb){return (sb&&Array.isArray(sb.warmupItems)?sb.warmupItems:[]).filter(it=>it&&((it.name||'').trim()||(it.ytUrl||'').trim()||(it.comment||'').trim()));}
+// 선수 화면용 웜업 HTML(독일어). detail이면 운동 목록+영상, 아니면 서술형 텍스트.
+function _warmupHtml(sb){
+  if(!sb) return '';
+  if(sb.warmupMode==='detail'){
+    const items=_warmupItemsClean(sb);
+    if(!items.length) return '';
+    return items.map(it=>{
+      const sr=[String(it.sets||'').trim(),String(it.reps||'').trim()].filter(Boolean).join(' × ');
+      const yt=(it.ytUrl||'').trim()?_ytEmbedHtml(it.ytUrl):'';
+      const cm=(it.comment||'').trim();
+      return `<div style="margin:6px 0;padding:9px 11px;background:rgba(247,169,79,.06);border:1px solid rgba(247,169,79,.18);border-radius:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${_wuEsc(it.name)||'—'}${sr?` <span style="color:#f7a94f;font-weight:600">${_wuEsc(sr)}</span>`:''}</div>
+        ${cm?`<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5">💬 ${_wuEsc(cm)}</div>`:''}
+        ${yt||''}
+      </div>`;
+    }).join('');
+  }
+  const t=(sb.warmup||'').trim();
+  if(!t) return '';
+  return t.split('\n').filter(l=>l.trim()).map(l=>`<span style="display:block;padding-left:6px;line-height:1.7">· ${_wuEsc(l.trim())}</span>`).join('');
+}
+function _warmupHasContent(sb){ if(!sb) return false; if(sb.warmupMode==='detail') return _warmupItemsClean(sb).length>0; return !!(sb.warmup||'').trim(); }
+
+function _warmupBlock(){
+  const d=getData();
+  const plan=d.sessionPlans[ST._planDay]||(d.sessionPlans[ST._planDay]={});
+  if(!plan[ST._planGroup]) plan[ST._planGroup]={};
+  const sess=ST._planSession||'am';
+  if(!plan[ST._planGroup][sess]) plan[ST._planGroup][sess]={exercises:[]};
+  d.sessionPlans[ST._planDay]=plan;
+  return {d,sb:plan[ST._planGroup][sess]};
+}
+function _setWarmupMode(mode){ const {d,sb}=_warmupBlock(); sb.warmupMode=mode; if(mode==='detail'&&!Array.isArray(sb.warmupItems)) sb.warmupItems=[]; _savePlanSync(d); renderPlanAccordion(); }
+function _addWarmupItem(){ const {d,sb}=_warmupBlock(); if(!Array.isArray(sb.warmupItems)) sb.warmupItems=[]; sb.warmupItems.push({name:'',sets:'',reps:'',ytUrl:'',comment:''}); sb.warmupMode='detail'; _savePlanSync(d); renderPlanAccordion(); }
+function _updateWarmupItem(idx,field,val){ const {d,sb}=_warmupBlock(); if(Array.isArray(sb.warmupItems)&&sb.warmupItems[idx]){ sb.warmupItems[idx][field]=val; _savePlanSync(d); } }
+function _removeWarmupItem(idx){ const {d,sb}=_warmupBlock(); if(Array.isArray(sb.warmupItems)){ sb.warmupItems.splice(idx,1); _savePlanSync(d); renderPlanAccordion(); } }
+
+// 코치 Plan 웜업 카드 (영어 라벨, 서술형/상세형 토글)
+function _makeWarmupCard(wrap,sessObj){
+  const key='warmup';
+  const isOpen=ST._planOpenCats.has(key);
+  const color='#f7a94f';
+  const mode=(sessObj&&sessObj.warmupMode==='detail')?'detail':'text';
+  const items=(sessObj&&Array.isArray(sessObj.warmupItems))?sessObj.warmupItems:[];
+  const txt=(sessObj&&sessObj.warmup)||'';
+  const metaTxt=mode==='detail'
+    ? (items.length?items.length+' item'+(items.length>1?'s':''):'No items yet')
+    : (txt.trim()?txt.trim().substring(0,40)+(txt.trim().length>40?'…':''):'No notes yet');
+  const card=document.createElement('div');
+  card.className='plan-acc-card'+(isOpen?' open':'');
+  card.style.borderLeftColor=isOpen?color+'BB':color+'33';
+  card.style.borderLeftWidth='3px';
+  const hdr=document.createElement('div');
+  hdr.className='plan-acc-header';
+  hdr.innerHTML=`<div style="display:flex;align-items:center;gap:12px">
+      <div class="plan-acc-icon">🔆</div>
+      <div><div class="plan-acc-name">Warm-up</div><div class="plan-acc-meta">${metaTxt}</div></div>
+    </div><span class="plan-acc-chevron">▾</span>`;
+  hdr.onclick=()=>{ if(ST._planOpenCats.has(key)) ST._planOpenCats.delete(key); else ST._planOpenCats.add(key); renderPlanAccordion(); };
+  const body=document.createElement('div');
+  body.className='plan-acc-body';
+  const tabBtn=(m,lbl)=>`<button onclick="_setWarmupMode('${m}')" style="flex:1;padding:8px;border-radius:9px;border:1px solid ${mode===m?color:'var(--border)'};background:${mode===m?'rgba(247,169,79,.14)':'transparent'};color:${mode===m?color:'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${lbl}</button>`;
+  let inner=`<div style="padding:14px 16px"><div style="display:flex;gap:8px;margin-bottom:12px">${tabBtn('text','Text')}${tabBtn('detail','Detailed')}</div>`;
+  if(mode==='text'){
+    inner+=`<textarea style="width:100%;min-height:90px;padding:12px 14px;background:var(--input);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;outline:none;resize:vertical;font-family:inherit;line-height:1.5" placeholder="e.g. 10 min dynamic stretching, hip circles, leg swings…" oninput="_updatePlanSessionText('warmup',this.value)">${_wuEsc(txt)}</textarea>`;
+  } else {
+    const inStyle='width:100%;padding:9px 11px;background:var(--input);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;font-family:inherit;box-sizing:border-box';
+    items.forEach((it,idx)=>{
+      it=it||{};
+      inner+=`<div style="margin-bottom:12px;padding:11px;border:1px solid var(--border);border-radius:12px;background:var(--card)">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input value="${_wuEsc(it.name)}" placeholder="Exercise (e.g. A-Skip)" oninput="_updateWarmupItem(${idx},'name',this.value)" style="${inStyle}">
+          <button onclick="_removeWarmupItem(${idx})" style="flex-shrink:0;width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.08);color:#ff6b6b;font-size:15px;font-weight:700;cursor:pointer;line-height:1">×</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <div style="flex:1"><div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Sets</div><input value="${_wuEsc(it.sets)}" placeholder="3" oninput="_updateWarmupItem(${idx},'sets',this.value)" style="${inStyle};text-align:center"></div>
+          <div style="flex:1"><div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px">Reps</div><input value="${_wuEsc(it.reps)}" placeholder="10" oninput="_updateWarmupItem(${idx},'reps',this.value)" style="${inStyle};text-align:center"></div>
+        </div>
+        <input value="${_wuEsc(it.ytUrl)}" placeholder="🎬 YouTube link (optional)" oninput="_updateWarmupItem(${idx},'ytUrl',this.value)" style="${inStyle};margin-bottom:8px">
+        <input value="${_wuEsc(it.comment)}" placeholder="Comment (optional)" oninput="_updateWarmupItem(${idx},'comment',this.value)" style="${inStyle}">
+      </div>`;
+    });
+    inner+=`<button onclick="_addWarmupItem()" style="width:100%;padding:11px;border-radius:11px;border:1px dashed ${color}80;background:rgba(247,169,79,.06);color:${color};font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ Add warm-up item</button>`;
+  }
+  inner+=`</div>`;
+  body.innerHTML=inner;
+  card.appendChild(hdr); card.appendChild(body); wrap.appendChild(card);
+}
 function _makePlanTextCard(wrap,key,label,icon,color,placeholder,currentVal){
   const isOpen=ST._planOpenCats.has(key);
   const card=document.createElement('div');
@@ -8066,10 +8157,8 @@ function renderPlanAccordion(){
     wrap.appendChild(dayBtn);
   }
 
-  // ── Warm-up Card (top) ───────────────────────────────────────
-  _makePlanTextCard(wrap,'warmup','Warm-up','🔆','#f7a94f',
-    'e.g. 10 min dynamic stretching, hip circles, leg swings…',
-    sessObj?.warmup||'');
+  // ── Warm-up Card (top) — 서술형/상세형 토글 ───────────────────
+  _makeWarmupCard(wrap, sessObj);
 
   Object.entries(TRAINING_STRUCTURE).forEach(([type,info])=>{
     const isOpen=ST._planOpenCats.has(type);
