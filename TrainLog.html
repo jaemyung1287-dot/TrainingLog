@@ -5514,17 +5514,17 @@ function _renderLoadRecent(logs, wrapId, opts){
   const _metaLine = l => {
     if(l.type==='weight'||l.type==='plyo'){
       const vol = _exVolSplit([l]).total;
-      const label = l.type==='plyo'?'Plyo':'Weight';
+      const label = l.type==='plyo'?'플라이오':'웨이트';
       return `<span style="color:#f7a94f;font-weight:700">${label}</span> · <span style="color:var(--text);font-weight:600">${vol.toLocaleString()} kg</span>${l.rpe?` · <span style="color:var(--muted)">RPE ${l.rpe}</span>`:''}`;
     }
     if(l.type==='sprint'){
-      return `<span style="color:#3ecf8e;font-weight:700">Sprint</span> · <span style="color:var(--text);font-weight:600">${(l.totalDistance||0).toLocaleString()} m</span>${l.rpe?` · <span style="color:var(--muted)">RPE ${l.rpe}</span>`:''}`;
+      return `<span style="color:#3ecf8e;font-weight:700">스프린트</span> · <span style="color:var(--text);font-weight:600">${(l.totalDistance||0).toLocaleString()} m</span>${l.rpe?` · <span style="color:var(--muted)">RPE ${l.rpe}</span>`:''}`;
     }
     if(l.type==='tabata'){
-      return `<span style="color:#e94560;font-weight:700">Tabata</span> · 8 rounds${l.rpe?` · <span style="color:var(--muted)">RPE ${l.rpe}</span>`:''}`;
+      return `<span style="color:#e94560;font-weight:700">타바타</span> · 8 rounds${l.rpe?` · <span style="color:var(--muted)">RPE ${l.rpe}</span>`:''}`;
     }
     if(l.type==='condition'){
-      return `<span style="color:#a78bfa;font-weight:700">Condition</span> · 😴 ${l.sleepHours??'—'}h/Q${l.sleepQuality??'—'} · ⚡ ${l.fatigue??'—'} · 😊 ${l.mood??'—'}`;
+      return `<span style="color:#a78bfa;font-weight:700">컨디션</span> · 😴 ${l.sleepHours??'—'}h/Q${l.sleepQuality??'—'} · ⚡ ${l.fatigue??'—'} · 😊 ${l.mood??'—'}`;
     }
     return l.type;
   };
@@ -5603,18 +5603,24 @@ function _renderLoadRecent(logs, wrapId, opts){
       detailHtml += `<div style="padding:6px 0 2px;font-size:12px;color:var(--muted);font-style:italic;border-top:1px solid rgba(255,255,255,.04);margin-top:6px">"${l.notes}"</div>`;
     }
 
-    return `<div id="lr-card-${l.id}" class="detail-card" style="cursor:${hasDetail?'pointer':'default'};padding:11px 13px;border-left:3px solid ${borderColor}" ${hasDetail?`onclick="_toggleLogDetail('${detailId}','${chevId}')"`:''}>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-          <span style="font-size:18px;flex-shrink:0">${_typeIcon[l.type]||'📝'}</span>
-          <div style="min-width:0;flex:1">
-            <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:2px">${l.date}</div>
-            <div style="font-size:12.5px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_metaLine(l)}</div>
+    // 우측 위 수정/삭제 (수정은 weight/plyo/sprint 만 — 컨디션은 삭제만)
+    const canEdit = (l.type==='weight'||l.type==='plyo'||l.type==='sprint');
+    const editBtn = canEdit
+      ? `<button onclick="event.stopPropagation();_editLog('${l.id}')" style="padding:3px 9px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.28);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">수정</button>`
+      : '';
+    const delBtn = `<button onclick="event.stopPropagation();_deleteLoadCard('${l.id}')" style="padding:3px 9px;border-radius:7px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.24);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">삭제</button>`;
+
+    return `<div id="lr-card-${l.id}" class="detail-card" style="padding:11px 13px;border-left:3px solid ${borderColor}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+        <div ${hasDetail?`onclick="_toggleLogDetail('${detailId}','${chevId}')" style="cursor:pointer;flex:1;min-width:0"`:`style="flex:1;min-width:0"`}>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+            <span style="font-size:12px;color:var(--muted);font-weight:600">${l.date}</span>
+            ${hasDetail?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#4f8ef7;font-weight:700">상세 <span id="${chevId}" style="display:inline-block;transition:transform .15s">▼</span></span>`:''}
           </div>
+          <div style="font-size:12.5px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_metaLine(l)}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          ${hasDetail?`<span id="${chevId}" style="font-size:14px;color:var(--muted);flex-shrink:0">▼</span>`:''}
-          <button onclick="event.stopPropagation();_deleteLoadCard('${l.id}')" style="padding:3px 8px;border-radius:6px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.2);color:#e94560;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🗑</button>
+          ${editBtn}${delBtn}
         </div>
       </div>
       ${hasDetail?`<div id="${detailId}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)">${detailHtml}</div>`:''}
@@ -5645,28 +5651,30 @@ function _renderLoadRecent(logs, wrapId, opts){
   // All 3 sections are ALWAYS rendered (even if empty for this period) and stay
   // collapsed by default. Each session card inside also expands on tap (_renderCard).
   if(opts.splitByType){
+    // 두 섹션만: 훈련(웨이트/플라이오/스프린트/타바타) + 컨디션
+    // 근육통·코멘트는 따로 빼지 않고 각 카드 "상세" 안에 포함된다.
     const _sections = [
-      {types:['condition'],            icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'},
-      {types:['weight','plyo'],        icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
-      {types:['sprint','tabata'],      icon:'⚡', label:'Sprint',                  color:'#3ecf8e'}
+      {types:['weight','plyo','sprint','tabata'], icon:'🏋️', label:'훈련',   color:'#f7a94f'},
+      {types:['condition'],                       icon:'🌡️', label:'컨디션', color:'#a78bfa'}
     ];
     let shtml = '';
     _sections.forEach((sec,si)=>{
       const items = sorted.filter(l=>sec.types.includes(l.type));
       const bodyId = `lr-sec-${si}`;
       const chevId = `lr-secchev-${si}`;
-      // Collapsible section header — default collapsed (body display:none)
-      shtml += `<div onclick="_toggleLogDetail('${bodyId}','${chevId}')" style="display:flex;align-items:center;gap:6px;margin-top:${si===0?4:16}px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
-        <span style="font-size:13px">${sec.icon}</span>
-        <span style="font-size:10px;font-weight:700;color:${sec.color};letter-spacing:.7px;text-transform:uppercase">${sec.label}</span>
-        <span style="font-size:10px;font-weight:700;color:var(--muted)">${items.length}</span>
+      const openByDefault = (si===0);   // 훈련은 기본 펼침, 컨디션은 접힘
+      // Collapsible section header
+      shtml += `<div onclick="_toggleLogDetail('${bodyId}','${chevId}')" style="display:flex;align-items:center;gap:6px;margin-top:${si===0?4:16}px;margin-bottom:6px;padding:7px 2px;cursor:pointer">
+        <span style="font-size:15px">${sec.icon}</span>
+        <span style="font-size:13px;font-weight:800;color:${sec.color}">${sec.label}</span>
+        <span style="font-size:11px;font-weight:700;color:var(--muted)">${items.length}</span>
         <div style="flex:1;height:1px;background:${sec.color}33;margin-left:4px"></div>
-        <span id="${chevId}" style="font-size:13px;color:var(--muted)">▼</span>
+        <span id="${chevId}" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(${openByDefault?180:0}deg)">▼</span>
       </div>`;
       const body = items.length
         ? items.map(_renderCard).join('')
         : '<div class="empty" style="padding:14px 2px;font-size:12px;color:var(--muted)">No sessions in this period</div>';
-      shtml += `<div id="${bodyId}" style="display:none">${body}</div>`;
+      shtml += `<div id="${bodyId}" style="display:${openByDefault?'block':'none'}">${body}</div>`;
     });
     wrap.innerHTML = shtml;
     return;
