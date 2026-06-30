@@ -860,10 +860,16 @@ const APP_VERSION = '20260527-7';
     <div class="stats-grid" id="today-stats-grid" style="margin-top:8px"></div>
     <div class="sec-ttl">Team Condition Today</div>
     <div id="today-condition-bars"></div>
-    <div class="sec-ttl">Morning Check Logged</div>
-    <div id="today-cond-list"></div>
-    <div class="sec-ttl">Training Logged</div>
-    <div id="today-log-list"></div>
+    <div class="sec-ttl" onclick="_toggleLogDetail('today-cond-list','today-cond-chev')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+      <span>Morning Check Logged</span>
+      <span id="today-cond-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(0deg)">▼</span>
+    </div>
+    <div id="today-cond-list" style="display:none"></div>
+    <div class="sec-ttl" onclick="_toggleLogDetail('today-log-list','today-log-chev')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+      <span>Training Logged</span>
+      <span id="today-log-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(0deg)">▼</span>
+    </div>
+    <div id="today-log-list" style="display:none"></div>
     <div class="sec-ttl" style="display:flex;justify-content:space-between;align-items:center">
       <span>Not Logged Today</span>
       <span id="not-logged-count" style="font-size:12px;color:var(--muted);font-weight:400"></span>
@@ -4858,6 +4864,33 @@ function renderToday(){
     const items=withEffort.map(e=>{const n=_EFFNUM(e.effort);return `<span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)"><span style="color:${_EFFCOL(n)};font-weight:800">${n}</span><span>${e.name}</span></span>`;}).join('');
     return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)">${items}</div>`;
   };
+  // 상세(접었다 폈다): 운동/세트/체감/메모 — 수정 모드 없이 내용 파악용
+  const _todayLogDetail=(l)=>{
+    let rows='';
+    const _effBadge=(ef)=>{const n=_EFFNUM(ef);return n==null?'':`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:${_EFFCOL(n)}22;border:1px solid ${_EFFCOL(n)}55;color:${_EFFCOL(n)};font-weight:700;margin-left:6px;white-space:nowrap">체감 ${n}/10</span>`;};
+    const _exNote=(e)=>e.notes&&e.notes.trim()?`<div style="margin-top:4px;font-size:11px;color:var(--muted);font-style:italic">📝 ${e.notes}</div>`:'';
+    if(l.type==='weight'||l.type==='plyo'){
+      rows=(l.exercises||[]).map(e=>{
+        const sets=(e.setRows&&e.setRows.length)
+          ? e.setRows.map(sr=>`${(sr.kg!=null&&sr.kg!=='')?sr.kg:(e.isBodyweight?'BW':'0')}kg×${sr.reps}`).join(' · ')
+          : `${e.isBodyweight?'BW':((e.weight||0)+'kg')} × ${e.sets||'—'} × ${e.reps||'—'}`;
+        return `<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+          <div style="font-size:12.5px;font-weight:600;color:var(--text)">${e.name||'—'}${_effBadge(e.effort)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${sets}</div>
+          ${_exNote(e)}
+        </div>`;
+      }).join('');
+    } else if(l.type==='sprint'){
+      rows=(l.sets||[]).map(s=>`<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="font-size:12.5px;font-weight:600;color:var(--text)">${s.distance}m${_effBadge(s.effort)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${s.sets||1} × ${s.reps||1}${s.intensity?' · '+s.intensity+'%':''}${s.actualTime?' · '+s.actualTime+'s':''}</div>
+      </div>`).join('');
+    } else if(l.type==='mobility'){
+      rows=(l.exercises||[]).map(e=>`<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--text)">${e.done?'✓':'○'} ${e.name||'—'}</div>`).join('');
+    }
+    const sessNote=l.notes&&l.notes.trim()?`<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(247,169,79,.08);border-left:3px solid #f7a94f;font-size:12px;color:var(--text);line-height:1.5;font-style:italic">💬 ${l.notes}</div>`:'';
+    return rows+sessNote;
+  };
   const _logCard=(l)=>{
     const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':l.type==='mobility'?'b-c':'b-w';
     const badgeText=l.type==='sprint'?'sprint':l.type==='plyo'?'plyo':l.type==='mobility'?'mobility':'weight';
@@ -4885,11 +4918,17 @@ function renderToday(){
     } else {
       statsHtml=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${_exVolSplit([l]).total.toLocaleString()} kg</span></div>`;
     }
+    const hasDetail=((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length)
+                  ||(l.type==='sprint'&&(l.sets||[]).length)
+                  ||(l.type==='mobility'&&(l.exercises||[]).length)
+                  ||(l.notes&&l.notes.trim());
+    const detailId=`tlog-${l.id}`,chevId=`tlogc-${l.id}`;
+    const detailToggle=hasDetail?`<span onclick="event.stopPropagation();_toggleLogDetail('${detailId}','${chevId}')" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#4f8ef7;font-weight:700;cursor:pointer">상세 <span id="${chevId}" style="display:inline-block;transition:transform .15s">▼</span></span>`:'';
     return `<div class="detail-card">
-      <div class="detail-row"><span class="detail-key">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px"><span class="badge ${badgeClass}">${badgeText}</span>${_editBtn(l.id)}${_delBtn(l.id,'today')}</div></div>
+      <div class="detail-row"><span class="detail-key">${l.athleteName}</span><div style="display:flex;align-items:center;gap:6px">${detailToggle}<span class="badge ${badgeClass}">${badgeText}</span>${_editBtn(l.id)}${_delBtn(l.id,'today')}</div></div>
       ${statsHtml}
       <div class="detail-row"><span class="detail-key">RPE</span><span class="detail-val">${l.rpe??'—'}/10</span></div>
-      ${_effortRow(l)}
+      ${hasDetail?`<div id="${detailId}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)">${_todayLogDetail(l)}</div>`:''}
     </div>`;
   };
   tlw.innerHTML=tr.length?tr.map(_logCard).join(''):'<div class="empty" style="padding:12px 0">No training logged today</div>';
