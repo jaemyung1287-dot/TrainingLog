@@ -1186,7 +1186,9 @@ function _ltPinSRow(s){
   const eff=_dEffNum(s.effort), note=(s.note||s.notes||'').trim();
   const m=dist*st*reps;
   const head=`${st}×${reps} · ${dist}m${s.intensity?' @ '+s.intensity+'%':''}${best!=null?' · best '+best+'s':''}`;
-  return {dist:m,html:`<div class="lt-pin-ex"><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#3ecf8e"></span><b>${_esc(s.name||dist+'m')}</b> <span class="lt-pin-meta">${_esc(head)}</span>${eff!=null?` <span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`};
+  let _setHtml='',_n=0;
+  (s.repTimes||[]).forEach(t=>{const tv=parseFloat(t); if(t==null||isNaN(tv))return; _n++; _setHtml+=`<div class="lt-pin-set">${_n}. ${dist}m → ${tv.toFixed(2)}s · ${(dist/tv).toFixed(2)} m/s</div>`;});
+  return {dist:m,html:`<div class="lt-pin-ex"><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#3ecf8e"></span><b>${_esc(s.name||dist+'m')}</b> <span class="lt-pin-meta">${_esc(head)}</span>${eff!=null?` <span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${_setHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`};
 }
 // 고정된 세션(또는 종목)들을 차트 아래 카드로 나란히 표시. p.ex 있으면 그 종목만.
 function _ltPinCards(selLogs){
@@ -1306,7 +1308,12 @@ function _ltBuild(logs,ath){
         const disc=_ltDisc(s), dlabel=_LT_DISC[disc]||'Flat';
         const key=_ltSprintKey(dist,disc), reps=s.reps||s.sets||1, inten=s.intensity?` @ ${s.intensity}%`:'';
         const rec=`${reps}×${dist}m ${dlabel}${inten} · best ${best}s`;
-        const lines=[rec];
+        const _totM=dist*(parseInt(s.sets)||1)*(parseInt(s.reps)||1);
+        const lines=[rec, '총 거리: '+Math.round(_totM)+'m'];
+        const _laps=(s.repTimes||[]);
+        if(_laps.some(t=>t!=null&&!isNaN(parseFloat(t)))){
+          let _n=0; _laps.forEach(t=>{const tv=parseFloat(t); if(t==null||isNaN(tv))return; _n++; lines.push(_n+'. '+dist+'m → '+tv.toFixed(2)+'s · '+(dist/tv).toFixed(2)+' m/s');});
+        }
         {const _en=_dEffNum(s.effort); if(_en!=null)lines.push('종목 RPE: '+_en);}
         const m=exMap[key]||(exMap[key]={sprint:true,unit:'s',cat:'Sprint Training',sub:dlabel,pts:{}});
         if(!m.pts[l.date]||best<m.pts[l.date].v) m.pts[l.date]={v:best,meta:lines,short:rec};
