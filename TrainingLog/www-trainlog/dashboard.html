@@ -1130,6 +1130,9 @@ const _VOL_REGION={'Hip Hinge':'하체','Knee Dominant':'하체','Hip Abduction 
 function _volRegionOf(sub){return _VOL_REGION[sub]||'기타';}
 // 운동→카테고리(차트 분류). Leg Curl은 무릎 굴곡 → Knee Dominant로 재분류(과거 frozen 로그까지 즉시 반영)
 function _catOf(e){return /leg\s*curl/i.test((e&&e.name)||'')?'Knee Dominant':((e&&e.subCategory)||'기타');}
+// 전/후면 사슬 × 상/하체 매핑(근비대 시기 밸런스용). Leg Curl(햄스트링)은 하체 후면 예외.
+const _CHAIN_MAP={'Horizontal Push':'상체 전면','Vertical Push':'상체 전면','Horizontal Pull':'상체 후면','Vertical Pull':'상체 후면','Knee Dominant':'하체 전면','Unilateral Training':'하체 전면','Hip Hinge':'하체 후면','Lower Leg':'하체 후면','Hip Abduction / Adduction':'하체 후면','Hip Abduction/Adduction':'하체 후면','Core Training':'코어'};
+function _chainOf(e){if(/leg\s*curl/i.test((e&&e.name)||''))return '하체 후면';return _CHAIN_MAP[(e&&e.subCategory)||'']||'기타';}
 function _ltDisc(s){
   if(s&&typeof s.discipline==='string'&&_LT_DISC[s.discipline])return s.discipline;
   const t=((s&&s.name)||'')+' '+((s&&s.subCategory)||'');
@@ -1298,7 +1301,7 @@ function _ltPinCards(selLogs){
     }
     // ── 분해 막대에서 고정한 경우: 그 카테고리 운동만 ──
     if(p.cat){
-      const catOfE=e=>p.grp==='type'?(e.trainingType||'기타'):p.grp==='region'?_volRegionOf(_catOf(e)):_catOf(e);
+      const catOfE=e=>p.grp==='type'?(e.trainingType||'기타'):p.grp==='region'?_volRegionOf(_catOf(e)):p.grp==='chain'?_chainOf(e):_catOf(e);
       const catOfS=s=>p.grp==='disc'?(_LT_DISC[_ltDisc(s)]||'Flat'):(s.subCategory||'기타');
       dl.forEach(l=>{
         if(l.rpe!=null&&rpe==null)rpe=l.rpe;
@@ -1323,7 +1326,7 @@ function _ltPinCards(selLogs){
   return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 고정 세션 비교 <span style="color:var(--hint);font-weight:400;font-size:11px">· 차트 점·막대 클릭 추가/제거 · 카드에서 종목=그 종목만·날짜=전체 세션</span></span><button class="lt-clear" onclick="_ltClearPins()">모두 닫기</button></div><div class="lt-pin-row">${cards}</div></div>`;
 }
 function _ltBuild(logs,ath){
-  const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},volBreak={sub:{},region:{},type:{},ex:{sub:{},region:{},type:{}}},distBreak={sub:{},disc:{},ex:{sub:{},disc:{}}};
+  const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},volBreak={sub:{},region:{},type:{},chain:{},ex:{sub:{},region:{},type:{},chain:{}}},distBreak={sub:{},disc:{},ex:{sub:{},disc:{}}};
   // pass 1: 세션 총량 + 날짜별 구성 상세(전 종목·BW 포함, 여러 세션 합산)
   (logs||[]).forEach(l=>{
     if(l.type==='weight'||l.type==='plyo'){
@@ -1346,13 +1349,14 @@ function _ltBuild(logs,ath){
         {const _ef=_dEffNum(e.effort); if(_ef!=null)vo.eff=_ef;}
         // 분해 누적(카테고리/상하체/타입)
         if(exVol>0){
-          const _cSub=_catOf(e), _cType=e.trainingType||'기타', _cReg=_volRegionOf(_cSub);
+          const _cSub=_catOf(e), _cType=e.trainingType||'기타', _cReg=_volRegionOf(_cSub), _cChain=_chainOf(e);
           (volBreak.sub[l.date]=volBreak.sub[l.date]||{})[_cSub]=(volBreak.sub[l.date][_cSub]||0)+exVol;
           (volBreak.region[l.date]=volBreak.region[l.date]||{})[_cReg]=(volBreak.region[l.date][_cReg]||0)+exVol;
           (volBreak.type[l.date]=volBreak.type[l.date]||{})[_cType]=(volBreak.type[l.date][_cType]||0)+exVol;
+          (volBreak.chain[l.date]=volBreak.chain[l.date]||{})[_cChain]=(volBreak.chain[l.date][_cChain]||0)+exVol;
           // 카테고리별 운동 상세(볼륨+RPE) — 툴팁 세부 표시용
           const _exLbl=sl+e.name, _exEf=_dEffNum(e.effort);
-          [['sub',_cSub],['region',_cReg],['type',_cType]].forEach(gc=>{
+          [['sub',_cSub],['region',_cReg],['type',_cType],['chain',_cChain]].forEach(gc=>{
             const _D=(volBreak.ex[gc[0]][l.date]=volBreak.ex[gc[0]][l.date]||{});
             const _C=(_D[gc[1]]=_D[gc[1]]||{});
             const _E=(_C[_exLbl]=_C[_exLbl]||{vol:0,eff:null});
@@ -1794,7 +1798,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const d=new Date(ds),day=d.getDay(),mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));return {k:dsFromDate(mon),l:(mon.getMonth()+1)+'.'+mon.getDate()};
   };
   // ── Total Volume 분해(누적) ──
-  const _LT_BRK_LBL={sub:'카테고리별',region:'상·하체별',type:'타입별'};
+  const _LT_BRK_LBL={sub:'카테고리별',region:'상·하체별',type:'타입별',chain:'전/후면 사슬별'};
   // 카테고리 막대 툴팁 세부: 그 카테고리에 들어간 운동별 볼륨 + RPE
   const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
   const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).map(e=>'· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].best!=null?'  · best '+e[1].best+'s':'')+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
@@ -2054,7 +2058,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     }
     if(hasVol&&!ltAB&&!volDistOverlay&&!_stack){
       const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" style="${ltVolBreak===v?'background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltVolBreak=ltVolBreak==='${v}'?'none':'${v}';_rerenderTrends()">${l}</button>`;
-      LT+=`<div class="lt-row"><span class="lt-lbl">볼륨</span><div class="lt-seg">${_vb('none','Total')}${_vb('type','Type of Training')}${_vb('sub','Category')}${_vb('region','Upper / Lower')}</div></div>`;
+      LT+=`<div class="lt-row"><span class="lt-lbl">볼륨</span><div class="lt-seg">${_vb('none','Total')}${_vb('type','Type of Training')}${_vb('sub','Category')}${_vb('region','Upper / Lower')}${_vb('chain','Chain')}</div></div>`;
     }
     if(hasDist&&!ltAB&&!volDistOverlay&&!_stack){
       const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak=ltDistBreak==='${v}'?'none':'${v}';_rerenderTrends()">${l}</button>`;
