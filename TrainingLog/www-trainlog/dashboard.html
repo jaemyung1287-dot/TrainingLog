@@ -1235,7 +1235,7 @@ function _ltPinCards(selLogs){
     const sub=[totVol>0?'총 부하 '+_fmtKg(totVol):'',totDist>0?'총 거리 '+Math.round(totDist)+'m':'',rpe!=null?'Session RPE '+rpe:''].filter(Boolean).join(' · ');
     return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${sub?`<div class="lt-pin-sub">${_esc(sub)}</div>`:''}${rows}</div>`;
   }).join('');
-  return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 고정 세션 비교 <span style="color:var(--hint);font-weight:400;font-size:11px">· 차트 점을 클릭하면 추가/제거</span></span><button class="lt-clear" onclick="_ltClearPins()">모두 닫기</button></div><div class="lt-pin-row">${cards}</div></div>`;
+  return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 고정 세션 비교 <span style="color:var(--hint);font-weight:400;font-size:11px">· 차트 점·막대를 클릭하면 추가/제거</span></span><button class="lt-clear" onclick="_ltClearPins()">모두 닫기</button></div><div class="lt-pin-row">${cards}</div></div>`;
 }
 function _ltBuild(logs,ath){
   const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},volBreak={sub:{},region:{},type:{},ex:{sub:{},region:{},type:{}}},distBreak={sub:{},disc:{}};
@@ -1718,7 +1718,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.volBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?['총 '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachInteract(opt,dates);
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
@@ -1749,7 +1749,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     if(!dates.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?[g+' '+Math.round(byDate[d][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachInteract(opt,dates);
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m')]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
