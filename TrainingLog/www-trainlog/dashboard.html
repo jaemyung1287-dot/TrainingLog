@@ -1115,7 +1115,10 @@ function _sprintProgression(logs){
 }
 
 // ══ 추이/비교 모듈 (Load 탭) ══
-function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;ltSel.has(n)?ltSel.delete(n):ltSel.add(n);_rerenderTrends();}
+function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;const wasOn=ltSel.has(n);if(wasOn){ltSel.delete(n);}else{ltSel.add(n);}
+  // 상위 지표를 닫으면 관련 하위 상태 초기화(분해 보기·막대 모양·범례 숨김) — 기본 Group으로
+  if(wasOn){if(n==='__vol__')ltVolBreak='none';if(n==='__dist__')ltDistBreak='none';ltBrkBars='group';_ltBrkHidden.clear();}
+  _rerenderTrends();}
 function ltAddEx(n){if(!n)return;ltMode='ex';if(ltSel.has(n))ltSel.delete(n);else ltSel.add(n);_rerenderTrends();}
 function ltToggleAth(i){const n=_ltAthList[i];if(n==null)return;ltAthSel.has(n)?ltAthSel.delete(n):ltAthSel.add(n);_rerenderTrends();}
 function ltToggleCat(i){const c=_ltCatNames[i];if(c==null)return;ltOpenCat=ltOpenCat===c?null:c;_rerenderTrends();}
@@ -1941,7 +1944,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     .lt-wrap{margin-top:24px}
     .lt-h{font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;display:flex;align-items:center;gap:7px}
     .lt-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:11px}
-    .lt-lbl{font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--hint);text-transform:uppercase;width:26px;flex-shrink:0}
+    .lt-lbl{font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--hint);text-transform:uppercase;width:auto;min-width:58px;padding-right:10px;white-space:nowrap;flex-shrink:0}
     .lt-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
     .lt-seg button{font-size:12px;padding:6px 13px;background:transparent;border:none;border-right:1px solid var(--border);color:var(--muted);cursor:pointer;font-family:inherit}
     .lt-seg button:last-child{border-right:none}
