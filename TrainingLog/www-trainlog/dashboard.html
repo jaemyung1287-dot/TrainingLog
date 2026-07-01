@@ -1131,8 +1131,8 @@ function _volRegionOf(sub){return _VOL_REGION[sub]||'기타';}
 // 운동→카테고리(차트 분류). Leg Curl은 무릎 굴곡 → Knee Dominant로 재분류(과거 frozen 로그까지 즉시 반영)
 function _catOf(e){return /leg\s*curl/i.test((e&&e.name)||'')?'Knee Dominant':((e&&e.subCategory)||'기타');}
 // 전/후면 사슬 × 상/하체 매핑(근비대 시기 밸런스용). Leg Curl(햄스트링)은 하체 후면 예외.
-const _CHAIN_MAP={'Horizontal Push':'상체 전면','Vertical Push':'상체 전면','Horizontal Pull':'상체 후면','Vertical Pull':'상체 후면','Knee Dominant':'하체 전면','Unilateral Training':'하체 전면','Hip Hinge':'하체 후면','Lower Leg':'하체 후면','Hip Abduction / Adduction':'하체 후면','Hip Abduction/Adduction':'하체 후면','Core Training':'코어'};
-function _chainOf(e){if(/leg\s*curl/i.test((e&&e.name)||''))return '하체 후면';return _CHAIN_MAP[(e&&e.subCategory)||'']||'기타';}
+const _CHAIN_MAP={'Horizontal Push':'Anterior Upper','Vertical Push':'Anterior Upper','Horizontal Pull':'Posterior Upper','Vertical Pull':'Posterior Upper','Knee Dominant':'Anterior Lower','Unilateral Training':'Anterior Lower','Hip Hinge':'Posterior Lower','Lower Leg':'Posterior Lower','Hip Abduction / Adduction':'Posterior Lower','Hip Abduction/Adduction':'Posterior Lower','Core Training':'Core'};
+function _chainOf(e){if(/leg\s*curl/i.test((e&&e.name)||''))return 'Posterior Lower';return _CHAIN_MAP[(e&&e.subCategory)||'']||'Other';}
 function _ltDisc(s){
   if(s&&typeof s.discipline==='string'&&_LT_DISC[s.discipline])return s.discipline;
   const t=((s&&s.name)||'')+' '+((s&&s.subCategory)||'');
@@ -1797,7 +1797,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const d=new Date(ds),day=d.getDay(),mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));return {k:dsFromDate(mon),l:(mon.getMonth()+1)+'.'+mon.getDate()};
   };
   // ── Total Volume 분해(누적) ──
-  const _LT_BRK_LBL={sub:'카테고리별',region:'상·하체 · 전/후면 사슬별',type:'타입별'};
+  const _LT_BRK_LBL={sub:'카테고리별',region:'Anterior / Posterior Chain',type:'타입별'};
   // 카테고리 막대 툴팁 세부: 그 카테고리에 들어간 운동별 볼륨 + RPE
   const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
   const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).map(e=>'· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].best!=null?'  · best '+e[1].best+'s':'')+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
