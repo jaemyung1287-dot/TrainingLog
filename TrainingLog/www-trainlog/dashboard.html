@@ -1173,6 +1173,7 @@ function _ltAttachBrkInteract(opt,dates,groups,grp,sp){
 // 분해 막대 범례 클릭 → 숨김 상태를 _ltBrkHidden에 저장하고 in-place 업데이트(재렌더/핀 무관하게 유지)
 function _ltBrkLegend(opt,grp){
   if(!opt||!opt.plugins||!opt.plugins.legend)return opt;
+  if(opt.plugins.tooltip)opt.plugins.tooltip.filter=function(it){return it.raw!=null&&it.raw!==0;}; // 빈/0 항목은 툴팁에서 제외
   opt.plugins.legend.onClick=function(e,item,legend){
     const ci=legend.chart,di=item.datasetIndex;if(di==null)return;
     const cat=ci.data.datasets[di].label,vis=ci.isDatasetVisible(di);
