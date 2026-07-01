@@ -1246,7 +1246,7 @@ function _ltPinSRow(s,d){
   let best=parseFloat(s.actualTime)||null;(s.repTimes||[]).forEach(t=>{if(t!=null&&(best==null||t<best))best=t;});
   const eff=_dEffNum(s.effort), note=(s.note||s.notes||'').trim();
   const m=dist*st*reps;
-  const head=`${st}×${reps} · ${dist}m${s.intensity?' @ '+s.intensity+'%':''}${best!=null?' · best '+best+'s':''}`;
+  const head=`${st}×${reps} · ${dist}m${s.intensity?' @ '+s.intensity+'%':''}`;
   let _setHtml='',_n=0;
   (s.repTimes||[]).forEach(t=>{const tv=parseFloat(t); if(t==null||isNaN(tv))return; _n++; _setHtml+=`<div class="lt-pin-set">${_n}. ${dist}m → ${tv.toFixed(2)}s · ${(dist/tv).toFixed(2)} m/s</div>`;});
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(_ltSprintKey(dist,_ltDisc(s)))}',1)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
@@ -1379,14 +1379,14 @@ function _ltBuild(logs,ath){
         const _dSub=_sprintQualOf(s), _dMethod=_sprintMethodOf(s);
         (distBreak.sub[l.date]=distBreak.sub[l.date]||{})[_dSub]=(distBreak.sub[l.date][_dSub]||0)+m;
         (distBreak.disc[l.date]=distBreak.disc[l.date]||{})[_dMethod]=(distBreak.disc[l.date][_dMethod]||0)+m;
-        // 세트 상세(거리·베스트·RPE) — 툴팁용
-        let _sBest=parseFloat(s.actualTime)||null;(s.repTimes||[]).forEach(t=>{const tv=parseFloat(t);if(t!=null&&!isNaN(tv)&&(_sBest==null||tv<_sBest))_sBest=tv;});
+        // 세트 상세(거리·RPE·랩타임) — 툴팁용
+        const _sSplits=[];(s.repTimes||[]).forEach(t=>{const tv=parseFloat(t);if(t==null||isNaN(tv))return;_sSplits.push(dist+'m → '+tv.toFixed(2)+'s · '+(dist/tv).toFixed(2)+' m/s');});
         const _sEff=_dEffNum(s.effort), _sLbl=(s.name&&s.name.trim())||`${dist}m ${dl}`;
         [['sub',_dSub],['disc',_dMethod]].forEach(gc=>{
           const _D=(distBreak.ex[gc[0]][l.date]=distBreak.ex[gc[0]][l.date]||{});
           const _C=(_D[gc[1]]=_D[gc[1]]||{});
-          const _E=(_C[_sLbl]=_C[_sLbl]||{dist:0,eff:null,best:null});
-          _E.dist+=m; if(_sEff!=null)_E.eff=_sEff; if(_sBest!=null&&(_E.best==null||_sBest<_E.best))_E.best=_sBest;
+          const _E=(_C[_sLbl]=_C[_sLbl]||{dist:0,eff:null,splits:[]});
+          _E.dist+=m; if(_sEff!=null)_E.eff=_sEff; _E.splits=_E.splits.concat(_sSplits);
         });});
     }
   });
@@ -1808,7 +1808,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
   const _LT_BRK_LBL={sub:'Category',region:'Anterior / Posterior Chain',type:'Type of Training'};
   // 카테고리 막대 툴팁 세부: 그 카테고리에 들어간 운동별 볼륨 + RPE
   const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
-  const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).map(e=>'· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].best!=null?'  · best '+e[1].best+'s':'')+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
+  const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).flatMap(e=>['· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].eff!=null?'  · RPE '+e[1].eff:'')].concat((e[1].splits||[]).map(x=>'   '+x)));
   // 막대 위/안에 값 표시 플러그인(kg/m)
   const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);if(h<13)return;ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,el.x,(el.y+el.base)/2);}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
   const _ltBrkData=grp=>{
@@ -1864,7 +1864,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const exByDate=(_lt.distBreak.ex||{})[grp]||{};
     const bset={},agg={},aggEx={},tot={};
     Object.keys(byDate).filter(_ltInPeriod).forEach(d=>{const o=_ltBKey(d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;bset[o.k]=o.l;Object.entries(byDate[d]).forEach(([g,v])=>{(agg[o.k]=agg[o.k]||{})[g]=(agg[o.k][g]||0)+v;tot[g]=(tot[g]||0)+v;});
-      Object.entries(exByDate[d]||{}).forEach(gm=>{const G=((aggEx[o.k]=aggEx[o.k]||{})[gm[0]]=aggEx[o.k][gm[0]]||{});Object.entries(gm[1]).forEach(em=>{const E=(G[em[0]]=G[em[0]]||{dist:0,eff:null,best:null});E.dist+=em[1].dist;if(em[1].eff!=null)E.eff=em[1].eff;if(em[1].best!=null&&(E.best==null||em[1].best<E.best))E.best=em[1].best;});});});
+      Object.entries(exByDate[d]||{}).forEach(gm=>{const G=((aggEx[o.k]=aggEx[o.k]||{})[gm[0]]=aggEx[o.k][gm[0]]||{});Object.entries(gm[1]).forEach(em=>{const E=(G[em[0]]=G[em[0]]||{dist:0,eff:null,splits:[]});E.dist+=em[1].dist;if(em[1].eff!=null)E.eff=em[1].eff;E.splits=(E.splits||[]).concat(em[1].splits||[]);});});});
     const keys=Object.keys(bset).sort(),labels=keys.map(k=>bset[k]);
     const groups=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
     if(!keys.length||!groups.length)return '';
@@ -2064,11 +2064,11 @@ function _renderTrends(fAthletes, selAth, selLogs){
       LT+=`<div class="lt-row" style="align-items:flex-start"><span class="lt-lbl" style="margin-top:6px">Show</span><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${bch}${ltBuckSel.size?`<button class="lt-clear" onclick="ltBuckSel.clear();_rerenderTrends()">All</button>`:''}</div></div>`;
     }
     if(hasVol&&!ltAB&&!volDistOverlay&&!_stack){
-      const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" style="${ltVolBreak===v?'background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltVolBreak=ltVolBreak==='${v}'?'none':'${v}';_rerenderTrends()">${l}</button>`;
+      const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" style="${ltVolBreak===v?'background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltVolBreak=ltVolBreak==='${v}'?'none':'${v}';ltBrkBars='group';_ltBrkHidden.clear();_rerenderTrends()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">Volume</span><div class="lt-seg">${_vb('none','Total')}${_vb('type','Type of Training')}${_vb('sub','Category')}${_vb('region','Chain')}</div></div>`;
     }
     if(hasDist&&!ltAB&&!volDistOverlay&&!_stack){
-      const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak=ltDistBreak==='${v}'?'none':'${v}';_rerenderTrends()">${l}</button>`;
+      const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak=ltDistBreak==='${v}'?'none':'${v}';ltBrkBars='group';_ltBrkHidden.clear();_rerenderTrends()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">Distance</span><div class="lt-seg">${_db('none','Total')}${_db('sub','Quality')}${_db('disc','Method')}</div></div>`;
     }
     if(((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))&&!ltAB&&!volDistOverlay&&!_stack){
