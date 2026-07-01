@@ -1741,7 +1741,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
   // 카테고리 막대 툴팁 세부: 그 카테고리에 들어간 운동별 볼륨 + RPE
   const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
   // 막대 위/안에 값 표시 플러그인(kg/m)
-  const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(meta.hidden)return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);if(h<13)return;ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,el.x,(el.y+el.base)/2);}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
+  const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);if(h<13)return;ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,el.x,(el.y+el.base)/2);}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
   const _ltBrkData=grp=>{
     const byDate=_lt.volBreak[grp]||{};
     const dates=Object.keys(byDate).filter(_ltInPeriod).sort();
@@ -1754,8 +1754,8 @@ function _renderTrends(fAthletes, selAth, selLogs){
     if(!dates.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.volBreak.ex||{})[grp]||{};
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?['총 '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['총 '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
@@ -1768,7 +1768,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const groups=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
     if(!keys.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:keys.map(k=>Math.round((agg[k]&&agg[k][g])||0)),_metas:keys.map(k=>(agg[k]&&agg[k][g])?['총 '+_fmtKg(agg[k][g])].concat(_ltExMetaFromObj(aggEx[k]&&aggEx[k][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:keys.map(k=>(agg[k]&&agg[k][g])?Math.round(agg[k][g]):null),_metas:keys.map(k=>(agg[k]&&agg[k][g])?['총 '+_fmtKg(agg[k][g])].concat(_ltExMetaFromObj(aggEx[k]&&aggEx[k][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
     const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltBrkLegend(opt,grp);
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
   };
@@ -1785,8 +1785,8 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const {byDate,dates,groups}=_ltDistBrkData(grp);
     if(!dates.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?[g+' '+Math.round(byDate[d][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?[g+' '+Math.round(byDate[d][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m')]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
@@ -1797,7 +1797,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const groups=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
     if(!keys.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:keys.map(k=>Math.round((agg[k]&&agg[k][g])||0)),_metas:keys.map(k=>(agg[k]&&agg[k][g])?[g+' '+Math.round(agg[k][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:keys.map(k=>(agg[k]&&agg[k][g])?Math.round(agg[k][g]):null),_metas:keys.map(k=>(agg[k]&&agg[k][g])?[g+' '+Math.round(agg[k][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
     const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltBrkLegend(opt,grp);
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt,plugins:[_mkBarVals('m')]},260,_ltCat.indexOf('__dist__'));
   };
