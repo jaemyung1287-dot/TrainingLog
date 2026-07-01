@@ -1142,6 +1142,11 @@ function _ltDisc(s){
   return 'flat';
 }
 function _ltSprintKey(dist,disc){return dist+'m'+(disc==='uphill'?' Uphill':disc==='sled'?' Sled':' Sprint');}
+// 스프린트 목적(Quality) — Resistance Sprinting은 가속 개발 방법이므로 Acceleration으로, 지구력류는 Energy System
+const _SPRINT_QUAL={'Acceleration':'Acceleration','Maximum Velocity':'Max Velocity','Speed Endurance':'Energy System','Special Endurance 1':'Energy System','Special Endurance 2':'Energy System','Resistance Sprinting':'Acceleration'};
+function _sprintQualOf(s){return _SPRINT_QUAL[(s&&s.subCategory)||'']||((s&&s.subCategory)||'Other');}
+// 스프린트 방법(Method) — 이름으로 판별. PB 분리(_ltDisc)와는 별개(호버 시 세부 모달리티 표시)
+function _sprintMethodOf(s){const t=((s&&s.name)||'')+' '+((s&&s.subCategory)||'');if(/overspeed|downhill|assist|bergab|\bband(ed)?\b/i.test(t))return 'Assisted';if(/uphill|bergauf|berg\b|towing|sled|schlitten|pushing|resist/i.test(t))return 'Resisted';return 'Free';}
 // 로그 → {exMap:{name:{sprint,unit,cat,sub,pts:{date:{v,meta[],short}}}}, volByDate, distByDate}
 // meta = 툴팁 줄 배열(세션 총량 · 기록 · 계획 · RPE), short = 한 줄 요약(선수비교용)
 // ── 추이 차트: 주간 음영 밴드 + 라벨(예: "6/8 주") 플러그인 ──
@@ -1302,7 +1307,7 @@ function _ltPinCards(selLogs){
     // ── 분해 막대에서 고정한 경우: 그 카테고리 운동만 ──
     if(p.cat){
       const catOfE=e=>p.grp==='type'?(e.trainingType||'Other'):p.grp==='region'?_chainOf(e):_catOf(e);
-      const catOfS=s=>p.grp==='disc'?(_LT_DISC[_ltDisc(s)]||'Flat'):(s.subCategory||'Other');
+      const catOfS=s=>p.grp==='disc'?_sprintMethodOf(s):_sprintQualOf(s);
       dl.forEach(l=>{
         if(l.rpe!=null&&rpe==null)rpe=l.rpe;
         if(p.sp){ if(l.type!=='sprint')return; (l.sets||[]).forEach(s=>{ if(!parseFloat(s.distance))return; if(catOfS(s)!==p.cat)return; const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; rows+=r.html; }); }
@@ -1367,14 +1372,14 @@ function _ltBuild(logs,ath){
     else if(l.type==='sprint'){
       if(l.totalDistance)distByDate[l.date]=(distByDate[l.date]||0)+(parseFloat(l.totalDistance)||0);
       (l.sets||[]).forEach(s=>{const dist=parseFloat(s.distance);if(!dist)return;const r=parseInt(s.reps)||parseInt(s.sets)||1;const m=dist*(parseInt(s.sets)||1)*(parseInt(s.reps)||1);if(m<=0)return;const dl=_LT_DISC[_ltDisc(s)]||'Flat';const sk=`${r}×${dist}m ${dl}${s.intensity?' @ '+s.intensity+'%':''}`;const sd=distDetail[l.date]||(distDetail[l.date]={});sd[sk]=(sd[sk]||0)+m;
-        // 거리 분해 누적(카테고리/디시플린)
-        const _dSub=s.subCategory||'Other';
+        // 거리 분해 누적: sub=Quality(목적), disc=Method(방법) — 세부 모달리티는 툴팁에서
+        const _dSub=_sprintQualOf(s), _dMethod=_sprintMethodOf(s);
         (distBreak.sub[l.date]=distBreak.sub[l.date]||{})[_dSub]=(distBreak.sub[l.date][_dSub]||0)+m;
-        (distBreak.disc[l.date]=distBreak.disc[l.date]||{})[dl]=(distBreak.disc[l.date][dl]||0)+m;
-        // 카테고리별 세트 상세(거리·베스트·RPE) — 툴팁용
+        (distBreak.disc[l.date]=distBreak.disc[l.date]||{})[_dMethod]=(distBreak.disc[l.date][_dMethod]||0)+m;
+        // 세트 상세(거리·베스트·RPE) — 툴팁용
         let _sBest=parseFloat(s.actualTime)||null;(s.repTimes||[]).forEach(t=>{const tv=parseFloat(t);if(t!=null&&!isNaN(tv)&&(_sBest==null||tv<_sBest))_sBest=tv;});
         const _sEff=_dEffNum(s.effort), _sLbl=(s.name&&s.name.trim())||`${dist}m ${dl}`;
-        [['sub',_dSub],['disc',dl]].forEach(gc=>{
+        [['sub',_dSub],['disc',_dMethod]].forEach(gc=>{
           const _D=(distBreak.ex[gc[0]][l.date]=distBreak.ex[gc[0]][l.date]||{});
           const _C=(_D[gc[1]]=_D[gc[1]]||{});
           const _E=(_C[_sLbl]=_C[_sLbl]||{dist:0,eff:null,best:null});
@@ -1834,7 +1839,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
   };
   // ── Sprint Distance 분해(누적) ──
-  const _LT_DBRK_LBL={sub:'Category',disc:'Discipline'};
+  const _LT_DBRK_LBL={sub:'Quality',disc:'Method'};
   const _ltDistBrkData=grp=>{
     const byDate=_lt.distBreak[grp]||{};
     const dates=Object.keys(byDate).filter(_ltInPeriod).sort();
@@ -2061,7 +2066,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     }
     if(hasDist&&!ltAB&&!volDistOverlay&&!_stack){
       const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak=ltDistBreak==='${v}'?'none':'${v}';_rerenderTrends()">${l}</button>`;
-      LT+=`<div class="lt-row"><span class="lt-lbl">Distance</span><div class="lt-seg">${_db('none','Total')}${_db('disc','Discipline')}${_db('sub','Category')}</div></div>`;
+      LT+=`<div class="lt-row"><span class="lt-lbl">Distance</span><div class="lt-seg">${_db('none','Total')}${_db('sub','Quality')}${_db('disc','Method')}</div></div>`;
     }
     if(((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))&&!ltAB&&!volDistOverlay&&!_stack){
       const _bb=(v,l)=>`<button class="${ltBrkBars===v?'on':''}" onclick="ltBrkBars='${v}';_rerenderTrends()">${l}</button>`;
