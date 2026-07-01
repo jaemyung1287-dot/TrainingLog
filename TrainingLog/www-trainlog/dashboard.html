@@ -1109,6 +1109,8 @@ const _LT_DISC={flat:'Flat',uphill:'Uphill',sled:'Towing Sled'};
 // Total Volume 분해: subCategory → 상/하체/코어 매핑
 const _VOL_REGION={'Hip Hinge':'하체','Knee Dominant':'하체','Hip Abduction / Adduction':'하체','Hip Abduction/Adduction':'하체','Lower Leg':'하체','Unilateral Training':'하체','Horizontal Push':'상체','Horizontal Pull':'상체','Vertical Push':'상체','Vertical Pull':'상체','Core Training':'코어'};
 function _volRegionOf(sub){return _VOL_REGION[sub]||'기타';}
+// 운동→카테고리(차트 분류). Leg Curl은 무릎 굴곡 → Knee Dominant로 재분류(과거 frozen 로그까지 즉시 반영)
+function _catOf(e){return /leg\s*curl/i.test((e&&e.name)||'')?'Knee Dominant':((e&&e.subCategory)||'기타');}
 function _ltDisc(s){
   if(s&&typeof s.discipline==='string'&&_LT_DISC[s.discipline])return s.discipline;
   const t=((s&&s.name)||'')+' '+((s&&s.subCategory)||'');
@@ -1250,7 +1252,7 @@ function _ltPinCards(selLogs){
     }
     // ── 분해 막대에서 고정한 경우: 그 카테고리 운동만 ──
     if(p.cat){
-      const catOfE=e=>p.grp==='type'?(e.trainingType||'기타'):p.grp==='region'?_volRegionOf(e.subCategory):(e.subCategory||'기타');
+      const catOfE=e=>p.grp==='type'?(e.trainingType||'기타'):p.grp==='region'?_volRegionOf(_catOf(e)):_catOf(e);
       const catOfS=s=>p.grp==='disc'?(_LT_DISC[_ltDisc(s)]||'Flat'):(s.subCategory||'기타');
       dl.forEach(l=>{
         if(l.rpe!=null&&rpe==null)rpe=l.rpe;
@@ -1298,7 +1300,7 @@ function _ltBuild(logs,ath){
         {const _ef=_dEffNum(e.effort); if(_ef!=null)vo.eff=_ef;}
         // 분해 누적(카테고리/상하체/타입)
         if(exVol>0){
-          const _cSub=e.subCategory||'기타', _cType=e.trainingType||'기타', _cReg=_volRegionOf(e.subCategory);
+          const _cSub=_catOf(e), _cType=e.trainingType||'기타', _cReg=_volRegionOf(_cSub);
           (volBreak.sub[l.date]=volBreak.sub[l.date]||{})[_cSub]=(volBreak.sub[l.date][_cSub]||0)+exVol;
           (volBreak.region[l.date]=volBreak.region[l.date]||{})[_cReg]=(volBreak.region[l.date][_cReg]||0)+exVol;
           (volBreak.type[l.date]=volBreak.type[l.date]||{})[_cType]=(volBreak.type[l.date][_cType]||0)+exVol;
@@ -1341,7 +1343,7 @@ function _ltBuild(logs,ath){
         const lines=[(sl?sl.trim()+' · ':'')+'총 부하: '+_fmtKg(exVol)+' · 최고 '+top+'kg'];
         setLines.forEach((s,i)=>lines.push((i+1)+'. '+s));
         {const _en=_dEffNum(e.effort); if(_en!=null)lines.push('종목 RPE: '+_en);}
-        const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:e.subCategory||'기타',pts:{}});
+        const m=exMap[e.name]||(exMap[e.name]={sprint:false,unit:'kg',cat:e.trainingType||'기타',sub:_catOf(e),pts:{}});
         if(!m.pts[l.date]||top>m.pts[l.date].v) m.pts[l.date]={v:top,meta:lines,short:rec};
       });
     } else if(l.type==='sprint'){
@@ -3074,10 +3076,10 @@ const EXERCISE_LIBRARY={
   'Knee Dominant':[
     'Rhythmic Squat','Quarter Squat','Half Squat','Squat','Box Squat','Pause Squat',
     'Front Squat','Goblet Squat','Safety Bar Squat','Zercher Squat','Hack Squat',
-    'Leg Press','Leg Extension','Sissy Squat'
+    'Leg Press','Leg Extension','Sissy Squat','Leg Curl (Lying)','Leg Curl (Seated)'
   ],
   'Hip Hinge':[
-    'Good Morning','Romanian Deadlift','Nordic Curl','Leg Curl (Lying)','Leg Curl (Seated)','Deadlift',
+    'Good Morning','Romanian Deadlift','Nordic Curl','Deadlift',
     'Sumo Deadlift','Trap Bar Deadlift','Stiff Leg Deadlift','Snatch Grip Deadlift',
     'Rack Pull','Block Pull','Hip Thrust','Glute Bridge',
     'Banded Hip Thrust','Single Leg Hip Thrust',
