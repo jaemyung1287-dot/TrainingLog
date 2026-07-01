@@ -1222,6 +1222,24 @@ function _ltPinSRow(s,d){
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(_ltSprintKey(dist,_ltDisc(s)))}',1)" style="cursor:pointer" title="클릭: 이 종목만 비교"`:'';
   return {dist:m,html:`<div class="lt-pin-ex"${clk}><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#3ecf8e"></span><b>${_esc(s.name||dist+'m')}</b> <span class="lt-pin-meta">${_esc(head)}</span>${eff!=null?` <span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${_setHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`};
 }
+// 핀 카드용 컨디션 블록(Readiness·수면·피로·기분·근육통) — 그 날짜 그 선수
+function _ltCondBlockHtml(name,d){
+  if(!name)return '';
+  const all=getLogsByName(name);
+  const c=_condOn(all,name,d), rd=_readiness(all,name,d);
+  if(!c&&!(rd&&rd.ok))return '';
+  const items=[];
+  if(c){
+    if(c.sleepHours!=null||c.sleepQuality!=null)items.push('수면 '+(c.sleepHours!=null?c.sleepHours+'h':'-')+(c.sleepQuality!=null?'·질'+c.sleepQuality:''));
+    if(c.fatigue!=null)items.push('피로 '+c.fatigue);
+    if(c.mood!=null)items.push('기분 '+c.mood);
+  }
+  const rchip=(rd&&rd.ok)?` <span class="lt-pin-rpe" style="color:${rd.color}">Readiness ${rd.score}</span>`:'';
+  const sore=((c&&c.soreness)||[]).filter(x=>x&&(+x.intensity||0)>0).map(x=>`${x.part||''} ${(+x.intensity||0)}`);
+  const soreHtml=sore.length?`<div class="lt-pin-set" style="color:#f85149">🔴 ${sore.map(_esc).join(' · ')}</div>`:'';
+  const note=(c&&(c.note||c.notes)||'').trim();
+  return `<div class="lt-pin-ex"><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#bc8cff"></span><b>컨디션</b> <span class="lt-pin-meta">${_esc(items.join(' · '))}</span>${rchip}</div>${soreHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`;
+}
 // 고정된 세션(또는 종목)들을 차트 아래 카드로 나란히 표시. p.ex 있으면 그 종목만.
 function _ltPinCards(selLogs){
   if(!_ltPins||!_ltPins.length)return '';
@@ -1229,8 +1247,9 @@ function _ltPinCards(selLogs){
   const cards=_ltPins.map((p,pi)=>{
     const d=p.d, exOnly=!!p.ex;
     const dl=(selLogs||[]).filter(l=>l.date===d&&(l.type==='weight'||l.type==='sprint'||l.type==='plyo'));
+    const _nm=((selLogs||[]).find(l=>l.date===d)||{}).athleteName;
     const x=`<span class="lt-pin-x" onclick="_ltUnpin(${pi})">×</span>`;
-    if(!dl.length)return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(d)}</span>${x}</div><div class="lt-hint" style="padding:8px 2px">이 날짜에 훈련 기록이 없습니다</div></div>`;
+    if(!dl.length){const cb=!multi?_ltCondBlockHtml(_nm,d):'';return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(d)}</span>${x}</div>${cb||'<div class="lt-hint" style="padding:8px 2px">이 날짜에 훈련 기록이 없습니다</div>'}</div>`;}
     const hdr=`<span>📌 ${fmt(d)}${multi&&dl[0].athleteName?' · '+_esc(dl[0].athleteName):''}</span>`;
     const _hdrF=extra=>`<span onclick="_ltPinFull('${_ltJs(d)}')" style="cursor:pointer" title="클릭: 전체 세션 보기">📌 <span style="border-bottom:1px dashed rgba(255,255,255,.3)">${fmt(d)}</span>${multi&&dl[0].athleteName?' · '+_esc(dl[0].athleteName):''}${extra?' · '+_esc(extra):''}</span>`;
     let totVol=0,totDist=0,rpe=null,rows='';
@@ -1280,12 +1299,12 @@ function _ltPinCards(selLogs){
     });
     if(!rows)return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div><div class="lt-hint" style="padding:8px 2px">기록이 없습니다</div></div>`;
     const sub=[totVol>0?'총 부하 '+_fmtKg(totVol):'',totDist>0?'총 거리 '+Math.round(totDist)+'m':'',rpe!=null?'Session RPE '+rpe:''].filter(Boolean).join(' · ');
-    return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${sub?`<div class="lt-pin-sub">${_esc(sub)}</div>`:''}${rows}</div>`;
+    return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${sub?`<div class="lt-pin-sub">${_esc(sub)}</div>`:''}${!multi?_ltCondBlockHtml(_nm,d):''}${rows}</div>`;
   }).join('');
   return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 고정 세션 비교 <span style="color:var(--hint);font-weight:400;font-size:11px">· 차트 점·막대 클릭 추가/제거 · 카드에서 종목=그 종목만·날짜=전체 세션</span></span><button class="lt-clear" onclick="_ltClearPins()">모두 닫기</button></div><div class="lt-pin-row">${cards}</div></div>`;
 }
 function _ltBuild(logs,ath){
-  const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},volBreak={sub:{},region:{},type:{},ex:{sub:{},region:{},type:{}}},distBreak={sub:{},disc:{}};
+  const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},volBreak={sub:{},region:{},type:{},ex:{sub:{},region:{},type:{}}},distBreak={sub:{},disc:{},ex:{sub:{},disc:{}}};
   // pass 1: 세션 총량 + 날짜별 구성 상세(전 종목·BW 포함, 여러 세션 합산)
   (logs||[]).forEach(l=>{
     if(l.type==='weight'||l.type==='plyo'){
@@ -1329,7 +1348,16 @@ function _ltBuild(logs,ath){
         // 거리 분해 누적(카테고리/디시플린)
         const _dSub=s.subCategory||'기타';
         (distBreak.sub[l.date]=distBreak.sub[l.date]||{})[_dSub]=(distBreak.sub[l.date][_dSub]||0)+m;
-        (distBreak.disc[l.date]=distBreak.disc[l.date]||{})[dl]=(distBreak.disc[l.date][dl]||0)+m;});
+        (distBreak.disc[l.date]=distBreak.disc[l.date]||{})[dl]=(distBreak.disc[l.date][dl]||0)+m;
+        // 카테고리별 세트 상세(거리·베스트·RPE) — 툴팁용
+        let _sBest=parseFloat(s.actualTime)||null;(s.repTimes||[]).forEach(t=>{const tv=parseFloat(t);if(t!=null&&!isNaN(tv)&&(_sBest==null||tv<_sBest))_sBest=tv;});
+        const _sEff=_dEffNum(s.effort), _sLbl=(s.name&&s.name.trim())||`${dist}m ${dl}`;
+        [['sub',_dSub],['disc',dl]].forEach(gc=>{
+          const _D=(distBreak.ex[gc[0]][l.date]=distBreak.ex[gc[0]][l.date]||{});
+          const _C=(_D[gc[1]]=_D[gc[1]]||{});
+          const _E=(_C[_sLbl]=_C[_sLbl]||{dist:0,eff:null,best:null});
+          _E.dist+=m; if(_sEff!=null)_E.eff=_sEff; if(_sBest!=null&&(_E.best==null||_sBest<_E.best))_E.best=_sBest;
+        });});
     }
   });
   // pass 2: 종목별 포인트 + 메타 (그 운동 로그 정보만: 세션 볼륨/거리 · 기록 · Effort)
@@ -1750,6 +1778,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
   const _LT_BRK_LBL={sub:'카테고리별',region:'상·하체별',type:'타입별'};
   // 카테고리 막대 툴팁 세부: 그 카테고리에 들어간 운동별 볼륨 + RPE
   const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
+  const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).map(e=>'· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].best!=null?'  · best '+e[1].best+'s':'')+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
   // 막대 위/안에 값 표시 플러그인(kg/m)
   const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);if(h<13)return;ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,el.x,(el.y+el.base)/2);}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
   const _ltBrkData=grp=>{
@@ -1795,19 +1824,22 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const {byDate,dates,groups}=_ltDistBrkData(grp);
     if(!dates.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?[g+' '+Math.round(byDate[d][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
+    const _exBy=(_lt.distBreak.ex||{})[grp]||{};
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['총 '+Math.round(byDate[d][g])+'m'].concat(_ltDistExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
     const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m')]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
     const byDate=_lt.distBreak[grp]||{};
-    const bset={},agg={},tot={};
-    Object.keys(byDate).filter(_ltInPeriod).forEach(d=>{const o=_ltBKey(d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;bset[o.k]=o.l;Object.entries(byDate[d]).forEach(([g,v])=>{(agg[o.k]=agg[o.k]||{})[g]=(agg[o.k][g]||0)+v;tot[g]=(tot[g]||0)+v;});});
+    const exByDate=(_lt.distBreak.ex||{})[grp]||{};
+    const bset={},agg={},aggEx={},tot={};
+    Object.keys(byDate).filter(_ltInPeriod).forEach(d=>{const o=_ltBKey(d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;bset[o.k]=o.l;Object.entries(byDate[d]).forEach(([g,v])=>{(agg[o.k]=agg[o.k]||{})[g]=(agg[o.k][g]||0)+v;tot[g]=(tot[g]||0)+v;});
+      Object.entries(exByDate[d]||{}).forEach(gm=>{const G=((aggEx[o.k]=aggEx[o.k]||{})[gm[0]]=aggEx[o.k][gm[0]]||{});Object.entries(gm[1]).forEach(em=>{const E=(G[em[0]]=G[em[0]]||{dist:0,eff:null,best:null});E.dist+=em[1].dist;if(em[1].eff!=null)E.eff=em[1].eff;if(em[1].best!=null&&(E.best==null||em[1].best<E.best))E.best=em[1].best;});});});
     const keys=Object.keys(bset).sort(),labels=keys.map(k=>bset[k]);
     const groups=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
     if(!keys.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:keys.map(k=>(agg[k]&&agg[k][g])?Math.round(agg[k][g]):null),_metas:keys.map(k=>(agg[k]&&agg[k][g])?[g+' '+Math.round(agg[k][g])+'m']:''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:keys.map(k=>(agg[k]&&agg[k][g])?Math.round(agg[k][g]):null),_metas:keys.map(k=>(agg[k]&&agg[k][g])?['총 '+Math.round(agg[k][g])+'m'].concat(_ltDistExMetaFromObj(aggEx[k]&&aggEx[k][g])):''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
     const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltBrkLegend(opt,grp);
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt,plugins:[_mkBarVals('m')]},260,_ltCat.indexOf('__dist__'));
   };
