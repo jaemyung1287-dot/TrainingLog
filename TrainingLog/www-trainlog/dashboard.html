@@ -1238,7 +1238,7 @@ function _ltPinCards(selLogs){
   return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 고정 세션 비교 <span style="color:var(--hint);font-weight:400;font-size:11px">· 차트 점을 클릭하면 추가/제거</span></span><button class="lt-clear" onclick="_ltClearPins()">모두 닫기</button></div><div class="lt-pin-row">${cards}</div></div>`;
 }
 function _ltBuild(logs,ath){
-  const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},volBreak={sub:{},region:{},type:{}},distBreak={sub:{},disc:{}};
+  const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},volBreak={sub:{},region:{},type:{},ex:{sub:{},region:{},type:{}}},distBreak={sub:{},disc:{}};
   // pass 1: 세션 총량 + 날짜별 구성 상세(전 종목·BW 포함, 여러 세션 합산)
   (logs||[]).forEach(l=>{
     if(l.type==='weight'||l.type==='plyo'){
@@ -1265,6 +1265,14 @@ function _ltBuild(logs,ath){
           (volBreak.sub[l.date]=volBreak.sub[l.date]||{})[_cSub]=(volBreak.sub[l.date][_cSub]||0)+exVol;
           (volBreak.region[l.date]=volBreak.region[l.date]||{})[_cReg]=(volBreak.region[l.date][_cReg]||0)+exVol;
           (volBreak.type[l.date]=volBreak.type[l.date]||{})[_cType]=(volBreak.type[l.date][_cType]||0)+exVol;
+          // 카테고리별 운동 상세(볼륨+RPE) — 툴팁 세부 표시용
+          const _exLbl=sl+e.name, _exEf=_dEffNum(e.effort);
+          [['sub',_cSub],['region',_cReg],['type',_cType]].forEach(gc=>{
+            const _D=(volBreak.ex[gc[0]][l.date]=volBreak.ex[gc[0]][l.date]||{});
+            const _C=(_D[gc[1]]=_D[gc[1]]||{});
+            const _E=(_C[_exLbl]=_C[_exLbl]||{vol:0,eff:null});
+            _E.vol+=exVol; if(_exEf!=null)_E.eff=_exEf;
+          });
         }
       });
     }
@@ -1693,6 +1701,8 @@ function _renderTrends(fAthletes, selAth, selLogs){
   };
   // ── Total Volume 분해(누적) ──
   const _LT_BRK_LBL={sub:'카테고리별',region:'상·하체별',type:'타입별'};
+  // 카테고리 막대 툴팁 세부: 그 카테고리에 들어간 운동별 볼륨 + RPE
+  const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
   // 막대 위/안에 값 표시 플러그인(kg/m)
   const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(meta.hidden)return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);if(h<13)return;ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,el.x,(el.y+el.base)/2);}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
   const _ltBrkData=grp=>{
@@ -1706,19 +1716,22 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const {byDate,dates,groups}=_ltBrkData(grp);
     if(!dates.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?[g+' '+_fmtKg(byDate[d][g])]:''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
+    const _exBy=(_lt.volBreak.ex||{})[grp]||{};
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:dates.map(d=>Math.round(byDate[d][g]||0)),_metas:dates.map(d=>byDate[d][g]?['총 '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
     const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
     const byDate=_lt.volBreak[grp]||{};
-    const bset={},agg={},tot={};
-    Object.keys(byDate).filter(_ltInPeriod).forEach(d=>{const o=_ltBKey(d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;bset[o.k]=o.l;Object.entries(byDate[d]).forEach(([g,v])=>{(agg[o.k]=agg[o.k]||{})[g]=(agg[o.k][g]||0)+v;tot[g]=(tot[g]||0)+v;});});
+    const exByDate=(_lt.volBreak.ex||{})[grp]||{};
+    const bset={},agg={},aggEx={},tot={};
+    Object.keys(byDate).filter(_ltInPeriod).forEach(d=>{const o=_ltBKey(d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;bset[o.k]=o.l;Object.entries(byDate[d]).forEach(([g,v])=>{(agg[o.k]=agg[o.k]||{})[g]=(agg[o.k][g]||0)+v;tot[g]=(tot[g]||0)+v;});
+      Object.entries(exByDate[d]||{}).forEach(gm=>{const G=((aggEx[o.k]=aggEx[o.k]||{})[gm[0]]=aggEx[o.k][gm[0]]||{});Object.entries(gm[1]).forEach(em=>{const E=(G[em[0]]=G[em[0]]||{vol:0,eff:null});E.vol+=em[1].vol;if(em[1].eff!=null)E.eff=em[1].eff;});});});
     const keys=Object.keys(bset).sort(),labels=keys.map(k=>bset[k]);
     const groups=Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
     if(!keys.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
-    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:keys.map(k=>Math.round((agg[k]&&agg[k][g])||0)),_metas:keys.map(k=>(agg[k]&&agg[k][g])?[g+' '+_fmtKg(agg[k][g])]:''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
+    const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,data:keys.map(k=>Math.round((agg[k]&&agg[k][g])||0)),_metas:keys.map(k=>(agg[k]&&agg[k][g])?['총 '+_fmtKg(agg[k][g])].concat(_ltExMetaFromObj(aggEx[k]&&aggEx[k][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
     const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
   };
