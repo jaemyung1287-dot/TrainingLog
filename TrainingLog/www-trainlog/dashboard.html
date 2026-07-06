@@ -1204,13 +1204,14 @@ const _weekBandPlugin={
     try{
       const pm={};
       Object.entries((typeof coachData!=='undefined'&&coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{if(p&&p.phase)pm[d]=String(p.phase).trim();});
-      if(typeof _PDZ!=='undefined'){_PDZ.forEach(([code,d1])=>{const b='Block '+code.split('-')[0];const dt=new Date(d1+'T00:00:00');for(let k=0;k<7;k++){const ds=dt.toISOString().slice(0,10);if(!pm[ds])pm[ds]=b;dt.setDate(dt.getDate()+1);}});}
+      // 주기화 블록 코드 앞자리로 메소사이클 그룹 정의: 1-1,1-2,1-3 → Mesocycle 1 / 2-1,2-2,2-3 → Mesocycle 2 … (_PDZ가 sessionPlans phase보다 우선)
+      if(typeof _PDZ!=='undefined'){_PDZ.forEach(([code,d1])=>{const b='Mesocycle '+code.split('-')[0];const dt=new Date(d1+'T00:00:00');for(let k=0;k<7;k++){const ds=dt.toISOString().slice(0,10);pm[ds]=b;dt.setDate(dt.getDate()+1);}});}
       let last=null; const ph=dates.map(d=>{ if(pm[d])last=pm[d]; return last; });
       const first=ph.find(x=>x); for(let k=0;k<ph.length&&!ph[k];k++)ph[k]=first;
       const uniq=[...new Set(ph.filter(Boolean))];
       if(uniq.length){
         const PAL=['#a78bfa','#4f8ef7','#3ecf8e','#f7a94f','#e2b714','#f85149'];
-        const colOf=p=>PAL[uniq.indexOf(p)%PAL.length];
+        const colOf=p=>{const num=parseInt((String(p).match(/\d+/)||[0])[0],10); return num>0?PAL[(num-1)%PAL.length]:PAL[uniq.indexOf(p)%PAL.length];};
         let i2=0;
         while(i2<n){
           const p=ph[i2]; let j2=i2; while(j2<n&&ph[j2]===p)j2++;
@@ -1218,7 +1219,7 @@ const _weekBandPlugin={
             const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
             const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
             const c=colOf(p);
-            ctx.fillStyle=c+'1c'; ctx.fillRect(xS,area.top,xE-xS,area.bottom-area.top); // 옅은 틴트(~11%)
+            ctx.fillStyle=c+'16'; ctx.fillRect(xS,area.top,xE-xS,area.bottom-area.top); // 옅은 틴트(~9%)
             if(i2>0){ ctx.strokeStyle=c+'88'; ctx.setLineDash([5,3]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,area.bottom); ctx.stroke(); ctx.setLineDash([]); }
             if(xE-xS>72){
               ctx.fillStyle=c; ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
