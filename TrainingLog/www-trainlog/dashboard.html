@@ -512,8 +512,8 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
     </div>
     <nav>
       <div class="sb-section-label">Views</div>
-      <button class="nb" onclick="switchTab('load',this)"><span class="ni">📊</span>Load</button>
-      <button class="nb on" onclick="switchTab('plan',this)"><span class="ni">📝</span>Plan</button>
+      <button class="nb on" onclick="switchTab('load',this)"><span class="ni">📊</span>Load</button>
+      <button class="nb" onclick="switchTab('plan',this)"><span class="ni">📝</span>Plan</button>
       <button class="nb" onclick="switchTab('schedule',this)"><span class="ni">📅</span>Schedule</button>
       <button class="nb" onclick="switchTab('overview',this)"><span class="ni">📋</span>Overview</button>
       <button class="nb" onclick="switchTab('soreness',this)"><span class="ni">🔴</span>Soreness</button>
@@ -548,16 +548,16 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
   <div id="main">
     <div id="topbar">
       <div class="tb-left">
-        <div class="tb-title" id="tb-title">Overview</div>
+        <div class="tb-title" id="tb-title">Training Load</div>
         <div class="tb-sub" id="tb-sub"></div>
       </div>
       <div class="live-badge"><div class="live-dot"></div>Live</div>
     </div>
     <div id="content">
-      <div class="tab on" id="tab-plan"></div>
+      <div class="tab" id="tab-plan"></div>
       <div class="tab" id="tab-schedule"></div>
       <div class="tab" id="tab-overview"></div>
-      <div class="tab" id="tab-load"></div>
+      <div class="tab on" id="tab-load"></div>
       <div class="tab" id="tab-soreness"></div>
       <div class="tab" id="tab-condition"></div>
       <div class="tab" id="tab-perf"></div>
@@ -575,7 +575,7 @@ const db=firebase.firestore(), auth=firebase.auth();
 const ALLOWED='jaemyung1287@gmail.com';
 
 // ══ STATE ══
-let coachData=null, athLogs={}, athNotes={}, unsubs=[], athUnsubs=[], curTab='plan';
+let coachData=null, athLogs={}, athNotes={}, unsubs=[], athUnsubs=[], curTab='load';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
 let selScope='all';   // 공통 선수 셀렉터: 'all' | 'A' | 'B' (그룹 컨텍스트)
 let selNames=new Set(); // 개별 선수 다중선택 (탭 간 공유, 비면 그룹/전체)
@@ -2373,22 +2373,26 @@ function _renderTrends(fAthletes, selAth, selLogs){
             if(m) return `<div style="display:flex;justify-content:space-between;gap:14px"><span style="white-space:pre-wrap;min-width:0">${_esc(m[1])}</span><span style="flex-shrink:0;color:#f7a94f;font-weight:700">${_esc(m[2])}</span></div>`;
             return `<div style="white-space:pre-wrap">${_esc(s)}</div>`;
           };
-          const _wkPinRow=(o,col)=>{
-            const keys=Object.keys(ltWkPins).filter(k=>{const p=k.split('|');return p[0]===_mKey&&p[1]===o.d1;}).sort((a,b)=>(+a.split('|')[2])-(+b.split('|')[2]));
+          const _wkPinGrid=()=>{
+            // 모든 주차의 핀을 한 구역에 나란히 — 개별 세션 직접 비교
+            const keys=Object.keys(ltWkPins).filter(k=>{const p=k.split('|');return p[0]===_mKey&&wkList.some(o=>o.d1===p[1]);})
+              .sort((a,b)=>{const pa=a.split('|'),pb=b.split('|');const wa=wkList.findIndex(o=>o.d1===pa[1]),wb=wkList.findIndex(o=>o.d1===pb[1]);return wa-wb||(+pa[2])-(+pb[2]);});
             if(!keys.length)return '';
-            return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;margin-top:8px">`+keys.map(k=>{
-              const idx=+k.split('|')[2];
+            const cards=keys.map(k=>{
+              const p=k.split('|'), idx=+p[2];
+              const wi2=wkList.findIndex(o=>o.d1===p[1]); const o=wkList[wi2]; const col=_WKPAL[wi2%_WKPAL.length];
               const dt=new Date(o.d1+'T00:00:00');dt.setDate(dt.getDate()+idx);
               const ds=dt.toISOString().slice(5,10).replace('-','.');
               const meta=o.mm[idx];const lines=Array.isArray(meta)?meta:(meta?[meta]:[]);
-              return `<div class="card" style="border-left:3px solid ${col};padding:10px 13px;margin:0">
+              return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px">
-                  <span style="font-size:12px;font-weight:700">${WD[idx]} · ${ds} <span style="color:${col}">${fv(o.m[idx])}</span></span>
+                  <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:${col}">${_esc(_wkLbl(o.d1).split(' ')[0])}</span> · ${WD[idx]} ${ds} · <span style="color:${col}">${fv(o.m[idx])}</span></span>
                   <span onclick="ltWkPinTg('${k}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;padding:0 2px">×</span>
                 </div>
-                <div style="font-size:11.5px;line-height:1.6;color:#c9d1d9;max-height:300px;overflow-y:auto">${lines.map(_fmtPinLine).join('')}</div>
+                <div style="font-size:11.5px;line-height:1.6;color:#c9d1d9;max-height:340px;overflow-y:auto">${lines.map(_fmtPinLine).join('')}</div>
               </div>`;
-            }).join('')+`</div>`;
+            }).join('');
+            return `<div style="grid-column:1/-1"><div style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--hint);text-transform:uppercase;margin:2px 2px 6px">Session Compare · 점 클릭으로 추가/제거</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;align-items:start">${cards}</div></div>`;
           };
           wkList.forEach((o,i)=>{
             let sub=o.tot==null?'데이터 없음':'Total '+fv(o.tot);
@@ -2406,8 +2410,9 @@ function _renderTrends(fAthletes, selAth, selLogs){
               else if(chart&&chart.scales&&chart.scales.x){const px=evt.x;let bd=1e9;WD.forEach((_,k)=>{const cx=chart.scales.x.getPixelForValue(k);const dd=Math.abs(cx-px);if(dd<bd){bd=dd;idx=k;}});if(bd>34)idx=-1;}
               if(idx>=0&&o.m[idx]!=null)ltWkPinTg(_mKey+'|'+o.d1+'|'+idx);
             };
-            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',cfg,190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',midLbl)}${_wkPinRow(o,col)}</div>`;
+            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',cfg,190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',midLbl)}</div>`;
           });
+          LT+=_wkPinGrid();
         }
       });
     } else if(bucketing){
