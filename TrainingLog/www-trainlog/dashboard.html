@@ -476,11 +476,14 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .lt-pin-x:hover{color:var(--red)}
 .lt-pin-sub{font-size:11px;color:var(--gold);margin:2px 0 9px}
 .lt-pin-ex{padding:6px 0;border-top:1px solid rgba(255,255,255,.05)}
-.lt-pin-exh{font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.lt-pin-exh{font-size:12px;color:var(--text);display:flex;align-items:flex-start;gap:8px}
+.lt-pin-exl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;flex:1}
 .lt-pin-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block}
 .lt-pin-meta{color:var(--muted);font-size:11px;font-weight:400}
-.lt-pin-rpe{font-size:11px;font-weight:700;margin-left:auto}
+.lt-pin-rpe{font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;line-height:1.5}
 .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
+.lt-pin-sore{display:flex;flex-wrap:wrap;gap:5px;padding-left:13px;margin-top:4px}
+.lt-sore-chip{font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid;background:rgba(255,255,255,.03);white-space:nowrap}
 .lt-pin-setn{font-size:12px;color:var(--muted);padding:2px 0;line-height:1.5}
 .lt-pin-exname{font-size:11px;font-weight:700;color:var(--gold);margin:2px 0 4px}
 .lt-pin-note{font-size:11px;color:#8b949e;font-style:italic;padding-left:13px;margin-top:2px;line-height:1.5}
@@ -1421,7 +1424,7 @@ function _ltPinWRow(e,d){
   const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
   const head=`${sets}×${reps}${o.bw?' (BW)':' · '+_fmtKg(o.vol)}`;
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(e.name)}',0)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
-  return {vol:o.vol,html:`<div class="lt-pin-ex"${clk}><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#f7a94f"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta">${_esc(head)}</span>${o.eff!=null?` <span class="lt-pin-rpe" style="color:${_dEffCol(o.eff)}">RPE ${o.eff}</span>`:''}</div>${o.setLines.map(x=>`<div class="lt-pin-set">${_esc(x)}</div>`).join('')}${o.note?`<div class="lt-pin-note">📝 ${_esc(o.note)}</div>`:''}</div>`};
+  return {vol:o.vol,html:`<div class="lt-pin-ex"${clk}><div class="lt-pin-exh"><div class="lt-pin-exl"><span class="lt-pin-dot" style="background:#f7a94f"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta">${_esc(head)}</span></div>${o.eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(o.eff)}">RPE ${o.eff}</span>`:''}</div>${o.setLines.map(x=>`<div class="lt-pin-set">${_esc(x)}</div>`).join('')}${o.note?`<div class="lt-pin-note">📝 ${_esc(o.note)}</div>`:''}</div>`};
 }
 // 스프린트 세트 1개 → 핀 카드 행 HTML
 function _ltPinSRow(s,d){
@@ -1434,7 +1437,7 @@ function _ltPinSRow(s,d){
   let _setHtml='',_n=0;
   (s.repTimes||[]).forEach(t=>{const tv=parseFloat(t); if(t==null||isNaN(tv))return; _n++; _setHtml+=`<div class="lt-pin-set">${_n}. ${dist}m → ${tv.toFixed(2)}s · ${(dist/tv).toFixed(2)} m/s</div>`;});
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(_ltSprintKey(dist,_ltDisc(s)))}',1)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
-  return {dist:m,html:`<div class="lt-pin-ex"${clk}><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#3ecf8e"></span><b>${_esc(s.name||dist+'m')}</b> <span class="lt-pin-meta">${_esc(head)}</span>${eff!=null?` <span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${_setHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`};
+  return {dist:m,html:`<div class="lt-pin-ex"${clk}><div class="lt-pin-exh"><div class="lt-pin-exl"><span class="lt-pin-dot" style="background:#3ecf8e"></span><b>${_esc(s.name||dist+'m')}</b> <span class="lt-pin-meta">${_esc(head)}</span></div>${eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${_setHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`};
 }
 // 핀 카드용 컨디션 블록(Readiness·수면·피로·기분·근육통) — 그 날짜 그 선수
 function _ltCondBlockHtml(name,d){
@@ -1448,11 +1451,12 @@ function _ltCondBlockHtml(name,d){
     if(c.fatigue!=null)items.push('Fatigue '+c.fatigue);
     if(c.mood!=null)items.push('Mood '+c.mood);
   }
-  const rchip=(rd&&rd.ok)?` <span class="lt-pin-rpe" style="color:${rd.color}">Readiness ${rd.score}</span>`:'';
-  const sore=((c&&c.soreness)||[]).filter(x=>x&&(+x.intensity||0)>0).map(x=>`${x.part||''} ${(+x.intensity||0)}`);
-  const soreHtml=sore.length?`<div class="lt-pin-set" style="color:#f85149">🔴 ${sore.map(_esc).join(' · ')}</div>`:'';
+  const rchip=(rd&&rd.ok)?`<span class="lt-pin-rpe" style="color:${rd.color}">Readiness ${rd.score}</span>`:'';
+  const _soreCol=n=>n>=7?'#f85149':n>=4?'#f7a94f':'#e2b714';
+  const sore=((c&&c.soreness)||[]).filter(x=>x&&(+x.intensity||0)>0).map(x=>({part:x.part||'',i:+x.intensity||0}));
+  const soreHtml=sore.length?`<div class="lt-pin-sore">${sore.map(s=>{const col=_soreCol(s.i);return `<span class="lt-sore-chip" style="border-color:${col}66;color:${col}">${_esc(s.part)} ${s.i}</span>`;}).join('')}</div>`:'';
   const note=(c&&(c.note||c.notes)||'').trim();
-  return `<div class="lt-pin-ex"><div class="lt-pin-exh"><span class="lt-pin-dot" style="background:#bc8cff"></span><b>Condition</b> <span class="lt-pin-meta">${_esc(items.join(' · '))}</span>${rchip}</div>${soreHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`;
+  return `<div class="lt-pin-ex"><div class="lt-pin-exh"><div class="lt-pin-exl"><span class="lt-pin-dot" style="background:#bc8cff"></span><b>Condition</b> <span class="lt-pin-meta">${_esc(items.join(' · '))}</span></div>${rchip}</div>${soreHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`;
 }
 // 고정된 세션(또는 종목)들을 차트 아래 카드로 나란히 표시. p.ex 있으면 그 종목만.
 function _ltPinCards(selLogs){
@@ -2199,11 +2203,14 @@ function _renderTrends(fAthletes, selAth, selLogs){
     .lt-pin-x:hover{color:var(--red)}
     .lt-pin-sub{font-size:11px;color:var(--gold);margin:2px 0 9px}
     .lt-pin-ex{padding:6px 0;border-top:1px solid rgba(255,255,255,.05)}
-    .lt-pin-exh{font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .lt-pin-exh{font-size:12px;color:var(--text);display:flex;align-items:flex-start;gap:8px}
+.lt-pin-exl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;flex:1}
     .lt-pin-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block}
     .lt-pin-meta{color:var(--muted);font-size:11px;font-weight:400}
-    .lt-pin-rpe{font-size:11px;font-weight:700;margin-left:auto}
+    .lt-pin-rpe{font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;line-height:1.5}
     .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
+.lt-pin-sore{display:flex;flex-wrap:wrap;gap:5px;padding-left:13px;margin-top:4px}
+.lt-sore-chip{font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid;background:rgba(255,255,255,.03);white-space:nowrap}
     .lt-pin-setn{font-size:12px;color:var(--muted);padding:2px 0;line-height:1.5}
     .lt-pin-exname{font-size:11px;font-weight:700;color:var(--gold);margin:2px 0 4px}
     .lt-pin-note{font-size:11px;color:#8b949e;font-style:italic;padding-left:13px;margin-top:2px;line-height:1.5}
