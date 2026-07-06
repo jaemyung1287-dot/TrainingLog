@@ -1194,10 +1194,28 @@ const _weekBandPlugin={
       const xEnd=j>=n?area.right:(xs.getPixelForValue(j-1)+xs.getPixelForValue(j))/2;
       if(band%2===1){ctx.fillStyle='rgba(255,255,255,.035)';ctx.fillRect(xStart,area.top,xEnd-xStart,area.bottom-area.top);}
       if(i>0){ctx.strokeStyle='rgba(255,255,255,.07)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(xStart,area.top);ctx.lineTo(xStart,area.bottom);ctx.stroke();ctx.setLineDash([]);}
-      ctx.fillStyle='rgba(230,237,243,.32)';ctx.font='10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
-      ctx.fillText((w.mon.getMonth()+1)+'/'+w.mon.getDate()+' 주',(xStart+xEnd)/2,area.top+2);
-      if(vals){
-        let sum=0; for(let k=i;k<j;k++) sum+=(parseFloat(vals[dates[k]])||0);
+      let sum=null;
+      if(vals){ sum=0; for(let k=i;k<j;k++) sum+=(parseFloat(vals[dates[k]])||0); }
+      ctx.textBaseline='top';
+      const _sun=new Date(w.mon); _sun.setDate(w.mon.getDate()+6);
+      const wkLbl=(w.mon.getMonth()+1)+'월 '+w.mon.getDate()+'일 ~ '+(_sun.getMonth()+1)+'월 '+_sun.getDate()+'일';
+      const fontN='10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
+      const fontB='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
+      if(sum!=null&&xEnd-xStart>58){
+        const p1=wkLbl+' · ', p2=fv(sum);
+        ctx.font=fontN; const w1=ctx.measureText(p1).width;
+        ctx.font=fontB; const w2=ctx.measureText(p2).width;
+        const x0=(xStart+xEnd)/2-(w1+w2)/2;
+        ctx.textAlign='left';
+        ctx.fillStyle='rgba(230,237,243,.32)';ctx.font=fontN;ctx.fillText(p1,x0,area.top+2);
+        ctx.fillStyle='rgba(230,237,243,.72)';ctx.font=fontB;ctx.fillText(p2,x0+w1,area.top+2);
+        ctx.textAlign='center';
+      } else {
+        ctx.textAlign='center';
+        ctx.fillStyle='rgba(230,237,243,.32)';ctx.font=fontN;
+        ctx.fillText(wkLbl,(xStart+xEnd)/2,area.top+2);
+      }
+      if(sum!=null){
         if(prevSum!=null&&xEnd-xStart>58){
           const d=sum-prevSum, pct=prevSum?Math.round(d/Math.abs(prevSum)*100):0, flat=Math.abs(d)<1e-9;
           ctx.fillStyle=flat?'rgba(230,237,243,.32)':(d>0?'#3ecf8e':'#f85149');
