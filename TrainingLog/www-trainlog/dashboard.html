@@ -2164,7 +2164,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
     +`<span class="lt-lbl" style="width:auto;min-width:0;padding-right:0">Unit</span>`
     +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
-    + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')
+    + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')+_ltCompOpt('custom','Compare A/B…')
     +`</select>`
     +(ltAB?`<input type="date" class="lt-date" value="${ltCB1}" onchange="ltCB1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltCB2}" onchange="ltCB2=this.value;_rerenderTrends()"><select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value,'cmp')">${_planWeekOpts(ltCB1,ltCB2)}</select><div class="lt-seg" style="margin-left:6px"><button class="${ltABView==='overlay'?'on':''}" onclick="ltABView='overlay';_rerenderTrends()">Overlay</button><button class="${ltABView==='split'?'on':''}" onclick="ltABView='split';_rerenderTrends()">Split</button></div>`:'')
     +`</div>`;
