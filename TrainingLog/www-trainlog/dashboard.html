@@ -2287,16 +2287,18 @@ function _renderTrends(fAthletes, selAth, selLogs){
         });
         const allV=wkList.flatMap(o=>Object.values(o.m));
         const maxV=allV.length?Math.max(...allV):null;
-        const mkOpt=(legend)=>{const o=_ltTip(sp.agg==='min',legend!==false);
+        const mkOpt=()=>{const o=_ltTip(sp.agg==='min',true);
           o.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:sp.agg==='sum',reverse:sp.agg==='min'}};
           if(maxV!=null)o.scales.y.suggestedMax=maxV*1.08;
-          if(legend===false){o.plugins=o.plugins||{};o.plugins.legend={display:false};}
+          o.plugins=o.plugins||{};
+          o.plugins.legend={display:true,labels:{color:'rgba(230,237,243,.88)',font:{size:13,weight:'700'},boxWidth:14,boxHeight:14,padding:10}};
           return o;};
-        const mkDs=(o,col,solo)=>({label:_wkLbl(o.d1),data:WD.map((_,i)=>o.m[i]??null),_metas:WD.map((_,i)=>o.m[i]!=null?o.mm[i]:''),borderColor:col,backgroundColor:solo?col+'22':'transparent',fill:!!solo,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2});
+        const mkDs=(o,col)=>({label:_wkLbl(o.d1),data:WD.map((_,i)=>o.m[i]??null),_metas:WD.map((_,i)=>o.m[i]!=null?o.mm[i]:''),borderColor:col,backgroundColor:col+'22',fill:true,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2});
+        const mkBarDs=(o,col)=>({label:_wkLbl(o.d1),data:WD.map((_,i)=>o.m[i]??null),_metas:WD.map((_,i)=>o.m[i]!=null?o.mm[i]:''),backgroundColor:col+'cc',borderRadius:3,maxBarThickness:28});
         if(ltABView==='overlay'&&wkList.length>1){
-          const dss=wkList.map((o,i)=>mkDs(o,_WKPAL[i%_WKPAL.length]));
+          const dss=wkList.map((o,i)=>mkBarDs(o,_WKPAL[i%_WKPAL.length]));
           const subTxt=wkList.map((o,i)=>`${_wkLbl(o.d1).split(' ')[0]} ${fv(o.tot)}`).join(' · ');
-          LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label+' · 주차 비교',subTxt,{type:'line',data:{labels:WD,datasets:dss},options:mkOpt()},230,sp.idx)}</div>`;
+          LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label+' · 주차 비교',subTxt,{type:'bar',data:{labels:WD,datasets:dss},options:mkOpt()},240,sp.idx)}</div>`;
         } else {
           wkList.forEach((o,i)=>{
             let sub=o.tot==null?'데이터 없음':'Total '+fv(o.tot);
@@ -2305,7 +2307,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
               const good=sp.agg==='min'?d<0:d>0;
               sub+=` · <span style="color:${Math.abs(d)<1e-9?'var(--hint)':good?'#3ecf8e':'#f85149'}">${d>0?'+':''}${fv(d).replace('−','-')} (${pct>0?'+':''}${pct}%)</span>`;
             }
-            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label+' · '+_wkLbl(o.d1),'',{type:'line',data:{labels:WD,datasets:[mkDs(o,_WKPAL[i%_WKPAL.length],true)]},options:mkOpt(false)},190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`)}</div>`;
+            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',{type:'line',data:{labels:WD,datasets:[mkDs(o,_WKPAL[i%_WKPAL.length])]},options:mkOpt()},200,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`)}</div>`;
           });
         }
       });
