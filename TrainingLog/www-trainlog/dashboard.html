@@ -1246,7 +1246,7 @@ const _weekBandPlugin={
             const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
             const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
             const c=colOf(p);
-            if(i2>0){ ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,area.bottom); ctx.stroke(); ctx.setLineDash([]); }
+            if(i2>0){ let yB=area.bottom; try{const md=chart.getDatasetMeta(0).data; if(md&&md[i2-1]&&md[i2]) yB=(md[i2-1].y+md[i2].y)/2;}catch(e){} ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,yB); ctx.stroke(); ctx.setLineDash([]); }
             if(xE-xS>72){ ctx.fillStyle=c; ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(p,(xS+xE)/2,area.bottom-4); ctx.textBaseline='top'; }
           }
           i2=j2;
