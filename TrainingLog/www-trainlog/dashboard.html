@@ -740,8 +740,8 @@ function iCol(v,hg){
   if(hg)return v>=7?'var(--green)':v>=4?'var(--gold)':'var(--red)';
   return v>=7?'var(--red)':v>=4?'var(--gold)':'var(--green)';
 }
-function tc(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#bc8cff',tabata:'#f85149'}[t]||'var(--muted)';}
-function tcBg(t){return{weight:'rgba(247,169,79,.1)',sprint:'rgba(62,207,142,.1)',plyo:'rgba(247,169,79,.1)',tabata:'rgba(248,81,73,.1)'}[t]||'rgba(255,255,255,.04)';}
+function tc(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#bc8cff',tabata:'#f85149',mobility:'#E07B39'}[t]||'var(--muted)';}
+function tcBg(t){return{weight:'rgba(247,169,79,.1)',sprint:'rgba(62,207,142,.1)',plyo:'rgba(247,169,79,.1)',tabata:'rgba(248,81,73,.1)',mobility:'rgba(224,123,57,.1)'}[t]||'rgba(255,255,255,.04)';}
 // Matches the app's _planGrpData resolution: individual athlete key → group → all (legacy .groups last)
 function planGrp(plan,ath){if(!plan)return null;return plan['ath_'+ath.id]||plan[ath.group]||plan['all']||plan.groups?.[ath.group]||null;}
 function sessExs(gd,s){if(!gd)return[];if(gd[s]?.exercises)return gd[s].exercises;if(s==='am'&&gd.exercises)return gd.exercises;return[];}
@@ -862,16 +862,28 @@ function _ovEx(l){
     lines.push({t:(l.totalReps||0)+' reps', eff:''});
   } else if(l.type==='tabata'){
     lines.push({t:'8 rounds 20s/10s', eff:''});
+  } else if(l.type==='mobility'){
+    (l.exercises||[]).forEach(e=>{
+      if(!e||!e.name) return;
+      const dv=_dEffNum(e.difficulty);
+      lines.push({t:(e.done?'✓ ':'○ ')+e.name+(dv!=null?' · D'+dv:''), eff:dv!=null?dv:''});
+    });
   }
   return lines;
 }
 function _ovBlock(l,athId){
   const c=tc(l.type), bg=tcBg(l.type);
-  const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
-  const val=l.type==='weight'?`${_fmtKg(vol([l]))}`
+  const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type==='mobility'?'Mobility':l.type;
+  let val=l.type==='weight'?`${_fmtKg(vol([l]))}`
     :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
     :l.type==='plyo'?`${l.totalReps||0} reps`
     :l.type==='tabata'?'8 rounds':'—';
+  if(l.type==='mobility'){
+    const _mexs=l.exercises||[];
+    const _mdvs=_mexs.map(e=>_dEffNum(e.difficulty)).filter(v=>v!=null);
+    const _mavg=_mdvs.length?(_mdvs.reduce((s,v)=>s+v,0)/_mdvs.length):null;
+    val=`${_mexs.filter(e=>e.done).length}/${_mexs.length} ✓${_mavg!=null?` · Ø D${_mavg.toFixed(1)}`:''}`;
+  }
   const lines=_ovEx(l);
   const tip=_esc(lines.map(x=>x.t).join('\n'));
   const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_effDot(x.eff)}${_esc(x.t)}</div>`).join('')}</div>`:'';

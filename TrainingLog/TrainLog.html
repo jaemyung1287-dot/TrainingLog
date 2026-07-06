@@ -1731,10 +1731,10 @@ const EXERCISE_LIBRARY={
   'Knee Dominant':[
     'Rhythmic Squat','Quarter Squat','Half Squat','Squat','Box Squat','Pause Squat',
     'Front Squat','Goblet Squat','Safety Bar Squat','Zercher Squat','Hack Squat',
-    'Leg Press','Leg Extension','Sissy Squat'
+    'Leg Press','Leg Extension','Sissy Squat','Leg Curl (Lying)','Leg Curl (Seated)'
   ],
   'Hip Hinge':[
-    'Good Morning','Romanian Deadlift','Nordic Curl','Leg Curl (Lying)','Leg Curl (Seated)','Deadlift',
+    'Good Morning','Romanian Deadlift','Nordic Curl','Deadlift',
     'Sumo Deadlift','Trap Bar Deadlift','Stiff Leg Deadlift','Snatch Grip Deadlift',
     'Rack Pull','Block Pull','Hip Thrust','Glute Bridge',
     'Banded Hip Thrust','Single Leg Hip Thrust',
@@ -3674,9 +3674,19 @@ function renderExList(){
         </div>`;
     }
 
-    // Effort 0-10 슬라이더 (athlete only — always shown). Mobility = completion check only → no effort.
+    // Effort 0-10 슬라이더 (athlete only — always shown). Mobility = Schwierigkeit 0-10 (shown once done).
     const _en=_EFFNUM(ex.effort);
-    const effortHtml=(params==='mobility')?'':`
+    const _dn=_EFFNUM(ex.difficulty);
+    const effortHtml=(params==='mobility')
+      ?(ex.done?`
+      <div style="margin-top:10px">
+        <div class="effort-lbl" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Wie schwer war die Übung? <span style="font-weight:400;color:var(--muted)">(0 = sehr leicht · 10 = sehr schwer)</span></span>
+          <span id="diff-val-${i}" style="font-size:13px;font-weight:800;color:${_dn==null?'var(--muted)':_EFFCOL(_dn)}">${_dn==null?'—':_dn+' / 10'}</span>
+        </div>
+        <input type="range" class="eff-slider" min="0" max="10" step="1" value="${_dn==null?5:_dn}" oninput="setExDifficulty(${i},this.value)">
+      </div>`:'')
+      :`
       <div style="margin-top:10px">
         <div class="effort-lbl" style="display:flex;justify-content:space-between;align-items:center">
           <span>Effort</span>
@@ -3749,6 +3759,13 @@ function setExEffort(i,val){
   const lbl=document.getElementById('eff-val-'+i);
   if(lbl){ lbl.textContent=isNaN(n)?'—':n+' / 10'; lbl.style.color=isNaN(n)?'var(--muted)':_EFFCOL(n); }
   _setExDone(i); // auto-check on effort selection
+}
+// Mobility & Conditioning — Schwierigkeit 0-10 (per exercise, athlete self-report)
+function setExDifficulty(i,val){
+  const n=parseInt(val,10);
+  ST.exercises[i].difficulty=isNaN(n)?null:n;
+  const lbl=document.getElementById('diff-val-'+i);
+  if(lbl){ lbl.textContent=isNaN(n)?'—':n+' / 10'; lbl.style.color=isNaN(n)?'var(--muted)':_EFFCOL(n); }
 }
 function toggleBW(i){
   ST.exercises[i].isBodyweight=!ST.exercises[i].isBodyweight;
@@ -3992,6 +4009,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
         name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
         planSets:e.planSets||null, planReps:e.planReps||null,
         done:!!e.done, fromPlan:e.fromPlan||false,
+        difficulty:(e.difficulty!=null&&e.difficulty!=='')?parseInt(e.difficulty):null,
         coachComment:e.coachComment||null, ytUrl:e.ytUrl||null
       })),
       totalVolume:0, rpe, notes,
@@ -4886,7 +4904,11 @@ function renderToday(){
         <div style="font-size:11px;color:var(--muted);margin-top:2px">${s.sets||1} × ${s.reps||1}${s.intensity?' · '+s.intensity+'%':''}${s.actualTime?' · '+s.actualTime+'s':''}</div>
       </div>`).join('');
     } else if(l.type==='mobility'){
-      rows=(l.exercises||[]).map(e=>`<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--text)">${e.done?'✓':'○'} ${e.name||'—'}</div>`).join('');
+      rows=(l.exercises||[]).map(e=>{
+        const _dv=_EFFNUM(e.difficulty);
+        const _dBadge=_dv==null?'':`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_EFFCOL(_dv)}22;border:1px solid ${_EFFCOL(_dv)}55;color:${_EFFCOL(_dv)};font-weight:700;flex-shrink:0">D${_dv}</span>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--text)"><span>${e.done?'✓':'○'} ${e.name||'—'}</span>${_dBadge}</div>`;
+      }).join('');
     }
     const sessNote=l.notes&&l.notes.trim()?`<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(247,169,79,.08);border-left:3px solid #f7a94f;font-size:12px;color:var(--text);line-height:1.5;font-style:italic">💬 ${l.notes}</div>`:'';
     return rows+sessNote;
@@ -4898,7 +4920,10 @@ function renderToday(){
     if(l.type==='mobility'){
       const _md=(l.exercises||[]).filter(e=>e.done).length;
       const _mt=(l.exercises||[]).length;
+      const _dvs=(l.exercises||[]).map(e=>_EFFNUM(e.difficulty)).filter(v=>v!=null);
+      const _dAvg=_dvs.length?(_dvs.reduce((s,v)=>s+v,0)/_dvs.length):null;
       statsHtml=`<div class="detail-row"><span class="detail-key">Completed</span><span class="detail-val">${_md}/${_mt} ✓</span></div>`;
+      if(_dAvg!=null) statsHtml+=`<div class="detail-row"><span class="detail-key">Avg Difficulty</span><span class="detail-val" style="color:${_EFFCOL(_dAvg)}">${_dAvg.toFixed(1)} / 10</span></div>`;
     } else if(l.type==='sprint'){
       statsHtml=`<div class="detail-row"><span class="detail-key">Distance</span><span class="detail-val">${(l.totalDistance||0).toLocaleString()} m</span></div>`;
     } else if(l.type==='plyo'){
