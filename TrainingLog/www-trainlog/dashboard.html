@@ -1325,7 +1325,11 @@ function _wkAttachCfg(cfg,s,unit,agg){
   cfg.options._weekUnit=unit; cfg.options._weekAgg=agg||'sum';
   cfg.options.layout=cfg.options.layout||{};
   cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:20});
-  if(cfg.options.scales&&cfg.options.scales.y)cfg.options.scales.y.grace='18%';
+  if(cfg.options.scales&&cfg.options.scales.y){
+    const y=cfg.options.scales.y;
+    y.grace='25%';                        // 라인 최고점이 상단 라벨을 침범하지 않게 여유
+    if((agg||'sum')==='sum') y.min=0;     // 볼륨/거리 합계는 음수 축 방지
+  }
   return cfg;
 }
 function ltWeekPick(v,which){
