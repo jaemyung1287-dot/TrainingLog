@@ -2045,7 +2045,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     +`</select>`
     +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;_rerenderTrends()">`:'')
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
-    +`<span class="lt-lbl" style="width:auto">Unit</span>`
+    +`<span class="lt-lbl" style="width:auto;min-width:0;padding-right:0">Unit</span>`
     +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
     + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')
     +`</select>`
