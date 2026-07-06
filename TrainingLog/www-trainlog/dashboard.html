@@ -2021,6 +2021,9 @@ function _renderTrends(fAthletes, selAth, selLogs){
   const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).flatMap(e=>['· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].eff!=null?'  · RPE '+e[1].eff:'')].concat((e[1].splits||[]).map((x,i)=>'   '+(i+1)+'. '+x)));
   // 막대 위/안에 값 표시 플러그인(kg/m)
   const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);if(h<13)return;ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,el.x,(el.y+el.base)/2);}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
+  // 연속(일자별) 분해 막대차트에 주간 경계 세로 점선 표시(월요일 기준 · _PDZ 주기와 동일)
+  const _weekKey=ds=>{const dt=new Date(ds+'T00:00:00');const off=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-off);return dt.toISOString().slice(0,10);};
+  const _mkWeekSep=dates=>({id:'weeksep',afterDraw(chart){const xs=chart.scales.x;if(!xs||!dates||dates.length<2)return;const area=chart.chartArea,ctx=chart.ctx;ctx.save();ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=1;ctx.setLineDash([4,4]);for(let i=1;i<dates.length;i++){if(_weekKey(dates[i])!==_weekKey(dates[i-1])){const x=(xs.getPixelForValue(i-1)+xs.getPixelForValue(i))/2;ctx.beginPath();ctx.moveTo(x,area.top);ctx.lineTo(x,area.bottom);ctx.stroke();}}ctx.setLineDash([]);ctx.restore();}});
   const _ltBrkData=grp=>{
     const byDate=_lt.volBreak[grp]||{};
     const dates=Object.keys(byDate).filter(_ltInPeriod).sort();
@@ -2035,7 +2038,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const _exBy=(_lt.volBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
     const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
-    return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
+    return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg'),_mkWeekSep(dates)]},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
     const byDate=_lt.volBreak[grp]||{};
@@ -2067,7 +2070,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const _exBy=(_lt.distBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+Math.round(byDate[d][g])+'m'].concat(_ltDistExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
     const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
-    return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m')]},260,_ltCat.indexOf('__dist__'));
+    return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m'),_mkWeekSep(dates)]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
     const byDate=_lt.distBreak[grp]||{};
@@ -2358,13 +2361,16 @@ function _renderTrends(fAthletes, selAth, selLogs){
           const subTxt=wkList.map(o=>`${_wkLbl(o.d1).split(' ')[0]} ${fvb(o.tot)}`).join(' · ');
           out+=`<div style="grid-column:1/-1">${_ltCard(title,subTxt,{type:'bar',data:{labels:allCats,datasets:dss},options:opt,plugins:[_mkBarVals(unit)]},250,kind==='vol'?_ltCat.indexOf('__vol__'):_ltCat.indexOf('__dist__'),'','',midChips)}</div>`;
         } else {
+          const _grpBars=ltBrkBars==='group';
           const maxDay=Math.max(1,...wkList.flatMap(o=>Object.values(o.dayCat).map(cm=>Object.values(cm).reduce((a,b)=>a+b,0))));
+          const maxDayG=Math.max(1,...wkList.flatMap(o=>Object.values(o.dayCat).flatMap(cm=>Object.values(cm))));
           wkList.forEach((o,i)=>{
-            const dss=allCats.map((g,ci)=>{const col=_LT_PAL[ci%_LT_PAL.length];return{label:g,data:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?Math.round(o.dayCat[di][g]):null),_metas:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?['Total '+fvb(o.dayCat[di][g])]:''),backgroundColor:col+'cc',stack:'v',borderRadius:2,maxBarThickness:40};});
-            const opt=_ltTip(false,true);opt.scales={x:{stacked:true,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true,suggestedMax:maxDay*1.08}};
+            const dss=allCats.map((g,ci)=>{const col=_LT_PAL[ci%_LT_PAL.length];return{label:g,data:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?Math.round(o.dayCat[di][g]):null),_metas:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?['Total '+fvb(o.dayCat[di][g])]:''),backgroundColor:col+'cc',stack:_grpBars?undefined:'v',borderRadius:2,maxBarThickness:_grpBars?16:40};});
+            const opt=_ltTip(false,true);opt.scales={x:{stacked:!_grpBars,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{stacked:!_grpBars,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true,suggestedMax:(_grpBars?maxDayG:maxDay)*1.08}};
             let sub=o.tot==null?'데이터 없음':'Total '+fvb(o.tot);
             if(o.tot!=null&&i>0&&wkList[i-1].tot){const d=o.tot-wkList[i-1].tot,pct=Math.round(d/Math.abs(wkList[i-1].tot)*100);sub+=` · <span style="color:${Math.abs(d)<1e-9?'var(--hint)':d>0?'#3ecf8e':'#f85149'}">${d>0?'+':''}${fvb(d)} (${pct>0?'+':''}${pct}%)</span>`;}
-            out+=`<div style="grid-column:1/-1">${_ltCard(title,'',{type:'bar',data:{labels:WD,datasets:dss},options:opt,plugins:[_mkBarVals(unit)]},220,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',_wkMid(_WKPAL[i%_WKPAL.length],o.d1))}</div>`;
+            const _wkDates=WD.map((_,di)=>{const _dt=new Date(o.d1+'T00:00:00');_dt.setDate(_dt.getDate()+di);return _dt.toISOString().slice(0,10);});
+            out+=`<div style="grid-column:1/-1">${_ltCard(title,'',{type:'bar',data:{labels:WD,datasets:dss},options:opt,plugins:[_mkBarVals(unit),_mkWeekSep(_wkDates)]},220,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',_wkMid(_WKPAL[i%_WKPAL.length],o.d1))}</div>`;
           });
         }
         return out;
