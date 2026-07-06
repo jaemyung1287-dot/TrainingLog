@@ -1187,6 +1187,18 @@ function _sprintQualOf(s){return _SPRINT_QUAL[(s&&s.subCategory)||'']||((s&&s.su
 function _sprintMethodOf(s){const t=((s&&s.name)||'')+' '+((s&&s.subCategory)||'');if(/overspeed|downhill|assist|bergab|\bband(ed)?\b/i.test(t))return 'Assisted';if(/uphill|bergauf|berg\b|towing|sled|schlitten|pushing|resist/i.test(t))return 'Resisted';return 'Free';}
 // 로그 → {exMap:{name:{sprint,unit,cat,sub,pts:{date:{v,meta[],short}}}}, volByDate, distByDate}
 // meta = 툴팁 줄 배열(세션 총량 · 기록 · 계획 · RPE), short = 한 줄 요약(선수비교용)
+// ── 메소사이클 색상(라벨·라인 공용): Meso1=주황, Meso2=파랑 … ──
+const _MESO_PAL=['#f7a94f','#4f8ef7','#3ecf8e','#a78bfa','#e2b714','#f85149'];
+function _mesoColor(p){const num=parseInt((String(p).match(/\d+/)||[0])[0],10);return num>0?_MESO_PAL[(num-1)%_MESO_PAL.length]:_MESO_PAL[0];}
+// 날짜 배열 → 각 날짜의 메소사이클 이름(밴드 플러그인과 동일 로직: _PDZ 우선 + 앞뒤 carry-forward)
+function _mesoNamesFor(dates){
+  const pm={};
+  Object.entries((typeof coachData!=='undefined'&&coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{if(p&&p.phase)pm[d]=String(p.phase).trim();});
+  if(typeof _PDZ!=='undefined'){_PDZ.forEach(([code,d1])=>{const b='Mesocycle '+code.split('-')[0];const dt=new Date(d1+'T00:00:00');for(let k=0;k<7;k++){const ds=dt.toISOString().slice(0,10);pm[ds]=b;dt.setDate(dt.getDate()+1);}});}
+  let last=null;const ph=dates.map(d=>{if(pm[d])last=pm[d];return last;});
+  const first=ph.find(x=>x);for(let k=0;k<ph.length&&!ph[k];k++)ph[k]=first;
+  return ph;
+}
 // ── 추이 차트: 주간 음영 밴드 + 라벨(예: "6/8 주") 플러그인 ──
 const _weekBandPlugin={
   id:'lt_weekband',
@@ -1210,8 +1222,7 @@ const _weekBandPlugin={
       const first=ph.find(x=>x); for(let k=0;k<ph.length&&!ph[k];k++)ph[k]=first;
       const uniq=[...new Set(ph.filter(Boolean))];
       if(uniq.length){
-        const PAL=['#a78bfa','#4f8ef7','#3ecf8e','#f7a94f','#e2b714','#f85149'];
-        const colOf=p=>{const num=parseInt((String(p).match(/\d+/)||[0])[0],10); return num>0?PAL[(num-1)%PAL.length]:PAL[uniq.indexOf(p)%PAL.length];};
+        const colOf=p=>{const num=parseInt((String(p).match(/\d+/)||[0])[0],10); return num>0?_mesoColor(p):_MESO_PAL[uniq.indexOf(p)%_MESO_PAL.length];};
         let i2=0;
         while(i2<n){
           const p=ph[i2]; let j2=i2; while(j2<n&&ph[j2]===p)j2++;
@@ -1919,12 +1930,16 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const sign=delta>0?'+':delta<0?'-':'';
     return `<span style="font-size:10px;font-weight:700;color:${col};white-space:nowrap">${arrow} ${sign}${valTxt} (${pct>0?'+':''}${pct}%)</span>`;
   };
-  const _ltLineCfg=(series,color,sprint,cmp,ctx)=>{
+  const _ltLineCfg=(series,color,sprint,cmp,ctx,meso)=>{
     if(cmp){
       const byY={};series.forEach(p=>{const y=p.d.slice(0,4);(byY[y]=byY[y]||{})[parseInt(p.d.slice(5,7))-1]=p;});
       const years=Object.keys(byY).sort();
       const dss=years.map((y,i)=>{const last=i===years.length-1;return{label:y,data:_LT_MON.map((_,mi)=>byY[y][mi]?byY[y][mi].v:null),_metas:_LT_MON.map((_,mi)=>byY[y][mi]?byY[y][mi].meta:''),borderColor:last?color:'rgba(160,160,160,.7)',backgroundColor:'transparent',borderDash:last?[]:[5,4],spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2};});
       return{type:'line',data:{labels:_LT_MON,datasets:dss},options:_ltTip(sprint,true)};
+    }
+    if(meso){
+      const mcols=_mesoNamesFor(series.map(p=>p.d)).map(nm=>nm?_mesoColor(nm):color);
+      return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:'transparent',fill:false,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols,segment:{borderColor:sc=>mcols[sc.p0DataIndex]||color}}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx)};
     }
     return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx)};
   };
@@ -2244,19 +2259,20 @@ function _renderTrends(fAthletes, selAth, selLogs){
       const cd=[...dset].sort();
       if(!cd.length)return `<div class="lt-hint">No data to display</div>`;
       const labels=cd.map(d=>fmt(d));
-      const _mk=(series,color,sprint,unit,ptCol,ctx)=>{
+      const _mk=(series,color,sprint,unit,ptCol,ctx,meso)=>{
         const byD={};series.forEach(p=>byD[p.d]=p);
         const opt=_ltTip(sprint,false);
         opt.scales.y.afterFit=function(a){a.width=58;};
         if(unit==='rdy'){opt.scales.y.min=0;opt.scales.y.max=100;}
         const ds={data:cd.map(d=>byD[d]?byD[d].v:null),_metas:cd.map(d=>byD[d]?byD[d].meta:''),borderColor:color,backgroundColor:color+'1f',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,spanGaps:true,pointBackgroundColor:color,pointBorderColor:color};
+        if(meso){const mcols=_mesoNamesFor(cd).map(nm=>nm?_mesoColor(nm):color);ds.backgroundColor='transparent';ds.fill=false;ds.pointBackgroundColor=mcols;ds.pointBorderColor=mcols;ds.segment={borderColor:sc=>mcols[sc.p0DataIndex]||color};}
         _ltAttachInteract(opt,cd,ctx);
         return {type:'line',data:{labels,datasets:[ds]},options:opt};
       };
       let h=`<div style="display:flex;flex-direction:column;gap:12px">`;
       h+=_ltCard('Readiness','0~100 · condition composite',_mk(rdy,'#bc8cff',false,'rdy',true),150,_ltCat.indexOf('__rdy__'));
-      if(hasVol)h+=_ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false),150,_ltCat.indexOf('__vol__'));
-      if(hasDist)h+=_ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false),150,_ltCat.indexOf('__dist__'));
+      if(hasVol)h+=_ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false,null,true),150,_ltCat.indexOf('__vol__'));
+      if(hasDist)h+=_ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false,null,true),150,_ltCat.indexOf('__dist__'));
       selExs.forEach(n=>{const m=_lt.exMap[n];h+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)'),_mk(exSer[n],_ltColor(n),m.sprint,m.sprint?'s':'kg',false,{ex:n,sp:m.sprint}),150,_ltCat.indexOf(n),_ltBadge(exSer[n],m.sprint?'s':'kg',m.sprint));});
       h+=`</div>`;
       return h;
@@ -2447,8 +2463,8 @@ function _renderTrends(fAthletes, selAth, selLogs){
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
       } else {
         const _wkAttach=(cfg,s,u,agg)=>ltCmp?cfg:_wkAttachCfg(cfg,s,u,agg);
-        if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp),s,'kg'),ltCmp?null:230,_ltCat.indexOf('__vol__'));} }
-        if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp),s,'m'),ltCmp?null:230,_ltCat.indexOf('__dist__'));} }
+        if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp,null,true),s,'kg'),ltCmp?null:230,_ltCat.indexOf('__vol__'));} }
+        if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp,null,true),s,'m'),ltCmp?null:230,_ltCat.indexOf('__dist__'));} }
       }
       if(selExs.length){
         if(ltChartMode==='overlay'&&!ltCmp){
