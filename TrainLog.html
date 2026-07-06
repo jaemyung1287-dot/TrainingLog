@@ -3684,7 +3684,7 @@ function renderExList(){
           <span>Wie schwer war die Übung? <span style="font-weight:400;color:var(--muted)">(0 = sehr leicht · 10 = sehr schwer)</span></span>
           <span id="diff-val-${i}" style="font-size:13px;font-weight:800;color:${_dn==null?'var(--muted)':_EFFCOL(_dn)}">${_dn==null?'—':_dn+' / 10'}</span>
         </div>
-        <input type="range" class="eff-slider" min="0" max="10" step="1" value="${_dn==null?0:_dn}" oninput="setExDifficulty(${i},this.value)">
+        <input type="range" class="eff-slider" min="0" max="10" step="1" value="${_dn==null?0:_dn}" oninput="setExDifficulty(${i},this.value)" onpointerup="setExDifficulty(${i},this.value)">
       </div>`
       :`
       <div style="margin-top:10px">
