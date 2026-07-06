@@ -1209,6 +1209,7 @@ const _weekBandPlugin={
     const vals=(chart.options&&chart.options._weekVals)||null;
     const unit=(chart.options&&chart.options._weekUnit)||'kg';
     const wAgg=(chart.options&&chart.options._weekAgg)||'sum';
+    const bandsOnly=!!(chart.options&&chart.options._weekBandsOnly); // 막대차트: 주간 구분선+메소밴드만(상단 주간 라벨/합계 생략)
     const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':_fmtKg(v);
     ctx.save();
     const n=dates.length;
@@ -1262,9 +1263,8 @@ const _weekBandPlugin={
       const fontB='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
       const cx=(xStart+xEnd)/2;
       ctx.textAlign='center';
-      ctx.fillStyle='rgba(230,237,243,.32)';ctx.font=fontN;
-      ctx.fillText(wkLbl,cx,area.top+2);
-      if(sum!=null&&xEnd-xStart>58){
+      if(!bandsOnly){ctx.fillStyle='rgba(230,237,243,.32)';ctx.font=fontN;ctx.fillText(wkLbl,cx,area.top+2);}
+      if(!bandsOnly&&sum!=null&&xEnd-xStart>58){
         const fontD='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
         const sumTxt=fv(sum);
         let dTxt='', dCol='';
@@ -2021,7 +2021,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.volBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;opt._weekDates=dates;opt._weekBandsOnly=true;
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
@@ -2053,7 +2053,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.distBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+Math.round(byDate[d][g])+'m'].concat(_ltDistExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;opt._weekDates=dates;opt._weekBandsOnly=true;
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m')]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
@@ -2460,6 +2460,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
           {label:'Total Volume',yAxisID:'y',data:dates.map(d=>vByD[d]?vByD[d].v:null),_metas:dates.map(d=>vByD[d]?vByD[d].meta:''),borderColor:'#f7a94f',backgroundColor:'transparent',fill:false,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
           {label:'Sprint Distance',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
         ]},options:opt};
+        opt._weekDates=dates;opt.layout=Object.assign({},opt.layout,{padding:Object.assign({top:20},(opt.layout&&opt.layout.padding))});
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
       } else {
         const _wkAttach=(cfg,s,u,agg)=>ltCmp?cfg:_wkAttachCfg(cfg,s,u,agg);
