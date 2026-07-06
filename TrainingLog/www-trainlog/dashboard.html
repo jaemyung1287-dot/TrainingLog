@@ -2171,16 +2171,16 @@ function _renderTrends(fAthletes, selAth, selLogs){
   const _ltCompVal=ltAB?'custom':ltBucket;
   const _ltCompOpt=(v,l)=>`<option value="${v}" ${_ltCompVal===v?'selected':''}>${l}</option>`;
   LT+=`<div class="lt-row"><span class="lt-lbl">Period</span>`
-    +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnBaseSel(this.value)">`
+    +`<select class="lt-date" style="width:150px;cursor:pointer" onchange="ltOnBaseSel(this.value)">`
     + _ltBaseOpt('all','All')+_ltBaseOpt('1w','Last week')+_ltBaseOpt('1m','Last month')+_ltBaseOpt('1y','Last year')+_ltBaseOpt('custom','Custom…')
     +`</select>`
     +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;_rerenderTrends()">`:'')
-    +`<select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value);this.value=''">${_planWeekOpts()}</select>`
+    +`<select class="lt-date" style="width:150px;cursor:pointer" onchange="ltWeekPick(this.value);this.value=''">${_planWeekOpts()}</select>`
     +(ltWeeks.length>1?`<div class="lt-seg" style="margin-left:4px"><button class="${ltABView==='split'?'on':''}" onclick="ltABView='split';_rerenderTrends()">Split</button><button class="${ltABView==='overlay'?'on':''}" onclick="ltABView='overlay';_rerenderTrends()">Overlay</button></div>`:'')
     +(ltWeeks.length?`<button class="lt-clear" onclick="ltWeeks=[];_rerenderTrends()">주차 비교 지우기</button>`:'')
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
     +`<span class="lt-lbl" style="width:auto;min-width:0;padding-right:0">Unit</span>`
-    +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
+    +`<select class="lt-date" style="width:150px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
     + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')
     +`</select>`
     +`</div>`;
