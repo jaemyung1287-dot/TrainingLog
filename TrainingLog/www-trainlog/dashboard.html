@@ -848,7 +848,18 @@ function _ovEx(l){
       const sl=e.isSL?'SL ':e.isSA?'SA ':'';
       const kg=maxKg>0?' '+maxKg+'kg':'';
       const sr=(sets&&reps)?' '+sets+'x'+reps:'';
-      lines.push({t:sl+e.name+kg+sr+(e.isBodyweight?' (BW)':''), eff:e.effort||''});
+      const slMult=(e.isSL||e.isSA)?2:1;
+      let exVol=0;
+      if(!e.isBodyweight){
+        if(e.setRows?.length) exVol=e.setRows.reduce((r,x)=>r+(parseFloat(x.kg)||0)*(parseFloat(x.reps)||0)*slMult,0);
+        else exVol=(parseFloat(e.weight)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0)*slMult;
+      }
+      const en=_dEffNum(e.effort);
+      const t=sl+e.name+kg+sr+(e.isBodyweight?' (BW)':'')+(exVol>0?' · '+_fmtKg(exVol):'')+(en!=null?' · E'+en:'');
+      const sub=(e.setRows&&e.setRows.length)
+        ? [e.setRows.map((x,i)=>'S'+(i+1)+' '+(x.kg?x.kg+'kg':(x.extraKg?'BW+'+x.extraKg+'kg':'BW'))+'×'+(x.reps||'—')).join(' · ')]
+        : [];
+      lines.push({t, eff:e.effort||'', sub});
     });
   } else if(l.type==='sprint'){
     (l.sets||[]).forEach(s=>{
@@ -856,7 +867,10 @@ function _ovEx(l){
       const reps=s.reps||s.sets||1;
       const inten=s.intensity?' @'+s.intensity+'%':'';
       const t=s.actualTime?' ('+s.actualTime+'s)':'';
-      lines.push({t:(s.distance||'?')+'m x'+reps+inten+t, eff:s.effort||''});
+      const en=_dEffNum(s.effort);
+      const splits=(s.repTimes||[]).map(x=>{const tv=parseFloat(x);return(x==null||isNaN(tv))?null:tv.toFixed(2);}).filter(Boolean);
+      lines.push({t:(s.distance||'?')+'m x'+reps+inten+t+(en!=null?' · E'+en:''), eff:s.effort||'',
+        sub:splits.length?[splits.join(' · ')+' s']:[]});
     });
   } else if(l.type==='plyo'){
     lines.push({t:(l.totalReps||0)+' reps', eff:''});
@@ -886,7 +900,7 @@ function _ovBlock(l,athId){
   }
   const lines=_ovEx(l);
   const tip=_esc(lines.map(x=>x.t).join('\n'));
-  const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_effDot(x.eff)}${_esc(x.t)}</div>`).join('')}</div>`:'';
+  const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_effDot(x.eff)}${_esc(x.t)}</div>`+(x.sub||[]).map(s=>`<div class="sd-row" style="padding-left:11px;color:#6e7681">${_esc(s)}</div>`).join('')).join('')}</div>`:'';
   const note=l.notes?`<div class="cmt-wrap" onclick="event.stopPropagation();this.classList.toggle('show')"><span class="cmt-chip">💬 Comment</span><div class="cmt-text">${_esc(l.notes)}</div></div>`:'';
   const caret=lines.length?`<span class="sb-caret">&#9662;</span>`:'';
   const editBtn=athId?`<button class="lg-edit" onclick="event.stopPropagation();openLogEditor('${l.id}','${athId}')" title="Edit / Delete">✎</button>`:'';
