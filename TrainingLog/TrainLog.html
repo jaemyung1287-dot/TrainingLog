@@ -44,6 +44,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .chip.sel{border-color:var(--accent);background:rgba(201,168,76,.15);color:var(--accent);font-weight:700}
 .chip-a{border-color:rgba(79,142,247,.4)}
 .chip-b{border-color:rgba(62,207,142,.4)}
+/* Athlete name-select screen: single-column list, sorted by age */
+#athlete-chip-groups .chips{display:grid;grid-template-columns:1fr;gap:10px}
+#athlete-chip-groups .chip{text-align:center;border-radius:14px;padding:13px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .menu-card{background:var(--card);border:2px solid var(--border);border-radius:18px;padding:24px 12px;text-align:center;cursor:pointer;transition:all .2s}
 .menu-card:active{border-color:var(--accent);background:rgba(201,168,76,.1)}
@@ -315,7 +318,7 @@ const APP_VERSION = '20260527-7';
     <button class="back" onclick="goHome()">← Back</button>
     <span class="logo">🏔️ Team Bayern Skeleton</span>
   </div>
-  <div class="ttl">Select your name · Wähle deinen Namen</div>
+  <div class="ttl">Wähle deinen Namen</div>
   <div id="athlete-chip-groups"></div>
   <button class="btn btn-g" onclick="goAthleteMenu()" style="margin-top:16px">Next →</button>
 </div>
@@ -3187,19 +3190,23 @@ function backToCoach(){ showScreen('s-coach'); document.getElementById('coach-ta
 // ════════════════════════════════════════════════
 function renderAthleteChips(){
   const d=getData(); const wrap=document.getElementById('athlete-chip-groups'); wrap.innerHTML='';
-  [['A','chip-a'],['B','chip-b']].forEach(([g,cls])=>{
-    const list=d.athletes.filter(a=>a.group===g); if(!list.length)return;
-    const gl=document.createElement('div'); gl.className='group-label'; gl.textContent=`Group ${g}`; wrap.appendChild(gl);
-    const row=document.createElement('div'); row.className='chips';
-    list.forEach(a=>{
-      const el=document.createElement('div');
-      el.className=`chip ${cls}${ST.athlete&&ST.athlete.name===a.name?' sel':''}`;
-      el.textContent=a.name;
-      el.onclick=()=>{ ST.athlete=a; document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); };
-      row.appendChild(el);
-    });
-    wrap.appendChild(row);
+  // Single flat list, oldest → youngest. Coach (Kim Jaemyung) always last; no dob → just above coach.
+  const _isCoach=a=>/jaemyung/i.test(a.name||'');
+  const list=d.athletes.slice().sort((a,b)=>{
+    if(_isCoach(a)!==_isCoach(b)) return _isCoach(a)?1:-1;
+    const da=a.dob||'9999', db=b.dob||'9999';
+    return da.localeCompare(db)||String(a.name).localeCompare(String(b.name));
   });
+  const row=document.createElement('div'); row.className='chips';
+  list.forEach(a=>{
+    const cls=a.group==='A'?'chip-a':'chip-b';
+    const el=document.createElement('div');
+    el.className=`chip ${cls}${ST.athlete&&ST.athlete.name===a.name?' sel':''}`;
+    el.textContent=a.name;
+    el.onclick=()=>{ ST.athlete=a; document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); };
+    row.appendChild(el);
+  });
+  wrap.appendChild(row);
 }
 function addAthlete(){
   const inp=document.getElementById('new-athlete-name'); const name=inp.value.trim(); if(!name)return;
