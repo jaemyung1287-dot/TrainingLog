@@ -808,7 +808,9 @@ function _ltExtTip(context){
   el.style.left=x+'px'; el.style.top=y+'px'; el.style.opacity='1';
 }
 // 공통 선수 셀렉터 (전체 / 그룹 / 이름 칩) — 모든 탭 공유, 같은 칩 재클릭 시 전체로 해제
+let selTouched=false; // Load 탭: 셀렉터를 한 번이라도 누르기 전엔 빈 화면
 function setScope(v){
+  selTouched=true;
   if(v==='all'){selScope='all';selNames.clear();}
   else if(v==='A'||v==='B'){selScope=(selScope===v?'all':v);selNames.clear();}
   else { if(selNames.has(v))selNames.delete(v); else selNames.add(v); }   // 이름: 다중 토글
@@ -1595,6 +1597,12 @@ function renderLoad(){
   const fAthletes=_scopeAthletes();
   loadAth=selNames.size===1?[...selNames][0]:null;
   let html=_scopeBar();
+  // 첫 진입: 아무것도 선택 전이면 빈 화면 (셀렉터만 표시)
+  if(!selTouched){
+    html+=`<div class="empty" style="padding:60px 0;text-align:center;font-size:13px;color:var(--muted)">위에서 선수·그룹을 선택하면 주간 요약과 추이가 표시됩니다</div>`;
+    wrap.innerHTML=html;
+    return;
+  }
 
   // ── 1. Weekly Load Summary (전체/그룹 보기에서만, 개별/다중 선택 시 숨김) ──
   if(!selNames.size){
