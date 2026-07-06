@@ -2274,7 +2274,50 @@ function _renderTrends(fAthletes, selAth, selLogs){
       const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
       const _wkLbl=d1=>{const f=_planWeeks().find(x=>x.d1===d1);return f?f.label:d1.slice(5).replace('-','.')+'~';};
       const _WKPAL=['#f7a94f','#4f8ef7','#3ecf8e','#bc8cff','#22d3ee','#e2b714','#f85149','#ed93b1','#9aa4b2','#97c459'];
-      _ltSpecs().forEach(sp=>{
+      const _wkMid=(col,d1)=>`<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:3px;background:${col};display:inline-block"></span>${_esc(_wkLbl(d1))}</span>`;
+      // ── 분해 모드(Type of Training/Category/Chain/Quality/Method) 주차 비교 ──
+      const _ltWeekBreak=(kind,grp)=>{
+        const byDate=(kind==='vol'?_lt.volBreak[grp]:_lt.distBreak[grp])||{};
+        const unit=kind==='vol'?'kg':'m';
+        const title=(kind==='vol'?'Total Volume · ':'Sprint Distance · ')+(kind==='vol'?_LT_BRK_LBL[grp]:_LT_DBRK_LBL[grp]);
+        const fvb=v=>v==null?'—':(unit==='kg'?_fmtKg(v):Math.round(v).toLocaleString('de-DE')+'m');
+        const wkList=ltWeeks.map((w,wi)=>{
+          const [d1,d2]=w.split('|');
+          const dayCat={},catTot={};
+          Object.keys(byDate).filter(d=>d>=d1&&d<=d2).forEach(d=>{
+            const i=Math.round((new Date(d+'T00:00:00')-new Date(d1+'T00:00:00'))/86400000); if(i<0||i>6)return;
+            Object.entries(byDate[d]).forEach(([g,v])=>{(dayCat[i]=dayCat[i]||{})[g]=(dayCat[i][g]||0)+v;catTot[g]=(catTot[g]||0)+v;});
+          });
+          const tot=Object.values(catTot).reduce((a,b)=>a+b,0);
+          return {wi,d1,d2,dayCat,catTot,tot:tot||null};
+        });
+        const allCats=[...new Set(wkList.flatMap(o=>Object.keys(o.catTot)))];
+        const catSum={};wkList.forEach(o=>Object.entries(o.catTot).forEach(([g,v])=>catSum[g]=(catSum[g]||0)+v));
+        allCats.sort((a,b)=>catSum[b]-catSum[a]);
+        if(!allCats.length)return `<div class="lt-hint" style="grid-column:1/-1">${_esc(title)} — 선택한 주차에 데이터가 없습니다</div>`;
+        let out='';
+        if(ltABView==='overlay'&&wkList.length>1){
+          const dss=wkList.map((o,i)=>({label:_wkLbl(o.d1),data:allCats.map(g=>o.catTot[g]?Math.round(o.catTot[g]):null),_metas:allCats.map(g=>o.catTot[g]?['Total '+fvb(o.catTot[g])]:''),backgroundColor:_WKPAL[i%_WKPAL.length]+'cc',borderRadius:3,maxBarThickness:30}));
+          const opt=_ltTip(false,true);opt.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.6)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true}};
+          opt.plugins=opt.plugins||{};opt.plugins.legend={display:false};
+          const midChips=wkList.map((o,i)=>`<span style="display:inline-flex;align-items:center;gap:5px;margin:0 7px"><span style="width:11px;height:11px;border-radius:3px;background:${_WKPAL[i%_WKPAL.length]};display:inline-block"></span>${_esc(_wkLbl(o.d1))}</span>`).join('');
+          const subTxt=wkList.map(o=>`${_wkLbl(o.d1).split(' ')[0]} ${fvb(o.tot)}`).join(' · ');
+          out+=`<div style="grid-column:1/-1">${_ltCard(title,subTxt,{type:'bar',data:{labels:allCats,datasets:dss},options:opt,plugins:[_mkBarVals(unit)]},250,kind==='vol'?_ltCat.indexOf('__vol__'):_ltCat.indexOf('__dist__'),'','',midChips)}</div>`;
+        } else {
+          const maxDay=Math.max(1,...wkList.flatMap(o=>Object.values(o.dayCat).map(cm=>Object.values(cm).reduce((a,b)=>a+b,0))));
+          wkList.forEach((o,i)=>{
+            const dss=allCats.map((g,ci)=>{const col=_LT_PAL[ci%_LT_PAL.length];return{label:g,data:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?Math.round(o.dayCat[di][g]):null),_metas:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?['Total '+fvb(o.dayCat[di][g])]:''),backgroundColor:col+'cc',stack:'v',borderRadius:2,maxBarThickness:40};});
+            const opt=_ltTip(false,true);opt.scales={x:{stacked:true,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true,suggestedMax:maxDay*1.08}};
+            let sub=o.tot==null?'데이터 없음':'Total '+fvb(o.tot);
+            if(o.tot!=null&&i>0&&wkList[i-1].tot){const d=o.tot-wkList[i-1].tot,pct=Math.round(d/Math.abs(wkList[i-1].tot)*100);sub+=` · <span style="color:${Math.abs(d)<1e-9?'var(--hint)':d>0?'#3ecf8e':'#f85149'}">${d>0?'+':''}${fvb(d)} (${pct>0?'+':''}${pct}%)</span>`;}
+            out+=`<div style="grid-column:1/-1">${_ltCard(title,'',{type:'bar',data:{labels:WD,datasets:dss},options:opt,plugins:[_mkBarVals(unit)]},220,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',_wkMid(_WKPAL[i%_WKPAL.length],o.d1))}</div>`;
+          });
+        }
+        return out;
+      };
+      if(hasVol&&ltVolBreak!=='none') LT+=_ltWeekBreak('vol',ltVolBreak);
+      if(hasDist&&ltDistBreak!=='none') LT+=_ltWeekBreak('dist',ltDistBreak);
+      _ltSpecs().filter(sp=>!(sp.label==='Total Volume'&&ltVolBreak!=='none')&&!(sp.label==='Sprint Distance'&&ltDistBreak!=='none')).forEach(sp=>{
         const fv=v=>v==null?'—':(sp.unit==='kg'?_fmtKg(v):sp.unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':(Math.round(v*100)/100).toFixed(2)+'s');
         const wkList=ltWeeks.map((w,wi)=>{
           const [d1,d2]=w.split('|');
