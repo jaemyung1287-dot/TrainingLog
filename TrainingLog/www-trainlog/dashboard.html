@@ -2369,8 +2369,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
             const opt=_ltTip(false,true);opt.scales={x:{stacked:!_grpBars,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{stacked:!_grpBars,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true,suggestedMax:(_grpBars?maxDayG:maxDay)*1.08}};
             let sub=o.tot==null?'데이터 없음':'Total '+fvb(o.tot);
             if(o.tot!=null&&i>0&&wkList[i-1].tot){const d=o.tot-wkList[i-1].tot,pct=Math.round(d/Math.abs(wkList[i-1].tot)*100);sub+=` · <span style="color:${Math.abs(d)<1e-9?'var(--hint)':d>0?'#3ecf8e':'#f85149'}">${d>0?'+':''}${fvb(d)} (${pct>0?'+':''}${pct}%)</span>`;}
-            const _wkDates=WD.map((_,di)=>{const _dt=new Date(o.d1+'T00:00:00');_dt.setDate(_dt.getDate()+di);return _dt.toISOString().slice(0,10);});
-            out+=`<div style="grid-column:1/-1">${_ltCard(title,'',{type:'bar',data:{labels:WD,datasets:dss},options:opt,plugins:[_mkBarVals(unit),_mkWeekSep(_wkDates)]},220,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',_wkMid(_WKPAL[i%_WKPAL.length],o.d1))}</div>`;
+            out+=`<div style="grid-column:1/-1">${_ltCard(title,'',{type:'bar',data:{labels:WD,datasets:dss},options:opt,plugins:[_mkBarVals(unit)]},220,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',_wkMid(_WKPAL[i%_WKPAL.length],o.d1))}</div>`;
           });
         }
         return out;
