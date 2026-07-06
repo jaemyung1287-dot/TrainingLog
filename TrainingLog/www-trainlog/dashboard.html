@@ -1225,6 +1225,35 @@ const _weekBandPlugin={
       if(sum!=null) prevSum=sum;
       band++; i=j;
     }
+    // ── Phase(메조사이클) 밴드: 차트 하단 색 스트립 + 라벨 ──
+    try{
+      const pm={};
+      Object.entries((typeof coachData!=='undefined'&&coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{if(p&&p.phase)pm[d]=String(p.phase).trim();});
+      let last=null; const ph=dates.map(d=>{ if(pm[d])last=pm[d]; return last; });
+      const first=ph.find(x=>x); for(let k=0;k<ph.length&&!ph[k];k++)ph[k]=first;
+      const uniq=[...new Set(ph.filter(Boolean))];
+      if(uniq.length){
+        const PAL=['#a78bfa','#4f8ef7','#3ecf8e','#f7a94f','#e2b714','#f85149'];
+        const colOf=p=>PAL[uniq.indexOf(p)%PAL.length];
+        let i2=0;
+        while(i2<n){
+          const p=ph[i2]; let j2=i2; while(j2<n&&ph[j2]===p)j2++;
+          if(p){
+            const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
+            const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
+            const c=colOf(p);
+            ctx.fillStyle=c+'66'; ctx.fillRect(xS,area.bottom-3,xE-xS,3);
+            if(xE-xS>72){
+              ctx.fillStyle=c; ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
+              ctx.textAlign='center'; ctx.textBaseline='bottom';
+              ctx.fillText(p,(xS+xE)/2,area.bottom-6);
+              ctx.textBaseline='top';
+            }
+          }
+          i2=j2;
+        }
+      }
+    }catch(e){}
     ctx.restore();
   }
 };
@@ -1240,6 +1269,34 @@ function _ltAttachInteract(opt,dates,ctx){
     if(idx>=0&&dates[idx])_ltTogglePin(dates[idx],ctx);
   };
   return opt;
+}
+// ── 주기화 주차 목록: sessionPlans의 phase/week 메타 → [{label,d1,d2}] (사이클 단위 비교용) ──
+function _planWeeks(){
+  const map={};
+  Object.entries((coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{
+    if(!p||!p.week)return;
+    const m=String(p.week).match(/(\d{2})\.(\d{2})\.(\d{2})\s*~\s*(\d{2})\.(\d{2})\.(\d{2})/);
+    if(!m)return;
+    const d1='20'+m[1]+'-'+m[2]+'-'+m[3], d2='20'+m[4]+'-'+m[5]+'-'+m[6];
+    if(!map[d1])map[d1]={d1,d2,phase:String(p.phase||'').trim()};
+    else if(!map[d1].phase&&p.phase)map[d1].phase=String(p.phase).trim();
+  });
+  const wks=Object.values(map).sort((a,b)=>a.d1.localeCompare(b.d1));
+  const cnt={};
+  wks.forEach(w=>{const ph=w.phase||'—';cnt[ph]=(cnt[ph]||0)+1;w.wn=cnt[ph];
+    w.label=(w.phase?w.phase+' · W'+w.wn:'W?')+' ('+w.d1.slice(5).replace('-','.')+'~'+w.d2.slice(5).replace('-','.')+')';});
+  return wks;
+}
+function _planWeekOpts(selD1,selD2){
+  return '<option value="">주차 선택…</option>'+_planWeeks().map(w=>
+    `<option value='${w.d1}|${w.d2}' ${(selD1===w.d1&&selD2===w.d2)?'selected':''}>${w.label}</option>`).join('');
+}
+function ltWeekPick(v,which){
+  if(!v)return;
+  const [d1,d2]=v.split('|');
+  if(which==='cmp'){ ltCB1=d1; ltCB2=d2; }
+  else { ltD1=d1; ltD2=d2; ltPeriod='custom'; }
+  _rerenderTrends();
 }
 // 핀: {d:날짜, ex:종목키(없으면 전체세션), sp:스프린트여부}
 function _ltPinKey(p){return p.d+'|'+(p.ex||'')+'|'+(p.cat||'')+'|'+(p.grp||'')+'|'+(p.sp?'s':'');}
@@ -2043,13 +2100,13 @@ function _renderTrends(fAthletes, selAth, selLogs){
     +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnBaseSel(this.value)">`
     + _ltBaseOpt('all','All')+_ltBaseOpt('1w','Last week')+_ltBaseOpt('1m','Last month')+_ltBaseOpt('1y','Last year')+_ltBaseOpt('custom','Custom…')
     +`</select>`
-    +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;_rerenderTrends()">`:'')
+    +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;_rerenderTrends()"><select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value)">${_planWeekOpts(ltD1,ltD2)}</select>`:'')
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
     +`<span class="lt-lbl" style="width:auto;min-width:0;padding-right:0">Unit</span>`
     +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
     + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')
     +`</select>`
-    +(ltAB?`<input type="date" class="lt-date" value="${ltCB1}" onchange="ltCB1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltCB2}" onchange="ltCB2=this.value;_rerenderTrends()">`:'')
+    +(ltAB?`<input type="date" class="lt-date" value="${ltCB1}" onchange="ltCB1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltCB2}" onchange="ltCB2=this.value;_rerenderTrends()"><select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value,'cmp')">${_planWeekOpts(ltCB1,ltCB2)}</select>`:'')
     +`</div>`;
 
   if(ltMode==='ex'){
