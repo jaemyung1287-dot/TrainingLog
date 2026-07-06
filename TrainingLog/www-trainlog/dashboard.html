@@ -1190,18 +1190,20 @@ function _sprintMethodOf(s){const t=((s&&s.name)||'')+' '+((s&&s.subCategory)||'
 // ── 메소사이클 색상(라벨·라인 공용): Meso1=주황, Meso2=파랑 … ──
 const _MESO_PAL=['#f7a94f','#4f8ef7','#3ecf8e','#a78bfa','#e2b714','#f85149'];
 function _mesoColor(p){const num=parseInt((String(p).match(/\d+/)||[0])[0],10);return num>0?_MESO_PAL[(num-1)%_MESO_PAL.length]:_MESO_PAL[0];}
-// 라인 아래 영역만 메소 색으로 채우는 가로 그라데이션(메소 경계에서 하드 스텝). 선 위쪽은 채우지 않음.
-function _mesoFillGrad(mcols,base){
+// 메소 색 가로 그라데이션: 메소 경계 x에서 하드 스텝 → 라인/채움 색이 경계선에서 정확히 전환.
+// alpha='' → 라인(불투명), alpha='2b' → 선 아래 채움(~17%).
+function _mesoFillGrad(mcols,base,alpha){
+  const a=(alpha==null?'2b':alpha);
+  const colOf=i=>((mcols[i]||base)+a);
   return function(c){
-    const ch=c.chart,area=ch.chartArea;if(!area)return 'transparent';
-    const N=mcols.length;if(!N)return 'transparent';
+    const ch=c.chart,area=ch.chartArea;const N=mcols.length;
+    if(!area||!N)return colOf(0);
     const g=ch.ctx.createLinearGradient(area.left,0,area.right,0);
-    const fillOf=i=>((mcols[i]||base)+'2b'); // ~17% 알파
     const clamp=t=>t<0?0:t>1?1:t;
-    if(N===1){g.addColorStop(0,fillOf(0));g.addColorStop(1,fillOf(0));return g;}
-    g.addColorStop(0,fillOf(0));
-    for(let k=1;k<N;k++){if((mcols[k]||base)!==(mcols[k-1]||base)){const t=clamp((k-0.5)/(N-1));g.addColorStop(t,fillOf(k-1));g.addColorStop(t,fillOf(k));}}
-    g.addColorStop(1,fillOf(N-1));
+    if(N===1){g.addColorStop(0,colOf(0));g.addColorStop(1,colOf(0));return g;}
+    g.addColorStop(0,colOf(0));
+    for(let k=1;k<N;k++){if((mcols[k]||base)!==(mcols[k-1]||base)){const t=clamp((k-0.5)/(N-1));g.addColorStop(t,colOf(k-1));g.addColorStop(t,colOf(k));}}
+    g.addColorStop(1,colOf(N-1));
     return g;
   };
 }
@@ -1247,7 +1249,7 @@ const _weekBandPlugin={
             const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
             const c=colOf(p);
             // 배경 풀하이트 틴트 제거: 주간 점선이 잘 보이도록. 메소 구분은 경계선+라벨+라인색으로.
-            if(i2>0){ ctx.strokeStyle=c+'88'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,area.bottom); ctx.stroke(); ctx.setLineDash([]); }
+            if(i2>0){ ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,area.bottom); ctx.stroke(); ctx.setLineDash([]); }
             if(xE-xS>72){
               ctx.fillStyle=c; ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
               ctx.textAlign='center'; ctx.textBaseline='bottom';
@@ -1954,7 +1956,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     }
     if(meso){
       const mcols=_mesoNamesFor(series.map(p=>p.d)).map(nm=>nm?_mesoColor(nm):color);
-      return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:_mesoFillGrad(mcols,color),fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols,segment:{borderColor:sc=>mcols[sc.p0DataIndex]||color}}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx)};
+      return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,color,''),backgroundColor:_mesoFillGrad(mcols,color,'2b'),fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx)};
     }
     return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx)};
   };
@@ -2280,7 +2282,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
         opt.scales.y.afterFit=function(a){a.width=58;};
         if(unit==='rdy'){opt.scales.y.min=0;opt.scales.y.max=100;}
         const ds={data:cd.map(d=>byD[d]?byD[d].v:null),_metas:cd.map(d=>byD[d]?byD[d].meta:''),borderColor:color,backgroundColor:color+'1f',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,spanGaps:true,pointBackgroundColor:color,pointBorderColor:color};
-        if(meso){const mcols=_mesoNamesFor(cd).map(nm=>nm?_mesoColor(nm):color);ds.backgroundColor=_mesoFillGrad(mcols,color);ds.fill=true;ds.pointBackgroundColor=mcols;ds.pointBorderColor=mcols;ds.segment={borderColor:sc=>mcols[sc.p0DataIndex]||color};}
+        if(meso){const mcols=_mesoNamesFor(cd).map(nm=>nm?_mesoColor(nm):color);ds.borderColor=_mesoFillGrad(mcols,color,'');ds.backgroundColor=_mesoFillGrad(mcols,color,'2b');ds.fill=true;ds.pointBackgroundColor=mcols;ds.pointBorderColor=mcols;}
         _ltAttachInteract(opt,cd,ctx);
         return {type:'line',data:{labels,datasets:[ds]},options:opt};
       };
