@@ -1203,6 +1203,8 @@ const _weekBandPlugin={
       const fontB='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
       const cx=(xStart+xEnd)/2;
       ctx.textAlign='center';
+      ctx.fillStyle='rgba(230,237,243,.32)';ctx.font=fontN;
+      ctx.fillText(wkLbl,cx,area.top+2);
       if(sum!=null&&xEnd-xStart>58){
         const fontD='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
         const sumTxt=fv(sum);
@@ -1216,14 +1218,9 @@ const _weekBandPlugin={
         ctx.font=fontD; const wD=dTxt?ctx.measureText(dTxt).width+6:0;
         const x0=cx-(wS+wD)/2;
         ctx.textAlign='left';
-        ctx.fillStyle='rgba(230,237,243,.78)';ctx.font=fontB;ctx.fillText(sumTxt,x0,area.top+2);
-        if(dTxt){ctx.fillStyle=dCol;ctx.font=fontD;ctx.fillText(dTxt,x0+wS+6,area.top+3);}
+        ctx.fillStyle='rgba(230,237,243,.85)';ctx.font=fontB;ctx.fillText(sumTxt,x0,area.top-16);
+        if(dTxt){ctx.fillStyle=dCol;ctx.font=fontD;ctx.fillText(dTxt,x0+wS+6,area.top-15);}
         ctx.textAlign='center';
-        ctx.fillStyle='rgba(230,237,243,.32)';ctx.font=fontN;
-        ctx.fillText(wkLbl,cx,area.top+15);
-      } else {
-        ctx.fillStyle='rgba(230,237,243,.32)';ctx.font=fontN;
-        ctx.fillText(wkLbl,cx,area.top+2);
       }
       if(sum!=null) prevSum=sum;
       band++; i=j;
@@ -2167,7 +2164,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
         ]},options:opt};
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
       } else {
-        const _wkAttach=(cfg,s,u)=>{if(cfg&&cfg.options&&!ltCmp){cfg.options._weekVals=Object.fromEntries(s.map(p=>[p.d,p.v]));cfg.options._weekUnit=u;}return cfg;};
+        const _wkAttach=(cfg,s,u)=>{if(cfg&&cfg.options&&!ltCmp){cfg.options._weekVals=Object.fromEntries(s.map(p=>[p.d,p.v]));cfg.options._weekUnit=u;cfg.options.layout=cfg.options.layout||{};cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:20});}return cfg;};
         if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp),s,'kg'),null,_ltCat.indexOf('__vol__'));} }
         if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp),s,'m'),null,_ltCat.indexOf('__dist__'));} }
       }
