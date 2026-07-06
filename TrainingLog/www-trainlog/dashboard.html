@@ -1229,6 +1229,7 @@ const _weekBandPlugin={
     try{
       const pm={};
       Object.entries((typeof coachData!=='undefined'&&coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{if(p&&p.phase)pm[d]=String(p.phase).trim();});
+      if(typeof _PDZ!=='undefined'){_PDZ.forEach(([code,d1])=>{const b='Block '+code.split('-')[0];const dt=new Date(d1+'T00:00:00');for(let k=0;k<7;k++){const ds=dt.toISOString().slice(0,10);if(!pm[ds])pm[ds]=b;dt.setDate(dt.getDate()+1);}});}
       let last=null; const ph=dates.map(d=>{ if(pm[d])last=pm[d]; return last; });
       const first=ph.find(x=>x); for(let k=0;k<ph.length&&!ph[k];k++)ph[k]=first;
       const uniq=[...new Set(ph.filter(Boolean))];
@@ -1270,7 +1271,16 @@ function _ltAttachInteract(opt,dates,ctx){
   };
   return opt;
 }
-// ── 주기화 주차 목록: sessionPlans의 phase/week 메타 → [{label,d1,d2}] (사이클 단위 비교용) ──
+// ── 26/27 Summer 주기화 (PDF 기준): 블록-주차 코드 → 주 시작일(월요일). 3주/블록 ──
+const _PDZ=[['1-1','2026-06-01'],['1-2','2026-06-08'],['1-3','2026-06-15'],
+ ['2-1','2026-06-22'],['2-2','2026-06-29'],['2-3','2026-07-06'],
+ ['3-1','2026-07-13'],['3-2','2026-07-20'],['3-3','2026-07-27'],
+ ['4-1','2026-08-03'],['4-2','2026-08-10'],['4-3','2026-08-17'],
+ ['5-1','2026-08-24'],['5-2','2026-08-31'],['5-3','2026-09-07'],
+ ['6-1','2026-09-14'],['6-2','2026-09-21'],['6-3','2026-09-28'],
+ ['7-1','2026-10-05'],['7-2','2026-10-12'],['7-3','2026-10-19'],
+ ['8-1','2026-10-26']];
+// ── 주기화 주차 목록: PDF 주기화(시즌 전체) + sessionPlans 메타 병합 → [{label,d1,d2}] ──
 function _planWeeks(){
   const map={};
   Object.entries((coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{
@@ -1281,10 +1291,18 @@ function _planWeeks(){
     if(!map[d1])map[d1]={d1,d2,phase:String(p.phase||'').trim()};
     else if(!map[d1].phase&&p.phase)map[d1].phase=String(p.phase).trim();
   });
+  _PDZ.forEach(([code,d1])=>{
+    const dt=new Date(d1+'T00:00:00'); dt.setDate(dt.getDate()+6);
+    const d2=dt.toISOString().slice(0,10);
+    map[d1]=Object.assign(map[d1]||{d1,d2},{code,d2:map[d1]?.d2||d2});
+  });
   const wks=Object.values(map).sort((a,b)=>a.d1.localeCompare(b.d1));
   const cnt={};
-  wks.forEach(w=>{const ph=w.phase||'—';cnt[ph]=(cnt[ph]||0)+1;w.wn=cnt[ph];
-    w.label=(w.phase?w.phase+' · W'+w.wn:'W?')+' ('+w.d1.slice(5).replace('-','.')+'~'+w.d2.slice(5).replace('-','.')+')';});
+  wks.forEach(w=>{
+    const rng='('+w.d1.slice(5).replace('-','.')+'~'+w.d2.slice(5).replace('-','.')+')';
+    if(w.code){ w.label=w.code+' '+rng; }
+    else { const ph=w.phase||'—'; cnt[ph]=(cnt[ph]||0)+1; w.label=(w.phase?w.phase+' · W'+cnt[ph]:'W?')+' '+rng; }
+  });
   return wks;
 }
 function _planWeekOpts(selD1,selD2){
