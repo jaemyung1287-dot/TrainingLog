@@ -1183,8 +1183,11 @@ const _weekBandPlugin={
     const dates=(chart.options&&chart.options._weekDates)||(chart.config&&chart.config.options&&chart.config.options._weekDates); if(!dates||!dates.length)return;
     const xs=chart.scales.x, area=chart.chartArea, ctx=chart.ctx; if(!xs||!area)return;
     const wkKey=ds=>{const d=new Date(ds);const day=d.getDay();const m=new Date(d);m.setDate(d.getDate()-(day===0?6:day-1));return {key:m.getFullYear()+'-'+m.getMonth()+'-'+m.getDate(),mon:m};};
+    const vals=(chart.options&&chart.options._weekVals)||null;
+    const unit=(chart.options&&chart.options._weekUnit)||'kg';
+    const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':_fmtKg(v);
     ctx.save();
-    let i=0, band=0; const n=dates.length;
+    let i=0, band=0, prevSum=null; const n=dates.length;
     while(i<n){
       const w=wkKey(dates[i]); let j=i; while(j<n&&wkKey(dates[j]).key===w.key)j++;
       const xStart=i===0?area.left:(xs.getPixelForValue(i-1)+xs.getPixelForValue(i))/2;
@@ -1193,6 +1196,16 @@ const _weekBandPlugin={
       if(i>0){ctx.strokeStyle='rgba(255,255,255,.07)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(xStart,area.top);ctx.lineTo(xStart,area.bottom);ctx.stroke();ctx.setLineDash([]);}
       ctx.fillStyle='rgba(230,237,243,.32)';ctx.font='10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
       ctx.fillText((w.mon.getMonth()+1)+'/'+w.mon.getDate()+' 주',(xStart+xEnd)/2,area.top+2);
+      if(vals){
+        let sum=0; for(let k=i;k<j;k++) sum+=(parseFloat(vals[dates[k]])||0);
+        if(prevSum!=null&&xEnd-xStart>58){
+          const d=sum-prevSum, pct=prevSum?Math.round(d/Math.abs(prevSum)*100):0, flat=Math.abs(d)<1e-9;
+          ctx.fillStyle=flat?'rgba(230,237,243,.32)':(d>0?'#3ecf8e':'#f85149');
+          ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
+          ctx.fillText((d>0?'+':d<0?'−':'')+fv(Math.abs(d))+' ('+(pct>0?'+':'')+pct+'%)',(xStart+xEnd)/2,area.top+14);
+        }
+        prevSum=sum;
+      }
       band++; i=j;
     }
     ctx.restore();
@@ -1759,27 +1772,6 @@ function _renderTrends(fAthletes, selAth, selLogs){
       y:{reverse:!!sprint,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}}}});
   let _ltN=0;
   const _ltCard=(title,sub,cfg,h,rmIdx,badge,strip)=>{const id='lt-'+(_ltN++);_ltJobs.push({id,cfg});const rm=(rmIdx!=null&&rmIdx>=0)?`<span title="제거" onclick="ltToggleEx(${rmIdx})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:'';return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(title)}</span><span style="display:flex;align-items:center;gap:6px;flex-shrink:0">${badge||''}<span style="font-size:10px;color:var(--hint)">${_esc(sub)}</span>${rm}</span></div>${strip||''}<div style="position:relative;height:${h||140}px"><canvas id="${id}"></canvas></div></div>`;};
-  // 주차별 합계 증감 스트립: 주(월요일 시작) 단위 합계 → 전주 대비 +/- 칩 (최근 6주)
-  const _ltWeekStrip=(series,unit)=>{
-    if(!series||series.length<2)return '';
-    const wk={};
-    series.forEach(p=>{const dt=new Date(p.d+'T00:00:00');const off=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-off);const k=dt.toISOString().slice(0,10);wk[k]=(wk[k]||0)+(p.v||0);});
-    const keys=Object.keys(wk).sort();
-    if(keys.length<2)return '';
-    const fv=v=>unit==='kg'?_fmtKg(v):Math.round(v)+'m';
-    const chips=[];
-    keys.slice(-6).forEach((k,i,arr)=>{
-      const prevKey=keys[keys.indexOf(k)-1];
-      const lbl=parseInt(k.slice(5,7))+'/'+parseInt(k.slice(8,10));
-      if(!prevKey){chips.push(`<span style="font-size:9.5px;color:var(--hint);white-space:nowrap">${lbl} ${fv(wk[k])}</span>`);return;}
-      const d=wk[k]-wk[prevKey];
-      const pct=wk[prevKey]?Math.round(d/Math.abs(wk[prevKey])*100):0;
-      const flat=Math.abs(d)<1e-9;
-      const col=flat?'var(--hint)':(d>0?'#3ecf8e':'#f85149');
-      chips.push(`<span style="font-size:9.5px;font-weight:600;color:${col};white-space:nowrap" title="주간 합계 ${fv(wk[k])} (전주 ${fv(wk[prevKey])})">${lbl} ${d>0?'+':d<0?'−':''}${fv(Math.abs(d))} (${pct>0?'+':''}${pct}%)</span>`);
-    });
-    return `<div style="display:flex;flex-wrap:wrap;gap:4px 10px;margin:-2px 0 7px;padding:5px 8px;border-radius:7px;background:rgba(255,255,255,.03)">${chips.join('')}</div>`;
-  };
   // 첫→마지막 변화량 배지(무게+%). lowerBetter=true면 감소가 향상(스프린트 시간).
   const _ltBadge=(series,unit,lowerBetter)=>{
     if(!series||series.length<2)return '';
@@ -2155,8 +2147,9 @@ function _renderTrends(fAthletes, selAth, selLogs){
         ]},options:opt};
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
       } else {
-        if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_ltLineCfg(s,'#f7a94f',false,ltCmp),null,_ltCat.indexOf('__vol__'),'',ltCmp?'':_ltWeekStrip(s,'kg'));} }
-        if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_ltLineCfg(s,'#3ecf8e',false,ltCmp),null,_ltCat.indexOf('__dist__'),'',ltCmp?'':_ltWeekStrip(s,'m'));} }
+        const _wkAttach=(cfg,s,u)=>{if(cfg&&cfg.options&&!ltCmp){cfg.options._weekVals=Object.fromEntries(s.map(p=>[p.d,p.v]));cfg.options._weekUnit=u;}return cfg;};
+        if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp),s,'kg'),null,_ltCat.indexOf('__vol__'));} }
+        if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp),s,'m'),null,_ltCat.indexOf('__dist__'));} }
       }
       if(selExs.length){
         if(ltChartMode==='overlay'&&!ltCmp){
