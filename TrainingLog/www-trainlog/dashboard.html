@@ -2370,7 +2370,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
           const _fmtPinLine=l=>{
             const s=l+'';
             const m=s.match(/^(.*?)(?:\s*·\s*)(RPE\s*\d+(?:\.\d+)?)\s*$/);
-            if(m) return `<div style="display:flex;justify-content:space-between;gap:14px"><span style="white-space:pre-wrap;min-width:0">${_esc(m[1])}</span><span style="flex-shrink:0;color:#f7a94f;font-weight:700">${_esc(m[2])}</span></div>`;
+            if(m) return `<div style="white-space:pre-wrap">${_esc(m[1])} <span style="color:#f7a94f;font-weight:700">· ${_esc(m[2])}</span></div>`;
             return `<div style="white-space:pre-wrap">${_esc(s)}</div>`;
           };
           const _wkPinGrid=()=>{
@@ -2384,7 +2384,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
               const dt=new Date(o.d1+'T00:00:00');dt.setDate(dt.getDate()+idx);
               const ds=dt.toISOString().slice(5,10).replace('-','.');
               const meta=o.mm[idx];const lines=Array.isArray(meta)?meta:(meta?[meta]:[]);
-              return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0">
+              return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0;flex:0 1 330px;max-width:360px;min-width:250px">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px">
                   <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:${col}">${_esc(_wkLbl(o.d1).split(' ')[0])}</span> · ${WD[idx]} ${ds} · <span style="color:${col}">${fv(o.m[idx])}</span></span>
                   <span onclick="ltWkPinTg('${k}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;padding:0 2px">×</span>
@@ -2392,7 +2392,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
                 <div style="font-size:11.5px;line-height:1.6;color:#c9d1d9;max-height:340px;overflow-y:auto">${lines.map(_fmtPinLine).join('')}</div>
               </div>`;
             }).join('');
-            return `<div style="grid-column:1/-1"><div style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--hint);text-transform:uppercase;margin:2px 2px 6px">Session Compare · 점 클릭으로 추가/제거</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;align-items:start">${cards}</div></div>`;
+            return `<div style="grid-column:1/-1"><div style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--hint);text-transform:uppercase;margin:2px 2px 6px">Session Compare · 점 클릭으로 추가/제거</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start">${cards}</div></div>`;
           };
           wkList.forEach((o,i)=>{
             let sub=o.tot==null?'데이터 없음':'Total '+fv(o.tot);
