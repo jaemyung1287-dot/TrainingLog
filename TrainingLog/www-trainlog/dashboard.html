@@ -606,6 +606,7 @@ let ltOpenCat=null;           // 종목 선택: 펼쳐진 카테고리
 let ltVolBreak='none';        // none|sub|region|type — Total Volume 분해 보기(누적)
 let ltABView='overlay';      // A/B 비교 보기: overlay(겹쳐) | split(상하 2개)
 let ltWeeks=[];              // 주차 비교 스택: 'd1|d2' 배열 — 고를 때마다 차트 추가, 카드 ×로 제거
+let ltWkPins={};             // 주차 비교 세션 핀: 'metric|d1|dayIdx' → 차트 아래 세션 상세 고정
 let ltDistBreak='none';       // none|sub|disc — Sprint Distance 분해 보기(누적)
 let ltBrkBars='group';        // group|stack — 분해 비교(주/월/연) 막대 모양
 let _ltPins=[];               // 추이 차트 점 클릭 → 아래 고정 비교할 세션 날짜들(YYYY-MM-DD)
@@ -1328,6 +1329,7 @@ function _planWeekOpts(){
   }).join('');
 }
 function ltWeekRm(i){ ltWeeks.splice(i,1); _rerenderTrends(); }
+function ltWkPinTg(k){ if(ltWkPins[k])delete ltWkPins[k]; else ltWkPins[k]=1; _rerenderTrends(); }
 // 주간 헤더(합계/베스트 + 전주 대비) 데이터를 라인차트 cfg에 부착
 function _wkAttachCfg(cfg,s,unit,agg){
   if(!cfg||!cfg.options)return cfg;
@@ -1514,6 +1516,7 @@ function _ltBuild(logs,ath){
         const vd=volDetail[l.date]||(volDetail[l.date]={});
         const vo=vd[vk]||(vd[vk]={vol:0,sets:0,reps:reps,lines:[],bw:isBW,eff:null});
         vo.vol+=exVol;vo.sets=sets;vo.reps=reps;vo.lines=vo.lines.concat(setLines);
+        vo.reg=e.trainingType==='Power Development'?'Power':(_volRegionOf(_catOf(e))==='Other'?'기타':_volRegionOf(_catOf(e)));
         {const _ef=_dEffNum(e.effort); if(_ef!=null)vo.eff=_ef;}
         // 분해 누적(카테고리/상하체/타입)
         if(exVol>0){
@@ -1924,7 +1927,18 @@ function _renderTrends(fAthletes, selAth, selLogs){
     return{type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx)};
   };
   const _ltExSeries=n=>Object.entries(_lt.exMap[n].pts).map(([d,o])=>({d,v:o.v,meta:o.meta})).sort((a,b)=>a.d.localeCompare(b.d));
-  const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>{const det=_lt.volDetail[d]||{};const lines=['Total Volume '+_fmtKg(v)];Object.entries(det).sort((a,b)=>b[1].vol-a[1].vol).forEach(([n,o])=>{lines.push(`${n} ${o.sets}×${o.reps}${o.vol>0?' · '+_fmtKg(o.vol):''}${o.eff!=null?' · RPE '+o.eff:''}`);(o.lines||[]).forEach(s=>lines.push('   '+s));});return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
+  const _ltVolS=Object.entries(_lt.volByDate).map(([d,v])=>{
+    const det=_lt.volDetail[d]||{};
+    const lines=['Total Volume '+_fmtKg(v)];
+    // 실제 스케줄 순서(로그 입력 순) 유지 + 상/하체/코어 섹션 분리
+    const regOrder=[],byReg={};
+    Object.entries(det).forEach(([n,o])=>{const r=o.reg||'기타';if(!byReg[r]){byReg[r]=[];regOrder.push(r);}byReg[r].push([n,o]);});
+    regOrder.forEach(r=>{
+      if(regOrder.length>1)lines.push('── '+r+' ──');
+      byReg[r].forEach(([n,o])=>{lines.push(`${n} ${o.sets}×${o.reps}${o.vol>0?' · '+_fmtKg(o.vol):''}${o.eff!=null?' · RPE '+o.eff:''}`);(o.lines||[]).forEach(s=>lines.push('   '+s));});
+    });
+    return {d,v:Math.round(v),meta:lines};
+  }).sort((a,b)=>a.d.localeCompare(b.d));
   const _ltDistS=Object.entries(_lt.distByDate).map(([d,v])=>{const det=_lt.distDetail[d]||{};const _rp=_lt.distRpe[d];const lines=['Total distance '+Math.round(v)+'m'+(_rp!=null?' · RPE '+_rp:'')].concat(Object.entries(det).sort((a,b)=>b[1].dist-a[1].dist).map(([n,o])=>`${n}: ${Math.round(o.dist)}m${o.eff!=null?' · RPE '+o.eff:''}`));return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
   const _flt=s=>s.filter(p=>_ltInPeriod(p.d));
   // ── Readiness(컨디션 합산 점수) 시리즈 — 개인 21일 기준선, 신호등 색 점 ──
@@ -2352,6 +2366,30 @@ function _renderTrends(fAthletes, selAth, selLogs){
           const midChips=wkList.map((o,i)=>`<span style="display:inline-flex;align-items:center;gap:5px;margin:0 7px"><span style="width:11px;height:11px;border-radius:3px;background:${_WKPAL[i%_WKPAL.length]};display:inline-block"></span>${_esc(_wkLbl(o.d1))}</span>`).join('');
           LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,subTxt,{type:'bar',data:{labels:WD,datasets:dss},options:mkOpt(false),plugins:[_mkBarVals(sp.unit)]},240,sp.idx,'','',midChips)}</div>`;
         } else {
+          const _mKey=encodeURIComponent(sp.label);
+          const _fmtPinLine=l=>{
+            const s=l+'';
+            const m=s.match(/^(.*?)(?:\s*·\s*)(RPE\s*\d+(?:\.\d+)?)\s*$/);
+            if(m) return `<div style="display:flex;justify-content:space-between;gap:14px"><span style="white-space:pre-wrap;min-width:0">${_esc(m[1])}</span><span style="flex-shrink:0;color:#f7a94f;font-weight:700">${_esc(m[2])}</span></div>`;
+            return `<div style="white-space:pre-wrap">${_esc(s)}</div>`;
+          };
+          const _wkPinRow=(o,col)=>{
+            const keys=Object.keys(ltWkPins).filter(k=>{const p=k.split('|');return p[0]===_mKey&&p[1]===o.d1;}).sort((a,b)=>(+a.split('|')[2])-(+b.split('|')[2]));
+            if(!keys.length)return '';
+            return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;margin-top:8px">`+keys.map(k=>{
+              const idx=+k.split('|')[2];
+              const dt=new Date(o.d1+'T00:00:00');dt.setDate(dt.getDate()+idx);
+              const ds=dt.toISOString().slice(5,10).replace('-','.');
+              const meta=o.mm[idx];const lines=Array.isArray(meta)?meta:(meta?[meta]:[]);
+              return `<div class="card" style="border-left:3px solid ${col};padding:10px 13px;margin:0">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px">
+                  <span style="font-size:12px;font-weight:700">${WD[idx]} · ${ds} <span style="color:${col}">${fv(o.m[idx])}</span></span>
+                  <span onclick="ltWkPinTg('${k}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;padding:0 2px">×</span>
+                </div>
+                <div style="font-size:11.5px;line-height:1.6;color:#c9d1d9;max-height:300px;overflow-y:auto">${lines.map(_fmtPinLine).join('')}</div>
+              </div>`;
+            }).join('')+`</div>`;
+          };
           wkList.forEach((o,i)=>{
             let sub=o.tot==null?'데이터 없음':'Total '+fv(o.tot);
             if(o.tot!=null&&i>0&&wkList[i-1].tot){
@@ -2361,7 +2399,14 @@ function _renderTrends(fAthletes, selAth, selLogs){
             }
             const col=_WKPAL[i%_WKPAL.length];
             const midLbl=`<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:3px;background:${col};display:inline-block"></span>${_esc(_wkLbl(o.d1))}</span>`;
-            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',{type:'line',data:{labels:WD,datasets:[mkDs(o,col)]},options:mkOpt(false),plugins:[_mkPointVals(sp.unit)]},190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',midLbl)}</div>`;
+            const cfg={type:'line',data:{labels:WD,datasets:[mkDs(o,col)]},options:mkOpt(false),plugins:[_mkPointVals(sp.unit)]};
+            cfg.options.onClick=function(evt,els,chart){
+              let idx=-1;
+              if(els&&els.length)idx=els[0].index;
+              else if(chart&&chart.scales&&chart.scales.x){const px=evt.x;let bd=1e9;WD.forEach((_,k)=>{const cx=chart.scales.x.getPixelForValue(k);const dd=Math.abs(cx-px);if(dd<bd){bd=dd;idx=k;}});if(bd>34)idx=-1;}
+              if(idx>=0&&o.m[idx]!=null)ltWkPinTg(_mKey+'|'+o.d1+'|'+idx);
+            };
+            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',cfg,190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',midLbl)}${_wkPinRow(o,col)}</div>`;
           });
         }
       });
