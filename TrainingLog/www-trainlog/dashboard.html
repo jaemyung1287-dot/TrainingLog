@@ -1894,7 +1894,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:8},autoSkip:false,maxRotation:60,minRotation:45}},
       y:{reverse:!!sprint,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}}}});
   let _ltN=0;
-  const _ltCard=(title,sub,cfg,h,rmIdx,badge,strip)=>{const id='lt-'+(_ltN++);_ltJobs.push({id,cfg});const rm=(typeof rmIdx==='string')?`<span title="제거" onclick="${rmIdx}" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:(rmIdx!=null&&rmIdx>=0)?`<span title="제거" onclick="ltToggleEx(${rmIdx})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:'';return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(title)}</span><span style="display:flex;align-items:center;gap:6px;flex-shrink:0">${badge||''}<span style="font-size:10px;color:var(--hint)">${_esc(sub)}</span>${rm}</span></div>${strip||''}<div style="position:relative;height:${h||140}px"><canvas id="${id}"></canvas></div></div>`;};
+  const _ltCard=(title,sub,cfg,h,rmIdx,badge,strip,mid)=>{const id='lt-'+(_ltN++);_ltJobs.push({id,cfg});const rm=(typeof rmIdx==='string')?`<span title="제거" onclick="${rmIdx}" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:(rmIdx!=null&&rmIdx>=0)?`<span title="제거" onclick="ltToggleEx(${rmIdx})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:'';return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(title)}</span>${mid?`<span style="flex:1;text-align:center;font-size:12.5px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mid}</span>`:''}<span style="display:flex;align-items:center;gap:6px;flex-shrink:0">${badge||''}<span style="font-size:10px;color:var(--hint)">${_esc(sub)}</span>${rm}</span></div>${strip||''}<div style="position:relative;height:${h||140}px"><canvas id="${id}"></canvas></div></div>`;};
   // 첫→마지막 변화량 배지(무게+%). lowerBetter=true면 감소가 향상(스프린트 시간).
   const _ltBadge=(series,unit,lowerBetter)=>{
     if(!series||series.length<2)return '';
@@ -1970,7 +1970,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
   const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
   const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).flatMap(e=>['· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].eff!=null?'  · RPE '+e[1].eff:'')].concat((e[1].splits||[]).map((x,i)=>'   '+(i+1)+'. '+x)));
   // 막대 위/안에 값 표시 플러그인(kg/m)
-  const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);if(h<13)return;ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,el.x,(el.y+el.base)/2);}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
+  const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);if(h<13)return;ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,el.x,(el.y+el.base)/2);}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
   const _ltBrkData=grp=>{
     const byDate=_lt.volBreak[grp]||{};
     const dates=Object.keys(byDate).filter(_ltInPeriod).sort();
@@ -2287,18 +2287,19 @@ function _renderTrends(fAthletes, selAth, selLogs){
         });
         const allV=wkList.flatMap(o=>Object.values(o.m));
         const maxV=allV.length?Math.max(...allV):null;
-        const mkOpt=()=>{const o=_ltTip(sp.agg==='min',true);
+        const mkOpt=(legend)=>{const o=_ltTip(sp.agg==='min',true);
           o.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:sp.agg==='sum',reverse:sp.agg==='min'}};
           if(maxV!=null)o.scales.y.suggestedMax=maxV*1.08;
           o.plugins=o.plugins||{};
-          o.plugins.legend={display:true,labels:{color:'rgba(230,237,243,.88)',font:{size:13,weight:'700'},boxWidth:14,boxHeight:14,padding:10}};
+          o.plugins.legend=legend===false?{display:false}:{display:true,labels:{color:'rgba(230,237,243,.88)',font:{size:13,weight:'700'},boxWidth:14,boxHeight:14,padding:10}};
           return o;};
         const mkDs=(o,col)=>({label:_wkLbl(o.d1),data:WD.map((_,i)=>o.m[i]??null),_metas:WD.map((_,i)=>o.m[i]!=null?o.mm[i]:''),borderColor:col,backgroundColor:col+'22',fill:true,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2});
         const mkBarDs=(o,col)=>({label:_wkLbl(o.d1),data:WD.map((_,i)=>o.m[i]??null),_metas:WD.map((_,i)=>o.m[i]!=null?o.mm[i]:''),backgroundColor:col+'cc',borderRadius:3,maxBarThickness:28});
         if(ltABView==='overlay'&&wkList.length>1){
           const dss=wkList.map((o,i)=>mkBarDs(o,_WKPAL[i%_WKPAL.length]));
           const subTxt=wkList.map((o,i)=>`${_wkLbl(o.d1).split(' ')[0]} ${fv(o.tot)}`).join(' · ');
-          LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label+' · 주차 비교',subTxt,{type:'bar',data:{labels:WD,datasets:dss},options:mkOpt()},240,sp.idx)}</div>`;
+          const midChips=wkList.map((o,i)=>`<span style="display:inline-flex;align-items:center;gap:5px;margin:0 7px"><span style="width:11px;height:11px;border-radius:3px;background:${_WKPAL[i%_WKPAL.length]};display:inline-block"></span>${_esc(_wkLbl(o.d1))}</span>`).join('');
+          LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,subTxt,{type:'bar',data:{labels:WD,datasets:dss},options:mkOpt(false),plugins:[_mkBarVals(sp.unit)]},240,sp.idx,'','',midChips)}</div>`;
         } else {
           wkList.forEach((o,i)=>{
             let sub=o.tot==null?'데이터 없음':'Total '+fv(o.tot);
@@ -2307,7 +2308,9 @@ function _renderTrends(fAthletes, selAth, selLogs){
               const good=sp.agg==='min'?d<0:d>0;
               sub+=` · <span style="color:${Math.abs(d)<1e-9?'var(--hint)':good?'#3ecf8e':'#f85149'}">${d>0?'+':''}${fv(d).replace('−','-')} (${pct>0?'+':''}${pct}%)</span>`;
             }
-            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',{type:'line',data:{labels:WD,datasets:[mkDs(o,_WKPAL[i%_WKPAL.length])]},options:mkOpt()},200,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`)}</div>`;
+            const col=_WKPAL[i%_WKPAL.length];
+            const midLbl=`<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:3px;background:${col};display:inline-block"></span>${_esc(_wkLbl(o.d1))}</span>`;
+            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',{type:'line',data:{labels:WD,datasets:[mkDs(o,col)]},options:mkOpt(false)},190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',midLbl)}</div>`;
           });
         }
       });
@@ -2321,7 +2324,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
       if(ltChartMode==='overlay'&&specs.length>1){
         LT+=_ltBucketOverlay(specs);
       } else {
-        specs.forEach(sp=>{const metaFn=sp.agg==='sum'?(sp.unit==='m'?((b,i,a)=>{const d=_ltBkDelta(b,i,a,'m');return ['Distance '+Math.round(b.v)+'m',b.n+' sessions'].concat(d?[d]:[]);}):((b,i,a)=>{const d=_ltBkDelta(b,i,a,'kg');return ['Volume '+_fmtKg(b.v),b.n+' sessions'].concat(d?[d]:[]);})):(sp.agg==='min'?((b,i,a)=>{const d=_ltBkDelta(b,i,a,'s');return ['Best '+b.v+'s',b.n+' sessions'].concat(d?[d]:[]);}):((b,i,a)=>{const d=_ltBkDelta(b,i,a,'kg');return ['Best '+_fmtKg(b.v),b.n+' sessions'].concat(d?[d]:[]);}));LT+=_ltCard(sp.label,_ltBkSub,_ltBarCfg(_ltBucketize(sp.series,sp.agg),sp.color,metaFn),null,sp.idx);});
+        specs.forEach(sp=>{const metaFn=sp.agg==='sum'?(sp.unit==='m'?((b,i,a)=>{const d=_ltBkDelta(b,i,a,'m');return ['Distance '+Math.round(b.v)+'m',b.n+' sessions'].concat(d?[d]:[]);}):((b,i,a)=>{const d=_ltBkDelta(b,i,a,'kg');return ['Volume '+_fmtKg(b.v),b.n+' sessions'].concat(d?[d]:[]);})):(sp.agg==='min'?((b,i,a)=>{const d=_ltBkDelta(b,i,a,'s');return ['Best '+b.v+'s',b.n+' sessions'].concat(d?[d]:[]);}):((b,i,a)=>{const d=_ltBkDelta(b,i,a,'kg');return ['Best '+_fmtKg(b.v),b.n+' sessions'].concat(d?[d]:[]);}));const _bcfg=_ltBarCfg(_ltBucketize(sp.series,sp.agg),sp.color,metaFn);_bcfg.plugins=[_mkBarVals(sp.unit)];LT+=_ltCard(sp.label,_ltBkSub,_bcfg,null,sp.idx);});
       }
     } else if(ltAB){
       _ltSpecs().forEach(sp=>LT+=_ltABCard(sp));
