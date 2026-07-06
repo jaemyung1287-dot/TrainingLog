@@ -1343,21 +1343,29 @@ function ltMesoDrill(num){
 function _ltMesoClick(opt,keys){opt.onClick=function(e,els,ch){let idx=els&&els.length?els[0].index:-1;if(idx<0&&ch&&ch.scales&&ch.scales.x){let bd=1e9;keys.forEach((_,k)=>{const cx=ch.scales.x.getPixelForValue(k);const dd=Math.abs(cx-e.x);if(dd<bd){bd=dd;idx=k;}});if(bd>44)idx=-1;}if(idx>=0){const num=parseInt(String(keys[idx]).replace(/\D/g,''),10);if(num)ltMesoDrill(num);}};}
 // 연속(일자별) 분해 막대차트 상단에 메소사이클 그룹 라벨 + 경계선(클릭은 차트 onClick에서 처리)
 function _mkMesoLabels(dates){
-  return {id:'mesolabels',afterDraw(chart){
-    const xs=chart.scales.x;if(!xs||!dates||!dates.length)return;
-    const names=_mesoNamesFor(dates),area=chart.chartArea,ctx=chart.ctx,n=dates.length;
-    ctx.save();let i=0;
+  const _spans=chart=>{const xs=chart.scales.x,area=chart.chartArea,n=dates.length,names=_mesoNamesFor(dates),out=[];let i=0;
     while(i<n){const p=names[i];let j=i;while(j<n&&names[j]===p)j++;
       const xS=i===0?area.left:(xs.getPixelForValue(i-1)+xs.getPixelForValue(i))/2;
       const xE=j>=n?area.right:(xs.getPixelForValue(j-1)+xs.getPixelForValue(j))/2;
-      if(p){const col=_mesoColor(p);
-        if(i>0){ctx.strokeStyle='rgba(255,255,255,.5)';ctx.setLineDash([5,3]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(xS,area.top);ctx.lineTo(xS,area.bottom);ctx.stroke();ctx.setLineDash([]);}
-        if(xE-xS>46){ctx.fillStyle=col;ctx.font='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(p.replace('Mesocycle','Meso'),(xS+xE)/2,area.top-4);}
-      }
-      i=j;
-    }
-    ctx.restore();
-  }};
+      out.push({p,i,xS,xE});i=j;}
+    return out;};
+  return {id:'mesolabels',
+    // 배경 음영(메소별 옅은 풀하이트 틴트 ~9%) — 막대 뒤에 그림
+    beforeDatasetsDraw(chart){
+      const xs=chart.scales.x;if(!xs||!dates||!dates.length)return;
+      const area=chart.chartArea,ctx=chart.ctx;ctx.save();
+      _spans(chart).forEach(({p,xS,xE})=>{if(!p)return;ctx.fillStyle=_mesoColor(p)+'17';ctx.fillRect(xS,area.top,xE-xS,area.bottom-area.top);});
+      ctx.restore();
+    },
+    // 경계선 + 상단 라벨 — 막대 위에 그림
+    afterDatasetsDraw(chart){
+      const xs=chart.scales.x;if(!xs||!dates||!dates.length)return;
+      const area=chart.chartArea,ctx=chart.ctx;ctx.save();
+      _spans(chart).forEach(({p,i,xS,xE})=>{if(!p)return;const col=_mesoColor(p);
+        if(i>0){ctx.strokeStyle=col+'80';ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(xS,area.top);ctx.lineTo(xS,area.bottom);ctx.stroke();ctx.setLineDash([]);}
+      });
+      ctx.restore();
+    }};
 }
 // ── 주기화 주차 목록: PDF 주기화(시즌 전체) + sessionPlans 메타 병합 → [{label,d1,d2}] ──
 function _planWeeks(){
@@ -1385,10 +1393,28 @@ function _planWeeks(){
   return wks;
 }
 function _planWeekOpts(){
-  return '<option value="">+ 주차 추가…</option>'+_planWeeks().map(w=>{
+  const wks=_planWeeks();
+  let html='<option value="">+ 주차 / 메소사이클 추가…</option>';
+  let cur=null;
+  wks.forEach(w=>{
+    const num=_mesoOf(w.d1).num;
+    if(num!==cur){
+      cur=num;
+      const all=wks.filter(x=>_mesoOf(x.d1).num===num);
+      const allOn=all.length&&all.every(x=>ltWeeks.includes(x.d1+'|'+x.d2));
+      html+=`<option value="meso:${num}" ${allOn?'disabled':''}>▸ Mesocycle ${num} (전체)${allOn?' ✓':''}</option>`;
+    }
     const on=ltWeeks.includes(w.d1+'|'+w.d2);
-    return `<option value='${w.d1}|${w.d2}' ${on?'disabled':''}>${w.label}${on?' ✓':''}</option>`;
-  }).join('');
+    html+=`<option value='${w.d1}|${w.d2}' ${on?'disabled':''}>&nbsp;&nbsp;&nbsp;${w.label}${on?' ✓':''}</option>`;
+  });
+  return html;
+}
+// 드롭다운 선택: 'meso:N' → 그 메소 3주 통째로 추가 · 'd1|d2' → 해당 주만 추가
+function ltPlanPick(v){ if(!v)return; if(v.indexOf('meso:')===0)ltMesoAdd(v.slice(5)); else ltWeekPick(v); }
+function ltMesoAdd(num){
+  const wks=_planWeeks().filter(w=>_mesoOf(w.d1).num===String(num));
+  wks.forEach(w=>{const k=w.d1+'|'+w.d2; if(!ltWeeks.includes(k)&&ltWeeks.length<10)ltWeeks.push(k);});
+  ltABView='split'; _rerenderTrends();
 }
 function ltWeekRm(i){ ltWeeks.splice(i,1); _rerenderTrends(); }
 function ltWkPinTg(k){ if(ltWkPins[k])delete ltWkPins[k]; else ltWkPins[k]=1; _rerenderTrends(); }
@@ -2275,7 +2301,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     + _ltBaseOpt('all','All')+_ltBaseOpt('1w','Last week')+_ltBaseOpt('1m','Last month')+_ltBaseOpt('1y','Last year')+_ltBaseOpt('custom','Custom…')
     +`</select>`
     +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;_rerenderTrends()">`:'')
-    +`<select class="lt-date" style="width:150px;cursor:pointer" onchange="ltWeekPick(this.value);this.value=''">${_planWeekOpts()}</select>`
+    +`<select class="lt-date" style="width:150px;cursor:pointer" onchange="ltPlanPick(this.value);this.value=''">${_planWeekOpts()}</select>`
     +(ltWeeks.length>1?`<div class="lt-seg" style="margin-left:4px"><button class="${ltABView==='split'?'on':''}" onclick="ltABView='split';_rerenderTrends()">Split</button><button class="${ltABView==='overlay'?'on':''}" onclick="ltABView='overlay';_rerenderTrends()">Overlay</button></div>`:'')
     +(ltWeeks.length?`<button class="lt-clear" onclick="ltWeeks=[];_rerenderTrends()">주차 비교 지우기</button>`:'')
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
