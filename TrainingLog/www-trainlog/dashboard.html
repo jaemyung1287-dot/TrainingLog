@@ -1199,13 +1199,44 @@ const _weekBandPlugin={
     const wAgg=(chart.options&&chart.options._weekAgg)||'sum';
     const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':_fmtKg(v);
     ctx.save();
-    let i=0, band=0, prevSum=null; const n=dates.length;
+    const n=dates.length;
+    // ── Phase(메조사이클) 배경: 옅은 풀하이트 틴트 + 경계 divider + 하단 라벨 (라인 뒤에 먼저 그림) ──
+    try{
+      const pm={};
+      Object.entries((typeof coachData!=='undefined'&&coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{if(p&&p.phase)pm[d]=String(p.phase).trim();});
+      if(typeof _PDZ!=='undefined'){_PDZ.forEach(([code,d1])=>{const b='Block '+code.split('-')[0];const dt=new Date(d1+'T00:00:00');for(let k=0;k<7;k++){const ds=dt.toISOString().slice(0,10);if(!pm[ds])pm[ds]=b;dt.setDate(dt.getDate()+1);}});}
+      let last=null; const ph=dates.map(d=>{ if(pm[d])last=pm[d]; return last; });
+      const first=ph.find(x=>x); for(let k=0;k<ph.length&&!ph[k];k++)ph[k]=first;
+      const uniq=[...new Set(ph.filter(Boolean))];
+      if(uniq.length){
+        const PAL=['#a78bfa','#4f8ef7','#3ecf8e','#f7a94f','#e2b714','#f85149'];
+        const colOf=p=>PAL[uniq.indexOf(p)%PAL.length];
+        let i2=0;
+        while(i2<n){
+          const p=ph[i2]; let j2=i2; while(j2<n&&ph[j2]===p)j2++;
+          if(p){
+            const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
+            const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
+            const c=colOf(p);
+            ctx.fillStyle=c+'1c'; ctx.fillRect(xS,area.top,xE-xS,area.bottom-area.top); // 옅은 틴트(~11%)
+            if(i2>0){ ctx.strokeStyle=c+'88'; ctx.setLineDash([5,3]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,area.bottom); ctx.stroke(); ctx.setLineDash([]); }
+            if(xE-xS>72){
+              ctx.fillStyle=c; ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
+              ctx.textAlign='center'; ctx.textBaseline='bottom';
+              ctx.fillText(p,(xS+xE)/2,area.bottom-4);
+              ctx.textBaseline='top';
+            }
+          }
+          i2=j2;
+        }
+      }
+    }catch(e){}
+    let i=0, band=0, prevSum=null;
     while(i<n){
       const w=wkKey(dates[i]); let j=i; while(j<n&&wkKey(dates[j]).key===w.key)j++;
       const xStart=i===0?area.left:(xs.getPixelForValue(i-1)+xs.getPixelForValue(i))/2;
       const xEnd=j>=n?area.right:(xs.getPixelForValue(j-1)+xs.getPixelForValue(j))/2;
-      if(band%2===1){ctx.fillStyle='rgba(255,255,255,.035)';ctx.fillRect(xStart,area.top,xEnd-xStart,area.bottom-area.top);}
-      if(i>0){ctx.strokeStyle='rgba(255,255,255,.07)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(xStart,area.top);ctx.lineTo(xStart,area.bottom);ctx.stroke();ctx.setLineDash([]);}
+      if(i>0){ctx.strokeStyle='rgba(255,255,255,.09)';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(xStart,area.top);ctx.lineTo(xStart,area.bottom);ctx.stroke();ctx.setLineDash([]);}
       let sum=null;
       if(vals){
         const wv=[]; for(let k=i;k<j;k++){const x=parseFloat(vals[dates[k]]); if(!isNaN(x))wv.push(x);}
@@ -1242,36 +1273,6 @@ const _weekBandPlugin={
       if(sum!=null) prevSum=sum;
       band++; i=j;
     }
-    // ── Phase(메조사이클) 밴드: 차트 하단 색 스트립 + 라벨 ──
-    try{
-      const pm={};
-      Object.entries((typeof coachData!=='undefined'&&coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{if(p&&p.phase)pm[d]=String(p.phase).trim();});
-      if(typeof _PDZ!=='undefined'){_PDZ.forEach(([code,d1])=>{const b='Block '+code.split('-')[0];const dt=new Date(d1+'T00:00:00');for(let k=0;k<7;k++){const ds=dt.toISOString().slice(0,10);if(!pm[ds])pm[ds]=b;dt.setDate(dt.getDate()+1);}});}
-      let last=null; const ph=dates.map(d=>{ if(pm[d])last=pm[d]; return last; });
-      const first=ph.find(x=>x); for(let k=0;k<ph.length&&!ph[k];k++)ph[k]=first;
-      const uniq=[...new Set(ph.filter(Boolean))];
-      if(uniq.length){
-        const PAL=['#a78bfa','#4f8ef7','#3ecf8e','#f7a94f','#e2b714','#f85149'];
-        const colOf=p=>PAL[uniq.indexOf(p)%PAL.length];
-        let i2=0;
-        while(i2<n){
-          const p=ph[i2]; let j2=i2; while(j2<n&&ph[j2]===p)j2++;
-          if(p){
-            const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
-            const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
-            const c=colOf(p);
-            ctx.fillStyle=c+'66'; ctx.fillRect(xS,area.bottom-3,xE-xS,3);
-            if(xE-xS>72){
-              ctx.fillStyle=c; ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
-              ctx.textAlign='center'; ctx.textBaseline='bottom';
-              ctx.fillText(p,(xS+xE)/2,area.bottom-6);
-              ctx.textBaseline='top';
-            }
-          }
-          i2=j2;
-        }
-      }
-    }catch(e){}
     ctx.restore();
   }
 };
