@@ -1322,6 +1322,43 @@ const _PDZ=[['1-1','2026-06-01'],['1-2','2026-06-08'],['1-3','2026-06-15'],
  ['6-1','2026-09-14'],['6-2','2026-09-21'],['6-3','2026-09-28'],
  ['7-1','2026-10-05'],['7-2','2026-10-12'],['7-3','2026-10-19'],
  ['8-1','2026-10-26']];
+// ── 메소사이클(3주 블록) 매핑: _PDZ 코드 앞자리 = 메소 번호 (1-1·1-2·1-3 = Meso 1) ──
+const _MESO_BLK=(typeof _PDZ!=='undefined'?_PDZ:[]).map(([code,d1])=>{const dt=new Date(d1+'T00:00:00');dt.setDate(dt.getDate()+6);return {num:code.split('-')[0],d1,d2:dt.toISOString().slice(0,10)};});
+function _mesoOf(ds){
+  if(!_MESO_BLK.length)return {k:'M00',l:'Meso ?',num:null};
+  let hit=_MESO_BLK.find(b=>ds>=b.d1&&ds<=b.d2);
+  if(!hit){ if(ds<_MESO_BLK[0].d1)hit=_MESO_BLK[0]; else if(ds>_MESO_BLK[_MESO_BLK.length-1].d2)hit=_MESO_BLK[_MESO_BLK.length-1]; else {for(let k=_MESO_BLK.length-1;k>=0;k--){if(_MESO_BLK[k].d1<=ds){hit=_MESO_BLK[k];break;}} if(!hit)hit=_MESO_BLK[0];} }
+  return {k:'M'+String(hit.num).padStart(2,'0'),l:'Meso '+hit.num,num:hit.num};
+}
+// 메소 막대/라벨 클릭 → 그 메소의 주차들(1-x)을 주차비교(Split)로 펼쳐 사이클 내 주간 비교
+function ltMesoDrill(num){
+  const wks=_planWeeks().filter(w=>w.code&&w.code.split('-')[0]===String(num));
+  if(!wks.length)return;
+  ltBucket='none'; ltAB=false; ltBuckSel.clear();
+  ltWeeks=wks.map(w=>w.d1+'|'+w.d2).slice(0,10);
+  ltABView='split';
+  _rerenderTrends();
+}
+// 메소 버킷 막대 클릭 → 해당 메소로 드릴다운
+function _ltMesoClick(opt,keys){opt.onClick=function(e,els,ch){let idx=els&&els.length?els[0].index:-1;if(idx<0&&ch&&ch.scales&&ch.scales.x){let bd=1e9;keys.forEach((_,k)=>{const cx=ch.scales.x.getPixelForValue(k);const dd=Math.abs(cx-e.x);if(dd<bd){bd=dd;idx=k;}});if(bd>44)idx=-1;}if(idx>=0){const num=parseInt(String(keys[idx]).replace(/\D/g,''),10);if(num)ltMesoDrill(num);}};}
+// 연속(일자별) 분해 막대차트 상단에 메소사이클 그룹 라벨 + 경계선(클릭은 차트 onClick에서 처리)
+function _mkMesoLabels(dates){
+  return {id:'mesolabels',afterDraw(chart){
+    const xs=chart.scales.x;if(!xs||!dates||!dates.length)return;
+    const names=_mesoNamesFor(dates),area=chart.chartArea,ctx=chart.ctx,n=dates.length;
+    ctx.save();let i=0;
+    while(i<n){const p=names[i];let j=i;while(j<n&&names[j]===p)j++;
+      const xS=i===0?area.left:(xs.getPixelForValue(i-1)+xs.getPixelForValue(i))/2;
+      const xE=j>=n?area.right:(xs.getPixelForValue(j-1)+xs.getPixelForValue(j))/2;
+      if(p){const col=_mesoColor(p);
+        if(i>0){ctx.strokeStyle='rgba(255,255,255,.5)';ctx.setLineDash([5,3]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(xS,area.top);ctx.lineTo(xS,area.bottom);ctx.stroke();ctx.setLineDash([]);}
+        if(xE-xS>46){ctx.fillStyle=col;ctx.font='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(p.replace('Mesocycle','Meso'),(xS+xE)/2,area.top-4);}
+      }
+      i=j;
+    }
+    ctx.restore();
+  }};
+}
 // ── 주기화 주차 목록: PDF 주기화(시즌 전체) + sessionPlans 메타 병합 → [{label,d1,d2}] ──
 function _planWeeks(){
   const map={};
@@ -1381,6 +1418,12 @@ function _ltTogglePin(d,ctx){const p={d,ex:(ctx&&ctx.ex)||null,sp:!!(ctx&&ctx.sp
 function _ltAttachBrkInteract(opt,dates,groups,grp,sp){
   if(!opt)return opt;
   opt.onClick=function(evt,els,chart){
+    // 상단 메소 라벨 밴드 클릭 → 그 메소의 주차들로 드릴다운(사이클 내 주간 비교)
+    const area=chart&&chart.chartArea;
+    if(area&&evt&&evt.y!=null&&evt.y<area.top){
+      const xs=chart.scales.x;let idx=-1,bd=1e9;dates.forEach((_,k)=>{const cx=xs.getPixelForValue(k);const dd=Math.abs(cx-evt.x);if(dd<bd){bd=dd;idx=k;}});
+      if(idx>=0){const num=(String(_mesoNamesFor(dates)[idx]).match(/\d+/)||[])[0];if(num){ltMesoDrill(num);return;}}
+    }
     if(!els||!els.length)return;
     const d=dates[els[0].index], cat=groups[els[0].datasetIndex];
     if(d&&cat!=null)_ltTogglePin(d,{cat,grp,sp:!!sp});
@@ -2010,6 +2053,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
   };
   // 비교 단위(주/월/연) 집계
   const _ltBKey=ds=>{
+    if(ltBucket==='meso')return _mesoOf(ds);
     if(ltBucket==='year')return {k:ds.slice(0,4),l:ds.slice(0,4)};
     if(ltBucket==='month')return {k:ds.slice(0,7),l:ds.slice(2,4)+'.'+ds.slice(5,7)};
     const d=new Date(ds),day=d.getDay(),mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));return {k:dsFromDate(mon),l:(mon.getMonth()+1)+'.'+mon.getDate()};
@@ -2037,8 +2081,8 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.volBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
-    return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg'),_mkWeekSep(dates)]},260,_ltCat.indexOf('__vol__'));
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16}};
+    return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg'),_mkWeekSep(dates),_mkMesoLabels(dates)]},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
     const byDate=_lt.volBreak[grp]||{};
@@ -2051,7 +2095,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     if(!keys.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:keys.map(k=>(agg[k]&&agg[k][g])?Math.round(agg[k][g]):null),_metas:keys.map(k=>(agg[k]&&agg[k][g])?['Total '+_fmtKg(agg[k][g])].concat(_ltExMetaFromObj(aggEx[k]&&aggEx[k][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltBrkLegend(opt,grp);
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltBrkLegend(opt,grp);if(ltBucket==='meso')_ltMesoClick(opt,keys);
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt,plugins:[_mkBarVals('kg')]},260,_ltCat.indexOf('__vol__'));
   };
   // ── Sprint Distance 분해(누적) ──
@@ -2069,8 +2113,8 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.distBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+Math.round(byDate[d][g])+'m'].concat(_ltDistExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;
-    return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m'),_mkWeekSep(dates)]},260,_ltCat.indexOf('__dist__'));
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=90;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16}};
+    return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m'),_mkWeekSep(dates),_mkMesoLabels(dates)]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
     const byDate=_lt.distBreak[grp]||{};
@@ -2083,14 +2127,14 @@ function _renderTrends(fAthletes, selAth, selLogs){
     if(!keys.length||!groups.length)return '';
     const _stk=ltBrkBars==='stack';
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:keys.map(k=>(agg[k]&&agg[k][g])?Math.round(agg[k][g]):null),_metas:keys.map(k=>(agg[k]&&agg[k][g])?['Total '+Math.round(agg[k][g])+'m'].concat(_ltDistExMetaFromObj(aggEx[k]&&aggEx[k][g])):''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?54:22};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltBrkLegend(opt,grp);
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltBrkLegend(opt,grp);if(ltBucket==='meso')_ltMesoClick(opt,keys);
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],_ltBkSub+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels,datasets:dss},options:opt,plugins:[_mkBarVals('m')]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltBucketize=(series,agg)=>{const m={};series.forEach(p=>{const o=_ltBKey(p.d);if(ltBuckSel.size&&!ltBuckSel.has(o.k))return;if(!m[o.k])m[o.k]={l:o.l,vals:[]};m[o.k].vals.push(p.v);});return Object.keys(m).sort().map(k=>{const o=m[k];let v;if(agg==='min')v=Math.min(...o.vals);else if(agg==='max')v=Math.max(...o.vals);else v=o.vals.reduce((a,b)=>a+b,0);return {l:o.l,v:Math.round(v*100)/100,n:o.vals.length};});};
   const _ltBarCfg=(buck,color,metaFn)=>({type:'bar',data:{labels:buck.map(b=>b.l),datasets:[{data:buck.map(b=>b.v),_metas:buck.map((b,i)=>metaFn(b,i,buck)),backgroundColor:color+'cc',borderRadius:3,maxBarThickness:54}]},options:_ltTip(false,false)});
   // 전 기간 대비 증감 한 줄(▲/▼ Δ절대값 (±%))
   const _ltBkDelta=(b,i,arr,unit)=>{if(i<=0)return null;const pv=arr[i-1].v;if(pv==null||pv===0)return null;const dv=b.v-pv,sign=dv>=0?'+':'-',ab=Math.abs(dv);const val=unit==='m'?Math.round(ab)+'m':unit==='s'?ab.toFixed(2)+'s':_fmtKg(ab);return (dv>=0?'▲ ':'▼ ')+sign+val+' ('+sign+Math.round(ab/Math.abs(pv)*100)+'%)';};
-  const _ltBkSub={week:'Weekly',month:'Monthly',year:'Yearly'}[ltBucket]||'';
+  const _ltBkSub={week:'Weekly',meso:'Mesocycle',month:'Monthly',year:'Yearly'}[ltBucket]||'';
   // 비교 대상 버킷 목록(기간 내 존재하는 주/월/연)
   const _ltBuckList=(()=>{if(ltBucket==='none')return [];const all=[...new Set(Object.keys(_lt.volByDate).concat(Object.keys(_lt.distByDate)).concat([].concat(...Object.values(_lt.exMap).map(m=>Object.keys(m.pts)))))];const m={};all.filter(_ltInPeriod).forEach(ds=>{const o=_ltBKey(ds);m[o.k]=o.l;});return Object.keys(m).sort().map(k=>({k,l:m[k]}));})();
   // 비교 모드 겹쳐보기(여러 지표를 한 차트 그룹막대, 단위 다르면 이중축)
@@ -2237,7 +2281,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
     +`<span class="lt-lbl" style="width:auto;min-width:0;padding-right:0">Unit</span>`
     +`<select class="lt-date" style="width:150px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
-    + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')
+    + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('meso','Mesocycle')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')
     +`</select>`
     +`</div>`;
 
