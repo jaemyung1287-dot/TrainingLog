@@ -46,10 +46,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .chip-b{border-color:rgba(62,207,142,.4)}
 /* Athlete name-select screen: minimal divider list (design A) */
 #athlete-chip-groups .chips{display:block;border-top:1px solid rgba(255,255,255,.08)}
-#athlete-chip-groups .ath-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 4px;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
-#athlete-chip-groups .ath-row:active .ath-nm,#athlete-chip-groups .ath-row.sel .ath-nm{color:var(--accent)}
-#athlete-chip-groups .ath-nm{font-size:16px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .15s}
-#athlete-chip-groups .ath-chv{font-size:15px;color:rgba(255,255,255,.22);flex-shrink:0}
+.nmsel-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 4px;margin:0;background:none;border:none;border-radius:0;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.nmsel-row:active .nmsel-nm,.nmsel-row.sel .nmsel-nm{color:var(--accent)}
+.nmsel-nm{font-size:16px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .15s}
+.nmsel-chv{font-size:15px;color:rgba(255,255,255,.22);flex-shrink:0}
 .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .menu-card{background:var(--card);border:2px solid var(--border);border-radius:18px;padding:24px 12px;text-align:center;cursor:pointer;transition:all .2s}
 .menu-card:active{border-color:var(--accent);background:rgba(201,168,76,.1)}
@@ -3202,9 +3202,9 @@ function renderAthleteChips(){
   const row=document.createElement('div'); row.className='chips';
   list.forEach(a=>{
     const el=document.createElement('div');
-    el.className=`ath-row${ST.athlete&&ST.athlete.name===a.name?' sel':''}`;
-    el.innerHTML=`<span class="ath-nm">${a.name}</span><span class="ath-chv">›</span>`;
-    el.onclick=()=>{ ST.athlete=a; wrap.querySelectorAll('.ath-row').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); goAthleteMenu(); };
+    el.className=`nmsel-row${ST.athlete&&ST.athlete.name===a.name?' sel':''}`;
+    el.innerHTML=`<span class="nmsel-nm">${a.name}</span><span class="nmsel-chv">›</span>`;
+    el.onclick=()=>{ ST.athlete=a; wrap.querySelectorAll('.nmsel-row').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); goAthleteMenu(); };
     row.appendChild(el);
   });
   wrap.appendChild(row);
