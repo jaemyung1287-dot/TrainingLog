@@ -2343,6 +2343,8 @@ function _renderTrends(fAthletes, selAth, selLogs){
           o.plugins.legend=legend===false?{display:false}:{display:true,labels:{color:'rgba(230,237,243,.88)',font:{size:13,weight:'700'},boxWidth:14,boxHeight:14,padding:10}};
           return o;};
         const mkDs=(o,col)=>({label:_wkLbl(o.d1),data:WD.map((_,i)=>o.m[i]??null),_metas:WD.map((_,i)=>o.m[i]!=null?o.mm[i]:''),borderColor:col,backgroundColor:col+'22',fill:true,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2});
+        // 각 점 위에 세션 값 표시 (직접 비교용)
+        const _mkPointVals=unit=>({id:'ptvals',afterDatasetsDraw(chart){const ctx=chart.ctx;ctx.save();ctx.font='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';chart.data.datasets.forEach((ds,di)=>{if(!chart.isDatasetVisible(di))return;const meta=chart.getDatasetMeta(di);meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':(Math.round(v*100)/100).toFixed(2)+'s';ctx.fillStyle='rgba(230,237,243,.92)';ctx.fillText(txt,el.x,el.y-7);});});ctx.restore();}});
         const mkBarDs=(o,col)=>({label:_wkLbl(o.d1),data:WD.map((_,i)=>o.m[i]??null),_metas:WD.map((_,i)=>o.m[i]!=null?o.mm[i]:''),backgroundColor:col+'cc',borderRadius:3,maxBarThickness:28});
         if(ltABView==='overlay'&&wkList.length>1){
           const dss=wkList.map((o,i)=>mkBarDs(o,_WKPAL[i%_WKPAL.length]));
@@ -2359,7 +2361,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
             }
             const col=_WKPAL[i%_WKPAL.length];
             const midLbl=`<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:3px;background:${col};display:inline-block"></span>${_esc(_wkLbl(o.d1))}</span>`;
-            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',{type:'line',data:{labels:WD,datasets:[mkDs(o,col)]},options:mkOpt(false)},190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',midLbl)}</div>`;
+            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label,'',{type:'line',data:{labels:WD,datasets:[mkDs(o,col)]},options:mkOpt(false),plugins:[_mkPointVals(sp.unit)]},190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',midLbl)}</div>`;
           });
         }
       });
