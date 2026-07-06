@@ -605,6 +605,7 @@ let ltMix='dual';             // dual|index (단위 다른 종목 겹칠 때)
 let ltOpenCat=null;           // 종목 선택: 펼쳐진 카테고리
 let ltVolBreak='none';        // none|sub|region|type — Total Volume 분해 보기(누적)
 let ltABView='overlay';      // A/B 비교 보기: overlay(겹쳐) | split(상하 2개)
+let ltWeeks=[];              // 주차 비교 스택: 'd1|d2' 배열 — 고를 때마다 차트 추가, 카드 ×로 제거
 let ltDistBreak='none';       // none|sub|disc — Sprint Distance 분해 보기(누적)
 let ltBrkBars='group';        // group|stack — 분해 비교(주/월/연) 막대 모양
 let _ltPins=[];               // 추이 차트 점 클릭 → 아래 고정 비교할 세션 날짜들(YYYY-MM-DD)
@@ -1314,10 +1315,13 @@ function _planWeeks(){
   });
   return wks;
 }
-function _planWeekOpts(selD1,selD2){
-  return '<option value="">주차 선택…</option>'+_planWeeks().map(w=>
-    `<option value='${w.d1}|${w.d2}' ${(selD1===w.d1&&selD2===w.d2)?'selected':''}>${w.label}</option>`).join('');
+function _planWeekOpts(){
+  return '<option value="">+ 주차 추가…</option>'+_planWeeks().map(w=>{
+    const on=ltWeeks.includes(w.d1+'|'+w.d2);
+    return `<option value='${w.d1}|${w.d2}' ${on?'disabled':''}>${w.label}${on?' ✓':''}</option>`;
+  }).join('');
 }
+function ltWeekRm(i){ ltWeeks.splice(i,1); _rerenderTrends(); }
 // 주간 헤더(합계/베스트 + 전주 대비) 데이터를 라인차트 cfg에 부착
 function _wkAttachCfg(cfg,s,unit,agg){
   if(!cfg||!cfg.options)return cfg;
@@ -1332,11 +1336,9 @@ function _wkAttachCfg(cfg,s,unit,agg){
   }
   return cfg;
 }
-function ltWeekPick(v,which){
+function ltWeekPick(v){
   if(!v)return;
-  const [d1,d2]=v.split('|');
-  if(which==='cmp'){ ltCB1=d1; ltCB2=d2; }
-  else { ltD1=d1; ltD2=d2; ltPeriod='custom'; }
+  if(!ltWeeks.includes(v)&&ltWeeks.length<10)ltWeeks.push(v);
   _rerenderTrends();
 }
 // 핀: {d:날짜, ex:종목키(없으면 전체세션), sp:스프린트여부}
@@ -1892,7 +1894,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:8},autoSkip:false,maxRotation:60,minRotation:45}},
       y:{reverse:!!sprint,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}}}});
   let _ltN=0;
-  const _ltCard=(title,sub,cfg,h,rmIdx,badge,strip)=>{const id='lt-'+(_ltN++);_ltJobs.push({id,cfg});const rm=(rmIdx!=null&&rmIdx>=0)?`<span title="제거" onclick="ltToggleEx(${rmIdx})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:'';return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(title)}</span><span style="display:flex;align-items:center;gap:6px;flex-shrink:0">${badge||''}<span style="font-size:10px;color:var(--hint)">${_esc(sub)}</span>${rm}</span></div>${strip||''}<div style="position:relative;height:${h||140}px"><canvas id="${id}"></canvas></div></div>`;};
+  const _ltCard=(title,sub,cfg,h,rmIdx,badge,strip)=>{const id='lt-'+(_ltN++);_ltJobs.push({id,cfg});const rm=(typeof rmIdx==='string')?`<span title="제거" onclick="${rmIdx}" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:(rmIdx!=null&&rmIdx>=0)?`<span title="제거" onclick="ltToggleEx(${rmIdx})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:'';return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(title)}</span><span style="display:flex;align-items:center;gap:6px;flex-shrink:0">${badge||''}<span style="font-size:10px;color:var(--hint)">${_esc(sub)}</span>${rm}</span></div>${strip||''}<div style="position:relative;height:${h||140}px"><canvas id="${id}"></canvas></div></div>`;};
   // 첫→마지막 변화량 배지(무게+%). lowerBetter=true면 감소가 향상(스프린트 시간).
   const _ltBadge=(series,unit,lowerBetter)=>{
     if(!series||series.length<2)return '';
@@ -2172,13 +2174,15 @@ function _renderTrends(fAthletes, selAth, selLogs){
     +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnBaseSel(this.value)">`
     + _ltBaseOpt('all','All')+_ltBaseOpt('1w','Last week')+_ltBaseOpt('1m','Last month')+_ltBaseOpt('1y','Last year')+_ltBaseOpt('custom','Custom…')
     +`</select>`
-    +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;_rerenderTrends()"><select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value)">${_planWeekOpts(ltD1,ltD2)}</select>`:'')
+    +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;_rerenderTrends()">`:'')
+    +`<select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value);this.value=''">${_planWeekOpts()}</select>`
+    +(ltWeeks.length>1?`<div class="lt-seg" style="margin-left:4px"><button class="${ltABView==='split'?'on':''}" onclick="ltABView='split';_rerenderTrends()">Split</button><button class="${ltABView==='overlay'?'on':''}" onclick="ltABView='overlay';_rerenderTrends()">Overlay</button></div>`:'')
+    +(ltWeeks.length?`<button class="lt-clear" onclick="ltWeeks=[];_rerenderTrends()">주차 비교 지우기</button>`:'')
     +`<span style="width:1px;height:15px;background:var(--border);margin:0 7px"></span>`
     +`<span class="lt-lbl" style="width:auto;min-width:0;padding-right:0">Unit</span>`
     +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
-    + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')+_ltCompOpt('custom','Compare A/B…')
+    + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')
     +`</select>`
-    +(ltAB?`<input type="date" class="lt-date" value="${ltCB1}" onchange="ltCB1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltCB2}" onchange="ltCB2=this.value;_rerenderTrends()"><select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value,'cmp')">${_planWeekOpts(ltCB1,ltCB2)}</select><div class="lt-seg" style="margin-left:6px"><button class="${ltABView==='overlay'?'on':''}" onclick="ltABView='overlay';_rerenderTrends()">Overlay</button><button class="${ltABView==='split'?'on':''}" onclick="ltABView='split';_rerenderTrends()">Split</button></div>`:'')
     +`</div>`;
 
   if(ltMode==='ex'){
@@ -2265,6 +2269,45 @@ function _renderTrends(fAthletes, selAth, selLogs){
     LT+=`<div class="lt-grid">`;
     if(!selKeys.length){
       LT+=`<div class="lt-hint" style="grid-column:1/-1">Add exercises above to see trends (also select Total Volume / Sprint Distance)</div>`;
+    } else if(ltWeeks.length){
+      // ── 주차 비교 스택: 선택한 주차마다 차트 추가 (Split=세로 스택 · Overlay=한 차트에 겹침) ──
+      const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
+      const _wkLbl=d1=>{const f=_planWeeks().find(x=>x.d1===d1);return f?f.label:d1.slice(5).replace('-','.')+'~';};
+      const _WKPAL=['#f7a94f','#4f8ef7','#3ecf8e','#bc8cff','#22d3ee','#e2b714','#f85149','#ed93b1','#9aa4b2','#97c459'];
+      _ltSpecs().forEach(sp=>{
+        const fv=v=>v==null?'—':(sp.unit==='kg'?_fmtKg(v):sp.unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':(Math.round(v*100)/100).toFixed(2)+'s');
+        const wkList=ltWeeks.map((w,wi)=>{
+          const [d1,d2]=w.split('|');
+          const s=sp.series.filter(p=>p.d>=d1&&p.d<=d2);
+          const m={},mm={};
+          s.forEach(p=>{const i=Math.round((new Date(p.d+'T00:00:00')-new Date(d1+'T00:00:00'))/86400000);if(i<0||i>6)return;m[i]=(sp.agg==='sum'?(m[i]||0)+p.v:p.v);mm[i]=p.meta||'';});
+          const vv=Object.values(m);
+          const tot=!vv.length?null:(sp.agg==='sum'?vv.reduce((a,b)=>a+b,0):sp.agg==='min'?Math.min(...vv):Math.max(...vv));
+          return {wi,d1,d2,m,mm,tot};
+        });
+        const allV=wkList.flatMap(o=>Object.values(o.m));
+        const maxV=allV.length?Math.max(...allV):null;
+        const mkOpt=()=>{const o=_ltTip(sp.agg==='min',true);
+          o.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:sp.agg==='sum',reverse:sp.agg==='min'}};
+          if(maxV!=null)o.scales.y.suggestedMax=maxV*1.08;
+          return o;};
+        const mkDs=(o,col,dash)=>({label:_wkLbl(o.d1),data:WD.map((_,i)=>o.m[i]??null),_metas:WD.map((_,i)=>o.m[i]!=null?o.mm[i]:''),borderColor:col,backgroundColor:'transparent',borderDash:dash||[],spanGaps:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2});
+        if(ltABView==='overlay'&&wkList.length>1){
+          const dss=wkList.map((o,i)=>mkDs(o,_WKPAL[i%_WKPAL.length]));
+          const subTxt=wkList.map((o,i)=>`${_wkLbl(o.d1).split(' ')[0]} ${fv(o.tot)}`).join(' · ');
+          LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label+' · 주차 비교',subTxt,{type:'line',data:{labels:WD,datasets:dss},options:mkOpt()},230,sp.idx)}</div>`;
+        } else {
+          wkList.forEach((o,i)=>{
+            let sub=o.tot==null?'데이터 없음':'Total '+fv(o.tot);
+            if(o.tot!=null&&i>0&&wkList[i-1].tot){
+              const d=o.tot-wkList[i-1].tot, pct=Math.round(d/Math.abs(wkList[i-1].tot)*100);
+              const good=sp.agg==='min'?d<0:d>0;
+              sub+=` · <span style="color:${Math.abs(d)<1e-9?'var(--hint)':good?'#3ecf8e':'#f85149'}">${d>0?'+':''}${fv(d).replace('−','-')} (${pct>0?'+':''}${pct}%)</span>`;
+            }
+            LT+=`<div style="grid-column:1/-1">${_ltCard(sp.label+' · '+_wkLbl(o.d1),'',{type:'line',data:{labels:WD,datasets:[mkDs(o,_WKPAL[i%_WKPAL.length])]},options:mkOpt()},190,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`)}</div>`;
+          });
+        }
+      });
     } else if(bucketing){
       if(hasVol&&ltVolBreak!=='none')LT+=_ltVolStackBucket(ltVolBreak);
       if(hasDist&&ltDistBreak!=='none')LT+=_ltDistStackBucket(ltDistBreak);
