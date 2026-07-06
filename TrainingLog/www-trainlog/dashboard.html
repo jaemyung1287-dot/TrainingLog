@@ -1393,14 +1393,14 @@ function _planWeeks(){
   return wks;
 }
 function _planWeekOpts(){
-  const wks=_planWeeks();
+  const wks=_planWeeks().filter(w=>w.code); // _PDZ 주기화 코드(1-1~)가 있는 주만 — 계획 외 pre-season 주 제외
   let html='<option value="">+ 주차 / 메소사이클 추가…</option>';
   let cur=null;
   wks.forEach(w=>{
-    const num=_mesoOf(w.d1).num;
+    const num=w.code.split('-')[0];
     if(num!==cur){
       cur=num;
-      const all=wks.filter(x=>_mesoOf(x.d1).num===num);
+      const all=wks.filter(x=>x.code.split('-')[0]===num);
       const allOn=all.length&&all.every(x=>ltWeeks.includes(x.d1+'|'+x.d2));
       html+=`<option value="meso:${num}" ${allOn?'disabled':''}>▸ Mesocycle ${num} (전체)${allOn?' ✓':''}</option>`;
     }
@@ -1409,12 +1409,14 @@ function _planWeekOpts(){
   });
   return html;
 }
-// 드롭다운 선택: 'meso:N' → 그 메소 3주 통째로 추가 · 'd1|d2' → 해당 주만 추가
+// 드롭다운 선택: 'meso:N' → 그 메소 3주 기간을 하나의 연속 차트로(주간은 점선 구분) · 'd1|d2' → 해당 주만 추가
 function ltPlanPick(v){ if(!v)return; if(v.indexOf('meso:')===0)ltMesoAdd(v.slice(5)); else ltWeekPick(v); }
 function ltMesoAdd(num){
-  const wks=_planWeeks().filter(w=>_mesoOf(w.d1).num===String(num));
-  wks.forEach(w=>{const k=w.d1+'|'+w.d2; if(!ltWeeks.includes(k)&&ltWeeks.length<10)ltWeeks.push(k);});
-  ltABView='split'; _rerenderTrends();
+  const wks=_planWeeks().filter(w=>w.code&&w.code.split('-')[0]===String(num));
+  if(!wks.length)return;
+  ltWeeks=[]; ltBucket='none'; ltAB=false; ltBuckSel.clear();
+  ltPeriod='custom'; ltD1=wks[0].d1; ltD2=wks[wks.length-1].d2;
+  _rerenderTrends();
 }
 function ltWeekRm(i){ ltWeeks.splice(i,1); _rerenderTrends(); }
 function ltWkPinTg(k){ if(ltWkPins[k])delete ltWkPins[k]; else ltWkPins[k]=1; _rerenderTrends(); }
