@@ -2189,6 +2189,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     if(_stack){
     LT+=_ltStackedAligned();
     } else {
+    const _jobs0=_ltJobs.length;
     LT+=`<div class="lt-grid">`;
     if(!selKeys.length){
       LT+=`<div class="lt-hint" style="grid-column:1/-1">Add exercises above to see trends (also select Total Volume / Sprint Distance)</div>`;
@@ -2232,6 +2233,9 @@ function _renderTrends(fAthletes, selAth, selLogs){
           selExs.forEach(n=>{const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint}),null,_ltCat.indexOf(n),_ltBadge(s,m.sprint?'s':'kg',m.sprint));});
         }
       }
+    }
+    if(selKeys.length&&_ltJobs.length===_jobs0){
+      LT+=`<div class="lt-hint" style="grid-column:1/-1">선택한 기간(${ltPeriod==='custom'?ltD1+' ~ '+ltD2:'현재 기간'})에 해당 지표의 세션 데이터가 없습니다 — 다른 주차나 기간을 선택해보세요</div>`;
     }
     LT+=`</div>`;
     }
