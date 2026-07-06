@@ -2240,9 +2240,9 @@ function _renderTrends(fAthletes, selAth, selLogs){
         ]},options:opt};
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
       } else {
-        const _wkAttach=(cfg,s,u)=>{if(cfg&&cfg.options&&!ltCmp){cfg.options._weekVals=Object.fromEntries(s.map(p=>[p.d,p.v]));cfg.options._weekUnit=u;cfg.options.layout=cfg.options.layout||{};cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:20});}return cfg;};
-        if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp),s,'kg'),null,_ltCat.indexOf('__vol__'));} }
-        if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp),s,'m'),null,_ltCat.indexOf('__dist__'));} }
+        const _wkAttach=(cfg,s,u)=>{if(cfg&&cfg.options&&!ltCmp){cfg.options._weekVals=Object.fromEntries(s.map(p=>[p.d,p.v]));cfg.options._weekUnit=u;cfg.options.layout=cfg.options.layout||{};cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:20});if(cfg.options.scales&&cfg.options.scales.y)cfg.options.scales.y.grace='18%';}return cfg;};
+        if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp),s,'kg'),ltCmp?null:230,_ltCat.indexOf('__vol__'));} }
+        if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp),s,'m'),ltCmp?null:230,_ltCat.indexOf('__dist__'));} }
       }
       if(selExs.length){
         if(ltChartMode==='overlay'&&!ltCmp){
