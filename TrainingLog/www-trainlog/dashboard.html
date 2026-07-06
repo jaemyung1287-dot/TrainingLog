@@ -2027,11 +2027,26 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const agg=arr=>!arr.length?null:(sp.agg==='min'?Math.min(...arr.map(p=>p.v)):sp.agg==='max'?Math.max(...arr.map(p=>p.v)):arr.reduce((s,p)=>s+p.v,0));
     const av=agg(aS), bv=agg(bS);
     const fv=v=>v==null?'—':(sp.unit==='kg'?_fmtKg(v):sp.unit==='m'?Math.round(v)+'m':v+'s');
-    let pct=null,sub='';
-    if(av!=null&&bv!=null&&av!==0){pct=Math.round((bv-av)/Math.abs(av)*100);sub=(pct>0?'▲ +':pct<0?'▼ ':'')+pct+'%';}
-    const opt=_ltTip(false,false);opt.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true}};
-    const cfg={type:'bar',data:{labels:['기간 A','비교 B'],datasets:[{data:[av,bv],_metas:[[fv(av)+' · '+aS.length+' sessions'],[fv(bv)+' · '+bS.length+' sessions']],backgroundColor:[sp.color+'cc','#9aa4b2aa'],borderRadius:4,maxBarThickness:80}]},options:opt};
-    return _ltCard(sp.label,sub,cfg,200,sp.idx);
+    let sub='';
+    if(av!=null&&bv!=null&&av!==0){const pct=Math.round((bv-av)/Math.abs(av)*100);sub=`A ${fv(av)} → B ${fv(bv)} (${pct>0?'+':''}${pct}%)`;}
+    // 요일 정렬 오버레이: A/B 기간을 Day1(월)부터 겹쳐 그림
+    const aStart=(ltPeriod==='custom'&&ltD1)?ltD1:(aS[0]?aS[0].d:null);
+    const bStart=ltCB1||(bS[0]?bS[0].d:null);
+    const dayIdx=(ds,start)=>Math.round((new Date(ds+'T00:00:00')-new Date(start+'T00:00:00'))/86400000);
+    const build=(arr,start)=>{const m={};arr.forEach(p=>{const i=dayIdx(p.d,start);if(i<0||i>30)return;m[i]=(sp.agg==='sum'?(m[i]||0)+p.v:p.v);});return m;};
+    const mA=aStart?build(aS,aStart):{}, mB=bStart?build(bS,bStart):{};
+    const N=Math.max(...Object.keys(mA).map(Number),...Object.keys(mB).map(Number),6)+1;
+    const isWk=N<=7;
+    const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
+    const labels=Array.from({length:N},(_,i)=>isWk?WD[i%7]:'D'+(i+1));
+    const dstr=(start,i)=>{if(!start)return'';const d=new Date(start+'T00:00:00');d.setDate(d.getDate()+i);return d.toISOString().slice(5,10).replace('-','.');};
+    const opt=_ltTip(sp.agg==='min',true);
+    opt.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:sp.agg==='sum',reverse:sp.agg==='min'}};
+    const cfg={type:'line',data:{labels,datasets:[
+      {label:'A '+(aStart?aStart.slice(5).replace('-','.')+'~':''),data:labels.map((_,i)=>mA[i]??null),_metas:labels.map((_,i)=>mA[i]!=null?[dstr(aStart,i)+' · '+fv(mA[i])]:''),borderColor:sp.color,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2},
+      {label:'B '+(bStart?bStart.slice(5).replace('-','.')+'~':''),data:labels.map((_,i)=>mB[i]??null),_metas:labels.map((_,i)=>mB[i]!=null?[dstr(bStart,i)+' · '+fv(mB[i])]:''),borderColor:'#9aa4b2',backgroundColor:'transparent',borderDash:[5,4],spanGaps:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2}
+    ]},options:opt};
+    return _ltCard(sp.label+' · A vs B',sub,cfg,220,sp.idx);
   };
   const _ltSpecs=()=>{const a=[];if(ltSel.has('__vol__')){const s=_flt(_ltVolS);if(_ltVolS.length)a.push({label:'Total Volume',color:'#f7a94f',agg:'sum',unit:'kg',series:_ltVolS,idx:_ltCat.indexOf('__vol__')});}if(ltSel.has('__dist__')){if(_ltDistS.length)a.push({label:'Sprint Distance',color:'#3ecf8e',agg:'sum',unit:'m',series:_ltDistS,idx:_ltCat.indexOf('__dist__')});}_ltCat.filter(k=>!_LT_SPECIAL[k]&&ltSel.has(k)&&_lt.exMap[k]).forEach(n=>{const m=_lt.exMap[n];a.push({label:n,color:_ltColor(n),agg:m.sprint?'min':'max',unit:m.sprint?'s':'kg',series:_ltExSeries(n),idx:_ltCat.indexOf(n)});});return a;};
   const _ltOverlayCard=(names,units)=>{
