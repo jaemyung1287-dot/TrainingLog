@@ -44,9 +44,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .chip.sel{border-color:var(--accent);background:rgba(201,168,76,.15);color:var(--accent);font-weight:700}
 .chip-a{border-color:rgba(79,142,247,.4)}
 .chip-b{border-color:rgba(62,207,142,.4)}
-/* Athlete name-select screen: single-column list, sorted by age */
-#athlete-chip-groups .chips{display:grid;grid-template-columns:1fr;gap:10px}
-#athlete-chip-groups .chip{text-align:center;border-radius:14px;padding:13px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Athlete name-select screen: avatar list, sorted by age */
+#athlete-chip-groups .chips{display:grid;grid-template-columns:1fr;gap:8px}
+#athlete-chip-groups .ath-row{display:flex;align-items:center;gap:13px;padding:9px 14px;border-radius:14px;background:var(--card);border:1.5px solid rgba(255,255,255,.07);cursor:pointer;transition:all .15s}
+#athlete-chip-groups .ath-row.sel{border-color:var(--accent);background:rgba(201,168,76,.1)}
+#athlete-chip-groups .ath-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;letter-spacing:.5px;overflow:hidden}
+#athlete-chip-groups .ath-av img{width:100%;height:100%;object-fit:cover}
+#athlete-chip-groups .ath-nm{font-size:15px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#athlete-chip-groups .ath-row.sel .ath-nm{color:var(--accent);font-weight:700}
+#athlete-chip-groups .ath-chk{font-size:15px;color:var(--accent);opacity:0;transition:opacity .15s}
+#athlete-chip-groups .ath-row.sel .ath-chk{opacity:1}
 .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .menu-card{background:var(--card);border:2px solid var(--border);border-radius:18px;padding:24px 12px;text-align:center;cursor:pointer;transition:all .2s}
 .menu-card:active{border-color:var(--accent);background:rgba(201,168,76,.1)}
@@ -320,7 +327,6 @@ const APP_VERSION = '20260527-7';
   </div>
   <div class="ttl">Wähle deinen Namen</div>
   <div id="athlete-chip-groups"></div>
-  <button class="btn btn-g" onclick="goAthleteMenu()" style="margin-top:16px">Next →</button>
 </div>
 
 <!-- ATHLETE PIN -->
@@ -3197,13 +3203,16 @@ function renderAthleteChips(){
     const da=a.dob||'9999', db=b.dob||'9999';
     return da.localeCompare(db)||String(a.name).localeCompare(String(b.name));
   });
+  const _initials=n=>{const p=String(n||'').trim().split(/\s+/);return((p[0]?.[0]||'')+(p[p.length-1]?.[0]||'')).toUpperCase();};
   const row=document.createElement('div'); row.className='chips';
   list.forEach(a=>{
-    const cls=a.group==='A'?'chip-a':'chip-b';
     const el=document.createElement('div');
-    el.className=`chip ${cls}${ST.athlete&&ST.athlete.name===a.name?' sel':''}`;
-    el.textContent=a.name;
-    el.onclick=()=>{ ST.athlete=a; document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); };
+    el.className=`ath-row${ST.athlete&&ST.athlete.name===a.name?' sel':''}`;
+    const avInner=a.photo?`<img src="${a.photo}" alt="">`:_initials(a.name);
+    el.innerHTML=`<span class="ath-av" style="background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);color:var(--accent)">${avInner}</span>
+      <span class="ath-nm">${a.name}</span>
+      <span class="ath-chk">✓</span>`;
+    el.onclick=()=>{ ST.athlete=a; wrap.querySelectorAll('.ath-row').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); goAthleteMenu(); };
     row.appendChild(el);
   });
   wrap.appendChild(row);
