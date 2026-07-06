@@ -3680,11 +3680,14 @@ function renderExList(){
     const effortHtml=(params==='mobility')
       ?`
       <div style="margin-top:10px">
-        <div class="effort-lbl" style="display:flex;justify-content:space-between;align-items:center">
-          <span>Wie schwer war die Übung? <span style="font-weight:400;color:var(--muted)">(0 = sehr leicht · 10 = sehr schwer)</span></span>
-          <span id="diff-val-${i}" style="font-size:13px;font-weight:800;color:${_dn==null?'var(--muted)':_EFFCOL(_dn)}">${_dn==null?'—':_dn+' / 10'}</span>
+        <div class="effort-lbl" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span style="white-space:nowrap">Wie schwer war die Übung?</span>
+          <span id="diff-val-${i}" style="font-size:13px;font-weight:800;white-space:nowrap;color:${_dn==null?'var(--muted)':_EFFCOL(_dn)}">${_dn==null?'—':_dn+'/10'}</span>
         </div>
         <input type="range" class="eff-slider" min="0" max="10" step="1" value="${_dn==null?0:_dn}" oninput="setExDifficulty(${i},this.value)" onpointerup="setExDifficulty(${i},this.value)">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px">
+          <span>0 · sehr leicht</span><span>10 · sehr schwer</span>
+        </div>
       </div>`
       :`
       <div style="margin-top:10px">
@@ -3765,7 +3768,7 @@ function setExDifficulty(i,val){
   const n=parseInt(val,10);
   ST.exercises[i].difficulty=isNaN(n)?null:n;
   const lbl=document.getElementById('diff-val-'+i);
-  if(lbl){ lbl.textContent=isNaN(n)?'—':n+' / 10'; lbl.style.color=isNaN(n)?'var(--muted)':_EFFCOL(n); }
+  if(lbl){ lbl.textContent=isNaN(n)?'—':n+'/10'; lbl.style.color=isNaN(n)?'var(--muted)':_EFFCOL(n); }
   _setExDone(i); // moving the slider auto-marks the exercise as done
 }
 function toggleBW(i){
