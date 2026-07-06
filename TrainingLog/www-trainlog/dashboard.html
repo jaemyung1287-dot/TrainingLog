@@ -798,7 +798,13 @@ function _ltExtTip(context){
   const title=(tt.title||[]).join(' ');
   let body=[]; (tt.body||[]).forEach(b=>{body=body.concat(b.lines||[]);});
   const esc=s=>(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  el.innerHTML=`<div style="font-weight:700;margin-bottom:5px">${esc(title)}</div>`+body.map(l=>`<div style="white-space:pre-wrap">${esc(l)}</div>`).join('');
+  const _fmtLine=l=>{
+    const s=l+'';
+    const m=s.match(/^(.*?)(?:\s*·\s*)(RPE\s*\d+(?:\.\d+)?)\s*$/);
+    if(m) return `<div style="display:flex;justify-content:space-between;gap:14px"><span style="white-space:pre-wrap;min-width:0">${esc(m[1])}</span><span style="flex-shrink:0;color:#f7a94f;font-weight:700">${esc(m[2])}</span></div>`;
+    return `<div style="white-space:pre-wrap">${esc(s)}</div>`;
+  };
+  el.innerHTML=`<div style="font-weight:700;margin-bottom:5px">${esc(title)}</div>`+body.map(_fmtLine).join('');
   const r=chart.canvas.getBoundingClientRect();
   const tw=el.offsetWidth||320, th=el.offsetHeight||40;
   let x=r.left+tt.caretX+14, y=r.top+tt.caretY-th/2;
