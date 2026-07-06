@@ -802,7 +802,7 @@ function _ltExtTip(context){
   const _fmtLine=l=>{
     const s=l+'';
     const m=s.match(/^(.*?)(?:\s*·\s*)(RPE\s*\d+(?:\.\d+)?)\s*$/);
-    if(m) return `<div style="display:flex;justify-content:space-between;gap:14px"><span style="white-space:pre-wrap;min-width:0">${esc(m[1])}</span><span style="flex-shrink:0;color:#f7a94f;font-weight:700">${esc(m[2])}</span></div>`;
+    if(m){const _rn=parseFloat((m[2].match(/[\d.]+/)||[])[0]);const _rc=_dEffCol(_rn)||'#e6edf3';return `<div style="display:flex;justify-content:space-between;gap:14px"><span style="white-space:pre-wrap;min-width:0">${esc(m[1])}</span><span style="flex-shrink:0;color:${_rc};font-weight:700">${esc(m[2])}</span></div>`;}
     return `<div style="white-space:pre-wrap">${esc(s)}</div>`;
   };
   el.innerHTML=`<div style="font-weight:700;margin-bottom:5px">${esc(title)}</div>`+body.map(_fmtLine).join('');
@@ -2397,7 +2397,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
           const _fmtPinLine=l=>{
             const s=l+'';
             const m=s.match(/^(.*?)(?:\s*·\s*)(RPE\s*\d+(?:\.\d+)?)\s*$/);
-            if(m) return `<div style="white-space:pre-wrap">${_esc(m[1])} <span style="color:#f7a94f;font-weight:700">· ${_esc(m[2])}</span></div>`;
+            if(m){const _rn=parseFloat((m[2].match(/[\d.]+/)||[])[0]);const _rc=_dEffCol(_rn)||'#e6edf3';return `<div style="white-space:pre-wrap">${_esc(m[1])} <span style="color:${_rc};font-weight:700">· ${_esc(m[2])}</span></div>`;}
             return `<div style="white-space:pre-wrap">${_esc(s)}</div>`;
           };
           const _wkPinGrid=()=>{
