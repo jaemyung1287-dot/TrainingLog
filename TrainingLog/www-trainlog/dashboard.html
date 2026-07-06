@@ -604,6 +604,7 @@ let ltChartMode='grid';       // grid|overlay
 let ltMix='dual';             // dual|index (단위 다른 종목 겹칠 때)
 let ltOpenCat=null;           // 종목 선택: 펼쳐진 카테고리
 let ltVolBreak='none';        // none|sub|region|type — Total Volume 분해 보기(누적)
+let ltABView='overlay';      // A/B 비교 보기: overlay(겹쳐) | split(상하 2개)
 let ltDistBreak='none';       // none|sub|disc — Sprint Distance 분해 보기(누적)
 let ltBrkBars='group';        // group|stack — 분해 비교(주/월/연) 막대 모양
 let _ltPins=[];               // 추이 차트 점 클릭 → 아래 고정 비교할 세션 날짜들(YYYY-MM-DD)
@@ -1185,7 +1186,8 @@ const _weekBandPlugin={
     const wkKey=ds=>{const d=new Date(ds);const day=d.getDay();const m=new Date(d);m.setDate(d.getDate()-(day===0?6:day-1));return {key:m.getFullYear()+'-'+m.getMonth()+'-'+m.getDate(),mon:m};};
     const vals=(chart.options&&chart.options._weekVals)||null;
     const unit=(chart.options&&chart.options._weekUnit)||'kg';
-    const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':_fmtKg(v);
+    const wAgg=(chart.options&&chart.options._weekAgg)||'sum';
+    const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':_fmtKg(v);
     ctx.save();
     let i=0, band=0, prevSum=null; const n=dates.length;
     while(i<n){
@@ -1195,7 +1197,11 @@ const _weekBandPlugin={
       if(band%2===1){ctx.fillStyle='rgba(255,255,255,.035)';ctx.fillRect(xStart,area.top,xEnd-xStart,area.bottom-area.top);}
       if(i>0){ctx.strokeStyle='rgba(255,255,255,.07)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(xStart,area.top);ctx.lineTo(xStart,area.bottom);ctx.stroke();ctx.setLineDash([]);}
       let sum=null;
-      if(vals){ sum=0; for(let k=i;k<j;k++) sum+=(parseFloat(vals[dates[k]])||0); }
+      if(vals){
+        const wv=[]; for(let k=i;k<j;k++){const x=parseFloat(vals[dates[k]]); if(!isNaN(x))wv.push(x);}
+        if(wAgg==='sum') sum=wv.reduce((a,b)=>a+b,0);
+        else if(wv.length) sum=wAgg==='min'?Math.min(...wv):Math.max(...wv);
+      }
       ctx.textBaseline='top';
       const _sun=new Date(w.mon); _sun.setDate(w.mon.getDate()+6);
       const wkLbl=(w.mon.getMonth()+1)+'월 '+w.mon.getDate()+'일 ~ '+(_sun.getMonth()+1)+'월 '+_sun.getDate()+'일';
@@ -1212,7 +1218,8 @@ const _weekBandPlugin={
         if(prevSum!=null){
           const d=sum-prevSum, pct=prevSum?Math.round(d/Math.abs(prevSum)*100):0, flat=Math.abs(d)<1e-9;
           dTxt=(d>0?'+':d<0?'−':'')+fv(Math.abs(d))+' ('+(pct>0?'+':'')+pct+'%)';
-          dCol=flat?'rgba(230,237,243,.32)':(d>0?'#3ecf8e':'#f85149');
+          const _improved=wAgg==='min'?d<0:d>0;
+          dCol=flat?'rgba(230,237,243,.32)':(_improved?'#3ecf8e':'#f85149');
         }
         ctx.font=fontB; const wS=ctx.measureText(sumTxt).width;
         ctx.font=fontD; const wD=dTxt?ctx.measureText(dTxt).width+6:0;
@@ -1308,6 +1315,16 @@ function _planWeeks(){
 function _planWeekOpts(selD1,selD2){
   return '<option value="">주차 선택…</option>'+_planWeeks().map(w=>
     `<option value='${w.d1}|${w.d2}' ${(selD1===w.d1&&selD2===w.d2)?'selected':''}>${w.label}</option>`).join('');
+}
+// 주간 헤더(합계/베스트 + 전주 대비) 데이터를 라인차트 cfg에 부착
+function _wkAttachCfg(cfg,s,unit,agg){
+  if(!cfg||!cfg.options)return cfg;
+  cfg.options._weekVals=Object.fromEntries(s.map(p=>[p.d,p.v]));
+  cfg.options._weekUnit=unit; cfg.options._weekAgg=agg||'sum';
+  cfg.options.layout=cfg.options.layout||{};
+  cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:20});
+  if(cfg.options.scales&&cfg.options.scales.y)cfg.options.scales.y.grace='18%';
+  return cfg;
 }
 function ltWeekPick(v,which){
   if(!v)return;
@@ -2040,12 +2057,22 @@ function _renderTrends(fAthletes, selAth, selLogs){
     const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
     const labels=Array.from({length:N},(_,i)=>isWk?WD[i%7]:'D'+(i+1));
     const dstr=(start,i)=>{if(!start)return'';const d=new Date(start+'T00:00:00');d.setDate(d.getDate()+i);return d.toISOString().slice(5,10).replace('-','.');};
-    const opt=_ltTip(sp.agg==='min',true);
-    opt.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:sp.agg==='sum',reverse:sp.agg==='min'}};
-    const cfg={type:'line',data:{labels,datasets:[
-      {label:'A '+(aStart?aStart.slice(5).replace('-','.')+'~':''),data:labels.map((_,i)=>mA[i]??null),_metas:labels.map((_,i)=>mA[i]!=null?[dstr(aStart,i)+' · '+fv(mA[i])]:''),borderColor:sp.color,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2},
-      {label:'B '+(bStart?bStart.slice(5).replace('-','.')+'~':''),data:labels.map((_,i)=>mB[i]??null),_metas:labels.map((_,i)=>mB[i]!=null?[dstr(bStart,i)+' · '+fv(mB[i])]:''),borderColor:'#9aa4b2',backgroundColor:'transparent',borderDash:[5,4],spanGaps:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2}
-    ]},options:opt};
+    const mkOpt=()=>{const o=_ltTip(sp.agg==='min',true);
+      o.scales={x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:sp.agg==='sum',reverse:sp.agg==='min'}};
+      return o;};
+    const allV=[...Object.values(mA),...Object.values(mB)].filter(v=>v!=null);
+    const maxV=allV.length?Math.max(...allV):null;
+    const dsA={label:'A '+(aStart?aStart.slice(5).replace('-','.')+'~':''),data:labels.map((_,i)=>mA[i]??null),_metas:labels.map((_,i)=>mA[i]!=null?[dstr(aStart,i)+' · '+fv(mA[i])]:''),borderColor:sp.color,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2};
+    const dsB={label:'B '+(bStart?bStart.slice(5).replace('-','.')+'~':''),data:labels.map((_,i)=>mB[i]??null),_metas:labels.map((_,i)=>mB[i]!=null?[dstr(bStart,i)+' · '+fv(mB[i])]:''),borderColor:'#9aa4b2',backgroundColor:'transparent',borderDash:[5,4],spanGaps:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2};
+    if(ltABView==='split'){
+      const oA=mkOpt(), oB=mkOpt();
+      if(maxV!=null){oA.scales.y.suggestedMax=maxV*1.08;oB.scales.y.suggestedMax=maxV*1.08;}
+      const dsB2=Object.assign({},dsB,{borderDash:[]});
+      const cardA=_ltCard(sp.label+' · A '+(aStart?'('+aStart.slice(5).replace('-','.')+'~)':''),'Total '+fv(av),{type:'line',data:{labels,datasets:[dsA]},options:oA},190,sp.idx);
+      const cardB=_ltCard(sp.label+' · B '+(bStart?'('+bStart.slice(5).replace('-','.')+'~)':''),sub||('Total '+fv(bv)),{type:'line',data:{labels,datasets:[dsB2]},options:oB},190,sp.idx);
+      return `<div style="grid-column:1/-1;display:grid;gap:12px">${cardA}${cardB}</div>`;
+    }
+    const cfg={type:'line',data:{labels,datasets:[dsA,dsB]},options:mkOpt()};
     return _ltCard(sp.label+' · A vs B',sub,cfg,220,sp.idx);
   };
   const _ltSpecs=()=>{const a=[];if(ltSel.has('__vol__')){const s=_flt(_ltVolS);if(_ltVolS.length)a.push({label:'Total Volume',color:'#f7a94f',agg:'sum',unit:'kg',series:_ltVolS,idx:_ltCat.indexOf('__vol__')});}if(ltSel.has('__dist__')){if(_ltDistS.length)a.push({label:'Sprint Distance',color:'#3ecf8e',agg:'sum',unit:'m',series:_ltDistS,idx:_ltCat.indexOf('__dist__')});}_ltCat.filter(k=>!_LT_SPECIAL[k]&&ltSel.has(k)&&_lt.exMap[k]).forEach(n=>{const m=_lt.exMap[n];a.push({label:n,color:_ltColor(n),agg:m.sprint?'min':'max',unit:m.sprint?'s':'kg',series:_ltExSeries(n),idx:_ltCat.indexOf(n)});});return a;};
@@ -2139,7 +2166,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
     +`<select class="lt-date" style="min-width:120px;cursor:pointer" onchange="ltOnCompSel(this.value)">`
     + _ltCompOpt('none','Daily (session)')+_ltCompOpt('week','Weekly')+_ltCompOpt('month','Monthly')+_ltCompOpt('year','Yearly')
     +`</select>`
-    +(ltAB?`<input type="date" class="lt-date" value="${ltCB1}" onchange="ltCB1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltCB2}" onchange="ltCB2=this.value;_rerenderTrends()"><select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value,'cmp')">${_planWeekOpts(ltCB1,ltCB2)}</select>`:'')
+    +(ltAB?`<input type="date" class="lt-date" value="${ltCB1}" onchange="ltCB1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltCB2}" onchange="ltCB2=this.value;_rerenderTrends()"><select class="lt-date" style="cursor:pointer;max-width:190px" onchange="ltWeekPick(this.value,'cmp')">${_planWeekOpts(ltCB1,ltCB2)}</select><div class="lt-seg" style="margin-left:6px"><button class="${ltABView==='overlay'?'on':''}" onclick="ltABView='overlay';_rerenderTrends()">Overlay</button><button class="${ltABView==='split'?'on':''}" onclick="ltABView='split';_rerenderTrends()">Split</button></div>`:'')
     +`</div>`;
 
   if(ltMode==='ex'){
@@ -2255,7 +2282,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
         ]},options:opt};
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
       } else {
-        const _wkAttach=(cfg,s,u)=>{if(cfg&&cfg.options&&!ltCmp){cfg.options._weekVals=Object.fromEntries(s.map(p=>[p.d,p.v]));cfg.options._weekUnit=u;cfg.options.layout=cfg.options.layout||{};cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:20});if(cfg.options.scales&&cfg.options.scales.y)cfg.options.scales.y.grace='18%';}return cfg;};
+        const _wkAttach=(cfg,s,u,agg)=>ltCmp?cfg:_wkAttachCfg(cfg,s,u,agg);
         if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp),s,'kg'),ltCmp?null:230,_ltCat.indexOf('__vol__'));} }
         if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp),s,'m'),ltCmp?null:230,_ltCat.indexOf('__dist__'));} }
       }
@@ -2263,7 +2290,7 @@ function _renderTrends(fAthletes, selAth, selLogs){
         if(ltChartMode==='overlay'&&!ltCmp){
           LT+=_ltOverlayCard(selExs,units);
         } else {
-          selExs.forEach(n=>{const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint}),null,_ltCat.indexOf(n),_ltBadge(s,m.sprint?'s':'kg',m.sprint));});
+          selExs.forEach(n=>{const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),ltCmp?_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint}):_wkAttachCfg(_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint}),s,m.sprint?'s':'kg',m.sprint?'min':'max'),ltCmp?null:230,_ltCat.indexOf(n),_ltBadge(s,m.sprint?'s':'kg',m.sprint));});
         }
       }
     }
