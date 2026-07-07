@@ -616,6 +616,8 @@ let _ltPins=[];               // 추이 차트 점 클릭 → 아래 고정 비�
 let _ltBrkHidden=new Set();    // 분해 막대 범례로 숨긴 항목 'grp|label' (재렌더/핀 후에도 유지)
 let _ltCat=[],_ltAthList=[],_ltMetricList=[],_ltCatNames=[];
 const _LT_PAL=['#58a6ff','#bc8cff','#3ecf8e','#f7a94f','#f85149','#56d4dd','#e879c9','#a3e635','#fbbf24','#f472b6'];
+// 팀 뷰 선수 전용 고대비 팔레트(색상환 균등 분산 — 9명 구분 용이)
+const _ATH_PAL=['#ff5d5d','#ff9e3d','#e6c229','#5ec16a','#2bd0c4','#4e9bff','#7c6bff','#c072f0','#ff6fb5'];
 const _LT_MON=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const charts={};
 
@@ -1990,7 +1992,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   let _ltJobs=[];
   const _lt=_ltBuild(selLogs,selAth);
   // 팀 모드: 선택된 선수 각각의 _ltBuild(개인 라인용) — 분해 스택은 합본 _lt(팀 집계) 재사용
-  const _teamPer=teamMode?(fAthletes||[]).map((a,i)=>({name:a.name,col:_LT_PAL[i%_LT_PAL.length],lt:_ltBuild(getLogsByName(a.name),a)})):[];
+  const _teamPer=teamMode?(fAthletes||[]).map((a,i)=>({name:a.name,col:_ATH_PAL[i%_ATH_PAL.length],lt:_ltBuild(getLogsByName(a.name),a)})):[];
   const _ltInPeriod=ds=>{
     if(ltPeriod==='all')return true;
     if(ltPeriod==='custom')return (!ltD1||ds>=ltD1)&&(!ltD2||ds<=ltD2);
@@ -2097,7 +2099,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
   const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).flatMap(e=>['· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].eff!=null?'  · RPE '+e[1].eff:'')].concat((e[1].splits||[]).map((x,i)=>'   '+(i+1)+'. '+x)));
   // 막대 위/안에 값 표시 플러그인(kg/m)
-  const _mkBarVals=unit=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);let _tot=0;chart.data.datasets.forEach((d2,j)=>{if(!chart.isDatasetVisible(j))return;const vv=d2.data[i];if(typeof vv==='number')_tot+=vv;});const pctTxt=_tot>0?' ('+Math.round(v/_tot*100)+'%)':'';const full=txt+pctTxt,wFull=ctx.measureText(full).width,wShort=ctx.measureText(txt).width;let lbl=null;if(h>=wFull+4)lbl=full;else if(h>=wShort+4)lbl=txt;if(!lbl)return;ctx.save();ctx.translate(el.x,(el.y+el.base)/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='rgba(255,255,255,.95)';ctx.fillText(lbl,0,0);ctx.restore();}else{const barH=Math.abs(el.base-el.y),need=ctx.measureText(txt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(txt,0,0);ctx.restore();}});});ctx.restore();}});
+  const _initOf=nm=>(nm||'').split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+  const _mkBarVals=(unit,showInit)=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;const _ini=(showInit&&ds.label)?_initOf(ds.label)+' ':'';meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);let _tot=0;chart.data.datasets.forEach((d2,j)=>{if(!chart.isDatasetVisible(j))return;const vv=d2.data[i];if(typeof vv==='number')_tot+=vv;});const pctTxt=_tot>0?' ('+Math.round(v/_tot*100)+'%)':'';const full=txt+pctTxt,wFull=ctx.measureText(full).width,wShort=ctx.measureText(txt).width;let lbl=null;if(h>=wFull+4)lbl=full;else if(h>=wShort+4)lbl=txt;if(!lbl)return;ctx.save();ctx.translate(el.x,(el.y+el.base)/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='rgba(255,255,255,.95)';ctx.fillText(lbl,0,0);ctx.restore();}else{const dtxt=_ini+txt,barH=Math.abs(el.base-el.y),need=ctx.measureText(dtxt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(dtxt,0,0);ctx.restore();}});});ctx.restore();}});
   // 연속(일자별) 분해 막대차트에 주간 경계 세로 점선 표시(월요일 기준 · _PDZ 주기와 동일)
   const _weekKey=ds=>{const dt=new Date(ds+'T00:00:00');const off=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-off);return dt.toISOString().slice(0,10);};
   const _mkWeekSep=dates=>({id:'weeksep',afterDraw(chart){const xs=chart.scales.x;if(!xs||!dates||dates.length<2)return;const area=chart.chartArea,ctx=chart.ctx;ctx.save();ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=1;ctx.setLineDash([4,4]);for(let i=1;i<dates.length;i++){if(_weekKey(dates[i])!==_weekKey(dates[i-1])){const x=(xs.getPixelForValue(i-1)+xs.getPixelForValue(i))/2;ctx.beginPath();ctx.moveTo(x,area.top);ctx.lineTo(x,area.bottom);ctx.stroke();}}ctx.setLineDash([]);ctx.restore();}});
@@ -2367,14 +2370,14 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         const bset={};
         perA.forEach(o=>{const m={};o.s.forEach(pt=>{const bk=_ltBKey(pt.d);if(ltBuckSel.size&&!ltBuckSel.has(bk.k))return;bset[bk.k]=bk.l;const e=m[bk.k]=m[bk.k]||{v:0,n:0};e.v+=pt.v;e.n++;});o.m=m;});
         const keys=Object.keys(bset).sort();if(!keys.length)return '';labels=keys.map(k=>bset[k]);
-        dss=perA.map(o=>({label:o.name,data:keys.map(k=>o.m[k]?Math.round(o.m[k].v):null),_metas:keys.map(k=>o.m[k]?[fvU(o.m[k].v),o.m[k].n+' sessions']:''),backgroundColor:o.col+'cc',borderRadius:2,maxBarThickness:26}));
+        dss=perA.map(o=>({label:o.name,data:keys.map(k=>o.m[k]?Math.round(o.m[k].v):null),_metas:keys.map(k=>o.m[k]?[fvU(o.m[k].v),o.m[k].n+' sessions']:''),backgroundColor:o.col+'cc',borderRadius:2,maxBarThickness:26,categoryPercentage:0.8,barPercentage:0.62}));
       } else {
         dates=[...new Set(perA.flatMap(o=>o.s.map(p=>p.d)))].sort();if(!dates.length)return '';labels=dates.map(d=>fmt(d));
         perA.forEach(o=>{const byD={};o.s.forEach(p=>byD[p.d]=p);o.byD=byD;});
-        dss=perA.map(o=>({label:o.name,data:dates.map(d=>o.byD[d]?Math.round(o.byD[d].v):null),_metas:dates.map(d=>o.byD[d]?o.byD[d].meta:''),backgroundColor:o.col+'cc',borderRadius:2}));
+        dss=perA.map(o=>({label:o.name,data:dates.map(d=>o.byD[d]?Math.round(o.byD[d].v):null),_metas:dates.map(d=>o.byD[d]?o.byD[d].meta:''),backgroundColor:o.col+'cc',borderRadius:2,categoryPercentage:0.78,barPercentage:0.6}));
       }
-      const opt=_ltTip(false,true);opt.scales.x.stacked=false;opt.scales.y.stacked=false;opt.scales.y.beginAtZero=true;opt.categoryPercentage=0.9;opt.barPercentage=0.98;
-      const plugins=[_mkBarVals(unit)];if(dates&&dates.length){plugins.push(_mkWeekSep(dates));plugins.push(_mkMesoLabels(dates));}
+      const opt=_ltTip(false,true);opt.scales.x.stacked=false;opt.scales.y.stacked=false;opt.scales.y.beginAtZero=true;
+      const plugins=[_mkBarVals(unit,true)];if(dates&&dates.length){plugins.push(_mkWeekSep(dates));plugins.push(_mkMesoLabels(dates));}
       const title=(kind==='vol'?'Total Volume':'Sprint Distance')+' · 선수별';
       return _ltCard(title,unit+(_ltBkSub?' · '+_ltBkSub:'')+' · 일자별 선수 막대',{type:'bar',data:{labels,datasets:dss},options:opt,plugins},520,_ltCat.indexOf(kind==='vol'?'__vol__':'__dist__'));
     };
