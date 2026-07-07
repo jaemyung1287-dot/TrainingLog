@@ -2367,16 +2367,16 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         const bset={};
         perA.forEach(o=>{const m={};o.s.forEach(pt=>{const bk=_ltBKey(pt.d);if(ltBuckSel.size&&!ltBuckSel.has(bk.k))return;bset[bk.k]=bk.l;const e=m[bk.k]=m[bk.k]||{v:0,n:0};e.v+=pt.v;e.n++;});o.m=m;});
         const keys=Object.keys(bset).sort();if(!keys.length)return '';labels=keys.map(k=>bset[k]);
-        dss=perA.map(o=>({label:o.name,data:keys.map(k=>o.m[k]?Math.round(o.m[k].v):null),_metas:keys.map(k=>o.m[k]?[fvU(o.m[k].v),o.m[k].n+' sessions']:''),backgroundColor:o.col+'cc',stack:'t',borderRadius:2,maxBarThickness:54}));
+        dss=perA.map(o=>({label:o.name,data:keys.map(k=>o.m[k]?Math.round(o.m[k].v):null),_metas:keys.map(k=>o.m[k]?[fvU(o.m[k].v),o.m[k].n+' sessions']:''),backgroundColor:o.col+'cc',borderRadius:2,maxBarThickness:26}));
       } else {
         dates=[...new Set(perA.flatMap(o=>o.s.map(p=>p.d)))].sort();if(!dates.length)return '';labels=dates.map(d=>fmt(d));
         perA.forEach(o=>{const byD={};o.s.forEach(p=>byD[p.d]=p);o.byD=byD;});
-        dss=perA.map(o=>({label:o.name,data:dates.map(d=>o.byD[d]?Math.round(o.byD[d].v):null),_metas:dates.map(d=>o.byD[d]?o.byD[d].meta:''),backgroundColor:o.col+'cc',stack:'t',borderRadius:2,maxBarThickness:22}));
+        dss=perA.map(o=>({label:o.name,data:dates.map(d=>o.byD[d]?Math.round(o.byD[d].v):null),_metas:dates.map(d=>o.byD[d]?o.byD[d].meta:''),backgroundColor:o.col+'cc',borderRadius:2}));
       }
-      const opt=_ltTip(false,true);opt.scales.x.stacked=true;opt.scales.y.stacked=true;opt.scales.y.beginAtZero=true;
+      const opt=_ltTip(false,true);opt.scales.x.stacked=false;opt.scales.y.stacked=false;opt.scales.y.beginAtZero=true;opt.categoryPercentage=0.9;opt.barPercentage=0.98;
       const plugins=[_mkBarVals(unit)];if(dates&&dates.length){plugins.push(_mkWeekSep(dates));plugins.push(_mkMesoLabels(dates));}
-      const title=(kind==='vol'?'Total Volume':'Sprint Distance')+' · 선수별 누적';
-      return _ltCard(title,unit+(_ltBkSub?' · '+_ltBkSub:'')+' · 팀 합계',{type:'bar',data:{labels,datasets:dss},options:opt,plugins},520,_ltCat.indexOf(kind==='vol'?'__vol__':'__dist__'));
+      const title=(kind==='vol'?'Total Volume':'Sprint Distance')+' · 선수별';
+      return _ltCard(title,unit+(_ltBkSub?' · '+_ltBkSub:'')+' · 일자별 선수 막대',{type:'bar',data:{labels,datasets:dss},options:opt,plugins},520,_ltCat.indexOf(kind==='vol'?'__vol__':'__dist__'));
     };
     // 개별 종목: 선수별 라인(top-set/best-time은 누적 불가) — 개인 트렌드와 동일 meta·메소밴드·주간구분선
     const _teamExLine=(key,sprint)=>{
