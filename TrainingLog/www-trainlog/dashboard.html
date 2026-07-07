@@ -2346,36 +2346,65 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const hasVol=ltSel.has('__vol__'), hasDist=ltSel.has('__dist__'), hasRdy=ltSel.has('__rdy__');
     const bucketing=ltBucket!=='none';
     const _stack=hasRdy&&!bucketing&&!ltAB&&!teamMode;  // Readiness 선택 시: 같은 날짜축으로 위아래 스택 정렬
-    // ── 팀 모드 렌더러: 라인지표=선수별 겹쳐보기 · 분해=팀 집계 스택 ──
-    const _teamLineDatasets=(getSeries,agg)=>{
-      const perA=_teamPer.map(p=>({name:p.name,col:p.col,s:_flt(getSeries(p.lt))})).filter(o=>o.s.length);
-      if(!perA.length)return null;
-      if(ltBucket!=='none'){
+    // ── 팀 모드 렌더러: 토탈=선수별 세로 스택 막대 · 분해=카테고리 스택 · 개별종목=선수별 라인 ──
+    // 선수별 시리즈(개인 트렌드와 동일한 meta: 세션 훈련 상세 포함)
+    const _volSOf=lt=>Object.entries(lt.volByDate).map(([d,v])=>{
+      const det=lt.volDetail[d]||{};const lines=['Total Volume '+_fmtKg(v)];const regOrder=[],byReg={};
+      Object.entries(det).forEach(([n,o])=>{const r=o.reg||'기타';if(!byReg[r]){byReg[r]=[];regOrder.push(r);}byReg[r].push([n,o]);});
+      regOrder.forEach(r=>{if(regOrder.length>1)lines.push('── '+r+' ──');byReg[r].forEach(([n,o])=>{lines.push(`${n} ${o.sets}×${o.reps}${o.vol>0?' · '+_fmtKg(o.vol):''}${o.eff!=null?' · RPE '+o.eff:''}`);(o.lines||[]).forEach(s=>lines.push('   '+s));});});
+      return {d,v:Math.round(v),meta:lines};
+    }).sort((a,b)=>a.d.localeCompare(b.d));
+    const _distSOf=lt=>Object.entries(lt.distByDate).map(([d,v])=>{const det=lt.distDetail[d]||{};const _rp=lt.distRpe[d];const lines=['Total distance '+Math.round(v)+'m'+(_rp!=null?' · RPE '+_rp:'')].concat(Object.entries(det).sort((a,b)=>b[1].dist-a[1].dist).map(([n,o])=>`${n}: ${Math.round(o.dist)}m${o.eff!=null?' · RPE '+o.eff:''}`));return {d,v:Math.round(v),meta:lines};}).sort((a,b)=>a.d.localeCompare(b.d));
+    const _exSOf=(lt,key)=>lt.exMap[key]?Object.entries(lt.exMap[key].pts).map(([d,o])=>({d,v:o.v,meta:o.meta})).sort((a,b)=>a.d.localeCompare(b.d)):[];
+    // 토탈(볼륨/거리): 선수별 세로 스택 막대 (한 막대=기간, 세그먼트=선수, kg/m 값+비중%)
+    const _teamTotalStack=kind=>{
+      const unit=kind==='vol'?'kg':'m';
+      const perA=_teamPer.map(p=>({name:p.name,col:p.col,s:_flt(kind==='vol'?_volSOf(p.lt):_distSOf(p.lt))})).filter(o=>o.s.length);
+      if(!perA.length)return '';
+      const fvU=v=>unit==='kg'?_fmtKg(v):Math.round(v)+'m';
+      let labels,dss,dates=null;
+      if(bucketing){
         const bset={};
-        perA.forEach(o=>{const m={};o.s.forEach(pt=>{const bk=_ltBKey(pt.d);if(ltBuckSel.size&&!ltBuckSel.has(bk.k))return;bset[bk.k]=bk.l;(m[bk.k]=m[bk.k]||[]).push(pt.v);});o.bk=m;});
-        const keys=Object.keys(bset).sort();
-        if(!keys.length)return null;
-        return {labels:keys.map(k=>bset[k]),datasets:perA.map(o=>({label:o.name,data:keys.map(k=>{const a=o.bk[k];if(!a||!a.length)return null;return agg==='min'?Math.min(...a):agg==='max'?Math.max(...a):Math.round(a.reduce((x,y)=>x+y,0)*100)/100;}),borderColor:o.col,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}))};
+        perA.forEach(o=>{const m={};o.s.forEach(pt=>{const bk=_ltBKey(pt.d);if(ltBuckSel.size&&!ltBuckSel.has(bk.k))return;bset[bk.k]=bk.l;const e=m[bk.k]=m[bk.k]||{v:0,n:0};e.v+=pt.v;e.n++;});o.m=m;});
+        const keys=Object.keys(bset).sort();if(!keys.length)return '';labels=keys.map(k=>bset[k]);
+        dss=perA.map(o=>({label:o.name,data:keys.map(k=>o.m[k]?Math.round(o.m[k].v):null),_metas:keys.map(k=>o.m[k]?[fvU(o.m[k].v),o.m[k].n+' sessions']:''),backgroundColor:o.col+'cc',stack:'t',borderRadius:2,maxBarThickness:54}));
+      } else {
+        dates=[...new Set(perA.flatMap(o=>o.s.map(p=>p.d)))].sort();if(!dates.length)return '';labels=dates.map(d=>fmt(d));
+        perA.forEach(o=>{const byD={};o.s.forEach(p=>byD[p.d]=p);o.byD=byD;});
+        dss=perA.map(o=>({label:o.name,data:dates.map(d=>o.byD[d]?Math.round(o.byD[d].v):null),_metas:dates.map(d=>o.byD[d]?o.byD[d].meta:''),backgroundColor:o.col+'cc',stack:'t',borderRadius:2,maxBarThickness:22}));
       }
-      const dates=[...new Set(perA.flatMap(o=>o.s.map(p=>p.d)))].sort();
-      return {labels:dates.map(d=>fmt(d)),datasets:perA.map(o=>{const byD={};o.s.forEach(p=>byD[p.d]=p.v);return{label:o.name,data:dates.map(d=>byD[d]??null),borderColor:o.col,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2};})};
+      const opt=_ltTip(false,true);opt.scales.x.stacked=true;opt.scales.y.stacked=true;opt.scales.y.beginAtZero=true;
+      const plugins=[_mkBarVals(unit)];if(dates&&dates.length){plugins.push(_mkWeekSep(dates));plugins.push(_mkMesoLabels(dates));}
+      const title=(kind==='vol'?'Total Volume':'Sprint Distance')+' · 선수별 누적';
+      return _ltCard(title,unit+(_ltBkSub?' · '+_ltBkSub:'')+' · 팀 합계',{type:'bar',data:{labels,datasets:dss},options:opt,plugins},280,_ltCat.indexOf(kind==='vol'?'__vol__':'__dist__'));
     };
-    const _teamLineCard=(key,title,unit,sprint,agg)=>{
-      const getS=key==='__vol__'?(lt=>Object.entries(lt.volByDate).map(([d,v])=>({d,v})))
-        :key==='__dist__'?(lt=>Object.entries(lt.distByDate).map(([d,v])=>({d,v})))
-        :(lt=>lt.exMap[key]?Object.entries(lt.exMap[key].pts).map(([d,o])=>({d,v:o.v})):[]);
-      const dd=_teamLineDatasets(getS,agg);
-      if(!dd)return '';
-      const opt=_ltTip(!!sprint,true);opt.scales.y.beginAtZero=(agg==='sum');
-      return _ltCard(title+' · 선수별',(sprint?'best time(s)':unit==='m'?'m/session':'top set(kg)')+(_ltBkSub?' · '+_ltBkSub:''),{type:'line',data:{labels:dd.labels,datasets:dd.datasets},options:opt},250,_ltCat.indexOf(key));
+    // 개별 종목: 선수별 라인(top-set/best-time은 누적 불가) — 개인 트렌드와 동일 meta·메소밴드·주간구분선
+    const _teamExLine=(key,sprint)=>{
+      const agg=sprint?'min':'max';
+      const perA=_teamPer.map(p=>({name:p.name,col:p.col,s:_flt(_exSOf(p.lt,key))})).filter(o=>o.s.length);
+      if(!perA.length)return '';
+      let labels,dss,dates=null;
+      if(bucketing){
+        const bset={};
+        perA.forEach(o=>{const m={};o.s.forEach(pt=>{const bk=_ltBKey(pt.d);if(ltBuckSel.size&&!ltBuckSel.has(bk.k))return;bset[bk.k]=bk.l;(m[bk.k]=m[bk.k]||[]).push(pt);});o.bk=m;});
+        const keys=Object.keys(bset).sort();if(!keys.length)return '';labels=keys.map(k=>bset[k]);
+        dss=perA.map(o=>({label:o.name,data:keys.map(k=>{const a=o.bk[k];if(!a||!a.length)return null;const vs=a.map(x=>x.v);return agg==='min'?Math.min(...vs):Math.max(...vs);}),_metas:keys.map(k=>{const a=o.bk[k];return a&&a.length?a[a.length-1].meta:'';}),borderColor:o.col,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}));
+      } else {
+        dates=[...new Set(perA.flatMap(o=>o.s.map(p=>p.d)))].sort();if(!dates.length)return '';labels=dates.map(d=>fmt(d));
+        perA.forEach(o=>{const byD={};o.s.forEach(p=>byD[p.d]=p);o.byD=byD;});
+        dss=perA.map(o=>({label:o.name,data:dates.map(d=>o.byD[d]?o.byD[d].v:null),_metas:dates.map(d=>o.byD[d]?o.byD[d].meta:''),borderColor:o.col,backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}));
+      }
+      const opt=_ltTip(!!sprint,true);
+      const plugins=(dates&&dates.length)?[_mkWeekSep(dates),_mkMesoLabels(dates)]:[];
+      return _ltCard(key+' · 선수별',(sprint?'best time(s)':'top set(kg)')+(_ltBkSub?' · '+_ltBkSub:''),{type:'line',data:{labels,datasets:dss},options:opt,plugins},250,_ltCat.indexOf(key));
     };
     const _teamCharts=()=>{
-      if(!selKeys.length)return `<div class="lt-hint" style="grid-column:1/-1">지표를 선택하면 선수별 비교(추이)와 카테고리 분해가 표시됩니다</div>`;
+      if(!selKeys.length)return `<div class="lt-hint" style="grid-column:1/-1">지표를 선택하면 팀 추이(누적 막대)와 카테고리 분해가 표시됩니다</div>`;
       let out='';
       if(hasRdy)out+=_ltRdyCard();
-      if(hasVol){ if(ltVolBreak!=='none'){out+=(bucketing?_ltVolStackBucket:_ltVolStackCard)(ltVolBreak);} else {out+=_teamLineCard('__vol__','Total Volume','kg',false,'sum');} }
-      if(hasDist){ if(ltDistBreak!=='none'){out+=(bucketing?_ltDistStackBucket:_ltDistStackCard)(ltDistBreak);} else {out+=_teamLineCard('__dist__','Sprint Distance','m',false,'sum');} }
-      selExs.forEach(n=>{const m=_lt.exMap[n];out+=_teamLineCard(n,n,m.sprint?'s':'kg',m.sprint,m.sprint?'min':'max');});
+      if(hasVol){ if(ltVolBreak!=='none'){out+=(bucketing?_ltVolStackBucket:_ltVolStackCard)(ltVolBreak);} else {out+=_teamTotalStack('vol');} }
+      if(hasDist){ if(ltDistBreak!=='none'){out+=(bucketing?_ltDistStackBucket:_ltDistStackCard)(ltDistBreak);} else {out+=_teamTotalStack('dist');} }
+      selExs.forEach(n=>{const m=_lt.exMap[n];out+=_teamExLine(n,m.sprint);});
       return out||`<div class="lt-hint" style="grid-column:1/-1">선택한 기간에 해당 지표의 세션 데이터가 없습니다 — 다른 기간/Unit을 선택해보세요</div>`;
     };
     const _ltStackedAligned=()=>{
