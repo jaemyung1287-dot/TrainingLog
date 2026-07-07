@@ -610,6 +610,7 @@ let ltVolBreak='none';        // none|sub|region|type — Total Volume 분해 �
 let ltABView='split';      // A/B 비교 보기: overlay(겹쳐) | split(상하 2개) — 기본 split
 let ltWeeks=[];              // 주차 비교 스택: 'd1|d2' 배열 — 고를 때마다 차트 추가, 카드 ×로 제거
 let ltWkPins={};             // 주차 비교 세션 핀: 'metric|d1|dayIdx' → 차트 아래 세션 상세 고정
+let ltBrkPins={};            // 분해(카테고리) 막대 세션 핀: 'kind|grp|date' → 그 날 세션 상세 고정
 let ltDistBreak='none';       // none|sub|disc — Sprint Distance 분해 보기(누적)
 let ltBrkBars='group';        // group|stack — 분해 비교(주/월/연) 막대 모양
 let _ltPins=[];               // 추이 차트 점 클릭 → 아래 고정 비교할 세션 날짜들(YYYY-MM-DD)
@@ -1422,6 +1423,7 @@ function ltMesoAdd(num){
 }
 function ltWeekRm(i){ ltWeeks.splice(i,1); _rerenderTrends(); }
 function ltWkPinTg(k){ if(ltWkPins[k])delete ltWkPins[k]; else ltWkPins[k]=1; _rerenderTrends(); }
+function ltBrkPinTg(k){ if(ltBrkPins[k])delete ltBrkPins[k]; else ltBrkPins[k]=1; _rerenderTrends(); }
 // 주간 헤더(합계/베스트 + 전주 대비) 데이터를 라인차트 cfg에 부착
 function _wkAttachCfg(cfg,s,unit,agg){
   if(!cfg||!cfg.options)return cfg;
@@ -2481,6 +2483,12 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         const unit=kind==='vol'?'kg':'m';
         const title=(kind==='vol'?'Total Volume · ':'Sprint Distance · ')+(kind==='vol'?_LT_BRK_LBL[grp]:_LT_DBRK_LBL[grp]);
         const fvb=v=>v==null?'—':(unit==='kg'?_fmtKg(v):Math.round(v).toLocaleString('de-DE')+'m');
+        const exBy=((kind==='vol'?_lt.volBreak.ex:_lt.distBreak.ex)||{})[grp]||{};
+        const exMetaFn=kind==='vol'?_ltExMetaFromObj:_ltDistExMetaFromObj;
+        const _dateAt=(d1,i)=>{const dt=new Date(d1+'T00:00:00');dt.setDate(dt.getDate()+i);return dsFromDate(dt);};
+        const _pk=d=>kind+'|'+grp+'|'+d;
+        // 카테고리 세그먼트 hover meta: Total + 그 카테고리 운동별 볼륨/거리·RPE
+        const _segMeta=(d,g)=>['Total '+fvb(byDate[d]&&byDate[d][g])].concat(exMetaFn(exBy[d]&&exBy[d][g]));
         const wkList=ltWeeks.map((w,wi)=>{
           const [d1,d2]=w.split('|');
           const dayCat={},catTot={};
@@ -2507,13 +2515,35 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
           const _grpBars=ltBrkBars==='group';
           const maxDay=Math.max(1,...wkList.flatMap(o=>Object.values(o.dayCat).map(cm=>Object.values(cm).reduce((a,b)=>a+b,0))));
           const maxDayG=Math.max(1,...wkList.flatMap(o=>Object.values(o.dayCat).flatMap(cm=>Object.values(cm))));
+          // 클릭한 날 세션 상세 카드(핀) — 다른 날과 나란히 비교
+          const _brkPinGrid=()=>{
+            const keys=Object.keys(ltBrkPins).filter(k=>{const p=k.split('|');return p[0]===kind&&p[1]===grp&&wkList.some(o=>p[2]>=o.d1&&p[2]<=o.d2);}).sort((a,b)=>a.split('|')[2].localeCompare(b.split('|')[2]));
+            if(!keys.length)return '';
+            const cards=keys.map(k=>{
+              const d=k.split('|')[2];
+              const wi=wkList.findIndex(o=>d>=o.d1&&d<=o.d2);const col=_WKPAL[(wi<0?0:wi)%_WKPAL.length];
+              const dayObj=byDate[d]||{};const cats=Object.keys(dayObj).sort((a,b)=>dayObj[b]-dayObj[a]);
+              const tot=Object.values(dayObj).reduce((a,b)=>a+b,0);
+              const wd=['Mo','Di','Mi','Do','Fr','Sa','So'][(new Date(d+'T00:00:00').getDay()+6)%7];
+              let body='';
+              cats.forEach(g=>{body+=`<div style="margin-top:6px"><div style="font-size:11px;font-weight:700;color:${_LT_PAL[allCats.indexOf(g)%_LT_PAL.length]}">${_esc(g)} · ${fvb(dayObj[g])}</div>`;exMetaFn(exBy[d]&&exBy[d][g]).forEach(li=>body+=`<div style="font-size:11px;color:#c9d1d9;padding-left:8px;white-space:pre-wrap">${_esc(li)}</div>`);body+=`</div>`;});
+              return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0;flex:0 1 330px;max-width:360px;min-width:250px">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px">
+                  <span style="font-size:12px;font-weight:700"><span style="color:${col}">${_esc(_wkLbl(wkList[wi>=0?wi:0].d1).split(' ')[0])}</span> · ${wd} ${d.slice(5).replace('-','.')} · <span style="color:${col}">${fvb(tot)}</span></span>
+                  <span onclick="ltBrkPinTg('${k}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;padding:0 2px">×</span>
+                </div>${body||'<div style="font-size:11px;color:var(--hint)">데이터 없음</div>'}</div>`;
+            }).join('');
+            return `<div style="grid-column:1/-1"><div style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--hint);text-transform:uppercase;margin:2px 2px 6px">Session Compare · 막대 클릭으로 추가/제거</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start">${cards}</div></div>`;
+          };
           wkList.forEach((o,i)=>{
-            const dss=allCats.map((g,ci)=>{const col=_LT_PAL[ci%_LT_PAL.length];return{label:g,data:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?Math.round(o.dayCat[di][g]):null),_metas:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?['Total '+fvb(o.dayCat[di][g])]:''),backgroundColor:col+'cc',stack:_grpBars?undefined:'v',borderRadius:2,maxBarThickness:_grpBars?16:40};});
+            const dss=allCats.map((g,ci)=>{const col=_LT_PAL[ci%_LT_PAL.length];return{label:g,data:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?Math.round(o.dayCat[di][g]):null),_metas:WD.map((_,di)=>o.dayCat[di]&&o.dayCat[di][g]?_segMeta(_dateAt(o.d1,di),g):''),backgroundColor:col+'cc',stack:_grpBars?undefined:'v',borderRadius:2,maxBarThickness:_grpBars?16:40};});
             const opt=_ltTip(false,true);opt.scales={x:{stacked:!_grpBars,grid:{display:false},ticks:{color:'rgba(230,237,243,.55)',font:{size:10}}},y:{stacked:!_grpBars,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.4)',font:{size:9}},beginAtZero:true,suggestedMax:(_grpBars?maxDayG:maxDay)*1.08}};
+            opt.onClick=function(evt,els,chart){let idx=-1;if(els&&els.length)idx=els[0].index;else if(chart&&chart.scales&&chart.scales.x){const px=evt.x;let bd=1e9;WD.forEach((_,k)=>{const cx=chart.scales.x.getPixelForValue(k);const dd=Math.abs(cx-px);if(dd<bd){bd=dd;idx=k;}});if(bd>34)idx=-1;}if(idx>=0&&o.dayCat[idx])ltBrkPinTg(_pk(_dateAt(o.d1,idx)));};
             let sub=o.tot==null?'데이터 없음':'Total '+fvb(o.tot);
             if(o.tot!=null&&i>0&&wkList[i-1].tot){const d=o.tot-wkList[i-1].tot,pct=Math.round(d/Math.abs(wkList[i-1].tot)*100);sub+=` · <span style="color:${Math.abs(d)<1e-9?'var(--hint)':d>0?'#3ecf8e':'#f85149'}">${d>0?'+':''}${fvb(d)} (${pct>0?'+':''}${pct}%)</span>`;}
             out+=`<div style="grid-column:1/-1">${_ltCard(title,'',{type:'bar',data:{labels:WD,datasets:dss},options:opt,plugins:[_mkBarVals(unit)]},220,'ltWeekRm('+o.wi+')',`<span style="font-size:11px;font-weight:600;color:var(--text)">${sub}</span>`,'',_wkMid(_WKPAL[i%_WKPAL.length],o.d1))}</div>`;
           });
+          out+=_brkPinGrid();
         }
         return out;
       };
