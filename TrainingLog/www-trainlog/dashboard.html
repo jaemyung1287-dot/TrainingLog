@@ -1708,6 +1708,7 @@ function ldDayToggle(i){
   const open=!_ldOpenDays.has(i);
   if(open)_ldOpenDays.add(i);else _ldOpenDays.delete(i);
   document.querySelectorAll('.ldd'+i).forEach(e=>e.style.display=open?'block':'none');
+  document.querySelectorAll('.lddc'+i).forEach(e=>e.style.display=open?'none':'block');
   const ch=document.getElementById('ldchev'+i);
   if(ch)ch.style.transform=open?'rotate(90deg)':'';
 }
@@ -1914,6 +1915,14 @@ function renderLoad(){
 
     if(!trains.length){
       html+=`<div style="font-size:10px;color:#484f58;padding:4px 0">Rest</div>`;
+    }else{
+      // 접힘 상태: 그날 세션 대주제만 한 줄로 (펼치면 숨김)
+      const _seen=new Set(),_lbls=[];
+      trains.forEach(l=>{
+        const t=l.type==='mobility'?'Conditioning':l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='tabata'?'Tabata':l.type==='plyo'?'Plyo':l.type;
+        if(!_seen.has(t)){_seen.add(t);_lbls.push(`<span style="color:${tc(l.type)}">${t}</span>`);}
+      });
+      html+=`<div class="lddc${i}" style="display:${_open?'none':'block'};font-size:10px;font-weight:600;padding:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85">${_lbls.join('<span style="color:#484f58"> · </span>')}</div>`;
     }
 
     html+=`<div class="ldd${i}" style="display:${_dd};margin-top:6px">`;
