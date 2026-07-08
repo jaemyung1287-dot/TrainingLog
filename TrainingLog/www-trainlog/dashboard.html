@@ -751,6 +751,8 @@ function iCol(v,hg){
 }
 function tc(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#bc8cff',tabata:'#f85149',mobility:'#E07B39'}[t]||'var(--muted)';}
 function tcBg(t){return{weight:'rgba(247,169,79,.1)',sprint:'rgba(62,207,142,.1)',plyo:'rgba(247,169,79,.1)',tabata:'rgba(248,81,73,.1)',mobility:'rgba(224,123,57,.1)'}[t]||'rgba(255,255,255,.04)';}
+function condVal(l){const e=l.exercises||[];const dv=e.map(x=>_dEffNum(x.difficulty)).filter(v=>v!=null);const a=dv.length?(dv.reduce((s,v)=>s+v,0)/dv.length):null;return `${e.filter(x=>x.done).length}/${e.length} ✓${a!=null?' · Ø D'+a.toFixed(1):''}`;}
+function condBrief(l){return (l.exercises||[]).slice(0,4).map(e=>{const d=_dEffNum(e.difficulty);return `${e.done?'✓':'○'} ${e.name}${d!=null?' <b style="color:#E07B39">D'+d+'</b>':''}`;}).join(' · ');}
 // Matches the app's _planGrpData resolution: individual athlete key → group → all (legacy .groups last)
 function planGrp(plan,ath){if(!plan)return null;return plan['ath_'+ath.id]||plan[ath.group]||plan['all']||plan.groups?.[ath.group]||null;}
 function sessExs(gd,s){if(!gd)return[];if(gd[s]?.exercises)return gd[s].exercises;if(s==='am'&&gd.exercises)return gd.exercises;return[];}
@@ -904,7 +906,7 @@ function _ovEx(l){
 }
 function _ovBlock(l,athId){
   const c=tc(l.type), bg=tcBg(l.type);
-  const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type==='mobility'?'Mobility':l.type;
+  const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type==='mobility'?'Conditioning':l.type;
   let val=l.type==='weight'?`${_fmtKg(vol([l]))}`
     :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
     :l.type==='plyo'?`${l.totalReps||0} reps`
@@ -2761,7 +2763,7 @@ function _renderInsights(ath){
     rpeEntries.forEach(({type,avg,max,count})=>{
       const c=tc(type);
       const col=avg>=8?'var(--red)':avg>=6.5?'var(--gold)':'var(--green)';
-      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[type]||type;
+      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',mobility:'Conditioning'}[type]||type;
       rpeCard+=`<div style="margin-bottom:11px">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
           <span style="font-size:11px;font-weight:600;color:${c}">${label}</span>
@@ -2775,7 +2777,7 @@ function _renderInsights(ath){
     });
     if(rpeEntries.length>=2){
       const h=rpeEntries[0];
-      const hLabel={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[h.type]||h.type;
+      const hLabel={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',mobility:'Conditioning'}[h.type]||h.type;
       const col=h.avg>=8?'var(--red)':h.avg>=6.5?'var(--gold)':'var(--green)';
       rpeCard+=`<div style="padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);font-size:11px;color:#8b949e">
         💡 <span style="color:${col};font-weight:600">${hLabel}</span>이 가장 힘든 훈련 유형 (avg RPE ${h.avg.toFixed(1)})
@@ -2840,7 +2842,7 @@ function _renderInsights(ath){
       const pct=Math.round(sore/total*100);
       const c=tc(type);
       const col=pct>=60?'var(--red)':pct>=35?'var(--gold)':'var(--green)';
-      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[type]||type;
+      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',mobility:'Conditioning'}[type]||type;
       corrCard+=`<div style="margin-bottom:11px">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
           <span style="font-size:11px;font-weight:600;color:${c}">${label}</span>
@@ -2896,7 +2898,7 @@ function _renderInsights(ath){
     struggleCard=`<div class="card" style="margin-top:12px"><div class="card-hd">⚠️ Struggle Signals (RPE ≥ 8 또는 어려움 언급)</div>`;
     hardSessions.forEach(l=>{
       const c=tc(l.type);
-      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo'}[l.type]||l.type;
+      const label={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',mobility:'Conditioning'}[l.type]||l.type;
       const v=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${l.totalDistance||0} m`:'';
       struggleCard+=`<div class="lr">
         <span class="ld">${fmt(l.date)}</span>
@@ -3314,6 +3316,7 @@ function renderAthletes(){
           .map(t=>`${t.n}${t.kg>0?' <b style="color:var(--gold)">'+t.kg+'</b>':''}`).join(' · ');
       }
       if(l.type==='sprint')return (l.sets||[]).slice(0,3).map(s=>`${s.distance||'?'}m×${s.sets||1}×${s.reps||1}${s.actualTime?' <b style="color:var(--green)">'+s.actualTime+'s</b>':''}`).join(' · ');
+      if(l.type==='mobility')return condBrief(l);
       return '';
     };
 
@@ -3363,11 +3366,11 @@ function renderAthletes(){
         <div class="sec"><span class="sec-title">Training Logs</span><div class="sec-line"></div></div>
         ${recent.length?recent.map(l=>{
           const c=tc(l.type);
-          const v=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
+          const v=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:l.type==='mobility'?condVal(l):'—';
           const brief=_logBrief(l);
           return`<div class="lr" style="flex-wrap:wrap">
             <span class="ld">${fmt(l.date)}</span>
-            <span class="lt" style="color:${c}">${l.type}</span>
+            <span class="lt" style="color:${c}">${l.type==='mobility'?'Conditioning':l.type}</span>
             <span class="lv">${v}</span>
             ${l.rpe?`<span class="lrpe">RPE ${l.rpe}</span>`:''}
             <button class="ldel" onclick="openLogEditor('${l.id}','${athId}');event.stopPropagation()" style="opacity:1;background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:var(--muted)">✎</button>
@@ -3449,12 +3452,12 @@ function genWeeklyReport(){
       let cell=`<td style="padding:8px;border:1px solid #e5e7eb;vertical-align:top;min-width:80px;${isT?'background:#fefce8':''}">`;
       if(!trains.length&&!cond){cell+='<span style="color:#9ca3af;font-size:10px">Rest</span>';}
       trains.forEach(l=>{
-        const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626'}[l.type]||'#64748b';
-        const val=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:'—';
+        const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626',mobility:'#ea580c'}[l.type]||'#64748b';
+        const val=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:l.type==='mobility'?condVal(l):'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
         sessCount++;
-        cell+=`<div style="font-size:10px;font-weight:700;color:${c};margin-bottom:1px">${l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':'Tabata'} ${val}</div>`;
+        cell+=`<div style="font-size:10px;font-weight:700;color:${c};margin-bottom:1px">${l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='mobility'?'Conditioning':'Tabata'} ${val}</div>`;
         if(l.rpe)cell+=`<div style="font-size:9px;color:#9ca3af">RPE ${l.rpe}</div>`;
       });
       if(cond){
@@ -3506,9 +3509,9 @@ function genFullReport(){
     const avgF=cLogs.length?(cLogs.reduce((s,l)=>s+(l.fatigue||0),0)/cLogs.length).toFixed(1):null;
     const avgM=cLogs.length?(cLogs.reduce((s,l)=>s+(l.mood||0),0)/cLogs.length).toFixed(1):null;
     const rows=tLogs.slice(0,20).map(l=>{
-      const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626'}[l.type]||'#64748b';
-      const v=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:'—';
-      return`<tr><td style="padding:5px 8px;border:1px solid #e5e7eb">${fmtFull(l.date)}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:700;color:${c}">${l.type}</td><td style="padding:5px 8px;border:1px solid #e5e7eb">${v}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;color:#64748b">${l.rpe||'—'}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;color:#64748b">${l.notes||''}</td></tr>`;
+      const c={weight:'#d97706',sprint:'#059669',plyo:'#7c3aed',tabata:'#dc2626',mobility:'#ea580c'}[l.type]||'#64748b';
+      const v=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`:l.type==='plyo'?`${l.totalReps||0} reps`:l.type==='mobility'?condVal(l):'—';
+      return`<tr><td style="padding:5px 8px;border:1px solid #e5e7eb">${fmtFull(l.date)}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:700;color:${c}">${l.type==='mobility'?'Conditioning':l.type}</td><td style="padding:5px 8px;border:1px solid #e5e7eb">${v}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;color:#64748b">${l.rpe||'—'}</td><td style="padding:5px 8px;border:1px solid #e5e7eb;font-size:10px;color:#64748b">${l.notes||''}</td></tr>`;
     }).join('');
     const gc=ath.group==='A'?'#1d4ed8':'#065f46';
     body+=`<div style="margin-bottom:28px;page-break-inside:avoid">
@@ -3571,7 +3574,7 @@ function downloadJSON(){
 // ══ TOOLTIP ══
 const _td={};
 const ICON={weight:'🏋️',sprint:'⚡',tabata:'🔥',plyo:'🦘',circuit:'🔄'};
-const LABEL={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',circuit:'Circuit'};
+const LABEL={weight:'Weight',sprint:'Sprint',tabata:'Tabata',plyo:'Plyo',circuit:'Circuit',mobility:'Conditioning'};
 
 function _prevDate(ds){
   const d=new Date(ds);d.setDate(d.getDate()-1);return dsFromDate(d);
@@ -3957,7 +3960,7 @@ function openLogEditor(logId,athId){
 }
 function _renderLogEditor(){
   const l=_eLog;
-  const typeLbl={weight:'🏋️ Weight',sprint:'⚡ Sprint',plyo:'🦘 Plyo',condition:'😴 Condition',tabata:'🔥 Tabata'}[l.type]||l.type;
+  const typeLbl={weight:'🏋️ Weight',sprint:'⚡ Sprint',plyo:'🦘 Plyo',condition:'😴 Condition',tabata:'🔥 Tabata',mobility:'🌀 Conditioning'}[l.type]||l.type;
   let body=`<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
     <div><span class="m-lbl">Date</span><input type="date" class="m-in" value="${l.date}" onchange="_eLog.date=this.value"></div>
     ${l.type!=='condition'?`<div><span class="m-lbl">RPE</span><input type="number" min="1" max="10" class="m-in" style="width:70px" value="${l.rpe||''}" oninput="_eLog.rpe=parseInt(this.value)||null"></div>`:''}
@@ -4452,10 +4455,11 @@ function _prevExNoteHtml(athId,exName,beforeDate,nameTag){
 function _schedLogBlock(a,l){
   const c=tc(l.type);
   const grpColor=a.group==='A'?'#58a6ff':'#3ecf8e';
-  const typeLbl=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type;
+  const typeLbl=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type==='mobility'?'Conditioning':l.type;
   const total=l.type==='weight'?`${_fmtKg(vol([l]))}`
     :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
-    :l.type==='plyo'?`${l.totalReps||0} reps`:'';
+    :l.type==='plyo'?`${l.totalReps||0} reps`
+    :l.type==='mobility'?condVal(l):'';
   const sessChip=l.session?`<span class="pc-chip" style="background:${l.session==='am'?'rgba(247,169,79,.12)':'rgba(167,139,250,.12)'};color:${l.session==='am'?'#f7a94f':'#a78bfa'}">${l.session.toUpperCase()}</span>`:'';
   let inner='';
   if(l.type==='weight'||l.type==='plyo'){
@@ -4506,6 +4510,19 @@ function _schedLogBlock(a,l){
         <div class="lap-grid"><span style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;align-self:center">⏱ Laps</span>${laps}</div>
         ${_cur?`<div style="font-size:11px;color:var(--text);margin-top:4px;padding-left:24px">💬 ${_esc(_cur)}</div>`:''}
         ${_panel}
+      </div>`;
+    }).join('');
+  } else if(l.type==='mobility'){
+    inner=(l.exercises||[]).map((e,i)=>{
+      const dv=_dEffNum(e.difficulty);
+      const dCol=dv==null?'var(--muted)':(dv<=3?'#3ecf8e':dv<=6?'#f7a94f':dv<=8?'#ff9800':'#f85149');
+      const dChip=dv==null?'':`<span style="font-size:11px;color:${dCol};font-weight:700">D${dv}</span>`;
+      return `<div class="sched-ex">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
+          <span style="font-size:12px;font-weight:600;flex:1">${e.done?'✓':'○'} ${_esc(e.name||'—')}</span>
+          ${dChip}
+        </div>
       </div>`;
     }).join('');
   } else {

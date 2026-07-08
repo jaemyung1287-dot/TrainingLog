@@ -4927,7 +4927,7 @@ function renderToday(){
   };
   const _logCard=(l)=>{
     const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':l.type==='mobility'?'b-c':'b-w';
-    const badgeText=l.type==='sprint'?'sprint':l.type==='plyo'?'plyo':l.type==='mobility'?'mobility':'weight';
+    const badgeText=l.type==='sprint'?'sprint':l.type==='plyo'?'plyo':l.type==='mobility'?'conditioning':'weight';
     let statsHtml='';
     if(l.type==='mobility'){
       const _md=(l.exercises||[]).filter(e=>e.done).length;
@@ -5575,10 +5575,10 @@ function _renderLoadRecent(logs, wrapId, opts){
   const sorted = logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
   if(!sorted.length){ wrap.innerHTML='<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>'; return; }
 
-  const _typeIcon = {weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥'};
+  const _typeIcon = {weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀'};
 
   // Type → left-border accent color
-  const _typeBorder = {weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa'};
+  const _typeBorder = {weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39'};
 
   // Effort color helpers (for exercise rows)
   const _effColor = _EFF_PROXY;
@@ -5601,6 +5601,13 @@ function _renderLoadRecent(logs, wrapId, opts){
     }
     if(l.type==='condition'){
       return `<span style="color:#a78bfa;font-weight:700">Condition</span> · 😴 ${l.sleepHours??'—'}h/Q${l.sleepQuality??'—'} · ⚡ ${l.fatigue??'—'} · 😊 ${l.mood??'—'}`;
+    }
+    if(l.type==='mobility'){
+      const exs=l.exercises||[];
+      const done=exs.filter(e=>e.done).length;
+      const dvs=exs.map(e=>_EFFNUM(e.difficulty)).filter(v=>v!=null);
+      const avg=dvs.length?(dvs.reduce((s,v)=>s+v,0)/dvs.length):null;
+      return `<span style="color:#E07B39;font-weight:700">Conditioning</span> · <span style="color:var(--text);font-weight:600">${done}/${exs.length} ✓</span>${avg!=null?` · <span style="color:var(--muted)">Ø D${avg.toFixed(1)}</span>`:''}`;
     }
     return l.type;
   };
@@ -5662,6 +5669,7 @@ function _renderLoadRecent(logs, wrapId, opts){
   const _renderCard = l => {
     const hasDetail = ((l.type==='weight'||l.type==='plyo') && (l.exercises||[]).length>0)
                     || (l.type==='sprint' && (l.sets||[]).length>0)
+                    || (l.type==='mobility' && (l.exercises||[]).length>0)
                     || (l.type==='condition');
     const detailId = `lr-${l.id}`;
     const chevId   = `lrc-${l.id}`;
@@ -5672,6 +5680,15 @@ function _renderLoadRecent(logs, wrapId, opts){
       detailHtml = _exDetailRows(l.exercises||[]);
     } else if(l.type==='sprint' && (l.sets||[]).length){
       detailHtml = _sprintDetailRows(l.sets||[]);
+    } else if(l.type==='mobility' && (l.exercises||[]).length){
+      detailHtml = (l.exercises||[]).map(e=>{
+        const dv=_EFFNUM(e.difficulty);
+        const dCol=dv==null?'var(--muted)':_EFFCOL(dv);
+        const dChip=dv==null?'':`<span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:9px;color:${dCol};background:${dCol}22;border:1px solid ${dCol}55;white-space:nowrap">D${dv}</span>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <span style="font-size:12px;color:${e.done?'var(--text)':'var(--muted)'};flex:1;padding-right:8px;font-weight:500">${e.done?'✓':'○'} ${e.name||'—'}</span>${dChip}
+        </div>`;
+      }).join('');
     } else if(l.type==='condition'){
       detailHtml = _conditionDetail(l);
     }
@@ -5724,7 +5741,8 @@ function _renderLoadRecent(logs, wrapId, opts){
     const _sections = [
       {types:['condition'],            icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'},
       {types:['weight','plyo'],        icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
-      {types:['sprint','tabata'],      icon:'⚡', label:'Sprint',                  color:'#3ecf8e'}
+      {types:['sprint','tabata'],      icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
+      {types:['mobility'],             icon:'🌀', label:'Conditioning',            color:'#E07B39'}
     ];
     let shtml = '';
     _sections.forEach((sec,si)=>{
@@ -5762,8 +5780,17 @@ function _renderLoadRecent(logs, wrapId, opts){
       html += _moreBtn('lr-train-extra');
     }
   }
+  const { visible: mobVis, hidden: mobHid } = _splitByDays(sorted.filter(l => l.type === 'mobility'));
+  if(mobVis.length || mobHid.length){
+    html += _sectionHdr('🌀', 'Conditioning', '#E07B39', (trainVis.length||trainHid.length) ? 16 : 4);
+    html += mobVis.map(_renderCard).join('');
+    if(mobHid.length){
+      html += `<div id="lr-mob-extra" style="display:none">${mobHid.map(_renderCard).join('')}</div>`;
+      html += _moreBtn('lr-mob-extra');
+    }
+  }
   if(condVis.length || condHid.length){
-    html += _sectionHdr('🌡️', 'Condition', '#a78bfa', (trainVis.length||trainHid.length) ? 16 : 4);
+    html += _sectionHdr('🌡️', 'Condition', '#a78bfa', (trainVis.length||trainHid.length||mobVis.length||mobHid.length) ? 16 : 4);
     html += condVis.map(_renderCard).join('');
     if(condHid.length){
       html += `<div id="lr-cond-extra" style="display:none">${condHid.map(_renderCard).join('')}</div>`;
@@ -5950,9 +5977,9 @@ function _renderDetailLogs(logs, opts){
     <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
   </div>`).join('');
 
-  const _typeBorder={weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa'};
-  const _typeColor={weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c'};
-  const _typeIcon={weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥'};
+  const _typeBorder={weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39'};
+  const _typeColor={weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c',mobility:'b-c'};
+  const _typeIcon={weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀'};
 
   // Soreness chip colors by intensity (mild / moderate / severe)
   const _intensityCol = n => n>=7?{color:'#e94560',bg:'rgba(233,69,96,.15)',border:'rgba(233,69,96,.35)'}
@@ -5963,6 +5990,7 @@ function _renderDetailLogs(logs, opts){
     const hasSore = l.type==='condition' && (l.soreness||[]).length>0;
     const hasDetail=((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length>0)
                   ||(l.type==='sprint'&&(l.sets||[]).length>0)
+                  ||(l.type==='mobility'&&(l.exercises||[]).length>0)
                   || hasSore;
     const detailId=`ld-${l.id}`, chevId=`lc-${l.id}`;
     const borderColor=_typeBorder[l.type]||'rgba(255,255,255,.1)';
@@ -5985,6 +6013,14 @@ function _renderDetailLogs(logs, opts){
         <span style="font-size:12px;color:var(--muted)">⚡ Fatigue ${l.fatigue}/10</span>
         <span style="font-size:12px;color:var(--muted)">😊 Mood ${l.mood}/10</span>
       </div>`;
+    } else if(l.type==='mobility'){
+      const _me=l.exercises||[];
+      const _mdvs=_me.map(e=>_EFFNUM(e.difficulty)).filter(v=>v!=null);
+      const _mavg=_mdvs.length?(_mdvs.reduce((s,v)=>s+v,0)/_mdvs.length):null;
+      summaryHtml=`<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--muted)">Completed${_mavg!=null?` · Ø Schwierigkeit D${_mavg.toFixed(1)}`:''}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${_me.filter(e=>e.done).length}/${_me.length} ✓</span>
+      </div>`;
     }
 
     let detailHtml='';
@@ -5992,6 +6028,15 @@ function _renderDetailLogs(logs, opts){
       detailHtml=`<div style="margin-top:4px;padding-top:4px">${_exDetailRows(l.exercises||[])}</div>`;
     } else if(l.type==='sprint'&&(l.sets||[]).length){
       detailHtml=`<div style="margin-top:4px;padding-top:4px">${_sprintDetailRows(l.sets||[])}</div>`;
+    } else if(l.type==='mobility'&&(l.exercises||[]).length){
+      detailHtml=`<div style="margin-top:4px;padding-top:4px">${(l.exercises||[]).map(e=>{
+        const dv=_EFFNUM(e.difficulty);
+        const dCol=dv==null?'var(--muted)':_EFFCOL(dv);
+        const dChip=dv==null?'':`<span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:9px;color:${dCol};background:${dCol}22;border:1px solid ${dCol}55;white-space:nowrap">D${dv}</span>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <span style="font-size:12px;color:${e.done?'var(--text)':'var(--muted)'};flex:1;padding-right:8px;font-weight:500">${e.done?'✓':'○'} ${e.name}</span>${dChip}
+        </div>`;
+      }).join('')}</div>`;
     } else if(hasSore){
       const chips=l.soreness.map(s=>{const c=_intensityCol(s.intensity);return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;}).join('');
       detailHtml=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -6006,7 +6051,7 @@ function _renderDetailLogs(logs, opts){
           <span style="font-size:18px">${_typeIcon[l.type]||'📝'}</span>
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--text)">${l.date}</div>
-            <span class="badge ${_typeColor[l.type]||'b-c'}" style="margin-top:2px">${l.type}${l.rpe?` · RPE ${l.rpe}/10`:''}</span>
+            <span class="badge ${_typeColor[l.type]||'b-c'}" style="margin-top:2px">${l.type==='mobility'?'conditioning':l.type}${l.rpe?` · RPE ${l.rpe}/10`:''}</span>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
@@ -6023,7 +6068,8 @@ function _renderDetailLogs(logs, opts){
   const _sections=[
     {types:['condition'],       icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'},
     {types:['weight','plyo'],   icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
-    {types:['sprint','tabata'], icon:'⚡', label:'Sprint',                  color:'#3ecf8e'}
+    {types:['sprint','tabata'], icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
+    {types:['mobility'],        icon:'🌀', label:'Conditioning',            color:'#E07B39'}
   ];
   let html='';
   _sections.forEach((sec,si)=>{
