@@ -1740,10 +1740,12 @@ function renderLoad(){
       let cell=`<td style="text-align:center;vertical-align:top;${isToday?'background:rgba(88,166,255,.04)':''}">`;
       trains.forEach(l=>{
         const c=tc(l.type);
-        const val=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0)}m`:l.type==='tabata'?'Tabata':'—';
+        const _mob=l.type==='mobility';
+        const _mobDone=_mob?`${(l.exercises||[]).filter(e=>e.done).length}/${(l.exercises||[]).length}✓`:'';
+        const val=l.type==='weight'?`${_fmtKg(vol([l]))}`:l.type==='sprint'?`${(l.totalDistance||0)}m`:l.type==='tabata'?'Tabata':_mob?_mobDone:'—';
         if(l.type==='weight'||l.type==='plyo')weekVol+=vol([l]);
         if(l.type==='sprint')weekDist+=(l.totalDistance||0);
-        cell+=`<div style="white-space:nowrap"><span class="type-pill" style="background:${tcBg(l.type)};color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':'T'}</span> <b style="font-size:12px">${val}</b>${l.rpe?`<span style="font-size:10px;color:#8b949e"> ·${l.rpe}</span>`:''}</div>`;
+        cell+=`<div style="white-space:nowrap"><span class="type-pill" style="background:${tcBg(l.type)};color:${c}">${l.type==='weight'?'W':l.type==='sprint'?'S':l.type==='plyo'?'P':_mob?'C':'T'}</span> <b style="font-size:12px">${val}</b>${l.rpe?`<span style="font-size:10px;color:#8b949e"> ·${l.rpe}</span>`:''}</div>`;
       });
       return cell+'</td>';
     });
@@ -1968,6 +1970,27 @@ function renderLoad(){
           <span class="type-pill" style="background:${bg};color:${c}">Plyo</span>
           <div style="font-size:10px;color:#8b949e;margin-top:4px">${l.totalReps||0} reps${l.rpe?` · RPE ${l.rpe}`:''}</div>
         </div>`;
+      } else if(l.type==='mobility'){
+        const exs=l.exercises||[];
+        const dvs=exs.map(e=>_dEffNum(e.difficulty)).filter(v=>v!=null);
+        const avg=dvs.length?(dvs.reduce((s,v)=>s+v,0)/dvs.length):null;
+        html+=`<div style="margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+            <span class="type-pill" style="background:${bg};color:${c}">Conditioning</span>
+            <span style="font-size:11px;font-weight:700">${exs.filter(e=>e.done).length}/${exs.length} ✓</span>
+            ${avg!=null?`<span style="font-size:10px;color:#8b949e;margin-left:auto">Ø D${avg.toFixed(1)}</span>`:''}
+          </div>`;
+        exs.slice(0,6).forEach(ex=>{
+          const dv=_dEffNum(ex.difficulty);
+          const dc=_dEffCol(dv);
+          const dot=dc?`<span title="Schwierigkeit: ${dv}/10" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dc};flex-shrink:0"></span>`:'';
+          html+=`<div style="font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;justify-content:space-between;align-items:center;gap:4px">
+            ${dot}<span style="color:#c9d1d9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${ex.done?'':'○ '}${_esc(ex.name||'?')}</span>
+            <span style="color:#8b949e;white-space:nowrap;flex-shrink:0">${dv!=null?'D'+dv:''}</span>
+          </div>`;
+        });
+        if(exs.length>6)html+=`<div style="font-size:9px;color:#484f58;margin-top:2px">+${exs.length-6} more</div>`;
+        html+=`</div>`;
       }
     });
 
