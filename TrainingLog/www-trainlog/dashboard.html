@@ -1796,7 +1796,7 @@ function renderLoad(){
   const _regAths=_bdAths.filter(a=>Object.keys(bd.region[a.name]||{}).length);
   const _sprAths=_bdAths.filter(a=>Object.keys(bd.sprint[a.name]||{}).length);
   if(_regAths.length||_sprAths.length){
-    html+=`<div class="g2" style="margin-bottom:20px">`;
+    html+=`<div class="g2" style="margin-bottom:20px;align-items:start">`;
     // 세부 카테고리 칩 — 클릭 시 그 카테고리만, 재클릭 시 전체 스택으로
     const _regPresent=REGION_ORDER.filter(r=>_regAths.some(a=>bd.region[a.name][r]));
     const _chip=(on,label,color,handler)=>`<button onclick="event.stopPropagation();${handler}"
