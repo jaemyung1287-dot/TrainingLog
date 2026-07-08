@@ -1936,7 +1936,7 @@ function renderLoad(){
         const bwExs=exs.filter(e=>e.isBodyweight);
         html+=`<div style="margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
-            <span class="type-pill" style="background:${bg};color:${c}">Weight</span>
+            <span style="font-size:10px;font-weight:600;color:${c};opacity:.85">Weight</span>
             <span style="font-size:11px;font-weight:700">${_fmtKg(vol([l]))}</span>
             ${l.rpe?`<span style="font-size:10px;color:#8b949e;margin-left:auto">RPE ${l.rpe}</span>`:''}
           </div>`;
@@ -1970,7 +1970,7 @@ function renderLoad(){
         const sets=l.sets||[];
         html+=`<div style="margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
-            <span class="type-pill" style="background:${bg};color:${c}">Sprint</span>
+            <span style="font-size:10px;font-weight:600;color:${c};opacity:.85">Sprint</span>
             <span style="font-size:11px;font-weight:700">${l.totalDistance||0} m</span>
             ${l.rpe?`<span style="font-size:10px;color:#8b949e;margin-left:auto">RPE ${l.rpe}</span>`:''}
           </div>`;
@@ -1992,12 +1992,12 @@ function renderLoad(){
 
       } else if(l.type==='tabata'){
         html+=`<div style="margin-bottom:8px">
-          <span class="type-pill" style="background:${bg};color:${c}">Tabata</span>
+          <span style="font-size:10px;font-weight:600;color:${c};opacity:.85">Tabata</span>
           <div style="font-size:10px;color:#8b949e;margin-top:4px">8 rounds · 20s/10s${l.rpe?` · RPE ${l.rpe}`:''}</div>
         </div>`;
       } else if(l.type==='plyo'){
         html+=`<div style="margin-bottom:8px">
-          <span class="type-pill" style="background:${bg};color:${c}">Plyo</span>
+          <span style="font-size:10px;font-weight:600;color:${c};opacity:.85">Plyo</span>
           <div style="font-size:10px;color:#8b949e;margin-top:4px">${l.totalReps||0} reps${l.rpe?` · RPE ${l.rpe}`:''}</div>
         </div>`;
       } else if(l.type==='mobility'){
@@ -2006,7 +2006,7 @@ function renderLoad(){
         const avg=dvs.length?(dvs.reduce((s,v)=>s+v,0)/dvs.length):null;
         html+=`<div style="margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
-            <span class="type-pill" style="background:${bg};color:${c}">Conditioning</span>
+            <span style="font-size:10px;font-weight:600;color:${c};opacity:.85">Conditioning</span>
             <span style="font-size:11px;font-weight:700">${exs.filter(e=>e.done).length}/${exs.length} ✓</span>
             ${avg!=null?`<span style="font-size:10px;color:#8b949e;margin-left:auto">Ø D${avg.toFixed(1)}</span>`:''}
           </div>`;
