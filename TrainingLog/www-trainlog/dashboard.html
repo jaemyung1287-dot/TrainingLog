@@ -1855,7 +1855,7 @@ function renderLoad(){
     // 단일 선수: 막대에 마우스 올리면 그 카테고리 구성 운동을 툴팁에 표시
     const _detailTip=(a,keys,detailMap,unit)=>({responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},tooltip:{enabled:false,external:_ltExtTip,callbacks:{
       title:items=>keys[items[0].dataIndex]+' · '+(unit==='kg'?_fmtKg(items[0].parsed.y):Math.round(items[0].parsed.y)+'m'),
-      label:ctx=>{const k=keys[ctx.dataIndex];const dd=(detailMap[a.name]||{})[k]||{};const arr=Object.entries(dd).sort((x,y)=>y[1]-x[1]).map(([n,v])=>`${n}: ${unit==='kg'?_fmtKg(v):Math.round(v)+'m'}`);return arr.length?arr:['기록 없음'];}
+      label:ctx=>_detLines(a.name,keys[ctx.dataIndex],detailMap,unit)
     }}},scales:{x:{grid:{display:false},ticks:{color:'rgba(230,237,243,.7)',font:{size:11}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}},beginAtZero:true}}});
     const cReg=document.getElementById('ch-ld-reg');
     if(cReg&&_regAths.length){
