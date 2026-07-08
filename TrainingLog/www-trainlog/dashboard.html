@@ -1907,7 +1907,7 @@ function renderLoad(){
     const chev=trains.length?`<span id="ldchev${i}" style="display:inline-block;font-size:8px;color:#8b949e;transition:transform .15s;${_open?'transform:rotate(90deg)':''}">▶</span>`:'';
 
     html+=`<div ${trains.length?`onclick="ldDayToggle(${i})" title="클릭: 상세 펼치기/접기"`:''} style="background:var(--card);border:1px solid ${isToday?'rgba(88,166,255,.4)':'var(--border)'};border-radius:8px;padding:10px;${isToday?'background:rgba(88,166,255,.04);':''}${trains.length?'cursor:pointer':''}">
-      <div style="font-size:10px;font-weight:700;color:#8b949e;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:4px">
+      <div style="font-size:10px;font-weight:700;color:#8b949e;display:flex;justify-content:space-between;align-items:center;gap:4px">
         <span style="display:flex;align-items:center;gap:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${chev}${DNF[i]}</span>
         <span style="flex-shrink:0;color:${isToday?'var(--blue)':'#484f58'}">${d.getDate()}.${d.getMonth()+1}.${isToday?'<span style="margin-left:3px;font-size:8px;padding:1px 3px;border-radius:2px;background:rgba(88,166,255,.2);color:var(--blue)">TODAY</span>':''}</span>
       </div>`;
@@ -1916,6 +1916,7 @@ function renderLoad(){
       html+=`<div style="font-size:10px;color:#484f58;padding:4px 0">Rest</div>`;
     }
 
+    html+=`<div class="ldd${i}" style="display:${_dd};margin-top:6px">`;
     trains.forEach(l=>{
       const c=tc(l.type);
       const bg=tcBg(l.type);
@@ -1949,13 +1950,12 @@ function renderLoad(){
             <span style="color:#8b949e;white-space:nowrap;flex-shrink:0;display:flex;align-items:center">${maxKg>0?maxKg+'kg':''} ${sets}×${reps}${vbt}</span>
           </div>`;
         });
-        html+=`<div class="ldd${i}" style="display:${_dd}">`;
         html+=_moreWrap(_wrows,6,'exercises');
         // BW exercises (compact)
         if(bwExs.length){
           html+=`<div style="font-size:9px;color:#484f58;margin-top:3px">${bwExs.map(e=>e.name).filter(Boolean).slice(0,3).join(', ')}${bwExs.length>3?` +${bwExs.length-3}`:''} (BW)</div>`;
         }
-        html+=`</div></div>`;
+        html+=`</div>`;
 
       } else if(l.type==='sprint'){
         const sets=l.sets||[];
@@ -1978,7 +1978,7 @@ function renderLoad(){
             <span style="color:#8b949e">${intensity}${rest}</span>
           </div>`;
         });
-        html+=`<div class="ldd${i}" style="display:${_dd}">`+_moreWrap(_srows,5,'sets')+`</div>`;
+        html+=_moreWrap(_srows,5,'sets');
         html+=`</div>`;
 
       } else if(l.type==='tabata'){
@@ -2010,10 +2010,11 @@ function renderLoad(){
             <span style="color:#8b949e;white-space:nowrap;flex-shrink:0">${dv!=null?'D'+dv:''}</span>
           </div>`;
         });
-        html+=`<div class="ldd${i}" style="display:${_dd}">`+_moreWrap(_mrows,6)+`</div>`;
+        html+=_moreWrap(_mrows,6);
         html+=`</div>`;
       }
     });
+    html+=`</div>`;
 
     html+=`</div>`;
   });
