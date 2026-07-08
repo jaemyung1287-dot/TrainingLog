@@ -1702,6 +1702,15 @@ function _ltBuild(logs,ath){
   return {exMap,volByDate,distByDate,volDetail,distDetail,distRpe,volBreak,distBreak};
 }
 
+// Load 탭 7일 카드 접기/펼치기 상태 (기본 접힘)
+let _ldOpenDays=new Set();
+function ldDayToggle(i){
+  const open=!_ldOpenDays.has(i);
+  if(open)_ldOpenDays.add(i);else _ldOpenDays.delete(i);
+  document.querySelectorAll('.ldd'+i).forEach(e=>e.style.display=open?'block':'none');
+  const ch=document.getElementById('ldchev'+i);
+  if(ch)ch.style.transform=open?'rotate(90deg)':'';
+}
 function renderLoad(){
   const wrap=document.getElementById('tab-load');
   const wk=getWeekDates(weekOffset);
@@ -1889,14 +1898,18 @@ function renderLoad(){
       +`<div onclick="event.stopPropagation();var e=document.getElementById('${mid}');var o=e.style.display==='none';e.style.display=o?'block':'none';this.textContent=o?'− weniger':'+${n} ${moreLbl||'more'}';" style="font-size:9px;color:#8b949e;margin-top:3px;cursor:pointer;user-select:none;font-weight:700">+${n} ${moreLbl||'more'}</div>`;
   };
 
+  const DNF=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
   wk.forEach(({ds,d},i)=>{
     const isToday=ds===today;
     const trains=selLogs.filter(l=>l.date===ds&&l.type!=='condition');
+    const _open=_ldOpenDays.has(i);
+    const _dd=_open?'block':'none';
+    const chev=trains.length?`<span id="ldchev${i}" style="display:inline-block;font-size:8px;color:#8b949e;transition:transform .15s;${_open?'transform:rotate(90deg)':''}">▶</span>`:'';
 
-    html+=`<div style="background:var(--card);border:1px solid ${isToday?'rgba(88,166,255,.4)':'var(--border)'};border-radius:8px;padding:10px;${isToday?'background:rgba(88,166,255,.04)':''}">
-      <div style="font-size:10px;font-weight:700;color:#8b949e;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-        <span>${DN[i]}</span>
-        <span style="color:${isToday?'var(--blue)':'#484f58'}">${d.getDate()}.${d.getMonth()+1}.${isToday?'<span style="margin-left:3px;font-size:8px;padding:1px 3px;border-radius:2px;background:rgba(88,166,255,.2);color:var(--blue)">TODAY</span>':''}</span>
+    html+=`<div ${trains.length?`onclick="ldDayToggle(${i})" title="클릭: 상세 펼치기/접기"`:''} style="background:var(--card);border:1px solid ${isToday?'rgba(88,166,255,.4)':'var(--border)'};border-radius:8px;padding:10px;${isToday?'background:rgba(88,166,255,.04);':''}${trains.length?'cursor:pointer':''}">
+      <div style="font-size:10px;font-weight:700;color:#8b949e;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <span style="display:flex;align-items:center;gap:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${chev}${DNF[i]}</span>
+        <span style="flex-shrink:0;color:${isToday?'var(--blue)':'#484f58'}">${d.getDate()}.${d.getMonth()+1}.${isToday?'<span style="margin-left:3px;font-size:8px;padding:1px 3px;border-radius:2px;background:rgba(88,166,255,.2);color:var(--blue)">TODAY</span>':''}</span>
       </div>`;
 
     if(!trains.length){
@@ -1936,12 +1949,13 @@ function renderLoad(){
             <span style="color:#8b949e;white-space:nowrap;flex-shrink:0;display:flex;align-items:center">${maxKg>0?maxKg+'kg':''} ${sets}×${reps}${vbt}</span>
           </div>`;
         });
+        html+=`<div class="ldd${i}" style="display:${_dd}">`;
         html+=_moreWrap(_wrows,6,'exercises');
         // BW exercises (compact)
         if(bwExs.length){
           html+=`<div style="font-size:9px;color:#484f58;margin-top:3px">${bwExs.map(e=>e.name).filter(Boolean).slice(0,3).join(', ')}${bwExs.length>3?` +${bwExs.length-3}`:''} (BW)</div>`;
         }
-        html+=`</div>`;
+        html+=`</div></div>`;
 
       } else if(l.type==='sprint'){
         const sets=l.sets||[];
@@ -1964,7 +1978,7 @@ function renderLoad(){
             <span style="color:#8b949e">${intensity}${rest}</span>
           </div>`;
         });
-        html+=_moreWrap(_srows,5,'sets');
+        html+=`<div class="ldd${i}" style="display:${_dd}">`+_moreWrap(_srows,5,'sets')+`</div>`;
         html+=`</div>`;
 
       } else if(l.type==='tabata'){
@@ -1996,7 +2010,7 @@ function renderLoad(){
             <span style="color:#8b949e;white-space:nowrap;flex-shrink:0">${dv!=null?'D'+dv:''}</span>
           </div>`;
         });
-        html+=_moreWrap(_mrows,6);
+        html+=`<div class="ldd${i}" style="display:${_dd}">`+_moreWrap(_mrows,6)+`</div>`;
         html+=`</div>`;
       }
     });
