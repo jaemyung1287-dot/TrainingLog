@@ -483,7 +483,7 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .lt-pin-rpe{font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;line-height:1.5}
 .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
 .lt-pin-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 2px}
-.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--hint);text-align:right;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
+.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--text);text-align:right;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
 .lt-pin-tbl th.l,.lt-pin-tbl td.l{text-align:left;padding-left:2px}
 .lt-pin-tbl td{text-align:right;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
 .lt-pin-tbl td.act{color:var(--text);font-weight:700;font-size:13px}
@@ -1577,7 +1577,7 @@ function _ltCondBlockHtml(name,d){
   const sore=((c&&c.soreness)||[]).filter(x=>x&&(+x.intensity||0)>0).map(x=>({part:x.part||'',i:+x.intensity||0}));
   const soreHtml=sore.length?`<div class="lt-pin-sore">${sore.map(s=>{const col=_soreCol(s.i);return `<span class="lt-sore-chip" style="border-color:${col}66;color:${col}">${_esc(s.part)} ${s.i}</span>`;}).join('')}</div>`:'';
   const note=(c&&(c.note||c.notes)||'').trim();
-  return `<div class="lt-pin-ex"><div class="lt-pin-exh"><div class="lt-pin-exl"><span class="lt-pin-dot" style="background:#bc8cff"></span><b>Condition</b> <span class="lt-pin-meta">${_esc(items.join(' · '))}</span></div>${rchip}</div>${soreHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`;
+  return `<div class="lt-pin-ex"><div class="lt-pin-exh"><div class="lt-pin-exl"><span class="lt-pin-dot" style="background:#bc8cff"></span><b>Condition</b> <span class="lt-pin-meta" style="color:var(--text)">${_esc(items.join(' · '))}</span></div>${rchip}</div>${soreHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`;
 }
 // 고정된 세션(또는 종목)들을 차트 아래 카드로 나란히 표시. p.ex 있으면 그 종목만.
 function _ltPinCards(selLogs){
@@ -2438,7 +2438,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     .lt-pin-rpe{font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;line-height:1.5}
     .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
 .lt-pin-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 2px}
-.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--hint);text-align:right;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
+.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--text);text-align:right;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
 .lt-pin-tbl th.l,.lt-pin-tbl td.l{text-align:left;padding-left:2px}
 .lt-pin-tbl td{text-align:right;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
 .lt-pin-tbl td.act{color:var(--text);font-weight:700;font-size:13px}
