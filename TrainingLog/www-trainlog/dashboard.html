@@ -2707,7 +2707,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
               const wd=['Mo','Di','Mi','Do','Fr','Sa','So'][(new Date(d+'T00:00:00').getDay()+6)%7];
               let body='';
               cats.forEach(g=>{body+=`<div style="margin-top:6px"><div style="font-size:11px;font-weight:700;color:${_LT_PAL[allCats.indexOf(g)%_LT_PAL.length]}">${_esc(g)} · ${fvb(dayObj[g])}</div>`;exMetaFn(exBy[d]&&exBy[d][g]).forEach(li=>body+=`<div style="font-size:11px;color:#c9d1d9;padding-left:8px;white-space:pre-wrap">${_esc(li)}</div>`);body+=`</div>`;});
-              return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0;flex:1 1 460px;max-width:640px;min-width:400px">
+              return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0;flex:0 0 auto;width:fit-content;max-width:640px;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px">
                   <span style="font-size:12px;font-weight:700"><span style="color:${col}">${_esc(_wkLbl(wkList[wi>=0?wi:0].d1).split(' ')[0])}</span> · ${wd} ${d.slice(5).replace('-','.')} · <span style="color:${col}">${fvb(tot)}</span></span>
                   <span onclick="ltBrkPinTg('${k}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;padding:0 2px">×</span>
@@ -2776,7 +2776,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
               const dt=new Date(o.d1+'T00:00:00');dt.setDate(dt.getDate()+idx);
               const ds=dt.toISOString().slice(5,10).replace('-','.');
               const meta=o.mm[idx];const lines=Array.isArray(meta)?meta:(meta?[meta]:[]);
-              return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0;flex:1 1 460px;max-width:640px;min-width:400px">
+              return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0;flex:0 0 auto;width:fit-content;max-width:640px;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px">
                   <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:${col}">${_esc(_wkLbl(o.d1).split(' ')[0])}</span> · ${WD[idx]} ${ds} · <span style="color:${col}">${fv(o.m[idx])}</span></span>
                   <span onclick="ltWkPinTg('${k}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;padding:0 2px">×</span>
