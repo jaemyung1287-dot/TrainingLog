@@ -483,9 +483,9 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .lt-pin-rpe{font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;line-height:1.5}
 .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
 .lt-pin-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 2px}
-.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--text);text-align:right;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
-.lt-pin-tbl th.l,.lt-pin-tbl td.l{text-align:left;padding-left:2px}
-.lt-pin-tbl td{text-align:right;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--text);text-align:center;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
+.lt-pin-tbl th.l,.lt-pin-tbl td.l{text-align:center;padding-left:2px}
+.lt-pin-tbl td{text-align:center;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
 .lt-pin-tbl td.act{color:var(--text);font-weight:700;font-size:13px}
 .lt-pmax{padding:1px 5px;border-radius:4px;font-weight:600}
 .lt-pin-sore{display:flex;flex-wrap:wrap;gap:5px;padding-left:13px;margin-top:4px}
@@ -1184,7 +1184,7 @@ function _sprintProgression(logs){
 }
 
 // ══ 추이/비교 모듈 (Load 탭) ══
-function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;const wasOn=ltSel.has(n);if(wasOn){ltSel.delete(n);}else{ltSel.add(n);}
+function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;const wasOn=ltSel.has(n);if(wasOn){ltSel.delete(n);}else{ltSel.add(n);ltProg=null;}
   // 상위 지표를 닫으면 관련 하위 상태 초기화(분해 보기·막대 모양·범례 숨김) — 기본 Group으로
   if(wasOn){if(n==='__vol__')ltVolBreak='none';if(n==='__dist__')ltDistBreak='none';ltBrkBars='group';_ltBrkHidden.clear();}
   _rerenderTrends();}
@@ -1476,7 +1476,7 @@ function _ltPinKey(p){return p.d+'|'+(p.ex||'')+'|'+(p.cat||'')+'|'+(p.grp||'')+
 // ── Strength Progression: e1RM(Epley) 시리즈 ──
 const _PROG_LIFTS=[{n:'Squat',l:'Squat'},{n:'Deadlift',l:'Deadlift'},{n:'Romanian Deadlift',l:'RDL'},{n:'Bench Press',l:'Bench'},{n:'Power Clean',l:'Power Clean',top:true},{n:'Real Leg Elevated Squat w/DB',l:'Real Leg Squat'}];
 function _epley(kg,reps){const r=Math.min(parseFloat(reps)||0,12);return kg*(1+r/30);}
-function ltProgTg(v){ltProg=ltProg===v?null:v;_rerenderTrends();}
+function ltProgTg(v){ltProg=ltProg===v?null:v;if(ltProg){ltSel.clear();ltOpenCat=null;ltVolBreak='none';ltDistBreak='none';_ltBrkHidden.clear();}_rerenderTrends();}
 function ltProgLiftTg(n){ltProgLift=n;_rerenderTrends();}
 function _e1rmSeries(nm,ex,topOnly){
   const out=[];let best=0;
@@ -1586,7 +1586,7 @@ function _ltPinWRow(e,d,ath){
   const head=`${sets}×${reps}${isBW?' (BW)':' · '+_fmtKg(vol)}${e1s>0?' · e1RM '+Math.round(e1s)+'kg':''}`;
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(e.name)}',0)" title="Click: compare this exercise only"`:'';
   const rpeHtml=eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:'';
-  const noteRow=note?`<tr><td colspan="6" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`:'';
+  const noteRow=note?`<tr><td colspan="6" class="l" style="color:#8b949e;font-style:italic;white-space:normal;text-align:left">📝 ${_esc(note)}</td></tr>`:'';
   const html=`<div${clk} style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 6px;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:2px;font-size:12px;color:var(--text)${d?';cursor:pointer':''}">`
     +`<span><span class="lt-pin-dot" style="background:#f7a94f;margin-right:6px"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta" style="color:var(--text)">${_esc(head)}</span></span>${rpeHtml}</div>`
     +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Intensity</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비 실제 강도">%e1RM</th></tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
@@ -1617,7 +1617,7 @@ function _ltPinSRow(s,d){
     }
     rows.push(`<tr${clk}><td class="l">${i+1}. ${dist}m</td>${intTd}<td>${target?target.toFixed(2):'–'}</td><td class="act">${tv.toFixed(2)}</td><td>${pmHtml}</td>${effTd}</tr>`);
   });
-  if(note)rows.push(`<tr><td colspan="6" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`);
+  if(note)rows.push(`<tr><td colspan="6" class="l" style="color:#8b949e;font-style:italic;white-space:normal;text-align:left">📝 ${_esc(note)}</td></tr>`);
   return {dist:m,rows};
 }
 // 스프린트 테이블 행들 → 테이블 HTML
@@ -2514,9 +2514,9 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     .lt-pin-rpe{font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;line-height:1.5}
     .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
 .lt-pin-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 2px}
-.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--text);text-align:right;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
-.lt-pin-tbl th.l,.lt-pin-tbl td.l{text-align:left;padding-left:2px}
-.lt-pin-tbl td{text-align:right;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--text);text-align:center;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
+.lt-pin-tbl th.l,.lt-pin-tbl td.l{text-align:center;padding-left:2px}
+.lt-pin-tbl td{text-align:center;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
 .lt-pin-tbl td.act{color:var(--text);font-weight:700;font-size:13px}
 .lt-pmax{padding:1px 5px;border-radius:4px;font-weight:600}
 .lt-pin-sore{display:flex;flex-wrap:wrap;gap:5px;padding-left:13px;margin-top:4px}
