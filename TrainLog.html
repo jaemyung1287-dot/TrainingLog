@@ -50,6 +50,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .nmsel-row:active .nmsel-nm,.nmsel-row.sel .nmsel-nm{color:var(--accent)}
 .nmsel-nm{font-size:16px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .15s}
 .nmsel-chv{font-size:15px;color:rgba(255,255,255,.22);flex-shrink:0}
+/* Captain: gold shimmer name + crown */
+@keyframes nmshimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.nmsel-cptwrap{display:flex;align-items:center;gap:7px;min-width:0}
+.nmsel-nm.nmsel-cpt{color:var(--accent);background:linear-gradient(100deg,#c9a84c 20%,#f5e6b8 40%,#c9a84c 60%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:nmshimmer 3s linear infinite}
+.nmsel-crown{font-size:14px;flex-shrink:0;line-height:1;display:inline-block;transform-origin:50% 90%;filter:drop-shadow(0 0 3px rgba(201,168,76,.9)) drop-shadow(0 0 8px rgba(201,168,76,.35));animation:crownbob 2.6s ease-in-out infinite}
+@keyframes crownbob{0%,100%{transform:translateY(0) rotate(-7deg)}50%{transform:translateY(-2.5px) rotate(7deg)}}
 .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .menu-card{background:var(--card);border:2px solid var(--border);border-radius:18px;padding:24px 12px;text-align:center;cursor:pointer;transition:all .2s}
 .menu-card:active{border-color:var(--accent);background:rgba(201,168,76,.1)}
@@ -2986,7 +2992,10 @@ function renderAthleteChips(){
   list.forEach(a=>{
     const el=document.createElement('div');
     el.className=`nmsel-row${ST.athlete&&ST.athlete.name===a.name?' sel':''}`;
-    el.innerHTML=`<span class="nmsel-nm">${a.name}</span><span class="nmsel-chv">›</span>`;
+    const _isCpt = a.name==='Marie Angerer';
+    el.innerHTML = _isCpt
+      ? `<span class="nmsel-cptwrap"><span class="nmsel-nm nmsel-cpt">${a.name}</span><span class="nmsel-crown">👑</span></span><span class="nmsel-chv" style="color:var(--accent)">›</span>`
+      : `<span class="nmsel-nm">${a.name}</span><span class="nmsel-chv">›</span>`;
     el.onclick=()=>{ ST.athlete=a; wrap.querySelectorAll('.nmsel-row').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); goAthleteMenu(); };
     row.appendChild(el);
   });
