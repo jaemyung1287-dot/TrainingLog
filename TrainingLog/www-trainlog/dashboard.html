@@ -2490,7 +2490,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     .lt-wrap{margin-top:24px}
     .lt-h{font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;display:flex;align-items:center;gap:7px}
     .lt-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:11px}
-    .lt-lbl{font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--hint);text-transform:uppercase;width:auto;min-width:58px;padding-right:10px;white-space:nowrap;flex-shrink:0}
+    .lt-lbl{font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--text);text-transform:uppercase;width:auto;min-width:58px;padding-right:10px;white-space:nowrap;flex-shrink:0}
     .lt-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
     .lt-seg button{font-size:12px;padding:6px 13px;background:transparent;border:none;border-right:1px solid var(--border);color:var(--muted);cursor:pointer;font-family:inherit}
     .lt-seg button:last-child{border-right:none}
@@ -2558,27 +2558,27 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   if(ltMode==='ex'){
     const selKeys=_ltCat.filter(k=>ltSel.has(k));
     const _vi=_ltCat.indexOf('__vol__'), _di=_ltCat.indexOf('__dist__'), _ri=_ltCat.indexOf('__rdy__'), _ci=_ltCat.indexOf('__cond__');
-    // Progression 행: Strength(활성) / Sprint·Push Start(예정)
-    let pickRow=`<div class="lt-row"><span class="lt-lbl" style="width:auto;padding-right:8px">Progression</span>`
+    // Progression 행(Metrics와 Exercises 사이에 배치): Strength(활성) / Sprint·Push Start(예정)
+    let progRow=`<div class="lt-row"><span class="lt-lbl" style="width:auto;padding-right:8px">Progression</span>`
       +`<button class="lt-chip ${ltProg==='strength'?'on':''}" style="${ltProg==='strength'?'border-color:rgba(247,169,79,.5);background:rgba(247,169,79,.10);color:#f7a94f;font-weight:700':''}" onclick="ltProgTg('strength')">Strength</button>`
       +`<button class="lt-chip" style="opacity:.4;cursor:default" title="곧 추가">Sprint</button>`
       +`<button class="lt-chip" style="opacity:.4;cursor:default" title="곧 추가">Push Start</button>`
       +`</div>`;
-    // Strength Progression: 메인 리프트 칩
     if(ltProg==='strength'){
       const _plCur=_PROG_LIFTS.find(x=>x.n===ltProgLift)||_PROG_LIFTS[0];
-      pickRow+=`<div class="lt-row" style="margin-left:0"><span class="lt-lbl">Strength</span>`
+      progRow+=`<div class="lt-row" style="margin-left:0"><span class="lt-lbl">Strength</span>`
         +_PROG_LIFTS.map(x=>`<button class="lt-chip" style="${x.n===_plCur.n?'border-color:rgba(247,169,79,.55);background:rgba(247,169,79,.10);color:#f7a94f;font-weight:700':''}" onclick="ltProgLiftTg('${_ltJs(x.n)}')">${_esc(x.l)}</button>`).join('')
         +`</div>`;
     }
     // 종목 행: Readiness / Total Volume / Total Sprint Distance / Conditioning 고정 버튼 + 카테고리 버튼들
-    pickRow+=`<div class="lt-row"><span class="lt-lbl" style="width:auto;padding-right:8px">Metrics</span>`
+    let pickRow=`<div class="lt-row"><span class="lt-lbl" style="width:auto;padding-right:8px">Metrics</span>`
       +`<button class="lt-chip ${ltSel.has('__rdy__')?'on':''}" style="${ltSel.has('__rdy__')?'border-color:rgba(188,140,255,.4);background:rgba(188,140,255,.07);color:#bc8cff':''}" onclick="ltToggleEx(${_ri})">Readiness</button>`
       +`<span style="width:1px;height:16px;background:var(--border);margin:0 3px"></span>`
       +`<button class="lt-chip ${ltSel.has('__vol__')?'on':''}" style="${ltSel.has('__vol__')?'border-color:rgba(247,169,79,.4);background:rgba(247,169,79,.07);color:#f7a94f':''}" onclick="ltToggleEx(${_vi})">Total Volume</button>`
       +`<button class="lt-chip ${ltSel.has('__dist__')?'on':''}" style="${ltSel.has('__dist__')?'border-color:rgba(62,207,142,.4);background:rgba(62,207,142,.07);color:#3ecf8e':''}" onclick="ltToggleEx(${_di})">Total Sprint Distance</button>`
       +`<button class="lt-chip ${ltSel.has('__cond__')?'on':''}" style="${ltSel.has('__cond__')?'border-color:rgba(224,123,57,.4);background:rgba(224,123,57,.07);color:#E07B39':''}" onclick="ltToggleEx(${_ci})">Conditioning</button>`
       +`</div>`;
+    pickRow+=progRow;
     pickRow+=`<div class="lt-row"><span class="lt-lbl">Exercises</span>`;
     _ltCatNames.forEach((c,ci)=>{const open=ltOpenCat===c;const sel=Object.keys(_lt.exMap).some(n=>(_lt.exMap[n].cat||'Other')===c&&ltSel.has(n));const cc=(c==='Sprint Training')?'#3ecf8e':'#f7a94f';pickRow+=`<button class="lt-chip" style="${open?`border-color:${cc}66;background:${cc}12;color:${cc};font-weight:700`:(sel?`border-color:${cc}66;color:${cc}`:'')}" onclick="ltToggleCat(${ci})">${_esc(c)} <span style="opacity:.6">${open?'▾':'▸'}</span></button>`;});
     pickRow+=(selKeys.length?`<button class="lt-clear" onclick="ltSel.clear();ltOpenCat=null;_rerenderTrends()">Clear all</button>`:'')+`</div>`;
