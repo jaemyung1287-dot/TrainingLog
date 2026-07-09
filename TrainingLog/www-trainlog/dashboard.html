@@ -1535,30 +1535,30 @@ function _ltPinSRow(s,d){
   const m=dist*st*reps;
   const pb=parseFloat(s.pb)||null, pct=parseFloat(s.intensity)||null;
   const target=(pb&&pct&&pct>0)?pb/(pct/100):null;
-  const lbl=`${dist}m${pct?' @'+pct+'%':''}`;
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(_ltSprintKey(dist,_ltDisc(s)))}',1)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
   const effTd=`<td>${eff!=null?eff:'–'}</td>`;
+  const intTd=`<td>${pct?pct+'%':'–'}</td>`;
   const times=(s.repTimes||[]).map(t=>parseFloat(t)).filter(t=>!isNaN(t));
   if(!times.length&&parseFloat(s.actualTime))times.push(parseFloat(s.actualTime));
   const rows=[];
   if(!times.length){
-    rows.push(`<tr${clk}><td class="l">${_esc(lbl)}</td><td>${target?target.toFixed(2):'–'}</td><td class="act">–</td><td>–</td>${effTd}</tr>`);
+    rows.push(`<tr${clk}><td class="l">1. ${dist}m</td>${intTd}<td>${target?target.toFixed(2):'–'}</td><td class="act">–</td><td>–</td>${effTd}</tr>`);
   } else times.forEach((tv,i)=>{
     let pmHtml='–';
     if(pb){
       const pm=pb/tv*100;
       const slow=pct&&Math.round(pm)<pct;
-      pmHtml=slow?`<span class="lt-pmax" style="color:#f85149;background:#f8514922">${pm.toFixed(0)}%</span>`:pm.toFixed(0)+'%';
+      pmHtml=slow?`<span style="color:#f85149;font-weight:700">${pm.toFixed(0)}%</span>`:pm.toFixed(0)+'%';
     }
-    rows.push(`<tr${clk}><td class="l">${_esc(lbl)}${times.length>1?` ·${i+1}`:''}</td><td>${target?target.toFixed(2):'–'}</td><td class="act">${tv.toFixed(2)}</td><td>${pmHtml}</td>${effTd}</tr>`);
+    rows.push(`<tr${clk}><td class="l">${i+1}. ${dist}m</td>${intTd}<td>${target?target.toFixed(2):'–'}</td><td class="act">${tv.toFixed(2)}</td><td>${pmHtml}</td>${effTd}</tr>`);
   });
-  if(note)rows.push(`<tr><td colspan="5" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`);
+  if(note)rows.push(`<tr><td colspan="6" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`);
   return {dist:m,rows};
 }
 // 스프린트 테이블 행들 → 테이블 HTML
 function _ltPinSTable(rows){
   if(!rows||!rows.length)return '';
-  return `<table class="lt-pin-tbl"><thead><tr><th class="l">Set</th><th>Plan</th><th>Run</th><th>%max</th><th>RPE</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  return `<table class="lt-pin-tbl"><thead><tr><th class="l">Distance</th><th>Intensity</th><th>Plan</th><th>Run</th><th>%max</th><th>RPE</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 // 핀 카드용 컨디션 블록(Readiness·수면·피로·기분·근육통) — 그 날짜 그 선수
 function _ltCondBlockHtml(name,d){
