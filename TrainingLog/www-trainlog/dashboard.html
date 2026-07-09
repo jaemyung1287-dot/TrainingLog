@@ -1486,12 +1486,13 @@ function _e1rmSeries(nm,ex,topOnly){
     (l.exercises||[]).forEach(e=>{
       if((e.name||'')!==ex||e.isBodyweight)return;
       const _ef=_dEffNum(e.effort);if(_ef!=null)eff=_ef;
+      const slM=(e.isSL||e.isSA)?2:1;
       const rows=(e.setRows&&e.setRows.length)?e.setRows:[{kg:e.weight,reps:e.reps}];
       rows.forEach((r,i)=>{
         const kg=parseFloat(r.kg)||0,rp=parseFloat(r.reps)||0;
         if(kg<=0||rp<=0)return;
         const ev=topOnly?kg:_epley(kg,rp);
-        lines.push((i+1)+'. '+kg+'kg × '+rp);
+        lines.push((i+1)+'. '+kg+'kg × '+rp+' = '+_fmtKg(kg*rp*slM));
         if(ev>v)v=ev;
       });
     });
@@ -1563,6 +1564,8 @@ function _ltPinWRow(e,d,ath){
   const eff=_dEffNum(e.effort), note=(e.note||e.notes||'').trim();
   const e1=(!isBW&&ath&&d)?_e1rmBefore(ath,e.name||'',d):null;
   const pctTd=kg=>`<td>${(e1&&kg>0)?Math.round(kg/e1*100)+'%':'–'}</td>`;
+  const wpct=parseFloat(e.intensity!=null&&e.intensity!==''?e.intensity:e.planIntensity)||null;
+  const intTd=`<td>${wpct?wpct+'%':'–'}</td>`;
   let vol=0, e1s=0; const srows=[];
   if(e.setRows&&e.setRows.length){
     e.setRows.forEach((r,i)=>{
@@ -1570,23 +1573,23 @@ function _ltPinWRow(e,d,ath){
       let kgTxt, ld;
       if(isBW){ ld=exk*rp*slM; vol+=ld; kgTxt=exk?'BW+'+exk+'kg':'BW'; }
       else { ld=kg*rp*slM; vol+=ld; kgTxt=kg+'kg'; if(kg>0&&rp>0)e1s=Math.max(e1s,_epley(kg,rp)); }
-      srows.push(`<tr><td class="l">${i+1}.</td><td class="act">${kgTxt}</td><td>${rp}</td><td>${isBW&&!exk?'–':_fmtKg(ld)}</td>${pctTd(isBW?0:kg)}</tr>`);
+      srows.push(`<tr><td class="l">${i+1}.</td>${intTd}<td class="act">${kgTxt}</td><td>${rp}</td><td>${isBW&&!exk?'–':_fmtKg(ld)}</td>${pctTd(isBW?0:kg)}</tr>`);
     });
   } else {
     const sets=parseInt(e.sets)||0, rp=parseFloat(e.reps)||0, w=parseFloat(e.weight)||0;
     vol=_exVolOne(e);
     if(!isBW&&w>0&&rp>0)e1s=_epley(w,rp);
-    for(let i=0;i<sets;i++){ const ld=isBW?0:w*rp*slM; srows.push(`<tr><td class="l">${i+1}.</td><td class="act">${isBW?'BW':w+'kg'}</td><td>${rp}</td><td>${isBW?'–':_fmtKg(ld)}</td>${pctTd(isBW?0:w)}</tr>`); }
+    for(let i=0;i<sets;i++){ const ld=isBW?0:w*rp*slM; srows.push(`<tr><td class="l">${i+1}.</td>${intTd}<td class="act">${isBW?'BW':w+'kg'}</td><td>${rp}</td><td>${isBW?'–':_fmtKg(ld)}</td>${pctTd(isBW?0:w)}</tr>`); }
   }
   const sets=(e.setRows&&e.setRows.length)||parseInt(e.sets)||0;
   const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
   const head=`${sets}×${reps}${isBW?' (BW)':' · '+_fmtKg(vol)}${e1s>0?' · e1RM '+Math.round(e1s)+'kg':''}`;
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(e.name)}',0)" title="Click: compare this exercise only"`:'';
   const rpeHtml=eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:'';
-  const noteRow=note?`<tr><td colspan="5" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`:'';
+  const noteRow=note?`<tr><td colspan="6" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`:'';
   const html=`<div${clk} style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 6px;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:2px;font-size:12px;color:var(--text)${d?';cursor:pointer':''}">`
     +`<span><span class="lt-pin-dot" style="background:#f7a94f;margin-right:6px"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta" style="color:var(--text)">${_esc(head)}</span></span>${rpeHtml}</div>`
-    +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비">%</th></tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
+    +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Intensity</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비 실제 강도">%e1RM</th></tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
   return {vol,html};
 }
 // 스프린트 세트 1개 → 핀 카드 테이블 행들(세트·주어진·실제·%max·RPE)
@@ -2768,7 +2771,19 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
               const tot=Object.values(dayObj).reduce((a,b)=>a+b,0);
               const wd=['Mo','Di','Mi','Do','Fr','Sa','So'][(new Date(d+'T00:00:00').getDay()+6)%7];
               let body='';
-              cats.forEach(g=>{body+=`<div style="margin-top:6px"><div style="font-size:11px;font-weight:700;color:${_LT_PAL[allCats.indexOf(g)%_LT_PAL.length]}">${_esc(g)} · ${fvb(dayObj[g])}</div>`;exMetaFn(exBy[d]&&exBy[d][g]).forEach(li=>body+=`<div style="font-size:11px;color:#c9d1d9;padding-left:8px;white-space:pre-wrap">${_esc(li)}</div>`);body+=`</div>`;});
+              const _catOfE2=e=>grp==='type'?(e.trainingType||'Other'):grp==='region'?_chainOf(e):_catOf(e);
+              const _catOfS2=s=>grp==='disc'?_sprintMethodOf(s):_sprintQualOf(s);
+              const dlB=(selLogs||[]).filter(l=>l.date===d&&(kind==='vol'?(l.type==='weight'||l.type==='plyo'):l.type==='sprint'));
+              cats.forEach(g=>{
+                body+=`<div style="margin-top:8px;font-size:11px;font-weight:700;color:${_LT_PAL[allCats.indexOf(g)%_LT_PAL.length]}">${_esc(g)} · ${fvb(dayObj[g])}</div>`;
+                if(kind==='vol'){
+                  dlB.forEach(l=>{(l.exercises||[]).forEach(e=>{if(!e.name||_catOfE2(e)!==g)return;const r=_ltPinWRow(e,d,l.athleteName);body+=r.html;});});
+                } else {
+                  const sR=[];
+                  dlB.forEach(l=>{(l.sets||[]).forEach(s=>{if(!parseFloat(s.distance)||_catOfS2(s)!==g)return;const r=_ltPinSRow(s,d);if(r)sR.push(...r.rows);});});
+                  body+=_ltPinSTable(sR);
+                }
+              });
               return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0;flex:0 0 auto;width:fit-content;max-width:640px;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px">
                   <span style="font-size:12px;font-weight:700"><span style="color:${col}">${_esc(_wkLbl(wkList[wi>=0?wi:0].d1).split(' ')[0])}</span> · ${wd} ${d.slice(5).replace('-','.')} · <span style="color:${col}">${fvb(tot)}</span></span>
@@ -2836,14 +2851,29 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
               const p=k.split('|'), idx=+p[2];
               const wi2=wkList.findIndex(o=>o.d1===p[1]); const o=wkList[wi2]; const col=_WKPAL[wi2%_WKPAL.length];
               const dt=new Date(o.d1+'T00:00:00');dt.setDate(dt.getDate()+idx);
-              const ds=dt.toISOString().slice(5,10).replace('-','.');
-              const meta=o.mm[idx];const lines=Array.isArray(meta)?meta:(meta?[meta]:[]);
+              const dISO=dsFromDate(dt);
+              const ds=dISO.slice(5).replace('-','.');
+              const _isTot=sp.label==='Total Volume', _isDist=sp.label==='Sprint Distance';
+              const _isSprEx=!_isTot&&!_isDist&&_lt.exMap[sp.label]&&_lt.exMap[sp.label].sprint;
+              const dlW=(selLogs||[]).filter(l=>l.date===dISO&&(l.type==='weight'||l.type==='sprint'||l.type==='plyo'));
+              let body='';const sR=[];
+              dlW.forEach(l=>{
+                if(l.type==='sprint'){
+                  if(_isTot)return;
+                  (l.sets||[]).forEach(s=>{const dist=parseFloat(s.distance);if(!dist)return;if(_isSprEx&&_ltSprintKey(dist,_ltDisc(s))!==sp.label)return;if(!_isDist&&!_isSprEx)return;const r=_ltPinSRow(s,dISO);if(r)sR.push(...r.rows);});
+                } else {
+                  if(_isDist||_isSprEx)return;
+                  (l.exercises||[]).forEach(e=>{if(!e.name)return;if(!_isTot&&e.name!==sp.label)return;const r=_ltPinWRow(e,dISO,l.athleteName);body+=r.html;});
+                }
+              });
+              body+=_ltPinSTable(sR);
+              if(!body)body=(Array.isArray(o.mm[idx])?o.mm[idx]:(o.mm[idx]?[o.mm[idx]]:[])).map(_fmtPinLine).join('');
               return `<div class="card" style="border-top:3px solid ${col};padding:10px 13px;margin:0;flex:0 0 auto;width:fit-content;max-width:640px;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px">
                   <span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:${col}">${_esc(_wkLbl(o.d1).split(' ')[0])}</span> · ${WD[idx]} ${ds} · <span style="color:${col}">${fv(o.m[idx])}</span></span>
                   <span onclick="ltWkPinTg('${k}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;padding:0 2px">×</span>
                 </div>
-                <div style="font-size:11.5px;line-height:1.6;color:#c9d1d9;max-height:340px;overflow-y:auto">${lines.map(_fmtPinLine).join('')}</div>
+                <div style="font-size:11.5px;line-height:1.6;color:#c9d1d9;max-height:340px;overflow-y:auto">${body||'<span class="lt-hint">데이터 없음</span>'}</div>
               </div>`;
             }).join('');
             return `<div style="grid-column:1/-1"><div style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--hint);text-transform:uppercase;margin:2px 2px 6px">Session Compare · 점 클릭으로 추가/제거</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start">${cards}</div></div>`;
