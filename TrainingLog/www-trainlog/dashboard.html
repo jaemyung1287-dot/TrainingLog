@@ -1558,7 +1558,7 @@ function _ltPinSRow(s,d){
 // 스프린트 테이블 행들 → 테이블 HTML
 function _ltPinSTable(rows){
   if(!rows||!rows.length)return '';
-  return `<table class="lt-pin-tbl"><thead><tr><th class="l">Distance</th><th>Intensity</th><th>Plan</th><th>Run</th><th>%max</th><th>RPE</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  return `<table class="lt-pin-tbl"><thead><tr><th class="l">Distance</th><th>Intensity</th><th>Plan</th><th>Run</th><th>%</th><th>RPE</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 // 핀 카드용 컨디션 블록(Readiness·수면·피로·기분·근육통) — 그 날짜 그 선수
 function _ltCondBlockHtml(name,d){
