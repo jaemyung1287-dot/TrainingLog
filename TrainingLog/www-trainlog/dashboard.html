@@ -1236,7 +1236,8 @@ function _mesoFillGrad(mcols,base,alpha){
     const clamp=t=>t<0?0:t>1?1:t;
     if(N===1){g.addColorStop(0,colOf(0));g.addColorStop(1,colOf(0));return g;}
     g.addColorStop(0,colOf(0));
-    for(let k=1;k<N;k++){if((mcols[k]||base)!==(mcols[k-1]||base)){const t=clamp((k-0.5)/(N-1));g.addColorStop(t,colOf(k-1));g.addColorStop(t,colOf(k));}}
+    const xs=ch.scales&&ch.scales.x;
+    for(let k=1;k<N;k++){if((mcols[k]||base)!==(mcols[k-1]||base)){let t;try{t=clamp(((xs.getPixelForValue(k-1)+xs.getPixelForValue(k))/2-area.left)/(area.right-area.left));}catch(e){t=clamp((k-0.5)/(N-1));}g.addColorStop(t,colOf(k-1));g.addColorStop(t,colOf(k));}}
     g.addColorStop(1,colOf(N-1));
     return g;
   };
@@ -1280,7 +1281,7 @@ const _weekBandPlugin={
             const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
             const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
             const c=colOf(p);
-            if(i2>0){ let yB=area.bottom; try{const md=chart.getDatasetMeta(0).data; if(md&&md[i2-1]&&md[i2]) yB=(md[i2-1].y+md[i2].y)/2;}catch(e){} ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,yB); ctx.stroke(); ctx.setLineDash([]); }
+            if(i2>0){ ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,area.bottom); ctx.stroke(); ctx.setLineDash([]); }
             if(xE-xS>72){ ctx.fillStyle=c; ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(p,(xS+xE)/2,area.bottom-4); ctx.textBaseline='top'; }
           }
           i2=j2;
@@ -1593,6 +1594,18 @@ function _ltPinWRow(e,d,ath){
     +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Intensity</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비 실제 강도">%e1RM</th></tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
   return {vol,html};
 }
+// 컨디셔닝(mobility) 세션 1개 → 핀 카드 블록 (운동·완료·난이도)
+function _ltPinMRow(l){
+  const exs=l.exercises||[];
+  if(!exs.length)return null;
+  const dvs=exs.map(e=>_dEffNum(e.difficulty)).filter(v=>v!=null);
+  const avg=dvs.length?Math.round(dvs.reduce((s,v)=>s+v,0)/dvs.length*10)/10:null;
+  const done=exs.filter(e=>e.done).length;
+  const head=done+'/'+exs.length+' ✓'+(avg!=null?' · Ø D'+avg:'');
+  const rows=exs.map((e,i)=>{const dv=_dEffNum(e.difficulty);return `<tr><td class="l">${i+1}.</td><td style="text-align:left">${_esc(e.name||'?')}</td><td>${e.done?'✓':'○'}</td><td>${dv!=null?`<span style="color:${_dEffCol(dv)};font-weight:700">D${dv}</span>`:'–'}</td></tr>`;}).join('');
+  return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 6px;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:2px;font-size:12px;color:var(--text)"><span><span class="lt-pin-dot" style="background:#E07B39;margin-right:6px"></span><b>Conditioning</b> <span class="lt-pin-meta" style="color:var(--text)">${_esc(head)}</span></span></div>`
+    +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Nr</th><th style="text-align:left">Exercise</th><th>Done</th><th>Difficulty</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
 // 스프린트 세트 1개 → 핀 카드 테이블 행들(세트·주어진·실제·%max·RPE)
 function _ltPinSRow(s,d){
   const dist=parseFloat(s.distance);if(!dist)return null;
@@ -1651,7 +1664,7 @@ function _ltPinCards(selLogs){
   const multi=new Set((selLogs||[]).map(l=>l.athleteName)).size>1;
   const cards=_ltPins.map((p,pi)=>{
     const d=p.d, exOnly=!!p.ex;
-    const dl=(selLogs||[]).filter(l=>l.date===d&&(l.type==='weight'||l.type==='sprint'||l.type==='plyo'));
+    const dl=(selLogs||[]).filter(l=>l.date===d&&(l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='mobility'));
     const _nm=((selLogs||[]).find(l=>l.date===d)||{}).athleteName;
     const x=`<span class="lt-pin-x" onclick="_ltUnpin(${pi})">×</span>`;
     if(!dl.length){const cb=!multi?_ltCondBlockHtml(_nm,d):'';return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(d)}</span>${x}</div>${cb||'<div class="lt-hint" style="padding:8px 2px">No training logged on this date</div>'}</div>`;}
@@ -1661,7 +1674,7 @@ function _ltPinCards(selLogs){
     // ── 종목 1개만 고정한 경우: minsun 양식(총 부하·최고·RPE + 번호 세트라인) ──
     if(exOnly&&!p.sp){
       let sessVol=0;
-      dl.forEach(l=>{ if(l.type==='sprint')return; if(l.rpe!=null&&rpe==null)rpe=l.rpe; sessVol+=vol([l]);
+      dl.forEach(l=>{ if(l.type==='sprint'||l.type==='mobility')return; if(l.rpe!=null&&rpe==null)rpe=l.rpe; sessVol+=vol([l]);
         (l.exercises||[]).forEach(e=>{ if(!e.name||e.name!==p.ex)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; rows+=r.html;});
       });
       if(!rows)return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(d)} · ${_esc(p.ex)}</span>${x}</div><div class="lt-hint" style="padding:8px 2px">No records for this exercise</div></div>`;
@@ -1686,7 +1699,7 @@ function _ltPinCards(selLogs){
       dl.forEach(l=>{
         if(l.rpe!=null&&rpe==null)rpe=l.rpe;
         if(p.sp){ if(l.type!=='sprint')return; (l.sets||[]).forEach(s=>{ if(!parseFloat(s.distance))return; if(catOfS(s)!==p.cat)return; const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; catSRows.push(...r.rows); }); }
-        else { if(l.type==='sprint')return; (l.exercises||[]).forEach(e=>{ if(!e.name)return; if(catOfE(e)!==p.cat)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; rows+=r.html; }); }
+        else { if(l.type==='sprint'||l.type==='mobility')return; (l.exercises||[]).forEach(e=>{ if(!e.name)return; if(catOfE(e)!==p.cat)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; rows+=r.html; }); }
       });
       rows+=_ltPinSTable(catSRows);
       const catHdr=`<span>📌 ${fmt(d)}${multi&&dl[0].athleteName?' · '+_esc(dl[0].athleteName):''} · ${_esc(p.cat)}</span>`;
@@ -1699,6 +1712,7 @@ function _ltPinCards(selLogs){
     dl.forEach(l=>{
       if(l.rpe!=null&&rpe==null)rpe=l.rpe;
       if(l.type==='sprint'){ (l.sets||[]).forEach(s=>{const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; fullSRows.push(...r.rows);}); }
+      else if(l.type==='mobility'){ const mh=_ltPinMRow(l); if(mh)rows+=mh; }
       else { (l.exercises||[]).forEach(e=>{ if(!e.name)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; rows+=r.html;}); }
     });
     rows+=_ltPinSTable(fullSRows);
@@ -2675,11 +2689,16 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         return {type:'line',data:{labels,datasets:[ds]},options:opt};
       };
       let h=`<div style="display:flex;flex-direction:column;gap:12px">`;
-      if(hasRdy)h+=_ltCard('Readiness','0~100 · condition composite',_mk(rdy,'#bc8cff',false,'rdy',true),150,_ltCat.indexOf('__rdy__'));
-      if(hasCond)h+=_ltCard('Conditioning','0~10 · Ø Schwierigkeit',_mk(condS,'#E07B39',false,'cond',false),150,_ltCat.indexOf('__cond__'));
-      if(hasVol)h+=_ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false,null,true),150,_ltCat.indexOf('__vol__'));
-      if(hasDist)h+=_ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false,null,true),150,_ltCat.indexOf('__dist__'));
-      selExs.forEach(n=>{const m=_lt.exMap[n];h+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)'),_mk(exSer[n],_ltColor(n),m.sprint,m.sprint?'s':'kg',false,{ex:n,sp:m.sprint}),150,_ltCat.indexOf(n),_ltBadge(exSer[n],m.sprint?'s':'kg',m.sprint));});
+      // 선택(클릭)한 순서 그대로 렌더링
+      const _cardFor=n=>{
+        if(n==='__rdy__'&&hasRdy)return _ltCard('Readiness','0~100 · condition composite',_mk(rdy,'#bc8cff',false,'rdy',true),150,_ltCat.indexOf('__rdy__'));
+        if(n==='__cond__'&&hasCond)return _ltCard('Conditioning','0~10 · Ø Schwierigkeit',_mk(condS,'#E07B39',false,'cond',false,null,true),150,_ltCat.indexOf('__cond__'));
+        if(n==='__vol__'&&hasVol)return _ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false,null,true),150,_ltCat.indexOf('__vol__'));
+        if(n==='__dist__'&&hasDist)return _ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false,null,true),150,_ltCat.indexOf('__dist__'));
+        if(exSer[n]&&exSer[n].length&&_lt.exMap[n]){const m=_lt.exMap[n];return _ltCard(n,(m.sprint?'best time(s)':'top set(kg)'),_mk(exSer[n],_ltColor(n),m.sprint,m.sprint?'s':'kg',false,{ex:n,sp:m.sprint}),150,_ltCat.indexOf(n),_ltBadge(exSer[n],m.sprint?'s':'kg',m.sprint));}
+        return '';
+      };
+      [...ltSel].forEach(n=>h+=_cardFor(n));
       h+=`</div>`;
       return h;
     };
@@ -2928,17 +2947,19 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
           {label:'Sprint Distance',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
         ]},options:opt};
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
-      } else {
-        const _wkAttach=(cfg,s,u,agg)=>ltCmp?cfg:_wkAttachCfg(cfg,s,u,agg);
-        if(hasVol){ if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp,null,true),s,'kg'),ltCmp?null:230,_ltCat.indexOf('__vol__'));} }
-        if(hasDist){ if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp,null,true),s,'m'),ltCmp?null:230,_ltCat.indexOf('__dist__'));} }
       }
-      if(selExs.length){
-        if(ltChartMode==='overlay'&&!ltCmp){
-          LT+=_ltOverlayCard(selExs,units);
-        } else {
-          selExs.forEach(n=>{const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint}),ltCmp?null:230,_ltCat.indexOf(n),_ltBadge(s,m.sprint?'s':'kg',m.sprint));});
-        }
+      {
+        // 선택(클릭)한 순서 그대로 렌더링 — Overlay 모드의 종목 묶음은 첫 종목 위치에 한 번만
+        const _wkAttach=(cfg,s,u,agg)=>ltCmp?cfg:_wkAttachCfg(cfg,s,u,agg);
+        let _ovDone=false;
+        [...ltSel].forEach(n=>{
+          if(n==='__vol__'){ if(volDistOverlay)return; if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp,null,true),s,'kg'),ltCmp?null:230,_ltCat.indexOf('__vol__'));} }
+          else if(n==='__dist__'){ if(volDistOverlay)return; if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp,null,true),s,'m'),ltCmp?null:230,_ltCat.indexOf('__dist__'));} }
+          else if(!_LT_SPECIAL[n]&&_lt.exMap[n]){
+            if(ltChartMode==='overlay'&&!ltCmp){ if(!_ovDone&&selExs.length){LT+=_ltOverlayCard(selExs,units);_ovDone=true;} }
+            else {const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint}),ltCmp?null:230,_ltCat.indexOf(n),_ltBadge(s,m.sprint?'s':'kg',m.sprint));}
+          }
+        });
       }
     }
     if(selKeys.length&&_ltJobs.length===_jobs0){
