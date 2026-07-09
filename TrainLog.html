@@ -865,21 +865,30 @@ const APP_VERSION = '20260527-7';
     <div class="stats-grid" id="today-stats-grid" style="margin-top:8px"></div>
     <div class="sec-ttl">Team Condition Today</div>
     <div id="today-condition-bars"></div>
-    <div class="sec-ttl" onclick="_toggleLogDetail('today-cond-list','today-cond-chev')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
-      <span>Morning Check Logged <span id="today-cond-count" style="color:var(--muted);font-weight:400"></span></span>
-      <span id="today-cond-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(0deg)">▼</span>
+    <div onclick="_toggleLogDetail('today-cond-list','today-cond-chev')" style="display:flex;align-items:center;gap:6px;margin-top:20px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+      <span style="font-size:13px">🌡️</span>
+      <span style="font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:.7px;text-transform:uppercase">Morning Check Logged</span>
+      <span id="today-cond-count" style="font-size:10px;font-weight:700;color:var(--muted)"></span>
+      <div style="flex:1;height:1px;background:#a78bfa33;margin-left:4px"></div>
+      <span id="today-cond-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s">▼</span>
     </div>
     <div id="today-cond-list" style="display:none"></div>
-    <div class="sec-ttl" onclick="_toggleLogDetail('today-log-list','today-log-chev')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
-      <span>Training Logged <span id="today-log-count" style="color:var(--muted);font-weight:400"></span></span>
-      <span id="today-log-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(0deg)">▼</span>
+    <div onclick="_toggleLogDetail('today-log-list','today-log-chev')" style="display:flex;align-items:center;gap:6px;margin-top:16px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+      <span style="font-size:13px">🏋️</span>
+      <span style="font-size:10px;font-weight:700;color:#f7a94f;letter-spacing:.7px;text-transform:uppercase">Training Logged</span>
+      <span id="today-log-count" style="font-size:10px;font-weight:700;color:var(--muted)"></span>
+      <div style="flex:1;height:1px;background:#f7a94f33;margin-left:4px"></div>
+      <span id="today-log-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s">▼</span>
     </div>
     <div id="today-log-list" style="display:none"></div>
-    <div class="sec-ttl" style="display:flex;justify-content:space-between;align-items:center">
-      <span>Not Logged Today</span>
-      <span id="not-logged-count" style="font-size:12px;color:var(--muted);font-weight:400"></span>
+    <div onclick="_toggleLogDetail('today-not-logged','today-nl-chev')" style="display:flex;align-items:center;gap:6px;margin-top:16px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+      <span style="font-size:13px">🔔</span>
+      <span style="font-size:10px;font-weight:700;color:#e94560;letter-spacing:.7px;text-transform:uppercase">Not Logged Today</span>
+      <span id="not-logged-count" style="font-size:10px;font-weight:700;color:var(--muted)"></span>
+      <div style="flex:1;height:1px;background:#e9456033;margin-left:4px"></div>
+      <span id="today-nl-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(180deg)">▼</span>
     </div>
-    <div id="today-not-logged"></div>
+    <div id="today-not-logged" style="display:block"></div>
   </div>
 
   <!-- ATHLETES -->
@@ -4744,11 +4753,11 @@ function renderToday(){
   };
   tlw.innerHTML=tr.length?tr.map(_logCard).join(''):'<div class="empty" style="padding:12px 0">No training logged today</div>';
 
-  // ── Header counts: (n) athletes logged ──
+  // ── Header counts: n athletes logged ──
   const _condCntEl=document.getElementById('today-cond-count');
-  if(_condCntEl) _condCntEl.textContent=cl.length?`(${new Set(cl.map(l=>l.athleteName)).size})`:'';
+  if(_condCntEl) _condCntEl.textContent=new Set(cl.map(l=>l.athleteName)).size;
   const _logCntEl=document.getElementById('today-log-count');
-  if(_logCntEl) _logCntEl.textContent=tr.length?`(${new Set(tr.map(l=>l.athleteName)).size})`:'';
+  if(_logCntEl) _logCntEl.textContent=new Set(tr.map(l=>l.athleteName)).size;
 
   // ── Not logged today ──
   const trainedNames=new Set(tr.map(l=>l.athleteName));
@@ -4769,7 +4778,7 @@ function renderToday(){
   const notLogged=d.athletes.filter(a=>!trainedNames.has(a.name)&&_athleteHasPlanToday(a));
   const nlw=document.getElementById('today-not-logged');
   const countEl=document.getElementById('not-logged-count');
-  if(countEl) countEl.textContent=notLogged.length?`${notLogged.length} athletes`:'';
+  if(countEl) countEl.textContent=notLogged.length;
   if(nlw){
     if(!notLogged.length){
       nlw.innerHTML='<div class="empty" style="padding:12px 0">Everyone has logged today 🎉</div>';
