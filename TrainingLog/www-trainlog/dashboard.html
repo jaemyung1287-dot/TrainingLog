@@ -1482,23 +1482,22 @@ function _e1rmSeries(nm,ex,topOnly){
   const out=[];let best=0;
   const logs=getLogsByName(nm).filter(l=>l.type==='weight').slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   logs.forEach(l=>{
-    let v=0,lines=[];
+    let v=0,lines=[],eff=null;
     (l.exercises||[]).forEach(e=>{
       if((e.name||'')!==ex||e.isBodyweight)return;
-      const eff=_dEffNum(e.effort);
+      const _ef=_dEffNum(e.effort);if(_ef!=null)eff=_ef;
       const rows=(e.setRows&&e.setRows.length)?e.setRows:[{kg:e.weight,reps:e.reps}];
       rows.forEach((r,i)=>{
         const kg=parseFloat(r.kg)||0,rp=parseFloat(r.reps)||0;
         if(kg<=0||rp<=0)return;
         const ev=topOnly?kg:_epley(kg,rp);
-        lines.push((i+1)+'. '+kg+'kg × '+rp+(topOnly?'':' → e1RM '+Math.round(_epley(kg,rp))+'kg'));
+        lines.push((i+1)+'. '+kg+'kg × '+rp);
         if(ev>v)v=ev;
       });
-      if(eff!=null)lines.push('종목 RPE '+eff);
     });
     if(v<=0)return;
     const nb=v>best;if(nb)best=v;
-    lines.unshift((topOnly?'Top ':'e1RM ')+Math.round(v)+'kg'+(nb?' · 🏆 신기록':''));
+    lines.unshift((topOnly?'Top ':'e1RM ')+Math.round(v)+'kg'+(eff!=null?' · RPE '+eff:'')+(nb?' 🏆':''));
     out.push({d:l.date,v:Math.round(v),meta:lines});
   });
   return out;
@@ -1557,42 +1556,38 @@ function _ltExSetLines(e){
   const top=e.setRows&&e.setRows.length?Math.max(...e.setRows.map(r=>parseFloat(r.kg)||0)):(parseFloat(e.weight)||0);
   return {setLines,top,vol,eff:_dEffNum(e.effort),note:(e.note||e.notes||'').trim(),bw:isBW};
 }
-// 웨이트 운동 1개 → 핀 카드 테이블 행들(운동명 구분행 + Set/Intensity/Weight/Reps/Load/%)
+// 웨이트 운동 1개 → 핀 카드 블록: 가로줄 + 운동명·부하·e1RM·RPE 행 + 헤더 + 세트 표 (%: 직전 e1RM 대비)
 function _ltPinWRow(e,d,ath){
   const sl=e.isSL?'SL ':e.isSA?'SA ':'';
   const isBW=!!e.isBodyweight, slM=(e.isSL||e.isSA)?2:1;
   const eff=_dEffNum(e.effort), note=(e.note||e.notes||'').trim();
-  const wpct=parseFloat(e.intensity!=null&&e.intensity!==''?e.intensity:e.planIntensity)||null;
-  const intTd=`<td>${wpct?wpct+'%':'–'}</td>`;
   const e1=(!isBW&&ath&&d)?_e1rmBefore(ath,e.name||'',d):null;
   const pctTd=kg=>`<td>${(e1&&kg>0)?Math.round(kg/e1*100)+'%':'–'}</td>`;
-  let vol=0; const srows=[];
+  let vol=0, e1s=0; const srows=[];
   if(e.setRows&&e.setRows.length){
     e.setRows.forEach((r,i)=>{
       const rp=parseFloat(r.reps)||0, exk=parseFloat(r.extraKg)||0, kg=parseFloat(r.kg)||0;
       let kgTxt, ld;
       if(isBW){ ld=exk*rp*slM; vol+=ld; kgTxt=exk?'BW+'+exk+'kg':'BW'; }
-      else { ld=kg*rp*slM; vol+=ld; kgTxt=kg+'kg'; }
-      srows.push(`<tr><td class="l">${i+1}.</td>${intTd}<td class="act">${kgTxt}</td><td>${rp}</td><td>${isBW&&!exk?'–':_fmtKg(ld)}</td>${pctTd(isBW?0:kg)}</tr>`);
+      else { ld=kg*rp*slM; vol+=ld; kgTxt=kg+'kg'; if(kg>0&&rp>0)e1s=Math.max(e1s,_epley(kg,rp)); }
+      srows.push(`<tr><td class="l">${i+1}.</td><td class="act">${kgTxt}</td><td>${rp}</td><td>${isBW&&!exk?'–':_fmtKg(ld)}</td>${pctTd(isBW?0:kg)}</tr>`);
     });
   } else {
     const sets=parseInt(e.sets)||0, rp=parseFloat(e.reps)||0, w=parseFloat(e.weight)||0;
     vol=_exVolOne(e);
-    for(let i=0;i<sets;i++){ const ld=isBW?0:w*rp*slM; srows.push(`<tr><td class="l">${i+1}.</td>${intTd}<td class="act">${isBW?'BW':w+'kg'}</td><td>${rp}</td><td>${isBW?'–':_fmtKg(ld)}</td>${pctTd(isBW?0:w)}</tr>`); }
+    if(!isBW&&w>0&&rp>0)e1s=_epley(w,rp);
+    for(let i=0;i<sets;i++){ const ld=isBW?0:w*rp*slM; srows.push(`<tr><td class="l">${i+1}.</td><td class="act">${isBW?'BW':w+'kg'}</td><td>${rp}</td><td>${isBW?'–':_fmtKg(ld)}</td>${pctTd(isBW?0:w)}</tr>`); }
   }
   const sets=(e.setRows&&e.setRows.length)||parseInt(e.sets)||0;
   const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
-  const head=`${sets}×${reps}${isBW?' (BW)':' · '+_fmtKg(vol)}`;
-  const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(e.name)}',0)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
+  const head=`${sets}×${reps}${isBW?' (BW)':' · '+_fmtKg(vol)}${e1s>0?' · e1RM '+Math.round(e1s)+'kg':''}`;
+  const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(e.name)}',0)" title="Click: compare this exercise only"`:'';
   const rpeHtml=eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:'';
-  const rows=[`<tr${clk}><td colspan="6" class="l" style="padding-top:6px"><div style="display:flex;justify-content:space-between;align-items:center"><span><span class="lt-pin-dot" style="background:#f7a94f;margin-right:6px"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta" style="color:var(--text)">${_esc(head)}</span></span>${rpeHtml}</div></td></tr>`,...srows];
-  if(note)rows.push(`<tr><td colspan="6" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`);
-  return {vol,rows};
-}
-// 웨이트 테이블 행들 → 테이블 HTML (%: e1RM 대비 — 직전까지의 추정 1RM 기준)
-function _ltPinWTable(rows){
-  if(!rows||!rows.length)return '';
-  return `<table class="lt-pin-tbl"><thead><tr><th class="l">Set</th><th>Intensity</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비">%</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  const noteRow=note?`<tr><td colspan="5" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`:'';
+  const html=`<div${clk} style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 6px;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:2px;font-size:12px;color:var(--text)${d?';cursor:pointer':''}">`
+    +`<span><span class="lt-pin-dot" style="background:#f7a94f;margin-right:6px"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta" style="color:var(--text)">${_esc(head)}</span></span>${rpeHtml}</div>`
+    +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비">%</th></tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
+  return {vol,html};
 }
 // 스프린트 세트 1개 → 핀 카드 테이블 행들(세트·주어진·실제·%max·RPE)
 function _ltPinSRow(s,d){
@@ -1661,18 +1656,13 @@ function _ltPinCards(selLogs){
     let totVol=0,totDist=0,rpe=null,rows='';
     // ── 종목 1개만 고정한 경우: minsun 양식(총 부하·최고·RPE + 번호 세트라인) ──
     if(exOnly&&!p.sp){
-      let idx=0,maxTop=0,exEff=null,noteHtml='';
-      dl.forEach(l=>{ if(l.type==='sprint')return; if(l.rpe!=null&&rpe==null)rpe=l.rpe;
-        (l.exercises||[]).forEach(e=>{ if(!e.name||e.name!==p.ex)return;
-          const o=_ltExSetLines(e); totVol+=o.vol; maxTop=Math.max(maxTop,o.top); if(o.eff!=null)exEff=o.eff;
-          o.setLines.forEach(s=>{idx++;rows+=`<div class="lt-pin-setn">${idx}. ${_esc(s)}</div>`;});
-          if(o.note)noteHtml=`<div class="lt-pin-note">📝 ${_esc(o.note)}</div>`;
-        });
+      let sessVol=0;
+      dl.forEach(l=>{ if(l.type==='sprint')return; if(l.rpe!=null&&rpe==null)rpe=l.rpe; sessVol+=vol([l]);
+        (l.exercises||[]).forEach(e=>{ if(!e.name||e.name!==p.ex)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; rows+=r.html;});
       });
-      rows+=noteHtml;
       if(!rows)return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(d)} · ${_esc(p.ex)}</span>${x}</div><div class="lt-hint" style="padding:8px 2px">No records for this exercise</div></div>`;
-      const sub='Total load '+_fmtKg(totVol)+' · 최고 '+maxTop+'kg'+(exEff!=null?' · RPE '+exEff:'');
-      return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF('')}${x}</div><div class="lt-pin-sub" style="font-weight:700;color:var(--text)">${_esc(sub)}</div><div class="lt-pin-exname">${_esc(p.ex)}</div>${rows}</div>`;
+      const sub='Total load '+_fmtKg(sessVol)+(rpe!=null?' · Session RPE '+rpe:'');
+      return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF('')}${x}</div><div class="lt-pin-sub">${_esc(sub)}</div>${!multi?_ltCondBlockHtml(_nm,d):''}${rows}</div>`;
     }
     if(exOnly&&p.sp){
       const sRows=[];
@@ -1688,26 +1678,26 @@ function _ltPinCards(selLogs){
     if(p.cat){
       const catOfE=e=>p.grp==='type'?(e.trainingType||'Other'):p.grp==='region'?_chainOf(e):_catOf(e);
       const catOfS=s=>p.grp==='disc'?_sprintMethodOf(s):_sprintQualOf(s);
-      const catSRows=[],catWRows=[];
+      const catSRows=[];
       dl.forEach(l=>{
         if(l.rpe!=null&&rpe==null)rpe=l.rpe;
         if(p.sp){ if(l.type!=='sprint')return; (l.sets||[]).forEach(s=>{ if(!parseFloat(s.distance))return; if(catOfS(s)!==p.cat)return; const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; catSRows.push(...r.rows); }); }
-        else { if(l.type==='sprint')return; (l.exercises||[]).forEach(e=>{ if(!e.name)return; if(catOfE(e)!==p.cat)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; catWRows.push(...r.rows); }); }
+        else { if(l.type==='sprint')return; (l.exercises||[]).forEach(e=>{ if(!e.name)return; if(catOfE(e)!==p.cat)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; rows+=r.html; }); }
       });
-      rows+=_ltPinWTable(catWRows)+_ltPinSTable(catSRows);
+      rows+=_ltPinSTable(catSRows);
       const catHdr=`<span>📌 ${fmt(d)}${multi&&dl[0].athleteName?' · '+_esc(dl[0].athleteName):''} · ${_esc(p.cat)}</span>`;
       if(!rows)return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div><div class="lt-hint" style="padding:8px 2px">No records for this category</div></div>`;
       const csub=[totVol>0?'Total load '+_fmtKg(totVol):'',totDist>0?'Total '+Math.round(totDist)+'m':'',rpe!=null?'Session RPE '+rpe:''].filter(Boolean).join(' · ');
       return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div>${csub?`<div class="lt-pin-sub">${_esc(csub)}</div>`:''}${rows}</div>`;
     }
     // ── 전체 세션(종합 지표에서 고정) ──
-    const fullSRows=[],fullWRows=[];
+    const fullSRows=[];
     dl.forEach(l=>{
       if(l.rpe!=null&&rpe==null)rpe=l.rpe;
       if(l.type==='sprint'){ (l.sets||[]).forEach(s=>{const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; fullSRows.push(...r.rows);}); }
-      else { (l.exercises||[]).forEach(e=>{ if(!e.name)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; fullWRows.push(...r.rows);}); }
+      else { (l.exercises||[]).forEach(e=>{ if(!e.name)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; rows+=r.html;}); }
     });
-    rows+=_ltPinWTable(fullWRows)+_ltPinSTable(fullSRows);
+    rows+=_ltPinSTable(fullSRows);
     if(!rows)return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div><div class="lt-hint" style="padding:8px 2px">No records</div></div>`;
     const sub=[totVol>0?'Total load '+_fmtKg(totVol):'',totDist>0?'Total distance '+Math.round(totDist)+'m':'',rpe!=null?'Session RPE '+rpe:''].filter(Boolean).join(' · ');
     return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${sub?`<div class="lt-pin-sub">${_esc(sub)}</div>`:''}${!multi?_ltCondBlockHtml(_nm,d):''}${rows}</div>`;
@@ -2310,7 +2300,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const single=perA.length===1;
     const dss=perA.map(o=>{const byD={};o.s.forEach(p=>byD[p.d]=p);return{label:o.nm,data:dates.map(d=>byD[d]?byD[d].v:null),_metas:dates.map(d=>byD[d]?byD[d].meta:''),borderColor:o.col,backgroundColor:single?o.col+'18':'transparent',fill:single,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2};});
     const opt=_ltTip(false,!single);
-    _ltAttachInteract(opt,dates);
+    _ltAttachInteract(opt,dates,{ex:cur.n});
     const badge=single?_ltBadge(perA[0].s,'kg',false):'';
     return _ltCard('Strength Progression · '+cur.l,(cur.top?'top set (kg)':'estimated 1RM · Epley')+' · 점 클릭=세션 핀',{type:'line',data:{labels,datasets:dss},options:opt},single?240:300,"ltProgTg('strength')",badge);
   };
