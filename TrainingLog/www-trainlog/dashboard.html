@@ -1528,9 +1528,18 @@ function _ltPinSRow(s,d){
   let best=parseFloat(s.actualTime)||null;(s.repTimes||[]).forEach(t=>{if(t!=null&&(best==null||t<best))best=t;});
   const eff=_dEffNum(s.effort), note=(s.note||s.notes||'').trim();
   const m=dist*st*reps;
-  const head=`${st}×${reps} · ${dist}m${s.intensity?' @ '+s.intensity+'%':''}`;
+  const pb=parseFloat(s.pb)||null, pct=parseFloat(s.intensity)||null;
+  const target=(pb&&pct&&pct>0)?pb/(pct/100):null;
+  const head=`${st}×${reps} · ${dist}m${s.intensity?' @ '+s.intensity+'%':''}${target?' · 🎯 '+target.toFixed(2)+'s':''}`;
   let _setHtml='',_n=0;
-  (s.repTimes||[]).forEach(t=>{const tv=parseFloat(t); if(t==null||isNaN(tv))return; _n++; _setHtml+=`<div class="lt-pin-set">${_n}. ${dist}m → ${tv.toFixed(2)}s · ${(dist/tv).toFixed(2)} m/s</div>`;});
+  (s.repTimes||[]).forEach(t=>{const tv=parseFloat(t); if(t==null||isNaN(tv))return; _n++;
+    let chip='';
+    if(pb){
+      const pm=pb/tv*100;
+      const col=(pct&&pct<100)?(pm>=95?'#f85149':pm>=90?'#f7a94f':'#8b949e'):(pm>=100?'#3ecf8e':'#8b949e');
+      chip=` · <span style="color:${col};font-weight:${(pct&&pct<100&&pm>=90)||pm>=100?'700':'400'}">${pm.toFixed(0)}% max</span>`;
+    }
+    _setHtml+=`<div class="lt-pin-set">${_n}. ${dist}m → ${tv.toFixed(2)}s · ${(dist/tv).toFixed(2)} m/s${chip}</div>`;});
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(_ltSprintKey(dist,_ltDisc(s)))}',1)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
   return {dist:m,html:`<div class="lt-pin-ex"${clk}><div class="lt-pin-exh"><div class="lt-pin-exl"><span class="lt-pin-dot" style="background:#3ecf8e"></span><b>${_esc(s.name||dist+'m')}</b> <span class="lt-pin-meta">${_esc(head)}</span></div>${eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${_setHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`};
 }
