@@ -482,6 +482,12 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .lt-pin-meta{color:var(--muted);font-size:11px;font-weight:400}
 .lt-pin-rpe{font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;line-height:1.5}
 .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
+.lt-pin-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 2px}
+.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--hint);text-align:right;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
+.lt-pin-tbl th.l,.lt-pin-tbl td.l{text-align:left;padding-left:2px}
+.lt-pin-tbl td{text-align:right;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lt-pin-tbl td.act{color:var(--text);font-weight:700;font-size:13px}
+.lt-pmax{padding:1px 5px;border-radius:4px;font-weight:600}
 .lt-pin-sore{display:flex;flex-wrap:wrap;gap:5px;padding-left:13px;margin-top:4px}
 .lt-sore-chip{font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid;background:rgba(255,255,255,.03);white-space:nowrap}
 .lt-pin-setn{font-size:12px;color:var(--muted);padding:2px 0;line-height:1.5}
@@ -1521,27 +1527,38 @@ function _ltPinWRow(e,d){
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(e.name)}',0)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
   return {vol:o.vol,html:`<div class="lt-pin-ex"${clk}><div class="lt-pin-exh"><div class="lt-pin-exl"><span class="lt-pin-dot" style="background:#f7a94f"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta">${_esc(head)}</span></div>${o.eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(o.eff)}">RPE ${o.eff}</span>`:''}</div>${o.setLines.map(x=>`<div class="lt-pin-set">${_esc(x)}</div>`).join('')}${o.note?`<div class="lt-pin-note">📝 ${_esc(o.note)}</div>`:''}</div>`};
 }
-// 스프린트 세트 1개 → 핀 카드 행 HTML
+// 스프린트 세트 1개 → 핀 카드 테이블 행들(세트·주어진·실제·%max·RPE)
 function _ltPinSRow(s,d){
   const dist=parseFloat(s.distance);if(!dist)return null;
   const reps=parseInt(s.reps)||parseInt(s.sets)||1, st=parseInt(s.sets)||1;
-  let best=parseFloat(s.actualTime)||null;(s.repTimes||[]).forEach(t=>{if(t!=null&&(best==null||t<best))best=t;});
   const eff=_dEffNum(s.effort), note=(s.note||s.notes||'').trim();
   const m=dist*st*reps;
   const pb=parseFloat(s.pb)||null, pct=parseFloat(s.intensity)||null;
   const target=(pb&&pct&&pct>0)?pb/(pct/100):null;
-  const head=`${st}×${reps} · ${dist}m${s.intensity?' @ '+s.intensity+'%':''}${target?' · 🎯 '+target.toFixed(2)+'s':''}`;
-  let _setHtml='',_n=0;
-  (s.repTimes||[]).forEach(t=>{const tv=parseFloat(t); if(t==null||isNaN(tv))return; _n++;
-    let chip='';
+  const lbl=`${dist}m${pct?' @'+pct+'%':''}`;
+  const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(_ltSprintKey(dist,_ltDisc(s)))}',1)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
+  const effTd=`<td>${eff!=null?eff:'–'}</td>`;
+  const times=(s.repTimes||[]).map(t=>parseFloat(t)).filter(t=>!isNaN(t));
+  if(!times.length&&parseFloat(s.actualTime))times.push(parseFloat(s.actualTime));
+  const rows=[];
+  if(!times.length){
+    rows.push(`<tr${clk}><td class="l">${_esc(lbl)}</td><td>${target?target.toFixed(2):'–'}</td><td class="act">–</td><td>–</td>${effTd}</tr>`);
+  } else times.forEach((tv,i)=>{
+    let pmHtml='–';
     if(pb){
       const pm=pb/tv*100;
-      const col=(pct&&pct<100)?(pm>=95?'#f85149':pm>=90?'#f7a94f':'#8b949e'):(pm>=100?'#3ecf8e':'#8b949e');
-      chip=` · <span style="color:${col};font-weight:${(pct&&pct<100&&pm>=90)||pm>=100?'700':'400'}">${pm.toFixed(0)}% max</span>`;
+      const slow=pct&&Math.round(pm)<pct;
+      pmHtml=slow?`<span class="lt-pmax" style="color:#f85149;background:#f8514922">${pm.toFixed(0)}%</span>`:pm.toFixed(0)+'%';
     }
-    _setHtml+=`<div class="lt-pin-set">${_n}. ${dist}m → ${tv.toFixed(2)}s · ${(dist/tv).toFixed(2)} m/s${chip}</div>`;});
-  const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(_ltSprintKey(dist,_ltDisc(s)))}',1)" style="cursor:pointer" title="Click: compare this exercise only"`:'';
-  return {dist:m,html:`<div class="lt-pin-ex"${clk}><div class="lt-pin-exh"><div class="lt-pin-exl"><span class="lt-pin-dot" style="background:#3ecf8e"></span><b>${_esc(s.name||dist+'m')}</b> <span class="lt-pin-meta">${_esc(head)}</span></div>${eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:''}</div>${_setHtml}${note?`<div class="lt-pin-note">📝 ${_esc(note)}</div>`:''}</div>`};
+    rows.push(`<tr${clk}><td class="l">${_esc(lbl)}${times.length>1?` ·${i+1}`:''}</td><td>${target?target.toFixed(2):'–'}</td><td class="act">${tv.toFixed(2)}</td><td>${pmHtml}</td>${effTd}</tr>`);
+  });
+  if(note)rows.push(`<tr><td colspan="5" class="l" style="color:#8b949e;font-style:italic;white-space:normal">📝 ${_esc(note)}</td></tr>`);
+  return {dist:m,rows};
+}
+// 스프린트 테이블 행들 → 테이블 HTML
+function _ltPinSTable(rows){
+  if(!rows||!rows.length)return '';
+  return `<table class="lt-pin-tbl"><thead><tr><th class="l">Set</th><th>Plan</th><th>Run</th><th>%max</th><th>RPE</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 // 핀 카드용 컨디션 블록(Readiness·수면·피로·기분·근육통) — 그 날짜 그 선수
 function _ltCondBlockHtml(name,d){
@@ -1591,10 +1608,11 @@ function _ltPinCards(selLogs){
       return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF('')}${x}</div><div class="lt-pin-sub" style="font-weight:700;color:var(--text)">${_esc(sub)}</div><div class="lt-pin-exname">${_esc(p.ex)}</div>${rows}</div>`;
     }
     if(exOnly&&p.sp){
-      let idx=0;
+      const sRows=[];
       dl.forEach(l=>{ if(l.type!=='sprint')return; if(l.rpe!=null&&rpe==null)rpe=l.rpe;
-        (l.sets||[]).forEach(s=>{const dist=parseFloat(s.distance); if(!dist||_ltSprintKey(dist,_ltDisc(s))!==p.ex)return; const r=_ltPinSRow(s); if(!r)return; totDist+=r.dist; rows+=r.html;});
+        (l.sets||[]).forEach(s=>{const dist=parseFloat(s.distance); if(!dist||_ltSprintKey(dist,_ltDisc(s))!==p.ex)return; const r=_ltPinSRow(s); if(!r)return; totDist+=r.dist; sRows.push(...r.rows);});
       });
+      rows=_ltPinSTable(sRows);
       if(!rows)return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(d)} · ${_esc(p.ex)}</span>${x}</div><div class="lt-hint" style="padding:8px 2px">No records for this exercise</div></div>`;
       const sub=_esc(p.ex)+(totDist>0?' · 총 '+Math.round(totDist)+'m':'')+(rpe!=null?' · RPE '+rpe:'');
       return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF('')}${x}</div><div class="lt-pin-sub" style="font-weight:700;color:var(--text)">${sub}</div>${rows}</div>`;
@@ -1603,22 +1621,26 @@ function _ltPinCards(selLogs){
     if(p.cat){
       const catOfE=e=>p.grp==='type'?(e.trainingType||'Other'):p.grp==='region'?_chainOf(e):_catOf(e);
       const catOfS=s=>p.grp==='disc'?_sprintMethodOf(s):_sprintQualOf(s);
+      const catSRows=[];
       dl.forEach(l=>{
         if(l.rpe!=null&&rpe==null)rpe=l.rpe;
-        if(p.sp){ if(l.type!=='sprint')return; (l.sets||[]).forEach(s=>{ if(!parseFloat(s.distance))return; if(catOfS(s)!==p.cat)return; const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; rows+=r.html; }); }
+        if(p.sp){ if(l.type!=='sprint')return; (l.sets||[]).forEach(s=>{ if(!parseFloat(s.distance))return; if(catOfS(s)!==p.cat)return; const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; catSRows.push(...r.rows); }); }
         else { if(l.type==='sprint')return; (l.exercises||[]).forEach(e=>{ if(!e.name)return; if(catOfE(e)!==p.cat)return; const r=_ltPinWRow(e,d); totVol+=r.vol; rows+=r.html; }); }
       });
+      rows+=_ltPinSTable(catSRows);
       const catHdr=`<span>📌 ${fmt(d)}${multi&&dl[0].athleteName?' · '+_esc(dl[0].athleteName):''} · ${_esc(p.cat)}</span>`;
       if(!rows)return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div><div class="lt-hint" style="padding:8px 2px">No records for this category</div></div>`;
       const csub=[totVol>0?'Total load '+_fmtKg(totVol):'',totDist>0?'Total '+Math.round(totDist)+'m':'',rpe!=null?'Session RPE '+rpe:''].filter(Boolean).join(' · ');
       return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div>${csub?`<div class="lt-pin-sub">${_esc(csub)}</div>`:''}${rows}</div>`;
     }
     // ── 전체 세션(종합 지표에서 고정) ──
+    const fullSRows=[];
     dl.forEach(l=>{
       if(l.rpe!=null&&rpe==null)rpe=l.rpe;
-      if(l.type==='sprint'){ (l.sets||[]).forEach(s=>{const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; rows+=r.html;}); }
+      if(l.type==='sprint'){ (l.sets||[]).forEach(s=>{const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; fullSRows.push(...r.rows);}); }
       else { (l.exercises||[]).forEach(e=>{ if(!e.name)return; const r=_ltPinWRow(e,d); totVol+=r.vol; rows+=r.html;}); }
     });
+    rows+=_ltPinSTable(fullSRows);
     if(!rows)return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div><div class="lt-hint" style="padding:8px 2px">No records</div></div>`;
     const sub=[totVol>0?'Total load '+_fmtKg(totVol):'',totDist>0?'Total distance '+Math.round(totDist)+'m':'',rpe!=null?'Session RPE '+rpe:''].filter(Boolean).join(' · ');
     return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${sub?`<div class="lt-pin-sub">${_esc(sub)}</div>`:''}${!multi?_ltCondBlockHtml(_nm,d):''}${rows}</div>`;
@@ -2415,6 +2437,12 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     .lt-pin-meta{color:var(--muted);font-size:11px;font-weight:400}
     .lt-pin-rpe{font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap;line-height:1.5}
     .lt-pin-set{font-size:11px;color:var(--hint);padding-left:13px;line-height:1.5}
+.lt-pin-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 2px}
+.lt-pin-tbl th{font-size:10px;font-weight:600;color:var(--hint);text-align:right;padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-transform:uppercase;letter-spacing:.4px}
+.lt-pin-tbl th.l,.lt-pin-tbl td.l{text-align:left;padding-left:2px}
+.lt-pin-tbl td{text-align:right;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lt-pin-tbl td.act{color:var(--text);font-weight:700;font-size:13px}
+.lt-pmax{padding:1px 5px;border-radius:4px;font-weight:600}
 .lt-pin-sore{display:flex;flex-wrap:wrap;gap:5px;padding-left:13px;margin-top:4px}
 .lt-sore-chip{font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid;background:rgba(255,255,255,.03);white-space:nowrap}
     .lt-pin-setn{font-size:12px;color:var(--muted);padding:2px 0;line-height:1.5}
