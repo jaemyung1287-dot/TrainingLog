@@ -2983,11 +2983,9 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
           y:{position:'left',grid:{color:'rgba(247,169,79,.1)'},ticks:{color:'#f7a94f',font:{size:9}},title:{display:true,text:'Volume (kg)',color:'#f7a94f',font:{size:10}}},
           y1:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#3ecf8e',font:{size:9}},title:{display:true,text:'Distance (m)',color:'#3ecf8e',font:{size:10}}}};
         const cfg={type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[
-          {label:'Total Volume',yAxisID:'y',data:dates.map(d=>vByD[d]?vByD[d].v:null),_metas:dates.map(d=>vByD[d]?vByD[d].meta:''),_rpes:dates.map(d=>vByD[d]&&vByD[d].rpe!=null?vByD[d].rpe:null),_ptUnit:'kg',borderColor:'#f7a94f',backgroundColor:'transparent',fill:false,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
-          {label:'Sprint Distance',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),_rpes:dates.map(d=>dByD[d]&&dByD[d].rpe!=null?dByD[d].rpe:null),_ptUnit:'m',borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
-        ]},options:opt,plugins:[_mkPtRpeVals(null)]};
-        opt.layout={padding:{top:28}};
-        opt.scales.y.grace='32%';opt.scales.y1.grace='32%';
+          {label:'Total Volume',yAxisID:'y',data:dates.map(d=>vByD[d]?vByD[d].v:null),_metas:dates.map(d=>vByD[d]?vByD[d].meta:''),borderColor:'#f7a94f',backgroundColor:'transparent',fill:false,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2},
+          {label:'Sprint Distance',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
+        ]},options:opt};
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,320);
       }
       {
