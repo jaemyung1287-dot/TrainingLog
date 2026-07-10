@@ -1396,6 +1396,7 @@ function _mkMesoLabels(dates){
       const area=chart.chartArea,ctx=chart.ctx;ctx.save();
       _spans(chart).forEach(({p,i,xS,xE})=>{if(!p)return;const col=_mesoColor(p);
         if(i>0){ctx.strokeStyle=col+'80';ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(xS,area.top);ctx.lineTo(xS,area.bottom);ctx.stroke();ctx.setLineDash([]);}
+        if(xE-xS>72){ctx.fillStyle=col;ctx.font='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(p,(xS+xE)/2,area.bottom-5);}
       });
       ctx.restore();
     }};
