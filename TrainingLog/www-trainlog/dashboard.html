@@ -1463,7 +1463,7 @@ function _wkAttachCfg(cfg,s,unit,agg){
   cfg.options.layout.padding=Object.assign({},cfg.options.layout.padding,{top:Math.max((cfg.options.layout.padding&&cfg.options.layout.padding.top)||0,20)});
   if(cfg.options.scales&&cfg.options.scales.y){
     const y=cfg.options.scales.y;
-    y.grace='25%';                        // 라인 최고점이 상단 라벨을 침범하지 않게 여유
+    if(!y.grace)y.grace='25%';            // 라인 최고점이 상단 라벨을 침범하지 않게 여유 (점 라벨용 더 큰 grace는 유지)
     if((agg||'sum')==='sum') y.min=0;     // 볼륨/거리 합계는 음수 축 방지
   }
   return cfg;
@@ -2257,7 +2257,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       cfg.data.datasets[0]._rpes=series.map(p=>p.rpe!=null?p.rpe:null);
       cfg.plugins=(cfg.plugins||[]).concat([_mkPtRpeVals(unit)]);
       const o=cfg.options;o.layout=o.layout||{};o.layout.padding=Object.assign({},o.layout.padding,{top:Math.max((o.layout.padding&&o.layout.padding.top)||0,28)});
-      if(o.scales&&o.scales.y&&!o.scales.y.grace)o.scales.y.grace='22%';
+      if(o.scales&&o.scales.y)o.scales.y.grace='32%';
       return cfg;
     };
     if(meso){
@@ -2987,18 +2987,19 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
           {label:'Sprint Distance',yAxisID:'y1',data:dates.map(d=>dByD[d]?dByD[d].v:null),_metas:dates.map(d=>dByD[d]?dByD[d].meta:''),_rpes:dates.map(d=>dByD[d]&&dByD[d].rpe!=null?dByD[d].rpe:null),_ptUnit:'m',borderColor:'#3ecf8e',backgroundColor:'transparent',spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}
         ]},options:opt,plugins:[_mkPtRpeVals(null)]};
         opt.layout={padding:{top:28}};
-        LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,240);
+        opt.scales.y.grace='32%';opt.scales.y1.grace='32%';
+        LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,320);
       }
       {
         // 선택(클릭)한 순서 그대로 렌더링 — Overlay 모드의 종목 묶음은 첫 종목 위치에 한 번만
         const _wkAttach=(cfg,s,u,agg)=>ltCmp?cfg:_wkAttachCfg(cfg,s,u,agg);
         let _ovDone=false;
         [...ltSel].forEach(n=>{
-          if(n==='__vol__'){ if(volDistOverlay)return; if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp,null,true,'kg'),s,'kg'),ltCmp?null:230,_ltCat.indexOf('__vol__'));} }
-          else if(n==='__dist__'){ if(volDistOverlay)return; if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp,null,true,'m'),s,'m'),ltCmp?null:230,_ltCat.indexOf('__dist__'));} }
+          if(n==='__vol__'){ if(volDistOverlay)return; if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp,null,true,'kg'),s,'kg'),ltCmp?null:320,_ltCat.indexOf('__vol__'));} }
+          else if(n==='__dist__'){ if(volDistOverlay)return; if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp,null,true,'m'),s,'m'),ltCmp?null:320,_ltCat.indexOf('__dist__'));} }
           else if(!_LT_SPECIAL[n]&&_lt.exMap[n]){
             if(ltChartMode==='overlay'&&!ltCmp){ if(!_ovDone&&selExs.length){LT+=_ltOverlayCard(selExs,units);_ovDone=true;} }
-            else {const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint},false,m.sprint?'s':'kg'),ltCmp?null:230,_ltCat.indexOf(n),_ltBadge(s,m.sprint?'s':'kg',m.sprint));}
+            else {const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint},false,m.sprint?'s':'kg'),ltCmp?null:320,_ltCat.indexOf(n),_ltBadge(s,m.sprint?'s':'kg',m.sprint));}
           }
         });
       }
