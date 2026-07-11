@@ -3330,7 +3330,7 @@ function _renderInsights(ath){
 function buildBarChart(id,dates,data,bg,border){
   killChart(id);
   const c=document.getElementById('ch-'+id);if(!c)return;
-  charts[id]=new Chart(c,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},beginAtZero:true}}}});
+  charts[id]=new Chart(c,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'rgba(255,255,255,.9)',font:{size:11},maxTicksLimit:14,maxRotation:0,minRotation:0}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},beginAtZero:true}}}});
 }
 
 // ══════════════════════════════════════
@@ -3481,7 +3481,7 @@ function renderCondition(){
       charts['readiness']=new Chart(cRd,{type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:[{
         label:'Readiness',data:rdScores,borderColor:'#f7a94f',backgroundColor:'rgba(247,169,79,.07)',fill:true,
         pointBackgroundColor:rdColors,pointBorderColor:rdColors,pointRadius:4,pointHoverRadius:6,spanGaps:true,tension:.35
-      }]},options:{responsive:true,maintainAspectRatio:false,onClick:_condClick,onHover:_condHover,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const r=rd[c.dataIndex];return 'Readiness '+c.parsed.y+(r&&r.mode==='abs'?' (baseline building)':'');}}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},min:0,max:100}}}});
+      }]},options:{responsive:true,maintainAspectRatio:false,onClick:_condClick,onHover:_condHover,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const r=rd[c.dataIndex];return 'Readiness '+c.parsed.y+(r&&r.mode==='abs'?' (baseline building)':'');}}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'rgba(255,255,255,.9)',font:{size:11},maxTicksLimit:14,maxRotation:0,minRotation:0}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},min:0,max:100}}}});
     }
     killChart('cond-main');
     const cMain=document.getElementById('ch-cond-main');
@@ -3489,10 +3489,10 @@ function renderCondition(){
       {label:'Fatigue',data:dates.map(d=>get(d,'fatigue')),borderColor:'#f85149',backgroundColor:'rgba(248,81,73,.06)',fill:true,pointRadius:3,spanGaps:true,tension:.35},
       {label:'Mood',data:dates.map(d=>get(d,'mood')),borderColor:'#3ecf8e',backgroundColor:'rgba(62,207,142,.06)',fill:true,pointRadius:3,spanGaps:true,tension:.35},
       {label:'Sleep Q',data:dates.map(d=>get(d,'sleepQuality')),borderColor:'#bc8cff',pointRadius:3,spanGaps:true,tension:.35},
-    ]},options:{responsive:true,maintainAspectRatio:false,onClick:_condClick,onHover:_condHover,plugins:{legend:{display:true,labels:{color:'#c9d1d9',font:{size:11},boxWidth:10}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},min:0,max:10}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,onClick:_condClick,onHover:_condHover,plugins:{legend:{display:true,labels:{color:'#c9d1d9',font:{size:11},boxWidth:10}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'rgba(255,255,255,.9)',font:{size:11},maxTicksLimit:14,maxRotation:0,minRotation:0}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},min:0,max:10}}}});
     killChart('sleep-h');
     const cSH=document.getElementById('ch-sleep-h');
-    if(cSH)charts['sleep-h']=new Chart(cSH,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data:dates.map(d=>get(d,'sleepHours')),backgroundColor:'rgba(188,140,255,.35)',borderColor:'#bc8cff',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,onClick:_condClick,onHover:_condHover,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:14}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},beginAtZero:false,min:4,max:12}}}});
+    if(cSH)charts['sleep-h']=new Chart(cSH,{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:[{data:dates.map(d=>get(d,'sleepHours')),backgroundColor:'rgba(188,140,255,.35)',borderColor:'#bc8cff',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,onClick:_condClick,onHover:_condHover,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'rgba(255,255,255,.9)',font:{size:11},maxTicksLimit:14,maxRotation:0,minRotation:0}},y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#8b949e',font:{size:9}},beginAtZero:false,min:4,max:12}}}});
   },50);
 }
 
