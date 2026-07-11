@@ -1318,7 +1318,7 @@ const _weekBandPlugin={
             const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
             const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
             const c=colOf(p);
-            ctx.fillStyle=c+'17'; ctx.fillRect(xS,area.top,xE-xS,chart.height-area.top);
+            ctx.fillStyle=c+'17'; ctx.fillRect(xS,area.bottom,xE-xS,chart.height-area.bottom);
             if(i2>0){ ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,chart.height-2); ctx.stroke(); ctx.setLineDash([]); }
             if(xE-xS>60){ ctx.fillStyle=c; ctx.font='700 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(p,(xS+xE)/2,chart.height-4); }
           }
@@ -1425,7 +1425,7 @@ function _mkMesoLabels(dates){
     beforeDatasetsDraw(chart){
       const xs=chart.scales.x;if(!xs||!dates||!dates.length)return;
       const area=chart.chartArea,ctx=chart.ctx;ctx.save();
-      _spans(chart).forEach(({p,xS,xE})=>{if(!p)return;ctx.fillStyle=_mesoColor(p)+'17';ctx.fillRect(xS,area.top,xE-xS,chart.height-area.top);});
+      _spans(chart).forEach(({p,xS,xE})=>{if(!p)return;ctx.fillStyle=_mesoColor(p)+'17';ctx.fillRect(xS,area.bottom,xE-xS,chart.height-area.bottom);});
       ctx.restore();
     },
     // 경계선 + 상단 라벨 — 막대 위에 그림
