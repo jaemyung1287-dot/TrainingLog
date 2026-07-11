@@ -1282,7 +1282,8 @@ function _mesoNamesFor(dates){
   const pm={};
   Object.entries((typeof coachData!=='undefined'&&coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{if(p&&p.phase)pm[d]=String(p.phase).trim();});
   if(typeof _PDZ!=='undefined'){_PDZ.forEach(([code,d1])=>{const b='Mesocycle '+code.split('-')[0];const dt=new Date(d1+'T00:00:00');for(let k=0;k<7;k++){const ds=dt.toISOString().slice(0,10);pm[ds]=b;dt.setDate(dt.getDate()+1);}});}
-  let last=null;const ph=dates.map(d=>{if(pm[d])last=pm[d];return last;});
+  const _ss=(typeof _PDZ!=='undefined'&&_PDZ.length)?_PDZ[0][1]:'2026-06-01';
+  let last=null;const ph=dates.map(d=>{if(d<_ss)return 'Pre-Season';if(pm[d])last=pm[d];return last;});
   for(let k=0;k<ph.length&&!ph[k];k++)ph[k]='Pre-Season';
   return ph;
 }
@@ -1304,7 +1305,8 @@ const _weekBandPlugin={
       const pm={};
       Object.entries((typeof coachData!=='undefined'&&coachData&&coachData.sessionPlans)||{}).forEach(([d,p])=>{if(p&&p.phase)pm[d]=String(p.phase).trim();});
       if(typeof _PDZ!=='undefined'){_PDZ.forEach(([code,d1])=>{const b='Mesocycle '+code.split('-')[0];const dt=new Date(d1+'T00:00:00');for(let k=0;k<7;k++){const ds=dt.toISOString().slice(0,10);pm[ds]=b;dt.setDate(dt.getDate()+1);}});}
-      let last=null; const ph=dates.map(d=>{ if(pm[d])last=pm[d]; return last; });
+      const _ss=(typeof _PDZ!=='undefined'&&_PDZ.length)?_PDZ[0][1]:'2026-06-01';
+      let last=null; const ph=dates.map(d=>{ if(d<_ss)return 'Pre-Season'; if(pm[d])last=pm[d]; return last; });
       for(let k=0;k<ph.length&&!ph[k];k++)ph[k]='Pre-Season';
       const uniq=[...new Set(ph.filter(Boolean))];
       if(uniq.length){
@@ -1316,6 +1318,7 @@ const _weekBandPlugin={
             const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
             const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
             const c=colOf(p);
+            ctx.fillStyle=c+'12'; ctx.fillRect(xS,area.top,xE-xS,area.bottom-area.top);
             if(i2>0){ ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,area.bottom); ctx.stroke(); ctx.setLineDash([]); }
             if(xE-xS>60){ ctx.fillStyle=c; ctx.font='700 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(p,(xS+xE)/2,area.bottom+6); }
           }
