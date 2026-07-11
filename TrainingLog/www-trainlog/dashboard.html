@@ -1374,7 +1374,7 @@ try{ if(window.Chart&&Chart.register) Chart.register(_weekBandPlugin); }catch(e)
 // 라인 차트 옵션에 주간 밴드 날짜 + 점 클릭(핀) 연결
 function _ltAttachInteract(opt,dates,ctx,bands){
   if(!opt)return opt;
-  if(bands){opt._weekDates=dates;opt.layout=opt.layout||{};opt.layout.padding=(typeof opt.layout.padding==='object'&&opt.layout.padding)?opt.layout.padding:{};opt.layout.padding.bottom=Math.max(opt.layout.padding.bottom||0,26);}   // 메소/주간 밴드 + 하단 라벨 여백
+  if(bands){opt._weekDates=dates;opt.layout=opt.layout||{};opt.layout.padding=(typeof opt.layout.padding==='object'&&opt.layout.padding)?opt.layout.padding:{};opt.layout.padding.bottom=Math.max(opt.layout.padding.bottom||0,16);}   // 메소/주간 밴드 + 하단 라벨 여백
   opt.onClick=function(evt,els,chart){
     let idx=-1;
     if(els&&els.length)idx=els[0].index;
@@ -2240,7 +2240,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     plugins:{legend:{display:!!legend,labels:{color:'rgba(230,237,243,.55)',font:{size:10},boxWidth:10}},
       tooltip:{enabled:false,external:_ltExtTip,
         callbacks:{label:ctx=>{let m=ctx.dataset._metas&&ctx.dataset._metas[ctx.dataIndex];if(m==null||m==='')return ctx.formattedValue;if(Array.isArray(m))return (legend&&ctx.dataset.label)?[ctx.dataset.label].concat(m.map(x=>'  '+x)):m;return((legend&&ctx.dataset.label)?ctx.dataset.label+': ':'')+m;}}}},
-    scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(255,255,255,.9)',font:{size:11},autoSkip:false,maxRotation:0,minRotation:0,padding:20}},
+    scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(255,255,255,.9)',font:{size:11},autoSkip:false,maxRotation:0,minRotation:0,padding:6}},
       y:{reverse:!!sprint,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(230,237,243,.3)',font:{size:9}}}}});
   let _ltN=0;
   const _ltCard=(title,sub,cfg,h,rmIdx,badge,strip,mid)=>{const id='lt-'+(_ltN++);_ltJobs.push({id,cfg});const rm=(typeof rmIdx==='string')?`<span title="제거" onclick="${rmIdx}" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:(rmIdx!=null&&rmIdx>=0)?`<span title="제거" onclick="ltToggleEx(${rmIdx})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1;flex-shrink:0;padding:0 2px">×</span>`:'';return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(title)}</span>${mid?`<span style="flex:1;text-align:center;font-size:12.5px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mid}</span>`:''}<span style="display:flex;align-items:center;gap:6px;flex-shrink:0">${badge||''}<span style="font-size:10px;color:var(--hint)">${_esc(sub)}</span>${rm}</span></div>${strip||''}<div style="position:relative;height:${h||140}px"><canvas id="${id}"></canvas></div></div>`;};
@@ -2435,7 +2435,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.volBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16,bottom:22}};
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16,bottom:16}};
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg'),_mkWeekSep(dates),_mkMesoLabels(dates)]},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
@@ -2467,7 +2467,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.distBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+Math.round(byDate[d][g])+'m'].concat(_ltDistExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16,bottom:22}};
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16,bottom:16}};
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m'),_mkWeekSep(dates),_mkMesoLabels(dates)]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
