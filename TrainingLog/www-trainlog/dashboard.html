@@ -1290,6 +1290,7 @@ function _mesoNamesFor(dates){
 // ── 추이 차트: 주간 음영 밴드 + 라벨(예: "6/8 주") 플러그인 ──
 const _weekBandPlugin={
   id:'lt_weekband',
+  beforeInit(chart){const L=chart.options.layout=(chart.options.layout||{});const P=(typeof L.padding==='object'&&L.padding)?L.padding:(L.padding={});P.bottom=Math.max(P.bottom||0,26);},
   beforeDatasetsDraw(chart){
     const dates=(chart.options&&chart.options._weekDates)||(chart.config&&chart.config.options&&chart.config.options._weekDates); if(!dates||!dates.length)return;
     const xs=chart.scales.x, area=chart.chartArea, ctx=chart.ctx; if(!xs||!area)return;
@@ -1318,9 +1319,9 @@ const _weekBandPlugin={
             const xS=i2===0?area.left:(xs.getPixelForValue(i2-1)+xs.getPixelForValue(i2))/2;
             const xE=j2>=n?area.right:(xs.getPixelForValue(j2-1)+xs.getPixelForValue(j2))/2;
             const c=colOf(p);
-            ctx.fillStyle=c+'12'; ctx.fillRect(xS,area.top,xE-xS,area.bottom-area.top);
-            if(i2>0){ ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,area.bottom); ctx.stroke(); ctx.setLineDash([]); }
-            if(xE-xS>60){ ctx.fillStyle=c; ctx.font='700 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(p,(xS+xE)/2,area.bottom+6); }
+            ctx.fillStyle=c+'17'; ctx.fillRect(xS,area.top,xE-xS,chart.height-area.top);
+            if(i2>0){ ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.setLineDash([5,3]); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(xS,area.top); ctx.lineTo(xS,chart.height-2); ctx.stroke(); ctx.setLineDash([]); }
+            if(xE-xS>60){ ctx.fillStyle=c; ctx.font='700 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(p,(xS+xE)/2,chart.height-4); }
           }
           i2=j2;
         }
@@ -1425,7 +1426,7 @@ function _mkMesoLabels(dates){
     beforeDatasetsDraw(chart){
       const xs=chart.scales.x;if(!xs||!dates||!dates.length)return;
       const area=chart.chartArea,ctx=chart.ctx;ctx.save();
-      _spans(chart).forEach(({p,xS,xE})=>{if(!p)return;ctx.fillStyle=_mesoColor(p)+'17';ctx.fillRect(xS,area.top,xE-xS,area.bottom-area.top);});
+      _spans(chart).forEach(({p,xS,xE})=>{if(!p)return;ctx.fillStyle=_mesoColor(p)+'17';ctx.fillRect(xS,area.top,xE-xS,chart.height-area.top);});
       ctx.restore();
     },
     // 경계선 + 상단 라벨 — 막대 위에 그림
@@ -1433,8 +1434,8 @@ function _mkMesoLabels(dates){
       const xs=chart.scales.x;if(!xs||!dates||!dates.length)return;
       const area=chart.chartArea,ctx=chart.ctx;ctx.save();
       _spans(chart).forEach(({p,i,xS,xE})=>{if(!p)return;const col=_mesoColor(p);
-        if(i>0){ctx.strokeStyle=col+'80';ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(xS,area.top);ctx.lineTo(xS,area.bottom);ctx.stroke();ctx.setLineDash([]);}
-        if(xE-xS>60){ctx.fillStyle=col;ctx.font='700 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(p,(xS+xE)/2,area.bottom+6);}
+        if(i>0){ctx.strokeStyle=col+'80';ctx.setLineDash([4,3]);ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(xS,area.top);ctx.lineTo(xS,chart.height-2);ctx.stroke();ctx.setLineDash([]);}
+        if(xE-xS>60){ctx.fillStyle=col;ctx.font='700 11px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(p,(xS+xE)/2,chart.height-4);}
       });
       ctx.restore();
     }};
@@ -2435,7 +2436,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.volBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+_fmtKg(byDate[d][g])].concat(_ltExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'v':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16}};
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,false);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16,bottom:22}};
     return _ltCard('Total Volume · '+_LT_BRK_LBL[grp],'kg'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('kg'),_mkWeekSep(dates),_mkMesoLabels(dates)]},260,_ltCat.indexOf('__vol__'));
   };
   const _ltVolStackBucket=grp=>{
@@ -2467,7 +2468,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const _stk=ltBrkBars==='stack';
     const _exBy=(_lt.distBreak.ex||{})[grp]||{};
     const dss=groups.map((g,i)=>{const col=_LT_PAL[i%_LT_PAL.length];return{label:g,hidden:_ltBrkHidden.has(grp+'|'+g),data:dates.map(d=>byDate[d][g]?Math.round(byDate[d][g]):null),_metas:dates.map(d=>byDate[d][g]?['Total '+Math.round(byDate[d][g])+'m'].concat(_ltDistExMetaFromObj(_exBy[d]&&_exBy[d][g])):''),backgroundColor:col+'cc',stack:_stk?'d':undefined,borderRadius:2,maxBarThickness:_stk?40:14};});
-    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16}};
+    const opt=_ltTip(false,true);opt.scales.x.stacked=_stk;opt.scales.y.stacked=_stk;opt.scales.y.beginAtZero=true;_ltAttachBrkInteract(opt,dates,groups,grp,true);_ltBrkLegend(opt,grp);opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;opt.layout={padding:{top:16,bottom:22}};
     return _ltCard('Sprint Distance · '+_LT_DBRK_LBL[grp],'m'+(_stk?' · 누적':' · 그룹'),{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins:[_mkBarVals('m'),_mkWeekSep(dates),_mkMesoLabels(dates)]},260,_ltCat.indexOf('__dist__'));
   };
   const _ltDistStackBucket=grp=>{
