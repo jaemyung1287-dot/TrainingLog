@@ -1206,6 +1206,40 @@ function _catOf(e){return /leg\s*curl/i.test((e&&e.name)||'')?'Knee Dominant':((
 // 전/후면 사슬 × 상/하체 매핑(근비대 시기 밸런스용). Leg Curl(햄스트링)은 하체 후면 예외.
 const _CHAIN_MAP={'Horizontal Push':'Anterior Upper','Vertical Push':'Anterior Upper','Horizontal Pull':'Posterior Upper','Vertical Pull':'Posterior Upper','Knee Dominant':'Anterior Lower','Unilateral Training':'Anterior Lower','Hip Hinge':'Posterior Lower','Lower Leg':'Posterior Lower','Hip Abduction / Adduction':'Posterior Lower','Hip Abduction/Adduction':'Posterior Lower','Core Training':'Core'};
 function _chainOf(e){if(/leg\s*curl/i.test((e&&e.name)||''))return 'Posterior Lower';return _CHAIN_MAP[(e&&e.subCategory)||'']||'Other';}
+// ── 관절동작 기반 분류(2026-07 재설계). 운동명 규칙으로 {type,movement,structure,chain} 산출.
+//   복합(다관절)=Movement+Kinetic Chain에만, 고립(단관절)=Structure에(Chain 자동 롤업).
+//   고립 판정을 먼저(더 구체적), 복합을 나중에. Structure→Chain 방향: Adductor=Medial, Abductor=Lateral.
+function _classifyEx(e){
+  const n=((e&&e.name)||'').toLowerCase();
+  const I=(structure,chain)=>({type:'iso',movement:'',structure:structure,chain:chain});
+  const C=(movement,chain)=>({type:'cmp',movement:movement,structure:'',chain:chain});
+  // ── 고립운동(Structure) ──
+  if(/hip\s*flexion|knee\s*raise|leg\s*raise|psoas\s*march|a[-\s]?walk|a[-\s]?march/.test(n))return I('Hip Flexor','Anterior Lower');
+  if(/reverse\s*nordic/.test(n))return I('Knee Extensor','Anterior Lower');
+  if(/leg\s*extension/.test(n))return I('Knee Extensor','Anterior Lower');
+  if(/leg\s*curl|hamstring\s*curl/.test(n)||(/nordic/.test(n)&&!/reverse/.test(n)))return I('Knee Flexor','Posterior Lower');
+  if(/calf\s*raise/.test(n))return I('Plantar Flexor','Posterior Lower');
+  if(/dorsiflex|dorsi\s*flexion|tibialis|heel\s*walk/.test(n))return I('Dorsi Flexor','Anterior Lower');
+  if(/clamshell|hip\s*abduction|abduction/.test(n))return I('Hip Abductor','Lateral');
+  if(/copenhagen|hip\s*adduction|adductor|adduction/.test(n))return I('Hip Adductor','Medial');
+  if(/back\s*extension|reverse\s*hyper|hip\s*extension|single\s*leg\s*back/.test(n))return I('Hip Extensor','Posterior Lower');
+  if(/lateral\s*raise|y-?t-?w|prone\s*y|y-?t\b/.test(n))return I('Shoulder','Posterior Upper');
+  if(/sit[-\s]?up|plank|dead\s*bug|hollow|crunch|lateral\s*flexion|side\s*band|side\s*bend|curl\s*w\/swiss/.test(n))return I('Core','Core');
+  // ── 복합운동(Movement) ──
+  if(/squat|lunge|step\s*up|leg\s*press/.test(n))return C('Knee Dominant','Anterior Lower');
+  if(/deadlift|romanian|good\s*morning|hip\s*thrust|swing|glute|hinge/.test(n))return C('Hip Hinge','Posterior Lower');
+  if(/bench\s*press|chest\s*press|floor\s*press|push[-\s]?up|pushup/.test(n))return C('Horizontal Push','Anterior Upper');
+  if(/military\s*press|landmine\s*press|dumbbell\s*press|shoulder\s*press|overhead/.test(n))return C('Vertical Push','Anterior Upper');
+  if(/pull[-\s]?up|pulldown|pull\s*down|pullover/.test(n))return C('Vertical Pull','Posterior Upper');
+  if(/row/.test(n))return C('Horizontal Pull','Posterior Upper');
+  // ── 미분류: subCategory 폴백 ──
+  const sc=(e&&e.subCategory)||'';
+  return {type:'?',movement:sc||'Other',structure:sc||'Other',chain:_CHAIN_MAP[sc]||'Other'};
+}
+// 렌즈별 접근자: Movement=복합운동만, Structure=고립운동만(각각 상대 렌즈에선 제외)
+function _movementOf(e){const c=_classifyEx(e);return c.type==='cmp'?c.movement:(c.type==='?'?c.movement:null);}
+function _structureOf(e){const c=_classifyEx(e);return c.type==='iso'?c.structure:(c.type==='?'?c.structure:null);}
+function _kchainOf(e){return _classifyEx(e).chain;}
 function _ltDisc(s){
   if(s&&typeof s.discipline==='string'&&_LT_DISC[s.discipline])return s.discipline;
   const t=((s&&s.name)||'')+' '+((s&&s.subCategory)||'');
@@ -1725,7 +1759,7 @@ function _ltPinCards(selLogs){
   return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 Pinned sessions <span style="color:var(--hint);font-weight:400;font-size:11px">· Click a point/bar to add/remove · in a card: exercise = that exercise only, date = full session</span></span><button class="lt-clear" onclick="_ltClearPins()">Close all</button></div><div class="lt-pin-row">${cards}</div></div>`;
 }
 function _ltBuild(logs,ath){
-  const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},distRpe={},volRpe={},volBreak={sub:{},region:{},type:{},ex:{sub:{},region:{},type:{}}},distBreak={sub:{},disc:{},ex:{sub:{},disc:{}}};
+  const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},distRpe={},volRpe={},volBreak={sub:{},region:{},type:{},movement:{},structure:{},ex:{sub:{},region:{},type:{},movement:{},structure:{}}},distBreak={sub:{},disc:{},ex:{sub:{},disc:{}}};
   // pass 1: 세션 총량 + 날짜별 구성 상세(전 종목·BW 포함, 여러 세션 합산)
   (logs||[]).forEach(l=>{
     if(l.type==='weight'||l.type==='plyo'){
@@ -1750,13 +1784,16 @@ function _ltBuild(logs,ath){
         {const _ef=_dEffNum(e.effort); if(_ef!=null)vo.eff=_ef;}
         // 분해 누적(카테고리/상하체/타입)
         if(exVol>0){
-          const _cSub=_catOf(e), _cType=e.trainingType||'Other', _cReg=_chainOf(e);
+          const _cSub=_catOf(e), _cType=e.trainingType||'Other', _cReg=_kchainOf(e), _cMove=_movementOf(e), _cStruct=_structureOf(e);
           (volBreak.sub[l.date]=volBreak.sub[l.date]||{})[_cSub]=(volBreak.sub[l.date][_cSub]||0)+exVol;
           (volBreak.region[l.date]=volBreak.region[l.date]||{})[_cReg]=(volBreak.region[l.date][_cReg]||0)+exVol;
           (volBreak.type[l.date]=volBreak.type[l.date]||{})[_cType]=(volBreak.type[l.date][_cType]||0)+exVol;
+          if(_cMove)(volBreak.movement[l.date]=volBreak.movement[l.date]||{})[_cMove]=(volBreak.movement[l.date][_cMove]||0)+exVol;
+          if(_cStruct)(volBreak.structure[l.date]=volBreak.structure[l.date]||{})[_cStruct]=(volBreak.structure[l.date][_cStruct]||0)+exVol;
           // 카테고리별 운동 상세(볼륨+RPE) — 툴팁 세부 표시용
           const _exLbl=sl+e.name, _exEf=_dEffNum(e.effort);
-          [['sub',_cSub],['region',_cReg],['type',_cType]].forEach(gc=>{
+          [['sub',_cSub],['region',_cReg],['type',_cType],['movement',_cMove],['structure',_cStruct]].forEach(gc=>{
+            if(!gc[1])return;
             const _D=(volBreak.ex[gc[0]][l.date]=volBreak.ex[gc[0]][l.date]||{});
             const _C=(_D[gc[1]]=_D[gc[1]]||{});
             const _E=(_C[_exLbl]=_C[_exLbl]||{vol:0,eff:null});
@@ -2371,7 +2408,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const d=new Date(ds),day=d.getDay(),mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));return {k:dsFromDate(mon),l:(mon.getMonth()+1)+'.'+mon.getDate()};
   };
   // ── Total Volume 분해(누적) ──
-  const _LT_BRK_LBL={sub:'Category',region:'Anterior / Posterior Chain',type:'Type of Training'};
+  const _LT_BRK_LBL={sub:'Category',region:'Kinetic Chain',type:'Type of Training',movement:'Movement',structure:'Structure'};
   // 카테고리 막대 툴팁 세부: 그 카테고리에 들어간 운동별 볼륨 + RPE
   const _ltExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].vol-a[1].vol).map(e=>'· '+e[0]+'  '+_fmtKg(e[1].vol)+(e[1].eff!=null?'  · RPE '+e[1].eff:''));
   const _ltDistExMetaFromObj=exObj=>Object.entries(exObj||{}).sort((a,b)=>b[1].dist-a[1].dist).flatMap(e=>['· '+e[0]+'  '+Math.round(e[1].dist)+'m'+(e[1].eff!=null?'  · RPE '+e[1].eff:'')].concat((e[1].splits||[]).map((x,i)=>'   '+(i+1)+'. '+x)));
@@ -2756,7 +2793,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     }
     if(hasVol&&!ltAB&&!volDistOverlay&&!_stack){
       const _vb=(v,l)=>`<button class="${ltVolBreak===v?'on':''}" style="${ltVolBreak===v?'background:rgba(247,169,79,.16);color:#f7a94f':''}" onclick="ltVolBreak=ltVolBreak==='${v}'?'none':'${v}';ltBrkBars='group';_ltBrkHidden.clear();_rerenderTrends()">${l}</button>`;
-      LT+=`<div class="lt-row"><span class="lt-lbl">Volume</span><div class="lt-seg">${_vb('none','Total')}${_vb('type','Type of Training')}${_vb('sub','Category')}${_vb('region','Chain')}</div></div>`;
+      LT+=`<div class="lt-row"><span class="lt-lbl">Volume</span><div class="lt-seg">${_vb('none','Total')}${_vb('type','Type of Training')}${_vb('movement','Movement')}${_vb('region','Kinetic Chain')}${_vb('structure','Structure')}</div></div>`;
     }
     if(hasDist&&!ltAB&&!volDistOverlay&&!_stack){
       const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak=ltDistBreak==='${v}'?'none':'${v}';ltBrkBars='group';_ltBrkHidden.clear();_rerenderTrends()">${l}</button>`;
