@@ -1290,7 +1290,6 @@ function _mesoNamesFor(dates){
 // ── 추이 차트: 주간 음영 밴드 + 라벨(예: "6/8 주") 플러그인 ──
 const _weekBandPlugin={
   id:'lt_weekband',
-  beforeInit(chart){const L=chart.options.layout=(chart.options.layout||{});const P=(typeof L.padding==='object'&&L.padding)?L.padding:(L.padding={});P.bottom=Math.max(P.bottom||0,26);},
   beforeDatasetsDraw(chart){
     const dates=(chart.options&&chart.options._weekDates)||(chart.config&&chart.config.options&&chart.config.options._weekDates); if(!dates||!dates.length)return;
     const xs=chart.scales.x, area=chart.chartArea, ctx=chart.ctx; if(!xs||!area)return;
@@ -1375,7 +1374,7 @@ try{ if(window.Chart&&Chart.register) Chart.register(_weekBandPlugin); }catch(e)
 // 라인 차트 옵션에 주간 밴드 날짜 + 점 클릭(핀) 연결
 function _ltAttachInteract(opt,dates,ctx,bands){
   if(!opt)return opt;
-  if(bands)opt._weekDates=dates;   // 메소/주간 밴드는 Total Volume·Distance에서만 켠다
+  if(bands){opt._weekDates=dates;opt.layout=opt.layout||{};opt.layout.padding=(typeof opt.layout.padding==='object'&&opt.layout.padding)?opt.layout.padding:{};opt.layout.padding.bottom=Math.max(opt.layout.padding.bottom||0,26);}   // 메소/주간 밴드 + 하단 라벨 여백
   opt.onClick=function(evt,els,chart){
     let idx=-1;
     if(els&&els.length)idx=els[0].index;
