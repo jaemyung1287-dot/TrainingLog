@@ -1598,6 +1598,24 @@ function _ltExSetLines(e){
   const top=e.setRows&&e.setRows.length?Math.max(...e.setRows.map(r=>parseFloat(r.kg)||0)):(parseFloat(e.weight)||0);
   return {setLines,top,vol,eff:_dEffNum(e.effort),note:(e.note||e.notes||'').trim(),bw:isBW};
 }
+// ── Form-video helpers (YouTube/Shorts) ──
+function _ytId(u){ if(!u) return ''; const m=String(u).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/|live\/))([\w-]{11})/); return m?m[1]:''; }
+function _vidBtn(url){ const id=_ytId(url); if(!id) return ''; return `<span onclick="event.stopPropagation();_playFormVideo('${id}')" title="폼 영상 · Form video" style="cursor:pointer;color:#ff5a5a;font-weight:900;margin-left:5px">▶</span>`; }
+function _playFormVideo(id){
+  if(!id) return;
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  el.innerHTML=`<div style="width:100%;max-width:380px">
+    <div style="position:relative;width:100%;padding-top:177%;border-radius:14px;overflow:hidden;background:#000">
+      <iframe src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&autoplay=1&playsinline=1" allow="autoplay;encrypted-media;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"></iframe>
+    </div>
+    <button style="margin-top:12px;width:100%;padding:12px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Schließen · 닫기</button>
+  </div>`;
+  const rm=()=>{ if(el.parentNode) document.body.removeChild(el); };
+  el.querySelector('button').onclick=rm;
+  el.onclick=(ev)=>{ if(ev.target===el) rm(); };
+  document.body.appendChild(el);
+}
 // 웨이트 운동 1개 → 핀 카드 블록: 가로줄 + 운동명·부하·e1RM·RPE 행 + 헤더 + 세트 표 (%: 직전 e1RM 대비)
 function _ltPinWRow(e,d,ath){
   const sl=e.isSL?'SL ':e.isSA?'SA ':'';
@@ -1613,7 +1631,7 @@ function _ltPinWRow(e,d,ath){
       let kgTxt, ld;
       if(isBW){ ld=exk*rp*slM; vol+=ld; kgTxt=exk?'BW+'+exk+'kg':'BW'; }
       else { ld=kg*rp*slM; vol+=ld; kgTxt=kg+'kg'; if(kg>0&&rp>0)e1s=Math.max(e1s,_epley(kg,rp)); }
-      sdata.push({kgTxt,rp,ldTxt:(isBW&&!exk)?'–':_fmtKg(ld),kg:isBW?0:kg});
+      sdata.push({kgTxt,rp,ldTxt:(isBW&&!exk)?'–':_fmtKg(ld),kg:isBW?0:kg,video:(r.videoUrl||'')});
     });
   } else {
     const sets=parseInt(e.sets)||0, rp=parseFloat(e.reps)||0, w=parseFloat(e.weight)||0;
@@ -1622,7 +1640,7 @@ function _ltPinWRow(e,d,ath){
     for(let i=0;i<sets;i++){ const ld=isBW?0:w*rp*slM; sdata.push({kgTxt:isBW?'BW':w+'kg',rp,ldTxt:isBW?'–':_fmtKg(ld),kg:isBW?0:w}); }
   }
   const basis=e1||(e1s>0?e1s:null); // 과거 기록 없으면(첫 세션) 그 날 자체 e1RM 기준
-  const srows=sdata.map((o,i)=>`<tr><td class="l">${i+1}.</td>${intTd}<td class="act">${o.kgTxt}</td><td>${o.rp}</td><td>${o.ldTxt}</td><td>${(basis&&o.kg>0)?Math.round(o.kg/basis*100)+'%':'–'}</td></tr>`);
+  const srows=sdata.map((o,i)=>`<tr><td class="l">${i+1}.</td>${intTd}<td class="act">${o.kgTxt}${o.video?_vidBtn(o.video):''}</td><td>${o.rp}</td><td>${o.ldTxt}</td><td>${(basis&&o.kg>0)?Math.round(o.kg/basis*100)+'%':'–'}</td></tr>`);
   const sets=(e.setRows&&e.setRows.length)||parseInt(e.sets)||0;
   const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
   const head=`${sets}×${reps}${isBW?' (BW)':' · '+_fmtKg(vol)}${e1s>0?' · e1RM '+Math.round(e1s)+'kg':''}`;
