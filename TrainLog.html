@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260715-1';
+const APP_VERSION = '20260715-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -958,6 +958,14 @@ const APP_VERSION = '20260715-1';
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-p btn-sm" onclick="forceSyncNow()">☁️ Force Sync Now</button>
     </div>
+    <div onclick="_toggleRestore()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0;margin-top:24px;margin-bottom:6px">
+      <div class="sec-ttl" style="margin:0">🛟 Gelöschte/überschriebene Logs · 삭제·덮어쓴 기록 복구</div>
+      <span id="restore-chevron" style="font-size:18px;color:var(--text);transition:transform .2s;opacity:.7">▸</span>
+    </div>
+    <div id="restore-archive-body" style="display:none">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Wiederhergestellte Einträge erscheinen wieder in den Logs. · 복구하면 로그에 다시 나타납니다.</div>
+      <div id="restore-archive-section"></div>
+    </div>
     <div class="sec-ttl" style="margin-top:24px">Uncategorized Exercises</div>
     <div id="uncat-review-section" style="margin-bottom:8px"></div>
     <div class="sec-ttl" style="margin-top:24px">Data</div>
@@ -1206,6 +1214,7 @@ function syncToCloud(d){
     programs:d.programs||{},
     settings:d.settings||{},
     records:d.records||[],
+    logArchive:d.logArchive||[],
     _lastUpdated:d._lastUpdated||Date.now()
   });
   COACH_DOC.get().then(snap=>{
@@ -1223,7 +1232,7 @@ function syncToCloud(d){
     console.warn('[TrainLog] Coach sync error:',e);
     setTimeout(()=>{
       const latest=getData();
-      const retryData=_stripImages({athletes:latest.athletes||[],sessionPlans:latest.sessionPlans||{},programs:latest.programs||{},settings:latest.settings||{},records:latest.records||[],_lastUpdated:latest._lastUpdated||Date.now()});
+      const retryData=_stripImages({athletes:latest.athletes||[],sessionPlans:latest.sessionPlans||{},programs:latest.programs||{},settings:latest.settings||{},records:latest.records||[],logArchive:latest.logArchive||[],_lastUpdated:latest._lastUpdated||Date.now()});
       COACH_DOC.set(retryData).then(()=>{ showToast('☁️ Sync recovered ✓'); _hideSyncError(); })
         .catch(e2=>_showSyncError(e2?.message||'Unknown error'));
     },3000);
@@ -1352,6 +1361,8 @@ async function initFirebase(){
       merged.programs=cloudData.programs;
       merged.settings=cloudData.settings;
       merged.records=cloudData.records;
+      // Keep the richer log archive (cloud is authoritative but never lose local-only entries)
+      merged.logArchive=(cloudData.logArchive&&cloudData.logArchive.length>=(local?.logArchive?.length||0))?cloudData.logArchive:(local?.logArchive||[]);
       // Merge logs: cloud logs + any local-only logs not yet in cloud
       const _deletedIds=_getDeletedIds();
       const cloudIds=new Set(cloudData.logs.map(l=>l.id));
@@ -1495,6 +1506,32 @@ function _addDeletedId(id){
 }
 function _getDeletedIds(){
   try{ const raw=localStorage.getItem(SK_DELETED); return raw?new Set(JSON.parse(raw)):new Set(); }catch(e){ return new Set(); }
+}
+function _removeDeletedId(id){
+  try{
+    const raw=localStorage.getItem(SK_DELETED);
+    if(!raw) return;
+    const set=new Set(JSON.parse(raw)); set.delete(id);
+    localStorage.setItem(SK_DELETED,JSON.stringify([...set]));
+  }catch(e){}
+}
+// ── Safety net: archive a log's full content before it is removed (replace/edit/delete)
+//    so overwritten sessions can always be restored. Stored on d.logArchive (synced to
+//    the coach cloud doc), capped to the most recent entries. ──
+const LOG_ARCHIVE_MAX=400;
+function _archiveLogs(d, removed, reason){
+  try{
+    if(!removed||!removed.length) return;
+    if(!Array.isArray(d.logArchive)) d.logArchive=[];
+    removed.forEach(l=>{
+      if(!l) return;
+      const copy=JSON.parse(JSON.stringify(l));
+      copy._removedAt=Date.now();
+      copy._reason=reason||'removed';
+      d.logArchive.push(copy);
+    });
+    if(d.logArchive.length>LOG_ARCHIVE_MAX) d.logArchive=d.logArchive.slice(-LOG_ARCHIVE_MAX);
+  }catch(e){ console.warn('[TrainLog] archive failed:',e); }
 }
 const BODY_PARTS={
   upper:['Neck','Shoulder','Chest','Back','Arm'],
@@ -1741,6 +1778,7 @@ function getData(){
     if(!d.sessionPlans) d.sessionPlans={};
     if(!d.phvRecords) d.phvRecords=[];
     if(!d.notifications) d.notifications=[];
+    if(!d.logArchive) d.logArchive=[];
     if(d.programs){
       ['A','B'].forEach(g=>{
         if(d.programs[g]&&!d.programs[g].images) d.programs[g].images={macro:null,meso:null,micro:null};
@@ -3790,6 +3828,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     if(_editDateEl&&_editDateEl.value) ST._logDate=_editDateEl.value;
     const _eid=ST.editingLogId;
     const _xids=ST._extraEditLogIds||[];
+    _archiveLogs(d, d.logs.filter(l=>l.id===_eid||_xids.includes(l.id)), 'edit');
     d.logs=d.logs.filter(l=>l.id!==_eid&&!_xids.includes(l.id));
     ST.editingLogId=null; ST._extraEditLogIds=[];
     document.getElementById('w-edit-banner').style.display='none';
@@ -3800,6 +3839,8 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   // ── Replace mode: delete today's duplicate logs ──
   if(dupMode==='replace'){
     const today=ST._logDate||todayStr(); const athName=ST.athlete.name;
+    _archiveLogs(d, d.logs.filter(l=>l.athleteName===athName&&l.date===today&&_isThisSession(l)&&(
+      (liftingExs.length&&l.type==='weight')||(plyoExs.length&&l.type==='plyo')||(sprintExs.length&&l.type==='sprint')||(mobilityExs.length&&l.type==='mobility'))), 'replace');
     if(liftingExs.length) d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='weight'&&_isThisSession(l)));
     if(plyoExs.length)    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='plyo'&&_isThisSession(l)));
     if(sprintExs.length)  d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='sprint'&&_isThisSession(l)));
@@ -4297,6 +4338,7 @@ function saveSprint(dupMode){
     if(_spDateEl&&_spDateEl.value) ST._logDate=_spDateEl.value;
     const _eid=ST.editingLogId;
     const _xids=ST._extraEditLogIds||[];
+    _archiveLogs(d, d.logs.filter(l=>l.id===_eid||_xids.includes(l.id)), 'edit');
     d.logs=d.logs.filter(l=>l.id!==_eid&&!_xids.includes(l.id));
     ST.editingLogId=null; ST._extraEditLogIds=[];
     document.getElementById('sp-edit-banner').style.display='none';
@@ -4305,6 +4347,7 @@ function saveSprint(dupMode){
   // ── Replace mode: delete today's duplicate (same session only) ──
   if(dupMode==='replace'){
     const today=ST._logDate||todayStr(); const athName=ST.athlete.name;
+    _archiveLogs(d, d.logs.filter(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint'&&_isThisSprintSession(l)), 'replace');
     d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='sprint'&&_isThisSprintSession(l)));
   }
 
@@ -6041,6 +6084,55 @@ function renderSettings(){
     wrap.appendChild(div);
   });
   renderUncatSection();
+  renderRestorePanel();
+}
+let _restoreOpen=false;
+function _toggleRestore(){
+  _restoreOpen=!_restoreOpen;
+  const body=document.getElementById('restore-archive-body');
+  const chev=document.getElementById('restore-chevron');
+  if(body) body.style.display=_restoreOpen?'block':'none';
+  if(chev) chev.style.transform=_restoreOpen?'rotate(90deg)':'none';
+  if(_restoreOpen) renderRestorePanel();
+}
+function renderRestorePanel(){
+  const wrap=document.getElementById('restore-archive-section');
+  if(!wrap) return;
+  const d=getData();
+  const arc=(d.logArchive||[]).slice().sort((a,b)=>(b._removedAt||0)-(a._removedAt||0));
+  if(!arc.length){ wrap.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0">Keine · 보관된 기록 없음</div>'; return; }
+  const _reasonLbl={replace:'überschrieben · 덮어씀',edit:'bearbeitet · 편집',delete:'gelöscht · 삭제'};
+  const _typeIc={weight:'🏋️',sprint:'⚡',plyo:'🦘',mobility:'🌀'};
+  wrap.innerHTML=arc.slice(0,80).map((l)=>{
+    const when=l._removedAt?new Date(l._removedAt).toLocaleString('en',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+    const sess=l.sess?(l.sess==='am'?'🌅AM':'🌇PM'):'';
+    const nEx=(l.exercises||[]).length||(l.sets||[]).length||0;
+    const stat=l.type==='weight'?`${(l.totalVolume||0).toLocaleString()}kg`:l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()}m`:`${nEx} ex`;
+    const dup=getData().logs.some(x=>x.id===l.id);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;margin-bottom:6px;background:var(--bg2);border:1px solid var(--border);border-radius:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${_typeIc[l.type]||'📝'} ${l.athleteName||''} <span style="color:var(--muted);font-weight:500">· ${l.date||''} ${sess}</span></div>
+        <div style="font-size:11px;color:var(--muted)">${stat} · ${_reasonLbl[l._reason]||l._reason||''} · ${when}</div>
+      </div>
+      ${dup?'<span style="font-size:11px;color:#3ecf8e;font-weight:700">✓ vorhanden</span>'
+        :`<button class="btn btn-s btn-sm" style="flex:none;margin:0;background:rgba(62,207,142,.15);border-color:rgba(62,207,142,.4);color:#3ecf8e" onclick="_restoreArchived('${l.id}',${l._removedAt||0})">↩ Restore</button>`}
+    </div>`;
+  }).join('');
+}
+function _restoreArchived(logId, removedAt){
+  const d=getData();
+  const arc=(d.logArchive||[]).find(l=>l.id===logId && (l._removedAt||0)===removedAt);
+  if(!arc){ showToast('Nicht gefunden'); return; }
+  if(d.logs.some(l=>l.id===logId)){ showToast('Schon vorhanden · 이미 있음'); renderRestorePanel(); return; }
+  const restored=JSON.parse(JSON.stringify(arc));
+  delete restored._removedAt; delete restored._reason;
+  d.logs.push(restored);
+  _removeDeletedId(logId); // clear tombstone so it isn't wiped on next sync
+  const ath=(d.athletes||[]).find(a=>a.name===restored.athleteName); if(ath) _syncAthleteId=ath.id;
+  saveData(d);
+  showToast('↩ Wiederhergestellt · 복구됨');
+  renderRestorePanel();
+  renderToday();
 }
 function setAthBodyWeight(id){
   const inp=document.getElementById('abw-'+id); const w=parseFloat(inp.value);
@@ -6822,7 +6914,7 @@ function _deleteLoadCard(id){
   if(card) card.remove();
   const d=getData();
   const log=d.logs.find(l=>l.id===id);
-  if(log){ const ath=(d.athletes||[]).find(a=>a.name===log.athleteName); if(ath) _syncAthleteId=ath.id; }
+  if(log){ const ath=(d.athletes||[]).find(a=>a.name===log.athleteName); if(ath) _syncAthleteId=ath.id; _archiveLogs(d,[log],'delete'); }
   _addDeletedId(id);
   d.logs=d.logs.filter(l=>l.id!==id);
   saveData(d);
@@ -6836,7 +6928,7 @@ function _deleteLoadCard(id){
 function deleteLog(id, ctx){
   const d=getData();
   const log=d.logs.find(l=>l.id===id);
-  if(log){ const ath=(d.athletes||[]).find(a=>a.name===log.athleteName); if(ath) _syncAthleteId=ath.id; }
+  if(log){ const ath=(d.athletes||[]).find(a=>a.name===log.athleteName); if(ath) _syncAthleteId=ath.id; _archiveLogs(d,[log],'delete'); }
   _addDeletedId(id);
   d.logs=d.logs.filter(l=>l.id!==id);
   saveData(d);
@@ -6877,6 +6969,7 @@ function _deleteAthLog(id){
     rm();
     _addDeletedId(id);
     const dd=getData();
+    _archiveLogs(dd, dd.logs.filter(l=>l.id===id), 'delete');
     dd.logs=dd.logs.filter(l=>l.id!==id);
     saveData(dd);
     showToast('Log deleted · Gelöscht');
