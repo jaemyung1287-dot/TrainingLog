@@ -1166,6 +1166,34 @@ function _unionPlans(primary,secondary){
   return out;
 }
 
+// ── Preserve coach-entered sprint run times on athlete push ──────────────────
+// Firestore treats the `logs` array as atomic: set() replaces it wholesale. Athlete
+// devices don't have coach-entered repTimes/actualTime locally, so pushing their logs
+// would wipe those times from the cloud. Before writing, re-fill any set whose LOCAL
+// repTimes is empty from the matching cloud set (same log id + index + distance).
+// Only fills empties — never overwrites times the athlete actually has locally.
+function _mergeCloudSprintTimes(localLogs, cloudLogs){
+  if(!Array.isArray(localLogs)||!Array.isArray(cloudLogs)||!cloudLogs.length) return localLogs;
+  const cloudById={};
+  cloudLogs.forEach(l=>{ if(l&&l.id!=null) cloudById[l.id]=l; });
+  localLogs.forEach(ll=>{
+    if(!ll||ll.type!=='sprint'||!Array.isArray(ll.sets)) return;
+    const cl=cloudById[ll.id];
+    if(!cl||!Array.isArray(cl.sets)) return;
+    ll.sets.forEach((ls,i)=>{
+      if(!ls) return;
+      const localEmpty=!Array.isArray(ls.repTimes)||ls.repTimes.length===0;
+      if(!localEmpty) return;
+      const cs=cl.sets[i];
+      if(cs && String(cs.distance)===String(ls.distance) && Array.isArray(cs.repTimes) && cs.repTimes.length){
+        ls.repTimes=cs.repTimes.slice();
+        if(ls.actualTime==null && cs.actualTime!=null) ls.actualTime=cs.actualTime;
+      }
+    });
+  });
+  return localLogs;
+}
+
 // Push to Firestore (background, non-blocking)
 // Coach data → COACH_DOC | Athlete logs → ATHLETE_DOC(id)
 function syncToCloud(d){
@@ -1207,9 +1235,14 @@ function syncToCloud(d){
   if(athId){
     const _delSet=_getDeletedIds();
     const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId&&!_delSet.has(l.id));
+    const _lu=d._lastUpdated||Date.now();
     // merge:true preserves dashboard-written fields (deletedIds); include our own tombstones
-    ATHLETE_DOC(athId).set({logs:athLogs,deletedIds:[..._delSet],_lastUpdated:d._lastUpdated||Date.now()},{merge:true})
+    const _writeAth=()=>ATHLETE_DOC(athId).set({logs:athLogs,deletedIds:[..._delSet],_lastUpdated:_lu},{merge:true})
       .catch(e=>console.warn('[TrainLog] Athlete log sync error:',e));
+    // Fetch cloud first so a stale local copy can never wipe coach-entered sprint times.
+    ATHLETE_DOC(athId).get()
+      .then(snap=>{ _mergeCloudSprintTimes(athLogs,(snap.exists&&snap.data().logs)||[]); return _writeAth(); })
+      .catch(e=>{ console.warn('[TrainLog] Athlete pre-merge read failed, writing local:',e); _writeAth(); });
     _syncAthleteId=null;
   }
 }
