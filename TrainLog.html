@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260709-1';
+const APP_VERSION = '20260715-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1871,7 +1871,7 @@ function _readiness(allLogs,name,dt){
 // ════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════
-const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_skipped:{},_sessExpanded:new Set(),_editingConditionId:null,_weekOffset:0};
+const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A',pinBuf:'',charts:{},coachRecordAthlete:null,selectedExercise:'squat',_detailAthName:null,editingLogId:null,_extraEditLogIds:[],_chks:{},_skipped:{},_sessExpanded:new Set(),_editingConditionId:null,_weekOffset:0,_activeSess:null};
 
 // ════════════════════════════════════════════════
 //  NAVIGATION
@@ -2546,6 +2546,7 @@ function selectType(t){
     const grpData=_planGrpData(plan,ST.athlete);
     // Determine which session block to use (set by goTodayPlan, or auto by time)
     const sess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
+    ST._activeSess=sess; // remember which session (am/pm) this log belongs to
     ST._todayPlanSession=null; // clear after use
     function _sessExs(gd,s){
       if(!gd) return [];
@@ -2567,7 +2568,8 @@ function selectType(t){
       const _sprintPlanExNames=new Set(planExs.filter(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint').map(e=>e.name));
       const _todayLogs2=getData().logs.filter(l=>
         l.athleteName===ST.athlete.name&&l.date===today&&
-        (l.type==='weight'||l.type==='plyo'));
+        (l.type==='weight'||l.type==='plyo')&&
+        (l.sess==null||l.sess===sess)); // only THIS session's logs (legacy untagged logs still match by name below)
       const _matchLogs=_todayLogs2.filter(l=>
         (l.exercises||[]).some(e=>_planExNames.has(e.name)));
       // Also match sprint logs for sprint plan exercises (they store data in sets[], not exercises[])
@@ -2591,7 +2593,7 @@ function selectType(t){
         ST._extraEditLogIds=_allMatchedLogs.filter(l=>l.id!==_primaryLog.id).map(l=>l.id);
         banner.style.display='none';
         const eb=document.getElementById('w-edit-banner');
-        if(eb){eb.style.display='block';eb.textContent='✏️ Adding to existing session — fill in the missing exercises';}
+        if(eb){eb.style.display='block';eb.textContent='✏️ Diese Einheit ist schon gespeichert · 이미 저장된 세션 — Speichern aktualisiert sie (aktualisieren)';}
       } else {
         ST._extraEditLogIds=[];
         banner.style.display='block';
@@ -2724,6 +2726,7 @@ function selectType(t){
     const sprintAddBtn=document.getElementById('sp-add-btn');
     // Use selected AM/PM session (set by _selectLogSession)
     const sess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
+    ST._activeSess=sess; // remember which session (am/pm) this log belongs to
     ST._todayPlanSession=null;
     function _sprintSessExs(gd,s){
       if(!gd) return [];
@@ -2741,6 +2744,7 @@ function selectType(t){
       const _sprintPlanNames=new Set(sprintExs.map(e=>e.name));
       const _existSprintLog=getData().logs.find(l=>
         l.athleteName===ST.athlete.name&&l.date===today&&l.type==='sprint'&&
+        (l.sess==null||l.sess===sess)&&
         (l.sets||[]).some(s=>_sprintPlanNames.has(s.name)));
       const _sprintLoggedByName={};
       if(_existSprintLog) ((_existSprintLog.sets)||[]).forEach(s=>{if(s.name) _sprintLoggedByName[s.name]=s;});
@@ -2750,7 +2754,7 @@ function selectType(t){
         ST._extraEditLogIds=[];
         sprintBanner.style.display='none';
         const seb=document.getElementById('sp-edit-banner');
-        if(seb){seb.style.display='block';seb.textContent='✏️ Adding to existing session — fill in the missing exercises';}
+        if(seb){seb.style.display='block';seb.textContent='✏️ Diese Einheit ist schon gespeichert · 이미 저장된 세션 — Speichern aktualisiert sie (aktualisieren)';}
       } else {
         ST._extraEditLogIds=[];
         sprintBanner.style.display='block';
@@ -3749,14 +3753,25 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   const _skippedSprint=allExs.filter(e=>_params(e)==='sprint'&&e.skipped).map(e=>e.name).filter(Boolean);
   const _skippedMob=allExs.filter(e=>_params(e)==='mobility'&&e.skipped).map(e=>e.name).filter(Boolean);
 
+  // ── Session awareness: only THIS session's (am/pm) logs count as duplicates ──
+  // Prevents a PM save from seeing the AM log as a "duplicate" (which used to offer
+  // Replace and wipe the morning session). Tagged logs compare by sess; legacy
+  // untagged logs fall back to exercise-name overlap.
+  const _curSess=ST._activeSess||null;
+  const _curExNames=new Set(allExs.map(e=>e.name).filter(Boolean));
+  const _logNames=(l)=> [...(l.exercises||[]).map(e=>e.name), ...(l.sets||[]).map(s=>s.name)].filter(Boolean);
+  const _isThisSession=(l)=> (l.sess!=null && _curSess!=null)
+    ? (l.sess===_curSess)
+    : _logNames(l).some(n=>_curExNames.has(n));
+
   // ── Duplicate detection (runs after confirmation, before actual save) ──
   if(!ST.editingLogId && dupMode==='confirmed'){
     const d0=getData(); const today=ST._logDate||todayStr(); const athName=ST.athlete.name;
     const dups=[];
-    if(liftingExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='weight')) dups.push({lbl:'Weight',type:'weight'});
-    if(plyoExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='plyo')) dups.push({lbl:'Plyo',type:'plyo'});
-    if(sprintExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint')) dups.push({lbl:'Sprint',type:'sprint'});
-    if(mobilityExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='mobility')) dups.push({lbl:'Mobility',type:'mobility'});
+    if(liftingExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='weight'&&_isThisSession(l))) dups.push({lbl:'Weight',type:'weight'});
+    if(plyoExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='plyo'&&_isThisSession(l))) dups.push({lbl:'Plyo',type:'plyo'});
+    if(sprintExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint'&&_isThisSession(l))) dups.push({lbl:'Sprint',type:'sprint'});
+    if(mobilityExs.length&&d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='mobility'&&_isThisSession(l))) dups.push({lbl:'Mobility',type:'mobility'});
     if(dups.length){
       _showDupModal(dups.map(d=>d.lbl).join(' + '),
         ()=>saveWeight('replace'),
@@ -3785,10 +3800,10 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   // ── Replace mode: delete today's duplicate logs ──
   if(dupMode==='replace'){
     const today=ST._logDate||todayStr(); const athName=ST.athlete.name;
-    if(liftingExs.length) d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='weight'));
-    if(plyoExs.length)    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='plyo'));
-    if(sprintExs.length)  d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='sprint'));
-    if(mobilityExs.length) d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='mobility'));
+    if(liftingExs.length) d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='weight'&&_isThisSession(l)));
+    if(plyoExs.length)    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='plyo'&&_isThisSession(l)));
+    if(sprintExs.length)  d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='sprint'&&_isThisSession(l)));
+    if(mobilityExs.length) d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='mobility'&&_isThisSession(l)));
   }
   const phase=document.getElementById('w-phase').value;
   const week=document.getElementById('w-week').value;
@@ -3808,6 +3823,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     },0);
     d.logs.push({
       id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'weight',
+      sess:_curSess,
       phase,week,
       exercises:liftingExs.map(e=>{
         const isBW=e.isBodyweight||false;
@@ -3841,6 +3857,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   if(mobilityExs.length){
     d.logs.push({
       id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'mobility',
+      sess:_curSess,
       phase,week,
       exercises:mobilityExs.map(e=>({
         name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
@@ -3862,6 +3879,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const totalContacts=plyoExs.filter(e=>(e.planRepType||'reps')==='contacts').reduce((s,e)=>s+(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0);
     d.logs.push({
       id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'plyo',
+      sess:_curSess,
       phase,week,
       exercises:plyoExs.map(e=>({
         name:e.name, trainingType:e.trainingType||null, subCategory:e.subCategory||null,
@@ -3886,6 +3904,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       s+(parseFloat(e.distance)||0)*(parseInt(e.sets)||0)*(parseInt(e.reps)||0),0));
     d.logs.push({
       id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
+      sess:_curSess,
       phase,week,
       sprintType:sprintExs[0]?.subCategory||'Sprint Training',
       sets:sprintExs.map(e=>({
@@ -3909,7 +3928,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   const _allSkipped=[..._skippedLifting,..._skippedPlyo,..._skippedSprint];
   if(!liftingExs.length&&!plyoExs.length&&!sprintExs.length&&_allSkipped.length){
     d.logs.push({id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,
-      type:'weight',phase,week,exercises:[],skippedExercises:_allSkipped,totalVolume:0,rpe,notes});
+      type:'weight',sess:_curSess,phase,week,exercises:[],skippedExercises:_allSkipped,totalVolume:0,rpe,notes});
     summaryParts.push(`${_allSkipped.length} skipped ↩`);
   }
 
@@ -4251,10 +4270,17 @@ function saveSprint(dupMode){
     return;
   }
 
+  // ── Session awareness: only THIS session's (am/pm) sprint log counts as a duplicate ──
+  const _curSess=ST._activeSess||null;
+  const _curSprintNames=new Set(sets.map(s=>s.name).filter(Boolean));
+  const _isThisSprintSession=(l)=> (l.sess!=null && _curSess!=null)
+    ? (l.sess===_curSess)
+    : (l.sets||[]).some(s=>_curSprintNames.has(s.name));
+
   // ── Duplicate detection (runs after confirmation) ──
   if(!ST.editingLogId && dupMode==='confirmed'){
     const d0=getData(); const today=ST._logDate||todayStr(); const athName=ST.athlete.name;
-    if(d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint')){
+    if(d0.logs.some(l=>l.athleteName===athName&&l.date===today&&l.type==='sprint'&&_isThisSprintSession(l))){
       _showDupModal('Sprint',
         ()=>saveSprint('replace'),
         ()=>saveSprint('add')
@@ -4276,14 +4302,15 @@ function saveSprint(dupMode){
     document.getElementById('sp-edit-banner').style.display='none';
   }
 
-  // ── Replace mode: delete today's duplicate ──
+  // ── Replace mode: delete today's duplicate (same session only) ──
   if(dupMode==='replace'){
     const today=ST._logDate||todayStr(); const athName=ST.athlete.name;
-    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='sprint'));
+    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='sprint'&&_isThisSprintSession(l)));
   }
 
   const log={
     id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,type:'sprint',
+    sess:_curSess,
     phase:document.getElementById('sp-phase').value,
     week:document.getElementById('sp-week').value,
     sprintType:ST.sprintSets[0]?.subCategory||'Sprint Training',
@@ -6657,6 +6684,7 @@ function _editLog(logId){
   ST.athlete=ath;
   ST.editingLogId=logId;
   ST._extraEditLogIds=[];
+  ST._activeSess=log.sess||null; // preserve the edited log's session (am/pm)
   ST._logDate=log.date;      // preserve original log date
   ST._editFromCoach=true;    // back button returns to s-ath-detail
   const prog=d.programs[ath.group]||{};
