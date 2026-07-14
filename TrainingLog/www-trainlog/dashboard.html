@@ -2304,7 +2304,10 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     };
     if(meso){
       const mcols=_mesoNamesFor(series.map(p=>p.d)).map(nm=>nm?_mesoColor(nm):color);
-      return _ptLblAttach({type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,color,''),backgroundColor:_mesoFillGrad(mcols,color,'2b'),fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx,true)});
+      const _cfg=_ptLblAttach({type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,color,''),backgroundColor:_mesoFillGrad(mcols,color,'2b'),fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx,true)});
+      // 0선 아래로 축이 내려가지 않게 고정 → 날짜·메소사이클 라벨이 볼륨 차트처럼 하단에 붙음
+      if(_cfg.options&&_cfg.options.scales&&_cfg.options.scales.y){_cfg.options.scales.y.beginAtZero=true;_cfg.options.scales.y.min=0;}
+      return _cfg;
     }
     return _ptLblAttach({type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx)});
   };
