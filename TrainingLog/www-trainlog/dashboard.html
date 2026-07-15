@@ -2370,8 +2370,11 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     meta.data.forEach((el,i)=>{
       if(ds.data[i]==null)return;
       const d=series[i]&&series[i].d; if(!d||!ms.has(d))return;
+      // 바깥 링을 그 점(그래프)과 같은 색으로 → 이중 원(과녁)으로 2세션 표시
+      let col=Array.isArray(ds.pointBackgroundColor)?ds.pointBackgroundColor[i]:(typeof ds.pointBackgroundColor==='string'?ds.pointBackgroundColor:null);
+      if(!col)col=typeof ds.borderColor==='string'?ds.borderColor:'#e6edf3';
       ctx.beginPath(); ctx.arc(el.x,el.y,8,0,Math.PI*2);
-      ctx.lineWidth=2.5; ctx.strokeStyle='#ffffff'; ctx.stroke();
+      ctx.lineWidth=2; ctx.strokeStyle=col; ctx.stroke();
     });
     ctx.restore();
   }});
