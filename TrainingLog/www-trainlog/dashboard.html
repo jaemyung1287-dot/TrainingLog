@@ -1753,14 +1753,21 @@ function _ltPinCards(selLogs){
     if(p.cat){
       const catOfE=e=>p.grp==='type'?(e.trainingType||'Other'):p.grp==='region'?_chainOf(e):_catOf(e);
       const catOfS=s=>p.grp==='disc'?_sprintMethodOf(s):_sprintQualOf(s);
-      const catSRows=[];
-      dl.forEach(l=>{
-        if(l.rpe!=null&&rpe==null)rpe=l.rpe;
-        if(p.sp){ if(l.type!=='sprint')return; (l.sets||[]).forEach(s=>{ if(!parseFloat(s.distance))return; if(catOfS(s)!==p.cat)return; const r=_ltPinSRow(s,d); if(!r)return; totDist+=r.dist; catSRows.push(...r.rows); }); }
-        else { if(l.type==='sprint'||l.type==='mobility')return; (l.exercises||[]).forEach(e=>{ if(!e.name)return; if(catOfE(e)!==p.cat)return; const r=_ltPinWRow(e,d,l.athleteName); totVol+=r.vol; rows+=r.html; }); }
-      });
-      rows+=_ltPinSTable(catSRows);
-      const catHdr=`<span>📌 ${fmt(d)}${multi&&dl[0].athleteName?' · '+_esc(dl[0].athleteName):''} · ${_esc(p.cat)}</span>`;
+      // Build this category's rows + totals for one set of logs (for AM/PM split)
+      const _buildCat=(arr)=>{
+        let v=0,dd=0,r=null,h='';const sr=[];
+        arr.forEach(l=>{
+          if(l.rpe!=null&&r==null)r=l.rpe;
+          if(p.sp){ if(l.type!=='sprint')return; (l.sets||[]).forEach(s=>{ if(!parseFloat(s.distance))return; if(catOfS(s)!==p.cat)return; const rr=_ltPinSRow(s,d); if(!rr)return; dd+=rr.dist; sr.push(...rr.rows); }); }
+          else { if(l.type==='sprint'||l.type==='mobility')return; (l.exercises||[]).forEach(e=>{ if(!e.name)return; if(catOfE(e)!==p.cat)return; const rr=_ltPinWRow(e,d,l.athleteName); v+=rr.vol; h+=rr.html; }); }
+        });
+        h+=_ltPinSTable(sr);
+        return {vol:v,dist:dd,rpe:r,html:h};
+      };
+      // If both sessions carry this category, split them; else single view.
+      const _splitC=_ltSessSplit(dl,pi,_buildCat,_hdrF(p.cat),'',x,'c');
+      if(_splitC)return _splitC;
+      const cb=_buildCat(dl); rows=cb.html; totVol=cb.vol; totDist=cb.dist; if(cb.rpe!=null)rpe=cb.rpe;
       if(!rows)return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div><div class="lt-hint" style="padding:8px 2px">No records for this category</div></div>`;
       const csub=[totVol>0?'Total load '+_fmtKg(totVol):'',totDist>0?'Total '+Math.round(totDist)+'m':'',rpe!=null?'Session RPE '+rpe:''].filter(Boolean).join(' · ');
       return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div>${csub?`<div class="lt-pin-sub">${_esc(csub)}</div>`:''}${rows}</div>`;
@@ -1778,34 +1785,9 @@ function _ltPinCards(selLogs){
       h+=_ltPinSTable(sr);
       return {vol:v,dist:dd,rpe:r,html:h};
     };
-    // Split the day into sessions. Tagged logs group by their sess tag (am/pm);
-    // untagged logs form their own session. Only split when 2+ distinct sessions
-    // exist (both blocks closed by default; re-render resets the open/closed state).
-    const _sessKey=l=>(l.sess==='am'||l.sess==='pm')?l.sess:'_';
-    const _grp={}; dl.forEach(l=>{const k=_sessKey(l);(_grp[k]=_grp[k]||[]).push(l);});
-    const _gk=Object.keys(_grp);
-    if(_gk.length>=2){
-      const _meta={am:{ic:'☀️',lbl:'Vormittag'},pm:{ic:'🌙',lbl:'Nachmittag'}};
-      // an untagged session takes the free slot: partner of a lone pm = morning, of a lone am = afternoon
-      _meta['_']=(_grp.pm&&!_grp.am)?{ic:'☀️',lbl:'Vormittag'}:(_grp.am&&!_grp.pm)?{ic:'🌙',lbl:'Nachmittag'}:{ic:'📍',lbl:'Session'};
-      const _rank=k=>{const l=_meta[k].lbl;return l==='Vormittag'?0:l==='Nachmittag'?2:1;};
-      const _mk=(arr,ks,ic,lbl)=>{
-        const b=_buildSess(arr);
-        if(!b.html)return {vol:0,dist:0,html:''};
-        const bid='ltsess-'+pi+'-'+ks;
-        const ssub=[b.vol>0?_fmtKg(b.vol):'',b.dist>0?Math.round(b.dist)+'m':'',b.rpe!=null?'RPE '+b.rpe:''].filter(Boolean).join(' · ');
-        const html=`<div class="lt-sess"><div class="lt-sess-h" onclick="_ltSessTg('${bid}',this)" style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;margin-top:8px">`
-          +`<span style="font-size:15px">${ic}</span><span style="font-size:13px;font-weight:700;color:var(--text)">${lbl}</span>`
-          +`<span style="font-size:11px;color:var(--hint)">${_esc(ssub)}</span>`
-          +`<span class="lt-sess-cx" style="margin-left:auto;color:var(--hint);transition:transform .15s ease">▾</span></div>`
-          +`<div id="${bid}" style="display:none;padding:2px 2px 4px">${b.html}</div></div>`;
-        return {vol:b.vol,dist:b.dist,html};
-      };
-      const blocks=_gk.sort((a,b)=>_rank(a)-_rank(b)).map((k,bi)=>_mk(_grp[k],k.replace('_','u')+bi,_meta[k].ic,_meta[k].lbl));
-      const oV=blocks.reduce((s,b)=>s+b.vol,0), oD=blocks.reduce((s,b)=>s+b.dist,0);
-      const osub=[oV>0?'Total load '+_fmtKg(oV):'',oD>0?'Total distance '+Math.round(oD)+'m':''].filter(Boolean).join(' · ');
-      return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${osub?`<div class="lt-pin-sub">${_esc(osub)}</div>`:''}${!multi?_ltCondBlockHtml(_nm,d):''}${blocks.map(b=>b.html).join('')}</div>`;
-    }
+    // If the day has 2+ sessions (am/pm/untagged), split into collapsible blocks.
+    const _split=_ltSessSplit(dl,pi,_buildSess,hdr,(!multi?_ltCondBlockHtml(_nm,d):''),x,'');
+    if(_split)return _split;
     const fullSRows=[];
     dl.forEach(l=>{
       if(l.rpe!=null&&rpe==null)rpe=l.rpe;
@@ -1826,6 +1808,27 @@ function _ltSessTg(id,el){
   const open=b.style.display!=='none';
   b.style.display=open?'none':'block';
   const cx=el&&el.querySelector('.lt-sess-cx'); if(cx)cx.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+// 하루 로그를 세션(am/pm/untagged)으로 나눠 접이식 블록으로. 2개 미만이면 null(단일 렌더 유지).
+// buildFn(logs[]) → {vol,dist,rpe,html}. 태그 없는 세션도 하나의 세션으로 처리.
+function _ltSessSplit(dl,pi,buildFn,hdrHtml,condHtml,xBtn,keyPfx){
+  const sk=l=>(l.sess==='am'||l.sess==='pm')?l.sess:'_';
+  const g={}; dl.forEach(l=>{const k=sk(l);(g[k]=g[k]||[]).push(l);});
+  const gk=Object.keys(g);
+  if(gk.length<2)return null;
+  const meta={am:{ic:'☀️',lbl:'Vormittag'},pm:{ic:'🌙',lbl:'Nachmittag'}};
+  meta['_']=(g.pm&&!g.am)?{ic:'☀️',lbl:'Vormittag'}:(g.am&&!g.pm)?{ic:'🌙',lbl:'Nachmittag'}:{ic:'📍',lbl:'Session'};
+  const rank=k=>{const l=meta[k].lbl;return l==='Vormittag'?0:l==='Nachmittag'?2:1;};
+  const blocks=gk.sort((a,b)=>rank(a)-rank(b)).map((k,bi)=>{
+    const b=buildFn(g[k]); if(!b.html)return null;
+    const bid='ltsess-'+pi+'-'+(keyPfx||'')+k.replace('_','u')+bi;
+    const ss=[b.vol>0?_fmtKg(b.vol):'',b.dist>0?Math.round(b.dist)+'m':'',b.rpe!=null?'RPE '+b.rpe:''].filter(Boolean).join(' · ');
+    return {vol:b.vol,dist:b.dist,html:`<div class="lt-sess"><div class="lt-sess-h" onclick="_ltSessTg('${bid}',this)" style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;margin-top:8px"><span style="font-size:15px">${meta[k].ic}</span><span style="font-size:13px;font-weight:700;color:var(--text)">${meta[k].lbl}</span><span style="font-size:11px;color:var(--hint)">${_esc(ss)}</span><span class="lt-sess-cx" style="margin-left:auto;color:var(--hint);transition:transform .15s ease">▾</span></div><div id="${bid}" style="display:none;padding:2px 2px 4px">${b.html}</div></div>`};
+  }).filter(Boolean);
+  if(blocks.length<2)return null;
+  const oV=blocks.reduce((s,b)=>s+b.vol,0),oD=blocks.reduce((s,b)=>s+b.dist,0);
+  const osub=[oV>0?'Total load '+_fmtKg(oV):'',oD>0?'Total distance '+Math.round(oD)+'m':''].filter(Boolean).join(' · ');
+  return `<div class="lt-pin"><div class="lt-pin-h">${hdrHtml}${xBtn}</div>${osub?`<div class="lt-pin-sub">${_esc(osub)}</div>`:''}${condHtml||''}${blocks.map(b=>b.html).join('')}</div>`;
 }
 function _ltBuild(logs,ath){
   const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},distRpe={},volRpe={},volBreak={sub:{},region:{},type:{},movement:{},structure:{},ex:{sub:{},region:{},type:{},movement:{},structure:{}}},distBreak={sub:{},disc:{},ex:{sub:{},disc:{}}};
