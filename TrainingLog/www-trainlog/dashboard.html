@@ -1652,6 +1652,46 @@ function _ltPinWRow(e,d,ath){
     +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Intensity</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비 실제 강도">%e1RM</th></tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
   return {vol,html};
 }
+// ── 세션 내 웨이트 운동을 상체/하체/코어로 그룹핑 + 얇은 밸런스 바(옵션 C 컴팩트) ──
+// chain(관절사슬)에서 상/하체/코어 파생, 미분류는 subCategory 폴백 → 최종 '기타'.
+const _BP_META={'하체':{c:'#6ab0f0'},'상체':{c:'#efb44d'},'코어':{c:'#5dcaa5'},'기타':{c:'#9aa0a6'}};
+const _BP_ORDER=['하체','상체','코어','기타'];
+function _bodyPartOf(e){
+  const ch=_classifyEx(e).chain||'';
+  if(/Upper/.test(ch))return '상체';
+  if(/Lower|Medial|Lateral/.test(ch))return '하체';
+  if(/Core/.test(ch))return '코어';
+  const r=_volRegionOf(_catOf(e)); return (r==='상체'||r==='하체'||r==='코어')?r:'기타';
+}
+// 웨이트 로그들을 파트별로 묶어 {vol,html}. html = 밸런스 바(파트 2개 이상일 때만) + 파트 섹션들.
+function _ltGroupWeight(arr,d){
+  const g={}; let totV=0;
+  (arr||[]).forEach(l=>{
+    if(l.type==='sprint'||l.type==='mobility')return;
+    (l.exercises||[]).forEach(e=>{
+      if(!e.name)return;
+      const rr=_ltPinWRow(e,d,l.athleteName);
+      const bp=_bodyPartOf(e);
+      const G=g[bp]||(g[bp]={vol:0,html:''});
+      G.vol+=rr.vol; G.html+=rr.html; totV+=rr.vol;
+    });
+  });
+  const parts=_BP_ORDER.filter(p=>g[p]);
+  if(!parts.length)return {vol:0,html:''};
+  const barParts=parts.filter(p=>g[p].vol>0);
+  let bar='';
+  if(barParts.length>1&&totV>0){
+    bar='<div style="display:flex;height:6px;border-radius:4px;overflow:hidden;margin:6px 0 2px">'
+      +barParts.map(p=>{const pct=g[p].vol/totV*100,c=_BP_META[p].c;return `<div title="${p} ${Math.round(pct)}% · ${_fmtKg(g[p].vol)}" style="width:${pct}%;background:${c}"></div>`;}).join('')
+      +'</div>';
+  }
+  const secs=parts.map(p=>{
+    const c=_BP_META[p].c;
+    const hd=`<div style="display:flex;align-items:center;gap:7px;margin:8px 0 3px"><span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:${c}22;color:${c}">${p}</span><span style="font-size:10px;color:var(--hint)">${_fmtKg(g[p].vol)}</span></div>`;
+    return `${hd}<div style="border-left:2px solid ${c}55;padding-left:8px">${g[p].html}</div>`;
+  }).join('');
+  return {vol:totV,html:bar+secs};
+}
 // 컨디셔닝(mobility) 세션 1개 → 핀 카드 블록 (운동·완료·난이도)
 function _ltPinMRow(l){
   const exs=l.exercises||[];
@@ -1775,15 +1815,15 @@ function _ltPinCards(selLogs){
     // ── 전체 세션(종합 지표에서 고정) ──
     // Helper: build rows + totals for one set of logs (used for AM/PM split blocks)
     const _buildSess=(arr)=>{
-      let v=0,dd=0,r=null,h='';const sr=[];
+      let dd=0,r=null,mob='';const sr=[];
       arr.forEach(l=>{
         if(l.rpe!=null&&r==null)r=l.rpe;
         if(l.type==='sprint'){ (l.sets||[]).forEach(s=>{const rr=_ltPinSRow(s,d); if(!rr)return; dd+=rr.dist; sr.push(...rr.rows);}); }
-        else if(l.type==='mobility'){ const mh=_ltPinMRow(l); if(mh)h+=mh; }
-        else { (l.exercises||[]).forEach(e=>{ if(!e.name)return; const rr=_ltPinWRow(e,d,l.athleteName); v+=rr.vol; h+=rr.html;}); }
+        else if(l.type==='mobility'){ const mh=_ltPinMRow(l); if(mh)mob+=mh; }
       });
-      h+=_ltPinSTable(sr);
-      return {vol:v,dist:dd,rpe:r,html:h};
+      const wg=_ltGroupWeight(arr,d); // 웨이트=파트별 그룹핑+밸런스 바
+      const h=wg.html+mob+_ltPinSTable(sr);
+      return {vol:wg.vol,dist:dd,rpe:r,html:h};
     };
     // If the day has 2+ sessions (am/pm/untagged), split into collapsible blocks.
     const _split=_ltSessSplit(dl,pi,_buildSess,hdr,(!multi?_ltCondBlockHtml(_nm,d):''),x,'');
