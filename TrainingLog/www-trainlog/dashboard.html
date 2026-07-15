@@ -1809,13 +1809,13 @@ function _ltSessTg(id,el){
   b.style.display=open?'none':'block';
   const cx=el&&el.querySelector('.lt-sess-cx'); if(cx)cx.style.transform=open?'rotate(0deg)':'rotate(180deg)';
 }
-// 하루 로그를 세션(am/pm/untagged)으로 나눠 접이식 블록으로. 2개 미만이면 null(단일 렌더 유지).
-// buildFn(logs[]) → {vol,dist,rpe,html}. 태그 없는 세션도 하나의 세션으로 처리.
+// 하루 로그를 세션(am/pm/untagged)으로 나눠 접이식 블록으로. 한 세션이라도 접힌 블록으로 렌더
+// (클릭해서 열기). 내용이 없으면 null → 호출부가 "No records" 처리. 태그없는 세션=하나로 처리.
 function _ltSessSplit(dl,pi,buildFn,hdrHtml,condHtml,xBtn,keyPfx){
   const sk=l=>(l.sess==='am'||l.sess==='pm')?l.sess:'_';
   const g={}; dl.forEach(l=>{const k=sk(l);(g[k]=g[k]||[]).push(l);});
   const gk=Object.keys(g);
-  if(gk.length<2)return null;
+  if(gk.length<1)return null;
   const meta={am:{ic:'☀️',lbl:'Vormittag'},pm:{ic:'🌙',lbl:'Nachmittag'}};
   meta['_']=(g.pm&&!g.am)?{ic:'☀️',lbl:'Vormittag'}:(g.am&&!g.pm)?{ic:'🌙',lbl:'Nachmittag'}:{ic:'📍',lbl:'Session'};
   const rank=k=>{const l=meta[k].lbl;return l==='Vormittag'?0:l==='Nachmittag'?2:1;};
@@ -1825,9 +1825,10 @@ function _ltSessSplit(dl,pi,buildFn,hdrHtml,condHtml,xBtn,keyPfx){
     const ss=[b.vol>0?_fmtKg(b.vol):'',b.dist>0?Math.round(b.dist)+'m':'',b.rpe!=null?'RPE '+b.rpe:''].filter(Boolean).join(' · ');
     return {vol:b.vol,dist:b.dist,html:`<div class="lt-sess"><div class="lt-sess-h" onclick="_ltSessTg('${bid}',this)" style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;margin-top:8px"><span style="font-size:15px">${meta[k].ic}</span><span style="font-size:13px;font-weight:700;color:var(--text)">${meta[k].lbl}</span><span style="font-size:11px;color:var(--hint)">${_esc(ss)}</span><span class="lt-sess-cx" style="margin-left:auto;color:var(--hint);transition:transform .15s ease">▾</span></div><div id="${bid}" style="display:none;padding:2px 2px 4px">${b.html}</div></div>`};
   }).filter(Boolean);
-  if(blocks.length<2)return null;
+  if(blocks.length<1)return null;
   const oV=blocks.reduce((s,b)=>s+b.vol,0),oD=blocks.reduce((s,b)=>s+b.dist,0);
-  const osub=[oV>0?'Total load '+_fmtKg(oV):'',oD>0?'Total distance '+Math.round(oD)+'m':''].filter(Boolean).join(' · ');
+  // 여러 세션일 때만 상단 합계 표시(단일 세션은 블록 헤더에 이미 값이 있어 중복 방지)
+  const osub=blocks.length>1?[oV>0?'Total load '+_fmtKg(oV):'',oD>0?'Total distance '+Math.round(oD)+'m':''].filter(Boolean).join(' · '):'';
   return `<div class="lt-pin"><div class="lt-pin-h">${hdrHtml}${xBtn}</div>${osub?`<div class="lt-pin-sub">${_esc(osub)}</div>`:''}${condHtml||''}${blocks.map(b=>b.html).join('')}</div>`;
 }
 function _ltBuild(logs,ath){
