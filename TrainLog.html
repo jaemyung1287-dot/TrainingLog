@@ -1811,10 +1811,35 @@ function newData(){
     phvRecords:[]
   };
 }
+// Quota-safe localStorage write. iOS Safari caps localStorage at ~5MB; when the
+// team dataset + backup copy exceed that, setItem throws QuotaExceededError. We
+// reclaim space (drop the full-size backup duplicate + diagnostic junk) and retry
+// so a save can never silently die. Returns true if the local write succeeded.
+function _safeSetItem(key,val){
+  try{ localStorage.setItem(key,val); return true; }
+  catch(e){
+    try{
+      // Free up the biggest reclaimable keys, then retry.
+      localStorage.removeItem(SK_BACKUP);
+      localStorage.removeItem(SK_BACKUP+'2');
+      for(let i=localStorage.length-1;i>=0;i--){
+        const k=localStorage.key(i);
+        if(k&&k.indexOf('__diag')===0) localStorage.removeItem(k);
+      }
+      localStorage.setItem(key,val); return true;
+    }catch(e2){
+      console.warn('[TrainLog] localStorage voll — Speichern nur in die Cloud:',e2?.name||e2);
+      return false;
+    }
+  }
+}
 function saveData(d){
   d._lastUpdated=Date.now(); // timestamp so initFirebase knows which is newer
-  localStorage.setItem(SK,JSON.stringify(d));
-  syncToCloud(d); // push to Firebase in background
+  const localOK=_safeSetItem(SK,JSON.stringify(d));
+  // Always push to Firebase — even if the local write failed, the cloud is the
+  // source of truth (coach dashboard + reload restore read from it).
+  syncToCloud(d);
+  if(!localOK) showToast('☁️ Gespeichert (Cloud) ✓');
 }
 function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function todayStr(){
