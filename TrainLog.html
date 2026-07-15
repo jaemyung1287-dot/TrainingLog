@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260715-5';
+const APP_VERSION = '20260715-6';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1315,8 +1315,9 @@ function _dataScore(d){
   return (d.athletes?.length||0)*100 + (d.logs?.length||0)*10 + (d.records?.length||0) + Object.keys(d.sessionPlans||{}).length*5;
 }
 
-// Merge all Firestore docs into one unified object
-async function _fetchAllCloudData(){
+// Coach document only (athlete list, weekly plans, programs, settings, records).
+// No athlete logs — so athlete phones can load this without pulling the whole team.
+async function _fetchCoachData(){
   const coachSnap=await COACH_DOC.get();
   if(!coachSnap.exists) return null;
   const coachData=_restoreImages(coachSnap.data());
@@ -1327,7 +1328,13 @@ async function _fetchAllCloudData(){
     if(!coachData.programs[g]) coachData.programs[g]={phase:'',week:'',days:[],images:{macro:null,meso:null,micro:null}};
     if(!coachData.programs[g].images) coachData.programs[g].images={macro:null,meso:null,micro:null};
   });
-  const athIds=(coachData.athletes||[]).map(a=>a.id);
+  return coachData;
+}
+// Every athlete's logs (team view / coach screens). Returns array — caller decides
+// whether to persist (coach) or keep in memory only (athlete team view).
+async function _fetchAllAthleteLogs(coachData){
+  const athletes=(coachData&&coachData.athletes)||(getData().athletes)||[];
+  const athIds=athletes.map(a=>a.id);
   const athSnaps=await Promise.all(athIds.map(id=>ATHLETE_DOC(id).get()));
   const _deletedIds=_getDeletedIds();
   const allLogs=[];
@@ -1339,6 +1346,37 @@ async function _fetchAllCloudData(){
     (dd.deletedIds||[]).forEach(id=>{ if(!_deletedIds.has(id)){ _addDeletedId(id); _deletedIds.add(id); } });
     (dd.logs||[]).forEach(l=>{ if(!_deletedIds.has(l.id)) allLogs.push(l); });
   });
+  return allLogs;
+}
+// One athlete's own logs (athlete mode — keeps their phone tiny).
+async function _fetchAthleteLogs(athId){
+  const snap=await ATHLETE_DOC(athId).get();
+  if(!snap.exists) return [];
+  const dd=snap.data();
+  const _deletedIds=_getDeletedIds();
+  (dd.deletedIds||[]).forEach(id=>{ if(!_deletedIds.has(id)){ _addDeletedId(id); _deletedIds.add(id); } });
+  return (dd.logs||[]).filter(l=>!_deletedIds.has(l.id));
+}
+// Athlete mode: replace local logs with THIS athlete's own (cloud + any local-only
+// unsynced own logs). Shrinks a previously-bloated SK down to ~own data only.
+async function _loadOwnLogs(athId){
+  try{
+    const cloudLogs=await _fetchAthleteLogs(athId);
+    const d=getData();
+    const myName=(d.athletes||[]).find(a=>a.id===athId)?.name;
+    const _deletedIds=_getDeletedIds();
+    const cloudIds=new Set(cloudLogs.map(l=>l.id));
+    const localOwnOnly=(d.logs||[]).filter(l=>l.athleteName===myName&&!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
+    d.logs=[...cloudLogs,...localOwnOnly];
+    _safeSetItem(SK,JSON.stringify(d)); // direct write (no team), no re-push loop
+    return d.logs.length;
+  }catch(e){ console.warn('[TrainLog] own-log load failed, keeping local:',e); return -1; }
+}
+// Full merge (coach doc + every athlete's logs) — used by coach real-time sync.
+async function _fetchAllCloudData(){
+  const coachData=await _fetchCoachData();
+  if(!coachData) return null;
+  const allLogs=await _fetchAllAthleteLogs(coachData);
   return {...coachData,logs:allLogs};
 }
 
@@ -1373,38 +1411,50 @@ async function initFirebase(){
       }
     }
 
-    const cloudData=await _fetchAllCloudData();
-    window._fbStatus='got cloud: '+(cloudData?'ok':'null');
+    // Cloud-first: load the coach doc always; load ALL athlete logs only on coach
+    // devices. Athlete phones keep just their own logs (loaded on athlete select),
+    // so team data never bloats their storage. Role persists across sessions.
+    const _role=localStorage.getItem('trainlog_role');
+    const _isCoachDevice=(_role==='coach');
+    const coachData=await _fetchCoachData();
+    window._fbStatus='got cloud: '+(coachData?'ok':'null');
 
-    if(cloudData){
-      // Cloud coach-data wins per-day, but local-only plan-days SURVIVE (union)
-      const merged=JSON.parse(JSON.stringify(local||cloudData));
-      merged.sessionPlans=_unionPlans(cloudData.sessionPlans,local?.sessionPlans);
-      merged.athletes=cloudData.athletes;
-      merged.programs=cloudData.programs;
-      merged.settings=cloudData.settings;
-      merged.records=cloudData.records;
-      // Keep the richer log archive (cloud is authoritative but never lose local-only entries)
-      merged.logArchive=(cloudData.logArchive&&cloudData.logArchive.length>=(local?.logArchive?.length||0))?cloudData.logArchive:(local?.logArchive||[]);
-      // Merge logs: cloud logs + any local-only logs not yet in cloud
-      const _deletedIds=_getDeletedIds();
-      const cloudIds=new Set(cloudData.logs.map(l=>l.id));
-      const localOnly=(local?.logs||[]).filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
-      merged.logs=[...cloudData.logs,...localOnly];
+    if(coachData){
+      const cloudLogs=_isCoachDevice?await _fetchAllAthleteLogs(coachData):null;
+      const merged=JSON.parse(JSON.stringify(local||{}));
+      merged.sessionPlans=_unionPlans(coachData.sessionPlans,local?.sessionPlans);
+      merged.athletes=coachData.athletes;
+      merged.programs=coachData.programs;
+      merged.settings=coachData.settings;
+      merged.records=coachData.records;
+      merged.logArchive=(coachData.logArchive&&coachData.logArchive.length>=(local?.logArchive?.length||0))?coachData.logArchive:(local?.logArchive||[]);
+      if(_isCoachDevice){
+        // Merge logs: cloud logs + any local-only logs not yet in cloud
+        const _deletedIds=_getDeletedIds();
+        const cloudIds=new Set(cloudLogs.map(l=>l.id));
+        const localOnly=(local?.logs||[]).filter(l=>!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
+        merged.logs=[...cloudLogs,...localOnly];
+      } else {
+        // Athlete/unknown: keep whatever own logs are already local; refreshed by
+        // _loadOwnLogs() when the athlete taps their name.
+        merged.logs=(local?.logs)||[];
+      }
       _backupLocal();
-      localStorage.setItem(SK,JSON.stringify(merged));
-      console.log(`[TrainLog] Loaded from Firebase ✓ (${merged.logs.length} logs)`);
-      // ── One-time seeds: Uphill 50m bests + 100m HST test splits → records (idempotent) ──
-      const _su=_seedUphillRecords(merged), _sf=_seedFlatSprintRecords(merged);
-      if(_su||_sf){
-        merged._lastUpdated=Date.now();
-        localStorage.setItem(SK,JSON.stringify(merged));
-        COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:merged._lastUpdated}))
-          .then(()=>console.log('[TrainLog] Record seeds → cloud ✓ (uphill:'+_su+' flat:'+_sf+')'))
-          .catch(e=>console.warn('[TrainLog] Seed push failed:',e));
+      _safeSetItem(SK,JSON.stringify(merged));
+      console.log(`[TrainLog] Loaded from Firebase ✓ (role=${_role||'none'}, ${merged.logs.length} logs local)`);
+      // Seeds + plan-recovery need full data → coach device only
+      if(_isCoachDevice){
+        const _su=_seedUphillRecords(merged), _sf=_seedFlatSprintRecords(merged);
+        if(_su||_sf){
+          merged._lastUpdated=Date.now();
+          _safeSetItem(SK,JSON.stringify(merged));
+          COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:merged._lastUpdated}))
+            .then(()=>console.log('[TrainLog] Record seeds → cloud ✓ (uphill:'+_su+' flat:'+_sf+')'))
+            .catch(e=>console.warn('[TrainLog] Seed push failed:',e));
+        }
       }
       // ── Recovery: if this device holds plan-days the cloud lost, push them back ──
-      if(Object.keys(merged.sessionPlans||{}).length>Object.keys(cloudData.sessionPlans||{}).length){
+      if(Object.keys(merged.sessionPlans||{}).length>Object.keys(coachData.sessionPlans||{}).length){
         COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:Date.now()}))
           .then(()=>console.log('[TrainLog] Recovered local plan-days → cloud ✓'))
           .catch(e=>console.warn('[TrainLog] Plan recovery push failed:',e));
@@ -1990,14 +2040,19 @@ function toggleTeamAcc(which){
   body.style.display=open?'none':'block';
   if(arrow) arrow.style.transform=open?'rotate(0deg)':'rotate(180deg)';
 }
-function goTeamData(){
-  // Render fresh, start collapsed
+async function goTeamData(){
+  showScreen('s-team-data');
+  // Team data is fetched on demand (not kept in local storage). Show a loading hint.
+  const wWrap=document.getElementById('team-acc-body-weight'), sWrap=document.getElementById('team-acc-body-sprint');
+  const loadHtml='<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">⏳ Lade Teamdaten…</div>';
+  if(wWrap) wWrap.innerHTML=loadHtml; if(sWrap) sWrap.innerHTML=loadHtml;
+  try{ _teamLogsCache=await _fetchAllAthleteLogs(); }
+  catch(e){ _teamLogsCache=null; showToast('⚠️ Internet nötig für Teamdaten'); }
   renderTeamTrainingData();
   ['weight','sprint'].forEach(w=>{
     const b=document.getElementById('team-acc-body-'+w); if(b) b.style.display='none';
     const a=document.getElementById('team-acc-arrow-'+w); if(a) a.style.transform='rotate(0deg)';
   });
-  showScreen('s-team-data');
 }
 function toggleTeamRow(id){
   const b=document.getElementById('twbody-'+id);
@@ -2008,6 +2063,7 @@ function toggleTeamRow(id){
   if(a) a.style.transform=open?'rotate(0deg)':'rotate(180deg)';
 }
 let TEAM_WEEK_OFFSET=0; // 0 = current week, -1 = last week, ...
+let _teamLogsCache=null; // team logs fetched on demand for the Team Data view (memory only, not persisted)
 function teamWeekShift(delta){
   TEAM_WEEK_OFFSET=Math.min(0,TEAM_WEEK_OFFSET+delta); // never go into the future
   renderTeamTrainingData();
@@ -2017,6 +2073,7 @@ function renderTeamTrainingData(){
   const sWrap=document.getElementById('team-acc-body-sprint');
   if(!wWrap||!sWrap) return;
   const d=getData();
+  const teamLogs=_teamLogsCache||(d.logs||[]); // team view uses on-demand fetch; falls back to local
   const me=ST.athlete?ST.athlete.name:'';
   const fmtDate=ds=>ds?ds.slice(5).replace('-','/'):'';
   // ── current selected week (Mon–Sun, Europe/Berlin) ──
@@ -2062,7 +2119,7 @@ function renderTeamTrainingData(){
   };
 
   // ===== WEIGHT (week → name → dates → exercises) =====
-  const wGroups=groupByAthlete((d.logs||[]).filter(l=>(l.type==='weight'||l.type==='plyo')&&inWeek(l)));
+  const wGroups=groupByAthlete(teamLogs.filter(l=>(l.type==='weight'||l.type==='plyo')&&inWeek(l)));
   wWrap.innerHTML = nav + (wGroups.length ? wGroups.map((g,ai)=>{
     const mine=g.name===me;
     const sess=g.ls.map((l,si)=>{
@@ -2084,7 +2141,7 @@ function renderTeamTrainingData(){
   }).join('') : emptyWeek);
 
   // ===== SPRINT (week → name → dates → sets) =====
-  const sGroups=groupByAthlete((d.logs||[]).filter(l=>l.type==='sprint'&&inWeek(l)));
+  const sGroups=groupByAthlete(teamLogs.filter(l=>l.type==='sprint'&&inWeek(l)));
   sWrap.innerHTML = nav + (sGroups.length ? sGroups.map((g,ai)=>{
     const mine=g.name===me;
     const sess=g.ls.map((l,si)=>{
@@ -3059,7 +3116,15 @@ function _coachPinKey(e){
   else if(e.key==='Backspace') handlePin('⌫');
   else if(e.key==='Enter'&&ST.pinBuf.length===4) checkPin();
 }
-function goCoachDashboard(){ showScreen('s-coach'); document.getElementById('coach-tabbar').classList.add('show'); switchTab('today',document.getElementById('tb-today')); startCloudSync(); }
+async function goCoachDashboard(){
+  // Coach screens need the whole team's logs → load them into SK now (this device
+  // is a coach device; athlete phones never do this).
+  try{
+    const cd=await _fetchAllCloudData();
+    if(cd){ const d=getData(); d.athletes=cd.athletes; d.programs=cd.programs; d.settings=cd.settings; d.records=cd.records; d.sessionPlans=_unionPlans(cd.sessionPlans,d.sessionPlans); const _del=_getDeletedIds(); const cids=new Set(cd.logs.map(l=>l.id)); const lo=(d.logs||[]).filter(l=>!cids.has(l.id)&&!_del.has(l.id)); d.logs=[...cd.logs,...lo]; _safeSetItem(SK,JSON.stringify(d)); }
+  }catch(e){ console.warn('[TrainLog] Coach load failed, using local:',e); }
+  showScreen('s-coach'); document.getElementById('coach-tabbar').classList.add('show'); switchTab('today',document.getElementById('tb-today')); startCloudSync();
+}
 function backToCoach(){ showScreen('s-coach'); document.getElementById('coach-tabbar').classList.add('show'); }
 
 // Seed athletes if empty
@@ -3118,7 +3183,7 @@ function renderAthleteChips(){
     el.innerHTML = _isCpt
       ? `<span class="nmsel-cptwrap"><span class="nmsel-nm nmsel-cpt">${a.name}</span><span class="nmsel-crown"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" style="display:block"><circle cx="24" cy="24" r="22" fill="#8f1024"/><circle cx="24" cy="24" r="16.5" fill="#d9d5c9"/><circle cx="24" cy="24" r="11.5" fill="#8f1024"/><circle cx="24" cy="24" r="7" fill="#0e2c52"/><path d="M24 18 L25.4 22.3 L29.9 22.3 L26.3 25 L27.7 29.3 L24 26.6 L20.3 29.3 L21.7 25 L18.1 22.3 L22.6 22.3 Z" fill="#d9d5c9"/></svg></span></span><span class="nmsel-chv" style="color:var(--accent)">›</span>`
       : `<span class="nmsel-nm">${a.name}</span><span class="nmsel-chv">›</span>`;
-    el.onclick=()=>{ ST.athlete=a; try{localStorage.setItem('trainlog_role','ath'); localStorage.removeItem(SK_BACKUP); localStorage.removeItem(SK_BACKUP+'2'); _purgeLegacyStorage();}catch(e){} wrap.querySelectorAll('.nmsel-row').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); goAthleteMenu(); };
+    el.onclick=async()=>{ ST.athlete=a; try{localStorage.setItem('trainlog_role','ath'); localStorage.removeItem(SK_BACKUP); localStorage.removeItem(SK_BACKUP+'2'); _purgeLegacyStorage();}catch(e){} wrap.querySelectorAll('.nmsel-row').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); await _loadOwnLogs(a.id); goAthleteMenu(); };
     row.appendChild(el);
   });
   wrap.appendChild(row);
