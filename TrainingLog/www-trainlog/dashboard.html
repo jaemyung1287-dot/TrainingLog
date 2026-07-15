@@ -1832,8 +1832,13 @@ function _ltSessSplit(dl,pi,buildFn,hdrHtml,condHtml,xBtn,keyPfx){
 }
 function _ltBuild(logs,ath){
   const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},distRpe={},volRpe={},volBreak={sub:{},region:{},type:{},movement:{},structure:{},ex:{sub:{},region:{},type:{},movement:{},structure:{}}},distBreak={sub:{},disc:{},ex:{sub:{},disc:{}}};
+  const _sessByDate={}; // 날짜별 세션키 집합(am/pm/untagged) → 2세션 날 표시용
   // pass 1: 세션 총량 + 날짜별 구성 상세(전 종목·BW 포함, 여러 세션 합산)
   (logs||[]).forEach(l=>{
+    if(['weight','plyo','sprint','mobility','tabata'].includes(l.type)){
+      const _sk=(l.sess==='am'||l.sess==='pm')?l.sess:'_';
+      (_sessByDate[l.date]=_sessByDate[l.date]||new Set()).add(_sk);
+    }
     if(l.type==='weight'||l.type==='plyo'){
       const vv=vol([l]);if(vv>0)volByDate[l.date]=(volByDate[l.date]||0)+vv;
       if(l.rpe!=null&&l.rpe!=='')volRpe[l.date]=l.rpe;
@@ -1935,7 +1940,8 @@ function _ltBuild(logs,ath){
       });
     }
   });
-  return {exMap,volByDate,distByDate,volDetail,distDetail,distRpe,volRpe,volBreak,distBreak};
+  const multiSess=new Set(Object.keys(_sessByDate).filter(d=>_sessByDate[d].size>=2));
+  return {exMap,volByDate,distByDate,volDetail,distDetail,distRpe,volRpe,volBreak,distBreak,multiSess};
 }
 
 // Load 탭 주간 분해 차트 접기/펼치기 상태 — 두 카드가 함께 접히고 펴짐 (기본 접힘)
@@ -2354,6 +2360,20 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     });
     ctx.restore();
   }});
+  // 오전·오후 2세션인 날: 그 날 점에 이중 링(바깥 링) 표시. 점 값은 하루 총량 그대로.
+  const _mkDualRing=series=>({id:'dualRing',afterDatasetsDraw(chart){
+    const ms=(typeof _lt!=='undefined'&&_lt&&_lt.multiSess)||null; if(!ms||!ms.size)return;
+    const meta=chart.getDatasetMeta(0); if(!meta||!meta.data)return;
+    const ds=chart.data.datasets[0]; if(!ds)return;
+    const ctx=chart.ctx; ctx.save();
+    meta.data.forEach((el,i)=>{
+      if(ds.data[i]==null)return;
+      const d=series[i]&&series[i].d; if(!d||!ms.has(d))return;
+      ctx.beginPath(); ctx.arc(el.x,el.y,7,0,Math.PI*2);
+      ctx.lineWidth=2; ctx.strokeStyle='#EF9F27'; ctx.stroke();
+    });
+    ctx.restore();
+  }});
   const _ltLineCfg=(series,color,sprint,cmp,ctx,meso,unit)=>{
     if(cmp){
       const byY={};series.forEach(p=>{const y=p.d.slice(0,4);(byY[y]=byY[y]||{})[parseInt(p.d.slice(5,7))-1]=p;});
@@ -2365,7 +2385,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const _ptLblAttach=cfg=>{
       if(!unit)return cfg;
       cfg.data.datasets[0]._rpes=series.map(p=>p.rpe!=null?p.rpe:null);
-      cfg.plugins=(cfg.plugins||[]).concat([_mkPtRpeVals(unit)]);
+      cfg.plugins=(cfg.plugins||[]).concat([_mkPtRpeVals(unit),_mkDualRing(series)]);
       const o=cfg.options;o.layout=o.layout||{};o.layout.padding=Object.assign({},o.layout.padding,{top:Math.max((o.layout.padding&&o.layout.padding.top)||0,28)});
       if(o.scales&&o.scales.y)o.scales.y.grace='32%';
       return cfg;
