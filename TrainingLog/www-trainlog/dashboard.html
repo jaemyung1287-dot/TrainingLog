@@ -1778,10 +1778,17 @@ function _ltPinCards(selLogs){
       h+=_ltPinSTable(sr);
       return {vol:v,dist:dd,rpe:r,html:h};
     };
-    // If the day has BOTH a morning (am) and afternoon (pm) session, show them as
-    // two separate collapsible blocks (both closed by default; re-render resets).
-    const _bySess={}; dl.forEach(l=>{const k=(l.sess==='am'||l.sess==='pm')?l.sess:'x';(_bySess[k]=_bySess[k]||[]).push(l);});
-    if(_bySess.am&&_bySess.pm){
+    // Split the day into sessions. Tagged logs group by their sess tag (am/pm);
+    // untagged logs form their own session. Only split when 2+ distinct sessions
+    // exist (both blocks closed by default; re-render resets the open/closed state).
+    const _sessKey=l=>(l.sess==='am'||l.sess==='pm')?l.sess:'_';
+    const _grp={}; dl.forEach(l=>{const k=_sessKey(l);(_grp[k]=_grp[k]||[]).push(l);});
+    const _gk=Object.keys(_grp);
+    if(_gk.length>=2){
+      const _meta={am:{ic:'☀️',lbl:'Vormittag'},pm:{ic:'🌙',lbl:'Nachmittag'}};
+      // an untagged session takes the free slot: partner of a lone pm = morning, of a lone am = afternoon
+      _meta['_']=(_grp.pm&&!_grp.am)?{ic:'☀️',lbl:'Vormittag'}:(_grp.am&&!_grp.pm)?{ic:'🌙',lbl:'Nachmittag'}:{ic:'📍',lbl:'Session'};
+      const _rank=k=>{const l=_meta[k].lbl;return l==='Vormittag'?0:l==='Nachmittag'?2:1;};
       const _mk=(arr,ks,ic,lbl)=>{
         const b=_buildSess(arr);
         if(!b.html)return {vol:0,dist:0,html:''};
@@ -1794,10 +1801,10 @@ function _ltPinCards(selLogs){
           +`<div id="${bid}" style="display:none;padding:2px 2px 4px">${b.html}</div></div>`;
         return {vol:b.vol,dist:b.dist,html};
       };
-      const amB=_mk([...(_bySess.am||[]),...(_bySess.x||[])],'am','☀️','Vormittag'), pmB=_mk(_bySess.pm||[],'pm','🌙','Nachmittag');
-      const oV=amB.vol+pmB.vol, oD=amB.dist+pmB.dist;
+      const blocks=_gk.sort((a,b)=>_rank(a)-_rank(b)).map((k,bi)=>_mk(_grp[k],k.replace('_','u')+bi,_meta[k].ic,_meta[k].lbl));
+      const oV=blocks.reduce((s,b)=>s+b.vol,0), oD=blocks.reduce((s,b)=>s+b.dist,0);
       const osub=[oV>0?'Total load '+_fmtKg(oV):'',oD>0?'Total distance '+Math.round(oD)+'m':''].filter(Boolean).join(' · ');
-      return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${osub?`<div class="lt-pin-sub">${_esc(osub)}</div>`:''}${!multi?_ltCondBlockHtml(_nm,d):''}${amB.html}${pmB.html}</div>`;
+      return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${osub?`<div class="lt-pin-sub">${_esc(osub)}</div>`:''}${!multi?_ltCondBlockHtml(_nm,d):''}${blocks.map(b=>b.html).join('')}</div>`;
     }
     const fullSRows=[];
     dl.forEach(l=>{
