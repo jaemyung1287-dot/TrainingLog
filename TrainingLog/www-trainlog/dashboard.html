@@ -1620,7 +1620,7 @@ function _playFormVideo(id){
 function _ltPinWRow(e,d,ath){
   const sl=e.isSL?'SL ':e.isSA?'SA ':'';
   const isBW=!!e.isBodyweight, slM=(e.isSL||e.isSA)?2:1;
-  const eff=_dEffNum(e.effort), note=(e.note||e.notes||'').trim();
+  const eff=_dEffNum(e.effort), note=(e.athleteNote||e.note||e.notes||'').trim();
   const e1=(!isBW&&ath&&d)?_e1rmBefore(ath,e.name||'',d):null;
   const wpct=parseFloat(e.intensity!=null&&e.intensity!==''?e.intensity:e.planIntensity)||null;
   const intTd=`<td>${wpct?wpct+'%':'–'}</td>`;
@@ -1646,7 +1646,7 @@ function _ltPinWRow(e,d,ath){
   const head=`${sets}×${reps}${isBW?' (BW)':' · '+_fmtKg(vol)}${e1s>0?' · e1RM '+Math.round(e1s)+'kg':''}`;
   const clk=d?` onclick="_ltPinEx('${_ltJs(d)}','${_ltJs(e.name)}',0)" title="Click: compare this exercise only"`:'';
   const rpeHtml=eff!=null?`<span class="lt-pin-rpe" style="color:${_dEffCol(eff)}">RPE ${eff}</span>`:'';
-  const noteRow=note?`<tr><td colspan="6" class="l" style="color:#8b949e;font-style:italic;white-space:normal;text-align:left">📝 ${_esc(note)}</td></tr>`:'';
+  const noteRow=note?`<tr><td colspan="6" class="l" style="color:#9db8ec;font-style:italic;white-space:normal;text-align:left">💬 ${_esc(note)}</td></tr>`:'';
   const html=`<div${clk} style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 6px;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:2px;font-size:12px;color:var(--text)${d?';cursor:pointer':''}">`
     +`<span><span class="lt-pin-dot" style="background:#f7a94f;margin-right:6px"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta" style="color:var(--text)">${_esc(head)}</span></span>${rpeHtml}</div>`
     +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Intensity</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비 실제 강도">%e1RM</th></tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
@@ -1766,6 +1766,39 @@ function _ltPinCards(selLogs){
       return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div>${csub?`<div class="lt-pin-sub">${_esc(csub)}</div>`:''}${rows}</div>`;
     }
     // ── 전체 세션(종합 지표에서 고정) ──
+    // Helper: build rows + totals for one set of logs (used for AM/PM split blocks)
+    const _buildSess=(arr)=>{
+      let v=0,dd=0,r=null,h='';const sr=[];
+      arr.forEach(l=>{
+        if(l.rpe!=null&&r==null)r=l.rpe;
+        if(l.type==='sprint'){ (l.sets||[]).forEach(s=>{const rr=_ltPinSRow(s,d); if(!rr)return; dd+=rr.dist; sr.push(...rr.rows);}); }
+        else if(l.type==='mobility'){ const mh=_ltPinMRow(l); if(mh)h+=mh; }
+        else { (l.exercises||[]).forEach(e=>{ if(!e.name)return; const rr=_ltPinWRow(e,d,l.athleteName); v+=rr.vol; h+=rr.html;}); }
+      });
+      h+=_ltPinSTable(sr);
+      return {vol:v,dist:dd,rpe:r,html:h};
+    };
+    // If the day has BOTH a morning (am) and afternoon (pm) session, show them as
+    // two separate collapsible blocks (both closed by default; re-render resets).
+    const _bySess={}; dl.forEach(l=>{const k=(l.sess==='am'||l.sess==='pm')?l.sess:'x';(_bySess[k]=_bySess[k]||[]).push(l);});
+    if(_bySess.am&&_bySess.pm){
+      const _mk=(arr,ks,ic,lbl)=>{
+        const b=_buildSess(arr);
+        if(!b.html)return {vol:0,dist:0,html:''};
+        const bid='ltsess-'+pi+'-'+ks;
+        const ssub=[b.vol>0?_fmtKg(b.vol):'',b.dist>0?Math.round(b.dist)+'m':'',b.rpe!=null?'RPE '+b.rpe:''].filter(Boolean).join(' · ');
+        const html=`<div class="lt-sess"><div class="lt-sess-h" onclick="_ltSessTg('${bid}',this)" style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;margin-top:8px">`
+          +`<span style="font-size:15px">${ic}</span><span style="font-size:13px;font-weight:700;color:var(--text)">${lbl}</span>`
+          +`<span style="font-size:11px;color:var(--hint)">${_esc(ssub)}</span>`
+          +`<span class="lt-sess-cx" style="margin-left:auto;color:var(--hint);transition:transform .15s ease">▾</span></div>`
+          +`<div id="${bid}" style="display:none;padding:2px 2px 4px">${b.html}</div></div>`;
+        return {vol:b.vol,dist:b.dist,html};
+      };
+      const amB=_mk([...(_bySess.am||[]),...(_bySess.x||[])],'am','☀️','Vormittag'), pmB=_mk(_bySess.pm||[],'pm','🌙','Nachmittag');
+      const oV=amB.vol+pmB.vol, oD=amB.dist+pmB.dist;
+      const osub=[oV>0?'Total load '+_fmtKg(oV):'',oD>0?'Total distance '+Math.round(oD)+'m':''].filter(Boolean).join(' · ');
+      return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${osub?`<div class="lt-pin-sub">${_esc(osub)}</div>`:''}${!multi?_ltCondBlockHtml(_nm,d):''}${amB.html}${pmB.html}</div>`;
+    }
     const fullSRows=[];
     dl.forEach(l=>{
       if(l.rpe!=null&&rpe==null)rpe=l.rpe;
@@ -1779,6 +1812,13 @@ function _ltPinCards(selLogs){
     return `<div class="lt-pin"><div class="lt-pin-h">${hdr}${x}</div>${sub?`<div class="lt-pin-sub">${_esc(sub)}</div>`:''}${!multi?_ltCondBlockHtml(_nm,d):''}${rows}</div>`;
   }).join('');
   return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 Pinned sessions <span style="color:var(--hint);font-weight:400;font-size:11px">· Click a point/bar to add/remove · in a card: exercise = that exercise only, date = full session</span></span><button class="lt-clear" onclick="_ltClearPins()">Close all</button></div><div class="lt-pin-row">${cards}</div></div>`;
+}
+// AM/PM 세션 블록 접기/펼치기 (기본 접힘, 재렌더 시 자동 리셋)
+function _ltSessTg(id,el){
+  const b=document.getElementById(id); if(!b)return;
+  const open=b.style.display!=='none';
+  b.style.display=open?'none':'block';
+  const cx=el&&el.querySelector('.lt-sess-cx'); if(cx)cx.style.transform=open?'rotate(0deg)':'rotate(180deg)';
 }
 function _ltBuild(logs,ath){
   const exMap={},volByDate={},distByDate={},volDetail={},distDetail={},distRpe={},volRpe={},volBreak={sub:{},region:{},type:{},movement:{},structure:{},ex:{sub:{},region:{},type:{},movement:{},structure:{}}},distBreak={sub:{},disc:{},ex:{sub:{},disc:{}}};
