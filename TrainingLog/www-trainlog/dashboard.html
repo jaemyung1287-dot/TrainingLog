@@ -2371,7 +2371,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       if(ds.data[i]==null)return;
       const d=series[i]&&series[i].d; if(!d||!ms.has(d))return;
       ctx.beginPath(); ctx.arc(el.x,el.y,8,0,Math.PI*2);
-      ctx.lineWidth=2.5; ctx.strokeStyle='#FF3DAA'; ctx.stroke();
+      ctx.lineWidth=2.5; ctx.strokeStyle='#ffffff'; ctx.stroke();
     });
     ctx.restore();
   }});
