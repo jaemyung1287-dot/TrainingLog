@@ -1656,6 +1656,7 @@ function _ltPinWRow(e,d,ath){
 // chain(관절사슬)에서 상/하체/코어 파생, 미분류는 subCategory 폴백 → 최종 '기타'.
 const _BP_META={'하체':{c:'#6ab0f0'},'상체':{c:'#efb44d'},'코어':{c:'#5dcaa5'},'기타':{c:'#9aa0a6'}};
 const _BP_ORDER=['하체','상체','코어','기타'];
+let _bpUid=0; // 파트 접이식 블록 고유 id 카운터
 function _bodyPartOf(e){
   const ch=_classifyEx(e).chain||'';
   if(/Upper/.test(ch))return '상체';
@@ -1681,14 +1682,14 @@ function _ltGroupWeight(arr,d){
   const barParts=parts.filter(p=>g[p].vol>0);
   let bar='';
   if(barParts.length>1&&totV>0){
-    bar='<div style="display:flex;height:6px;border-radius:4px;overflow:hidden;margin:6px 0 2px">'
-      +barParts.map(p=>{const pct=g[p].vol/totV*100,c=_BP_META[p].c;return `<div title="${p} ${Math.round(pct)}% · ${_fmtKg(g[p].vol)}" style="width:${pct}%;background:${c}"></div>`;}).join('')
+    bar='<div style="display:flex;height:18px;border-radius:5px;overflow:hidden;margin:8px 0 4px">'
+      +barParts.map(p=>{const pct=g[p].vol/totV*100,c=_BP_META[p].c;return `<div title="${p} ${Math.round(pct)}% · ${_fmtKg(g[p].vol)}" style="width:${pct}%;background:${c};display:flex;align-items:center;justify-content:center;overflow:hidden"><span style="font-size:11px;font-weight:700;color:rgba(0,0,0,.72);white-space:nowrap">${Math.round(pct)}%</span></div>`;}).join('')
       +'</div>';
   }
   const secs=parts.map(p=>{
-    const c=_BP_META[p].c;
-    const hd=`<div style="display:flex;align-items:center;gap:7px;margin:8px 0 3px"><span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:${c}22;color:${c}">${p}</span><span style="font-size:10px;color:var(--hint)">${_fmtKg(g[p].vol)}</span></div>`;
-    return `${hd}<div style="border-left:2px solid ${c}55;padding-left:8px">${g[p].html}</div>`;
+    const c=_BP_META[p].c, pid='ltbp'+(++_bpUid);
+    const hd=`<div onclick="_ltSessTg('${pid}',this)" style="display:flex;align-items:center;gap:9px;margin:9px 0 3px;cursor:pointer"><span style="font-size:12px;font-weight:700;padding:3px 11px;border-radius:999px;background:${c}22;color:${c}">${p}</span><span style="font-size:12px;font-weight:600;color:var(--text)">${_fmtKg(g[p].vol)}</span><span class="lt-sess-cx" style="margin-left:auto;color:var(--hint);transition:transform .15s ease">▾</span></div>`;
+    return `${hd}<div id="${pid}" style="display:none;border-left:2px solid ${c}55;padding-left:8px">${g[p].html}</div>`;
   }).join('');
   return {vol:totV,html:bar+secs};
 }
@@ -1863,7 +1864,7 @@ function _ltSessSplit(dl,pi,buildFn,hdrHtml,condHtml,xBtn,keyPfx){
     const b=buildFn(g[k]); if(!b.html)return null;
     const bid='ltsess-'+pi+'-'+(keyPfx||'')+k.replace('_','u')+bi;
     const ss=[b.vol>0?_fmtKg(b.vol):'',b.dist>0?Math.round(b.dist)+'m':'',b.rpe!=null?'RPE '+b.rpe:''].filter(Boolean).join(' · ');
-    return {vol:b.vol,dist:b.dist,html:`<div class="lt-sess"><div class="lt-sess-h" onclick="_ltSessTg('${bid}',this)" style="display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;margin-top:8px"><span style="font-size:15px">${meta[k].ic}</span><span style="font-size:13px;font-weight:700;color:var(--text)">${meta[k].lbl}</span><span style="font-size:11px;color:var(--hint)">${_esc(ss)}</span><span class="lt-sess-cx" style="margin-left:auto;color:var(--hint);transition:transform .15s ease">▾</span></div><div id="${bid}" style="display:none;padding:2px 2px 4px">${b.html}</div></div>`};
+    return {vol:b.vol,dist:b.dist,html:`<div class="lt-sess"><div class="lt-sess-h" onclick="_ltSessTg('${bid}',this)" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;margin-top:6px"><span style="font-size:13px">${meta[k].ic}</span><span style="font-size:13px;font-weight:700;color:var(--text)">${meta[k].lbl}</span><span style="font-size:12px;font-weight:600;color:var(--text)">${_esc(ss)}</span><span class="lt-sess-cx" style="margin-left:auto;color:var(--hint);transition:transform .15s ease">▾</span></div><div id="${bid}" style="display:none;padding:2px 2px 4px">${b.html}</div></div>`};
   }).filter(Boolean);
   if(blocks.length<1)return null;
   const oV=blocks.reduce((s,b)=>s+b.vol,0),oD=blocks.reduce((s,b)=>s+b.dist,0);
