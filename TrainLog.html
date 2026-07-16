@@ -3118,12 +3118,9 @@ function _coachPinKey(e){
   else if(e.key==='Enter'&&ST.pinBuf.length===4) checkPin();
 }
 async function goCoachDashboard(){
-  // Coach screens need the whole team's logs → load them into SK now (this device
-  // is a coach device; athlete phones never do this).
-  try{
-    const cd=await _fetchAllCloudData();
-    if(cd){ const d=getData(); d.athletes=cd.athletes; d.programs=cd.programs; d.settings=cd.settings; d.records=cd.records; d.sessionPlans=_unionPlans(cd.sessionPlans,d.sessionPlans); const _del=_getDeletedIds(); const cids=new Set(cd.logs.map(l=>l.id)); const lo=(d.logs||[]).filter(l=>!cids.has(l.id)&&!_del.has(l.id)); d.logs=[...cd.logs,...lo]; _safeSetItem(SK,JSON.stringify(d)); }
-  }catch(e){ console.warn('[TrainLog] Coach load failed, using local:',e); }
+  // 로컬 데이터로 즉시 코치 화면 진입 — 팀 전체 클라우드 로드(8명×~1MB)를 await로 기다리면
+  // PIN 입력 후 화면이 수 초간 멈춘다. 팀 로그는 startCloudSync()의 실시간 리스너가 도착하는
+  // 대로 _onAnyChange→renderToday()로 백그라운드에서 채워 넣는다(블로킹 제거).
   showScreen('s-coach'); document.getElementById('coach-tabbar').classList.add('show'); switchTab('today',document.getElementById('tb-today')); startCloudSync();
 }
 function backToCoach(){ showScreen('s-coach'); document.getElementById('coach-tabbar').classList.add('show'); }
