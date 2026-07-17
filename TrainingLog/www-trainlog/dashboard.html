@@ -1598,6 +1598,7 @@ function _ltBrkLegend(opt,grp){
 }
 function _ltUnpin(i){if(i>=0&&i<_ltPins.length){_ltPins.splice(i,1);_rerenderTrends();}}
 function _ltClearPins(){_ltPins=[];ltBrkPins={};_rerenderTrends();}
+function _ltBrkTgHidden(grp,cat){const k=grp+'|'+cat;if(_ltBrkHidden.has(k))_ltBrkHidden.delete(k);else _ltBrkHidden.add(k);_rerenderTrends();} // 커스텀 범례에서 카테고리 숨김 토글
 // 핀 카드 내 클릭: 종목 행→그 종목만 비교, 날짜 헤더→전체 세션
 function _ltJs(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function _ltPinEx(d,name,sp){_ltTogglePin(d,{ex:name,sp:!!sp});}
@@ -1819,6 +1820,17 @@ function _ltPinCards(selLogs){
         h+=_ltPinSTable(sr);
         return {vol:v,dist:dd,rpe:r,html:h};
       };
+      // 팀(다중 선수) 핀: 카테고리 기록을 선수별 블록으로 분리 (누가 누구 것인지)
+      if(multi){
+        const byAth={};dl.forEach(l=>{const nm=l.athleteName||'—';(byAth[nm]=byAth[nm]||[]).push(l);});
+        const blocks=Object.keys(byAth).sort().map(nm=>{
+          const cb=_buildCat(byAth[nm]); if(!cb.html)return '';
+          const asub=[cb.vol>0?_fmtKg(cb.vol):'',cb.dist>0?Math.round(cb.dist)+'m':'',cb.rpe!=null?'RPE '+cb.rpe:''].filter(Boolean).join(' · ');
+          return `<div style="border-top:1px solid rgba(255,255,255,.07);padding-top:6px;margin-top:6px"><div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px">${_esc(nm.split(' ')[0])}${asub?` <span style="font-weight:400;color:var(--hint)">· ${_esc(asub)}</span>`:''}</div>${cb.html}</div>`;
+        }).filter(Boolean).join('');
+        if(!blocks)return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div><div class="lt-hint" style="padding:8px 2px">No records for this category</div></div>`;
+        return `<div class="lt-pin"><div class="lt-pin-h">${_hdrF(p.cat)}${x}</div>${blocks}</div>`;
+      }
       // If both sessions carry this category, split them; else single view.
       const _splitC=_ltSessSplit(dl,pi,_buildCat,_hdrF(p.cat),'',x,'c');
       if(_splitC)return _splitC;
@@ -2028,8 +2040,8 @@ function renderLoad(){
 
   // ── 1. Weekly Load Summary (전체/그룹 보기에서만, 개별/다중 선택 시 숨김) ──
   if(!selNames.size){
-  html+=`<div class="card" style="margin-bottom:20px;overflow-x:auto">
-    <div class="card-hd" style="cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px" onclick="_ldTeamSumOpen=!_ldTeamSumOpen;renderCurrent()"><span style="display:inline-block;font-size:9px;color:#8b949e;transition:transform .15s;${_ldTeamSumOpen?'transform:rotate(90deg)':''}">▶</span>Team Weekly Summary</div>`;
+  html+=`<div class="card" style="margin-bottom:20px;overflow-x:auto;padding:${_ldTeamSumOpen?'16px':'9px 14px'}">
+    <div class="card-hd" style="cursor:pointer;user-select:none;gap:7px;${_ldTeamSumOpen?'':'margin-bottom:0'}" onclick="_ldTeamSumOpen=!_ldTeamSumOpen;renderCurrent()"><span style="display:inline-block;font-size:8px;color:#8b949e;transition:transform .15s;${_ldTeamSumOpen?'transform:rotate(90deg)':''}">▶</span>📅 Team Weekly Summary<span></span></div>`;
   if(_ldTeamSumOpen){
   html+=`<table class="data-table" style="margin-top:10px">
       <tr><th>Athlete</th>${DN.map((d,i)=>`<th style="text-align:center">${d}<br><span style="font-weight:400;font-size:10px;opacity:.6">${wk[i].d.getDate()}.</span></th>`).join('')}<th>Vol.</th><th>Dist.</th></tr>`;
@@ -2873,6 +2885,45 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       const title=(kind==='vol'?'Total Volume':'Sprint Distance')+' · 선수별';
       return _ltCard(title,unit+(_ltBkSub?' · '+_ltBkSub:'')+' · 일자별 선수 막대',{type:'bar',data:{labels,datasets:dss},options:opt,plugins},520,_ltCat.indexOf(kind==='vol'?'__vol__':'__dist__'));
     };
+    // 팀 분해(카테고리) : 날짜마다 선수별 막대를 옆으로 나열(테두리=선수) + 각 막대는 카테고리 세로 스택
+    const _teamBrkGroupStack=(kind,grp)=>{
+      const unit=kind==='vol'?'kg':'m';
+      const bkKey=kind==='vol'?'volBreak':'distBreak';
+      const lbl=kind==='vol'?_LT_BRK_LBL[grp]:_LT_DBRK_LBL[grp];
+      const perA=_teamPer.map(p=>{const bd=(p.lt[bkKey]||{})[grp]||{};const ds=Object.keys(bd).filter(_ltInPeriod);return {name:p.name,col:p.col,bd,ds};}).filter(o=>o.ds.length);
+      if(!perA.length)return '';
+      const dateSet=new Set(),catTot={};
+      perA.forEach(o=>o.ds.forEach(d=>{dateSet.add(d);Object.entries(o.bd[d]).forEach(([c,v])=>catTot[c]=(catTot[c]||0)+v);}));
+      const dates=[...dateSet].sort();
+      const cats=Object.keys(catTot).sort((a,b)=>catTot[b]-catTot[a]); // 큰 카테고리가 스택 아래
+      if(!dates.length||!cats.length)return '';
+      const dss=[];
+      perA.forEach((o,ai)=>{
+        cats.forEach((c,ci)=>{
+          if(_ltBrkHidden.has(grp+'|'+c))return;
+          const col=_LT_PAL[ci%_LT_PAL.length];
+          dss.push({label:c,stack:'a'+ai,_ath:o.name,_cat:c,
+            data:dates.map(d=>o.bd[d]&&o.bd[d][c]?Math.round(o.bd[d][c]):null),
+            _metas:dates.map(d=>o.bd[d]&&o.bd[d][c]?[o.name.split(' ')[0]+' · '+c,(kind==='vol'?_fmtKg(o.bd[d][c]):Math.round(o.bd[d][c])+'m')]:''),
+            backgroundColor:col+'cc',borderColor:o.col,borderWidth:1.2,borderSkipped:false,
+            categoryPercentage:0.9,barPercentage:0.92,borderRadius:1});
+        });
+      });
+      if(!dss.length)return '';
+      const opt=_ltTip(false,false);
+      opt.scales.x.stacked=true;opt.scales.y.stacked=true;opt.scales.y.beginAtZero=true;
+      opt.scales.x.ticks.autoSkip=false;opt.scales.x.ticks.maxRotation=0;opt.scales.x.ticks.minRotation=0;
+      opt.layout={padding:{top:16,bottom:20}};
+      if(opt.plugins&&opt.plugins.tooltip)opt.plugins.tooltip.filter=function(it){return it.raw!=null&&it.raw!==0;};
+      opt.onClick=function(evt,els,chart){if(!els||!els.length)return;const ds2=chart.data.datasets[els[0].datasetIndex];const d=dates[els[0].index];if(d&&ds2&&ds2._cat)_ltTogglePin(d,{cat:ds2._cat,grp});};
+      const plugins=[_mkBarVals(unit),_mkWeekSep(dates),_mkMesoLabels(dates)];
+      const _lg=(sw,txt,extra)=>`<span style="display:inline-flex;align-items:center;gap:4px;${extra||''}">${sw}${_esc(txt)}</span>`;
+      const catLeg=cats.map((c,ci)=>_lg(`<span style="width:10px;height:10px;border-radius:2px;background:${_LT_PAL[ci%_LT_PAL.length]};display:inline-block"></span>`,c,`cursor:pointer;opacity:${_ltBrkHidden.has(grp+'|'+c)?'.35':'1'}" onclick="_ltBrkTgHidden('${_ltJs(grp)}','${_ltJs(c)}')`)).join('');
+      const athLeg=perA.map(o=>_lg(`<span style="width:9px;height:9px;border-radius:2px;border:2px solid ${o.col};display:inline-block"></span>`,o.name.split(' ')[0])).join('');
+      const strip=`<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px;font-size:10px;color:var(--muted)"><div style="display:flex;flex-wrap:wrap;gap:3px 9px;align-items:center"><span style="opacity:.55;font-weight:700;min-width:52px">카테고리</span>${catLeg}</div><div style="display:flex;flex-wrap:wrap;gap:3px 9px;align-items:center"><span style="opacity:.55;font-weight:700;min-width:52px">선수(테두리)</span>${athLeg}</div></div>`;
+      const title=(kind==='vol'?'Total Volume':'Sprint Distance')+' · '+lbl+' · 선수별';
+      return _ltCard(title,unit+' · 선수별 그룹 · 카테고리 스택',{type:'bar',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt,plugins},360,_ltCat.indexOf(kind==='vol'?'__vol__':'__dist__'),'',strip);
+    };
     // 개별 종목: 선수별 라인(top-set/best-time은 누적 불가) — 개인 트렌드와 동일 meta·메소밴드·주간구분선
     const _teamExLine=(key,sprint)=>{
       const agg=sprint?'min':'max';
@@ -2898,8 +2949,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       let out='';
       if(hasRdy)out+=_ltRdyCard();
       if(hasCond)out+=_ltCondCard();
-      if(hasVol){ if(ltVolBreak!=='none'){out+=(bucketing?_ltVolStackBucket:_ltVolStackCard)(ltVolBreak);} else {out+=_teamTotalStack('vol');} }
-      if(hasDist){ if(ltDistBreak!=='none'){out+=(bucketing?_ltDistStackBucket:_ltDistStackCard)(ltDistBreak);} else {out+=_teamTotalStack('dist');} }
+      if(hasVol){ if(ltVolBreak!=='none'){out+=(bucketing?_ltVolStackBucket(ltVolBreak):_teamBrkGroupStack('vol',ltVolBreak));} else {out+=_teamTotalStack('vol');} }
+      if(hasDist){ if(ltDistBreak!=='none'){out+=(bucketing?_ltDistStackBucket(ltDistBreak):_teamBrkGroupStack('dist',ltDistBreak));} else {out+=_teamTotalStack('dist');} }
       selExs.forEach(n=>{const m=_lt.exMap[n];out+=_teamExLine(n,m.sprint);});
       return out||`<div class="lt-hint" style="grid-column:1/-1">선택한 기간에 해당 지표의 세션 데이터가 없습니다 — 다른 기간/Unit을 선택해보세요</div>`;
     };
