@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260715-7';
+const APP_VERSION = '20260718-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1202,6 +1202,42 @@ function _mergeCloudSprintTimes(localLogs, cloudLogs){
   return localLogs;
 }
 
+// ── Pending-sync bookkeeping (per athlete) — remember when a log upload failed
+//    so we can show it and auto-retry, instead of silently dropping data. ──
+const _PENDING_SYNC_KEY='trainlog_pending_sync';
+function _markPendingSync(athId){
+  try{ const c=JSON.parse(localStorage.getItem(_PENDING_SYNC_KEY)||'{}'); c[athId]=Date.now(); localStorage.setItem(_PENDING_SYNC_KEY,JSON.stringify(c)); }catch(e){}
+}
+function _clearPendingSync(athId){
+  try{ const c=JSON.parse(localStorage.getItem(_PENDING_SYNC_KEY)||'{}'); if(c[athId]!=null){ delete c[athId]; localStorage.setItem(_PENDING_SYNC_KEY,JSON.stringify(c)); } }catch(e){}
+}
+// Reliable athlete-log upload: retry with backoff; on success clear the pending
+// flag + hide the error; on total failure keep data local, mark pending, and
+// surface a LOUD banner. This is the single writer for a given athlete's logs,
+// used by both saveData→syncToCloud and the auto-heal on profile open.
+async function _syncOwnLogsNow(athId,d){
+  if(!athId) return false;
+  const _delSet=_getDeletedIds();
+  const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId&&!_delSet.has(l.id));
+  const payload={logs:athLogs,deletedIds:[..._delSet],_lastUpdated:d._lastUpdated||Date.now()};
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      // Fetch cloud first so a stale local copy can never wipe coach-entered sprint times.
+      try{ const snap=await ATHLETE_DOC(athId).get(); _mergeCloudSprintTimes(athLogs,(snap.exists&&snap.data().logs)||[]); }
+      catch(e){ console.warn('[TrainLog] athlete pre-merge read failed:',e); }
+      await ATHLETE_DOC(athId).set(payload,{merge:true});
+      _clearPendingSync(athId); _hideSyncError();
+      return true;
+    }catch(e){
+      console.warn(`[TrainLog] athlete log sync attempt ${attempt+1}/3 failed:`,e);
+      await new Promise(r=>setTimeout(r,800*(attempt+1)));
+    }
+  }
+  _markPendingSync(athId);
+  _showSyncError('로그 업로드 실패 · Log-Upload fehlgeschlagen');
+  return false;
+}
+
 // Push to Firestore (background, non-blocking)
 // Coach data → COACH_DOC | Athlete logs → ATHLETE_DOC(id)
 function syncToCloud(d){
@@ -1242,16 +1278,9 @@ function syncToCloud(d){
     ||_syncAthleteId
     ||(ST.coachRecordAthlete?(d.athletes||[]).find(a=>a.name===ST.coachRecordAthlete)?.id:null);
   if(athId){
-    const _delSet=_getDeletedIds();
-    const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId&&!_delSet.has(l.id));
-    const _lu=d._lastUpdated||Date.now();
-    // merge:true preserves dashboard-written fields (deletedIds); include our own tombstones
-    const _writeAth=()=>ATHLETE_DOC(athId).set({logs:athLogs,deletedIds:[..._delSet],_lastUpdated:_lu},{merge:true})
-      .catch(e=>console.warn('[TrainLog] Athlete log sync error:',e));
-    // Fetch cloud first so a stale local copy can never wipe coach-entered sprint times.
-    ATHLETE_DOC(athId).get()
-      .then(snap=>{ _mergeCloudSprintTimes(athLogs,(snap.exists&&snap.data().logs)||[]); return _writeAth(); })
-      .catch(e=>{ console.warn('[TrainLog] Athlete pre-merge read failed, writing local:',e); _writeAth(); });
+    // Reliable, loud-on-failure athlete-log upload (retry + banner + pending flag).
+    // No more silent drops that leave the athlete thinking a session was saved.
+    _syncOwnLogsNow(athId,d);
     _syncAthleteId=null;
   }
 }
@@ -1368,7 +1397,14 @@ async function _loadOwnLogs(athId){
     const cloudIds=new Set(cloudLogs.map(l=>l.id));
     const localOwnOnly=(d.logs||[]).filter(l=>l.athleteName===myName&&!cloudIds.has(l.id)&&!_deletedIds.has(l.id));
     d.logs=[...cloudLogs,...localOwnOnly];
-    _safeSetItem(SK,JSON.stringify(d)); // direct write (no team), no re-push loop
+    _safeSetItem(SK,JSON.stringify(d));
+    // AUTO-HEAL: logs present on this phone but missing from the cloud never synced
+    // (a prior background upload failed silently). Re-push them now — the athlete
+    // does nothing but open their profile; the backlog uploads itself.
+    if(localOwnOnly.length){
+      console.log('[TrainLog] Auto-resyncing',localOwnOnly.length,'unsynced own log(s) →',athId);
+      _syncOwnLogsNow(athId,d);
+    }
     return d.logs.length;
   }catch(e){ console.warn('[TrainLog] own-log load failed, keeping local:',e); return -1; }
 }
