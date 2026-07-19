@@ -4250,6 +4250,8 @@ function _ytEmbedHtml(url){
 }
 // 웜업 영상 지연 로드: 칩을 탭하면 그 자리에서 임베드로 교체
 function _wuVid(el,url){ if(!url) return; const h=_ytEmbedHtml(url); if(h){ el.outerHTML=h; } }
+// 웜업 렙 표기: 1세트도 "1 × N", 시간류(min/sec)는 그대로
+function _wuFmtRep(sets,reps){reps=String(reps==null?'':reps).trim();sets=String(sets==null?'':sets).trim();if(!reps)return sets?sets+' ×':'';if(/min|sec|분|초/i.test(reps))return reps;if(!sets)sets='1';return sets+' × '+reps;}
 // ── Form-video chips: per-set clickable ▶ that opens the lift clip ──
 function _setVideoChips(e){
   if(!e||!Array.isArray(e.setRows)) return '';
@@ -7859,14 +7861,17 @@ function _warmupHtml(sb){
     const items=_warmupItemsClean(sb);
     if(!items.length) return '';
     return items.map(it=>{
-      const sr=[String(it.sets||'').trim(),String(it.reps||'').trim()].filter(Boolean).join(' × ');
+      const _wuRep=_wuFmtRep(it.sets,it.reps);
       const _wuUrl=(it.ytUrl||'').trim();
-      const _wuChip=_ytId(_wuUrl)?`<div onclick="event.stopPropagation();_wuVid(this,'${_wuUrl.replace(/'/g,'')}')" style="margin-top:7px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:800;color:#ff5a5a;background:rgba(255,0,0,.1);border:1px solid rgba(255,0,0,.28);border-radius:8px;padding:4px 11px">▶ 영상 · Video</div>`:'';
+      const _wuIcon=_ytId(_wuUrl)?`<span onclick="event.stopPropagation();_wuVid(this,'${_wuUrl.replace(/'/g,'')}')" title="Video" style="display:inline-flex;align-items:center;justify-content:center;width:27px;height:19px;background:#ff0000;border-radius:5px;flex-shrink:0;cursor:pointer"><span style="width:0;height:0;border-left:7px solid #fff;border-top:4px solid transparent;border-bottom:4px solid transparent;margin-left:1px"></span></span>`:'';
       const cm=(it.comment||'').trim();
-      return `<div style="margin:6px 0;padding:9px 11px;background:rgba(247,169,79,.06);border:1px solid rgba(247,169,79,.18);border-radius:10px">
-        <div style="font-size:13px;font-weight:700;color:var(--text)">${_wuEsc(it.name)||'—'}${sr?` <span style="color:#f7a94f;font-weight:600">${_wuEsc(sr)}</span>`:''}</div>
-        ${cm?`<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5">💬 ${_wuEsc(cm)}</div>`:''}
-        ${_wuChip}
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 3px;border-bottom:1px solid rgba(247,169,79,.12)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12.5px;font-weight:600;color:var(--text);line-height:1.25">${_wuEsc(it.name)||'—'}</div>
+          ${cm?`<div style="font-size:11px;color:var(--muted);margin-top:1px;line-height:1.4">💬 ${_wuEsc(cm)}</div>`:''}
+        </div>
+        ${_wuRep?`<span style="color:#f7a94f;font-weight:700;font-size:11.5px;white-space:nowrap">${_wuEsc(_wuRep)}</span>`:''}
+        ${_wuIcon}
       </div>`;
     }).join('');
   }
