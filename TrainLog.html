@@ -4248,6 +4248,8 @@ function _ytEmbedHtml(url){
     <iframe src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1" title="Übungsvideo" loading="lazy" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"></iframe>
   </div>`;
 }
+// 웜업 영상 지연 로드: 칩을 탭하면 그 자리에서 임베드로 교체
+function _wuVid(el,url){ if(!url) return; const h=_ytEmbedHtml(url); if(h){ el.outerHTML=h; } }
 // ── Form-video chips: per-set clickable ▶ that opens the lift clip ──
 function _setVideoChips(e){
   if(!e||!Array.isArray(e.setRows)) return '';
@@ -7858,12 +7860,13 @@ function _warmupHtml(sb){
     if(!items.length) return '';
     return items.map(it=>{
       const sr=[String(it.sets||'').trim(),String(it.reps||'').trim()].filter(Boolean).join(' × ');
-      const yt=(it.ytUrl||'').trim()?_ytEmbedHtml(it.ytUrl):'';
+      const _wuUrl=(it.ytUrl||'').trim();
+      const _wuChip=_ytId(_wuUrl)?`<div onclick="event.stopPropagation();_wuVid(this,'${_wuUrl.replace(/'/g,'')}')" style="margin-top:7px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:800;color:#ff5a5a;background:rgba(255,0,0,.1);border:1px solid rgba(255,0,0,.28);border-radius:8px;padding:4px 11px">▶ 영상 · Video</div>`:'';
       const cm=(it.comment||'').trim();
       return `<div style="margin:6px 0;padding:9px 11px;background:rgba(247,169,79,.06);border:1px solid rgba(247,169,79,.18);border-radius:10px">
         <div style="font-size:13px;font-weight:700;color:var(--text)">${_wuEsc(it.name)||'—'}${sr?` <span style="color:#f7a94f;font-weight:600">${_wuEsc(sr)}</span>`:''}</div>
         ${cm?`<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5">💬 ${_wuEsc(cm)}</div>`:''}
-        ${yt||''}
+        ${_wuChip}
       </div>`;
     }).join('');
   }
