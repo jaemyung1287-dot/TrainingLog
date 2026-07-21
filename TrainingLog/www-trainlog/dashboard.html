@@ -4816,7 +4816,7 @@ function renderSchedule(){
     const blocks=[];const seen={};
     const _fAth=allAths.find(a=>a.name===schedFilter)||null; // individual-athlete filter?
     if(plan)Object.keys(plan).forEach(key=>{
-      if(key==='phase'||key==='week')return;
+      if(key==='phase'||key==='week'||key==='_ts')return;
       if(loggedIds.has(key))return;
       if(!_keyRel(key))return;
       ['am','pm'].forEach(sess=>{
@@ -5161,6 +5161,7 @@ async function _schedSaveNote(day,sess,keysCsv,val){
       if(dayPlan[k]&&dayPlan[k][sess]&&(dayPlan[k][sess].coachNote||'')!==val){dayPlan[k][sess].coachNote=val;changed=true;}
     });
     if(!changed)return;
+    dayPlan._ts=Date.now();
     await db.collection('trainlog').doc('coach').update({['sessionPlans.'+day]:dayPlan,_lastUpdated:Date.now()});
     if(!coachData.sessionPlans)coachData.sessionPlans={};
     coachData.sessionPlans[day]=dayPlan;
@@ -5267,7 +5268,7 @@ function _peCopySources(){
     if(!plan)return;
     if(day<_wkMin||day>_wkMax)return; // only the same week
     Object.keys(plan).forEach(key=>{
-      if(key==='phase'||key==='week')return;
+      if(key==='phase'||key==='week'||key==='_ts')return;
       ['am','pm'].forEach(sess=>{
         if(day===_pe.day&&key===_pe.key&&sess===_pe.sess)return; // self
         const s=_planSessOf(day,key,sess);
@@ -5553,7 +5554,7 @@ function _peBuildSession(){
       planLegMode:e.isSL?'SL':e.isSA?'SA':(base.planLegMode==='SL'||base.planLegMode==='SA'?'DL':base.planLegMode||'DL')
     });
   });
-  return {warmup:_pe.warmup||'',warmupMode:_pe.warmupMode||'text',warmupItems:Array.isArray(_pe.warmupItems)?_pe.warmupItems.filter(it=>it&&((it.name||'').trim()||(it.ytUrl||'').trim()||(it.comment||'').trim())):[],cooldown:'',exercises};
+  return {warmup:_pe.warmup||'',warmupMode:_pe.warmupMode||'text',warmupItems:Array.isArray(_pe.warmupItems)?_pe.warmupItems.filter(it=>it&&((it.grp||'').trim()||(it.name||'').trim()||(it.ytUrl||'').trim()||(it.comment||'').trim())):[],cooldown:'',exercises};
 }
 async function savePlanEditor(){
   try{
@@ -5567,6 +5568,7 @@ async function savePlanEditor(){
       if(prev){copy.cooldown=prev.cooldown||'';if(prev.conditioningText)copy.conditioningText=prev.conditioningText;}
       dayPlan[key][_pe.sess]=copy;
     });
+    dayPlan._ts=Date.now();
     await db.collection('trainlog').doc('coach').update({['sessionPlans.'+_pe.day]:dayPlan,_lastUpdated:Date.now()});
     if(!coachData.sessionPlans)coachData.sessionPlans={};
     coachData.sessionPlans[_pe.day]=dayPlan;
@@ -5585,6 +5587,7 @@ async function clearPlanSess(){
         if(!Object.keys(dayPlan[key]).length)delete dayPlan[key];
       }
     });
+    dayPlan._ts=Date.now();
     await db.collection('trainlog').doc('coach').update({['sessionPlans.'+_pe.day]:dayPlan,_lastUpdated:Date.now()});
     coachData.sessionPlans[_pe.day]=dayPlan;
     _rmModal();renderCurrent();

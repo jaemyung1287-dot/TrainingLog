@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260721-1';
+const APP_VERSION = '20260721-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1169,10 +1169,19 @@ function _restoreImages(cloudData){
 //    extra days are PRESERVED. This guarantees a stale/empty copy can never
 //    erase plan-days that exist elsewhere (the root cause of plan loss). ──
 function _unionPlans(primary,secondary){
+  // Per-day merge: the side with the newer _ts (stamped on every plan edit) wins.
+  // Days missing on one side survive. Tie / no _ts → primary wins (legacy behavior).
   const out=JSON.parse(JSON.stringify(primary||{}));
-  Object.entries(secondary||{}).forEach(([day,plan])=>{ if(!(day in out)&&plan) out[day]=plan; });
+  Object.entries(secondary||{}).forEach(([day,plan])=>{
+    if(!plan) return;
+    if(!(day in out)){ out[day]=plan; return; }
+    const pTs=(out[day]&&out[day]._ts)||0, sTs=plan._ts||0;
+    if(sTs>pTs) out[day]=JSON.parse(JSON.stringify(plan));
+  });
   return out;
 }
+// Stamp a plan day as "edited now" so per-day merge (_unionPlans) knows which side is newer.
+function _stampPlanDay(d,day){ try{ if(day&&d&&d.sessionPlans&&d.sessionPlans[day]) d.sessionPlans[day]._ts=Date.now(); }catch(e){} }
 
 // ── Preserve coach-entered sprint run times on athlete push ──────────────────
 // Firestore treats the `logs` array as atomic: set() replaces it wholesale. Athlete
@@ -7492,6 +7501,7 @@ function clearPlanSession(){
     // backward compat: old flat format (treated as AM)
     if(sess==='am'&&Array.isArray(plan[grp].exercises)){ plan[grp].exercises=[]; if(plan[grp].warmup!==undefined) plan[grp].warmup=''; if(plan[grp].cooldown!==undefined) plan[grp].cooldown=''; }
     d.sessionPlans[ST._planDay]=plan;
+    _stampPlanDay(d,ST._planDay);
   }
   // 선수 로그는 건드리지 않음 — 플랜만 지우기
   saveData(d);
@@ -7577,6 +7587,7 @@ function _deleteSinglePlanEx(idx){
   if(!exs) return;
   exs.splice(idx,1);
   d.sessionPlans[ST._planDay]=plan;
+  _stampPlanDay(d,ST._planDay);
   saveData(d);
   renderPlanAccordion();
 }
@@ -7590,6 +7601,7 @@ function _ovReorder(fromIdx,toIdx){
   const moved=exs.splice(fromIdx,1)[0];
   exs.splice(toIdx,0,moved);
   d.sessionPlans[ST._planDay]=plan;
+  _stampPlanDay(d,ST._planDay);
   saveData(d);
   renderPlanAccordion();
 }
@@ -7626,6 +7638,7 @@ function _deleteSelectedPlanExs(){
       else if(sess==='am'&&Array.isArray(grpData.exercises)) grpData.exercises=newExs;
     }
     d.sessionPlans[ST._planDay]=plan;
+    _stampPlanDay(d,ST._planDay);
   }
   saveData(d);
   ST._planSelecting=false; ST._planSelectedIdxs=new Set();
@@ -7797,6 +7810,7 @@ function _getPlanSessionData(grpData){
 }
 // Multi-select helper: replicate primary athlete's plan to all selected athletes, then save
 function _savePlanSync(d){
+  _stampPlanDay(d,ST._planDay);
   const sel=ST._planSelectedAthletes;
   const primary=ST._planGroup;
   if(sel&&sel.size>1&&primary&&primary.startsWith('ath_')){
@@ -8804,7 +8818,7 @@ function _planDayCopySources(){
   Object.entries(d.sessionPlans||{}).forEach(([day,plan])=>{
     if(!plan) return;
     Object.keys(plan).forEach(grp=>{
-      if(grp==='phase'||grp==='week') return;
+      if(grp==='phase'||grp==='week'||grp==='_ts') return;
       const g=plan[grp]; if(!g||typeof g!=='object') return;
       ['am','pm'].forEach(sess=>{
         if(day===ST._planDay&&grp===ST._planGroup&&sess===curSess) return; // skip copy target itself
