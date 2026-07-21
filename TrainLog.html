@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260718-1';
+const APP_VERSION = '20260721-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -7855,14 +7855,14 @@ function _makeConditioningCard(wrap,condText){
 }
 // ═══ Warm-up: shared render + coach editing (서술형/상세형) ═══
 function _wuEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function _warmupItemsClean(sb){return (sb&&Array.isArray(sb.warmupItems)?sb.warmupItems:[]).filter(it=>it&&((it.name||'').trim()||(it.ytUrl||'').trim()||(it.comment||'').trim()));}
+function _warmupItemsClean(sb){return (sb&&Array.isArray(sb.warmupItems)?sb.warmupItems:[]).filter(it=>it&&((it.grp||'').trim()||(it.name||'').trim()||(it.ytUrl||'').trim()||(it.comment||'').trim()));}
 // 선수 화면용 웜업 HTML(독일어). detail이면 운동 목록+영상, 아니면 서술형 텍스트.
 function _warmupHtml(sb){
   if(!sb) return '';
   if(sb.warmupMode==='detail'){
     const items=_warmupItemsClean(sb);
     if(!items.length) return '';
-    return items.map(it=>{
+    const _wuRow=it=>{
       const _wuRep=_wuFmtRep(it.sets,it.reps);
       const _wuUrl=(it.ytUrl||'').trim();
       const _wuIcon=_ytId(_wuUrl)?`<span onclick="event.stopPropagation();_wuModal(this)" data-url="${_wuEsc(_wuUrl)}" data-name="${_wuEsc(it.name||'Video')}" title="Video" style="display:inline-flex;align-items:center;justify-content:center;width:27px;height:19px;background:#ff0000;border-radius:5px;flex-shrink:0;cursor:pointer"><span style="width:0;height:0;border-left:7px solid #fff;border-top:4px solid transparent;border-bottom:4px solid transparent;margin-left:1px"></span></span>`:'';
@@ -7875,7 +7875,18 @@ function _warmupHtml(sb){
         ${_wuRep?`<span style="color:#f7a94f;font-weight:700;font-size:11.5px;white-space:nowrap">${_wuEsc(_wuRep)}</span>`:''}
         ${_wuIcon}
       </div>`;
-    }).join('');
+    };
+    // 접이식 그룹: grp='1'인 아이템 = 그룹 헤더(누르면 펼침/접힘), grp='end' = 그룹 끝 표시(비표시)
+    let _wuOut='',_wuGrpOpen=false,_wuGrpName='',_wuGrpBuf=[];
+    const _wuFlush=()=>{ if(_wuGrpOpen){ _wuOut+=`<details style="border-bottom:1px solid rgba(247,169,79,.12)"><summary style="cursor:pointer;padding:8px 3px;font-size:12.5px;font-weight:700;color:#f7a94f;user-select:none;-webkit-tap-highlight-color:transparent">${_wuGrpName||'Gruppe'} <span style="font-weight:600;font-size:11px;opacity:.75">· ${_wuGrpBuf.length} Übungen</span></summary><div style="padding-left:8px">${_wuGrpBuf.join('')}</div></details>`; } _wuGrpOpen=false;_wuGrpName='';_wuGrpBuf=[]; };
+    items.forEach(it=>{
+      const g=(it.grp||'').trim();
+      if(g==='end'){ _wuFlush(); return; }
+      if(g){ _wuFlush(); _wuGrpOpen=true; _wuGrpName=_wuEsc(it.name); return; }
+      if(_wuGrpOpen) _wuGrpBuf.push(_wuRow(it)); else _wuOut+=_wuRow(it);
+    });
+    _wuFlush();
+    return _wuOut;
   }
   const t=(sb.warmup||'').trim();
   if(!t) return '';
