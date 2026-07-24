@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260721-3';
+const APP_VERSION = '20260724-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1220,32 +1220,66 @@ function _markPendingSync(athId){
 function _clearPendingSync(athId){
   try{ const c=JSON.parse(localStorage.getItem(_PENDING_SYNC_KEY)||'{}'); if(c[athId]!=null){ delete c[athId]; localStorage.setItem(_PENDING_SYNC_KEY,JSON.stringify(c)); } }catch(e){}
 }
+// Firestore writes never REJECT while the device is offline/backgrounded — the
+// SDK queues the mutation and the promise just hangs until a server ack. That
+// hang is exactly how logs sat invisible for hours (saved 11:02, arrived 13:54,
+// 2026-07-24). Race every attempt against a timeout so "stuck" counts as a
+// failure we can see, retry, and banner — the queued mutation still delivers
+// on its own whenever connectivity returns, and our re-set is idempotent.
+function _withTimeout(p,ms){
+  return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('sync timeout ('+ms+'ms) — offline?')),ms))]);
+}
 // Reliable athlete-log upload: retry with backoff; on success clear the pending
 // flag + hide the error; on total failure keep data local, mark pending, and
 // surface a LOUD banner. This is the single writer for a given athlete's logs,
-// used by both saveData→syncToCloud and the auto-heal on profile open.
+// used by saveData→syncToCloud, the auto-heal on profile open, and the
+// online/foreground flush below. Serialized: overlapping calls queue one rerun.
+let _syncOwnBusy=false,_syncOwnQueued=null;
 async function _syncOwnLogsNow(athId,d){
   if(!athId) return false;
-  const _delSet=_getDeletedIds();
-  const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId&&!_delSet.has(l.id));
-  const payload={logs:athLogs,deletedIds:[..._delSet],_lastUpdated:d._lastUpdated||Date.now()};
-  for(let attempt=0;attempt<3;attempt++){
-    try{
-      // Fetch cloud first so a stale local copy can never wipe coach-entered sprint times.
-      try{ const snap=await ATHLETE_DOC(athId).get(); _mergeCloudSprintTimes(athLogs,(snap.exists&&snap.data().logs)||[]); }
-      catch(e){ console.warn('[TrainLog] athlete pre-merge read failed:',e); }
-      await ATHLETE_DOC(athId).set(payload,{merge:true});
-      _clearPendingSync(athId); _hideSyncError();
-      return true;
-    }catch(e){
-      console.warn(`[TrainLog] athlete log sync attempt ${attempt+1}/3 failed:`,e);
-      await new Promise(r=>setTimeout(r,800*(attempt+1)));
+  if(_syncOwnBusy){ _syncOwnQueued=athId; return false; }
+  _syncOwnBusy=true;
+  try{
+    const _delSet=_getDeletedIds();
+    const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId&&!_delSet.has(l.id));
+    const payload={logs:athLogs,deletedIds:[..._delSet],_lastUpdated:d._lastUpdated||Date.now()};
+    for(let attempt=0;attempt<3;attempt++){
+      try{
+        // Fetch cloud first so a stale local copy can never wipe coach-entered sprint times.
+        try{ const snap=await _withTimeout(ATHLETE_DOC(athId).get(),6000); _mergeCloudSprintTimes(athLogs,(snap.exists&&snap.data().logs)||[]); }
+        catch(e){ console.warn('[TrainLog] athlete pre-merge read failed:',e); }
+        await _withTimeout(ATHLETE_DOC(athId).set(payload,{merge:true}),8000);
+        _clearPendingSync(athId); _hideSyncError();
+        if(ST.athlete) showToast('☁️ Log hochgeladen ✓');
+        return true;
+      }catch(e){
+        console.warn(`[TrainLog] athlete log sync attempt ${attempt+1}/3 failed:`,e);
+        await new Promise(r=>setTimeout(r,800*(attempt+1)));
+      }
     }
+    _markPendingSync(athId);
+    _showSyncError('Log noch nicht hochgeladen — auf dem Handy gespeichert, Upload folgt automatisch · 로그 업로드 대기중');
+    return false;
+  }finally{
+    _syncOwnBusy=false;
+    if(_syncOwnQueued){ const q=_syncOwnQueued; _syncOwnQueued=null; _syncOwnLogsNow(q,getData()); }
   }
-  _markPendingSync(athId);
-  _showSyncError('로그 업로드 실패 · Log-Upload fehlgeschlagen');
-  return false;
 }
+// Flush pending athlete logs the moment we plausibly CAN upload again: network
+// back (online) or app returned to foreground (visibilitychange). Without this,
+// a backlog only uploaded when the athlete re-entered their profile.
+function _flushPendingSync(reason){
+  try{
+    if(typeof ST==='undefined'||!ST.athlete?.id) return;
+    const athId=ST.athlete.id;
+    const pend=JSON.parse(localStorage.getItem(_PENDING_SYNC_KEY)||'{}');
+    if(pend[athId]==null) return;
+    console.log('[TrainLog] flushing pending log sync:',reason);
+    _syncOwnLogsNow(athId,getData());
+  }catch(e){}
+}
+window.addEventListener('online',()=>_flushPendingSync('online'));
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') _flushPendingSync('foreground'); });
 
 // Push to Firestore (background, non-blocking)
 // Coach data → COACH_DOC | Athlete logs → ATHLETE_DOC(id)
