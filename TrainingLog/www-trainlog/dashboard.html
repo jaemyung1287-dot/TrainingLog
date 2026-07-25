@@ -1311,7 +1311,7 @@ const _weekBandPlugin={
     const vals=(chart.options&&chart.options._weekVals)||null;
     const unit=(chart.options&&chart.options._weekUnit)||'kg';
     const wAgg=(chart.options&&chart.options._weekAgg)||'sum';
-    const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':_fmtKg(v);
+    const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':unit==='rdy'?String(Math.round(v)):_fmtKg(v);
     ctx.save();
     const n=dates.length;
     // ── Phase(메소사이클) 경계 divider(흰 점선) + 하단 라벨(배경 없는 색 글자) ── 라인/채움 뒤에 그림
@@ -1350,7 +1350,7 @@ const _weekBandPlugin={
       if(vals){
         const wv=[]; for(let k=i;k<j;k++){const x=parseFloat(vals[dates[k]]); if(!isNaN(x))wv.push(x);}
         if(wAgg==='sum') sum=wv.reduce((a,b)=>a+b,0);
-        else if(wv.length) sum=wAgg==='min'?Math.min(...wv):Math.max(...wv);
+        else if(wv.length) sum=wAgg==='min'?Math.min(...wv):wAgg==='avg'?Math.round(wv.reduce((a,b)=>a+b,0)/wv.length):Math.max(...wv);
       }
       ctx.textBaseline='top';
       const _sun=new Date(w.mon); _sun.setDate(w.mon.getDate()+6);
@@ -2519,12 +2519,16 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   const _ltRdyCard=()=>{
     const s=_flt(_ltRdyS);
     if(!s.length)return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">Readiness</span><span title="제거" onclick="ltToggleEx(${_ltCat.indexOf('__rdy__')})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">No condition logs in this period</div></div>`;
+    const dates=s.map(p=>p.d);
     const opt=_ltTip(false,false);
-    opt.scales.y.min=0; opt.scales.y.max=100;
-    const cols=s.map(p=>p.color||'#bc8cff');
-    _ltAttachInteract(opt,s.map(p=>p.d));
-    const cfg={type:'line',data:{labels:s.map(p=>fmt(p.d)),datasets:[{data:s.map(p=>p.v),_metas:s.map(p=>p.meta),borderColor:'#bc8cff',backgroundColor:'rgba(188,140,255,.12)',fill:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:cols,pointBorderColor:cols}]},options:opt};
-    return _ltCard('Readiness','0~100 · condition composite',cfg,null,_ltCat.indexOf('__rdy__'));
+    // 0~100 고정축이라 grace가 안 먹음 → 상단에 주차 합계 라벨 자리를 축으로 직접 확보(>100 눈금은 숨김)
+    opt.scales.y.min=0; opt.scales.y.max=118;
+    opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:20,callback:v=>v>100?'':v});
+    const cols=s.map(p=>p.color||'#bc8cff');                       // 점 = 신호등 색(녹/황/적) 유지
+    const mcols=_mesoNamesFor(dates).map(nm=>nm?_mesoColor(nm):'#bc8cff');
+    _ltAttachInteract(opt,dates,null,true);                        // 메소사이클/주간 밴드 on (_weekBandPlugin)
+    const cfg=_wkAttachCfg({type:'line',data:{labels:s.map(p=>fmt(p.d)),datasets:[{data:s.map(p=>p.v),_metas:s.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,'#bc8cff',''),backgroundColor:_mesoFillGrad(mcols,'#bc8cff','2b'),fill:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:cols,pointBorderColor:cols,_ptUnit:'rdy'}]},options:opt,plugins:[_mkPtRpeVals('rdy')]},s,'rdy','avg');
+    return _ltCard('Readiness','0~100 · condition composite',cfg,320,_ltCat.indexOf('__rdy__'));
   };
   // ── Conditioning(컨디셔닝 세션 평균 난이도) 시리즈 — 세션별 Ø Schwierigkeit(0~10) ──
   const _ltCondS=(()=>{
@@ -2852,7 +2856,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const units=new Set(selExs.map(n=>_lt.exMap[n].unit));
     const hasVol=ltSel.has('__vol__'), hasDist=ltSel.has('__dist__'), hasRdy=ltSel.has('__rdy__'), hasCond=ltSel.has('__cond__');
     const bucketing=ltBucket!=='none';
-    const _stack=(hasRdy||hasCond)&&!bucketing&&!ltAB&&!teamMode;  // Readiness/Conditioning 선택 시: 같은 날짜축으로 위아래 스택 정렬
+    const _stackN=(hasRdy?1:0)+(hasCond?1:0)+(hasVol?1:0)+(hasDist?1:0)+selExs.length;
+    const _stack=(hasRdy||hasCond)&&_stackN>1&&!bucketing&&!ltAB&&!teamMode;  // Readiness/Conditioning + 다른 지표 → 같은 날짜축 스택. 단독이면 풀사이즈 카드
     // ── 팀 모드 렌더러: 토탈=선수별 세로 스택 막대 · 분해=카테고리 스택 · 개별종목=선수별 라인 ──
     // 선수별 시리즈(개인 트렌드와 동일한 meta: 세션 훈련 상세 포함)
     const _volSOf=lt=>Object.entries(lt.volByDate).map(([d,v])=>{
@@ -2968,17 +2973,17 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         const byD={};series.forEach(p=>byD[p.d]=p);
         const opt=_ltTip(sprint,false);
         opt.scales.y.afterFit=function(a){a.width=58;};
-        if(unit==='rdy'){opt.scales.y.min=0;opt.scales.y.max=100;}
+        if(unit==='rdy'){opt.scales.y.min=0;opt.scales.y.max=112;opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:20,callback:v=>v>100?'':v});}
         if(unit==='cond'){opt.scales.y.min=0;opt.scales.y.max=10;}
         const ds={data:cd.map(d=>byD[d]?byD[d].v:null),_metas:cd.map(d=>byD[d]?byD[d].meta:''),borderColor:color,backgroundColor:color+'1f',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,spanGaps:true,pointBackgroundColor:color,pointBorderColor:color};
-        if(meso){const mcols=_mesoNamesFor(cd).map(nm=>nm?_mesoColor(nm):color);ds.borderColor=_mesoFillGrad(mcols,color,'');ds.backgroundColor=_mesoFillGrad(mcols,color,'2b');ds.fill=true;ds.pointBackgroundColor=mcols;ds.pointBorderColor=mcols;}
+        if(meso){const mcols=_mesoNamesFor(cd).map(nm=>nm?_mesoColor(nm):color);ds.borderColor=_mesoFillGrad(mcols,color,'');ds.backgroundColor=_mesoFillGrad(mcols,color,'2b');ds.fill=true;const _keepPt=Array.isArray(ptCol);ds.pointBackgroundColor=_keepPt?ptCol:mcols;ds.pointBorderColor=_keepPt?ptCol:mcols;}
         _ltAttachInteract(opt,cd,ctx,meso);
         return {type:'line',data:{labels,datasets:[ds]},options:opt};
       };
       let h=`<div style="display:flex;flex-direction:column;gap:12px">`;
       // 선택(클릭)한 순서 그대로 렌더링
       const _cardFor=n=>{
-        if(n==='__rdy__'&&hasRdy)return _ltCard('Readiness','0~100 · condition composite',_mk(rdy,'#bc8cff',false,'rdy',true),150,_ltCat.indexOf('__rdy__'));
+        if(n==='__rdy__'&&hasRdy){const _c=_mk(rdy,'#bc8cff',false,'rdy',rdy.map(p=>p.color||'#bc8cff'),null,true);_c.plugins=[_mkPtRpeVals('rdy')];_c.data.datasets[0]._ptUnit='rdy';return _ltCard('Readiness','0~100 · condition composite',_c,190,_ltCat.indexOf('__rdy__'));}
         if(n==='__cond__'&&hasCond)return _ltCard('Conditioning','0~10 · Ø Schwierigkeit',_mk(condS,'#E07B39',false,'cond',false,null,true),150,_ltCat.indexOf('__cond__'));
         if(n==='__vol__'&&hasVol)return _ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false,null,true),150,_ltCat.indexOf('__vol__'));
         if(n==='__dist__'&&hasDist)return _ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false,null,true),150,_ltCat.indexOf('__dist__'));
