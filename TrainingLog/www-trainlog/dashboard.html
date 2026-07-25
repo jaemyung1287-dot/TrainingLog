@@ -2521,13 +2521,16 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     if(!s.length)return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">Readiness</span><span title="제거" onclick="ltToggleEx(${_ltCat.indexOf('__rdy__')})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">No condition logs in this period</div></div>`;
     const dates=s.map(p=>p.d);
     const opt=_ltTip(false,false);
-    // 0~100 고정축이라 grace가 안 먹음 → 상단에 주차 합계 라벨 자리를 축으로 직접 확보(>100 눈금은 숨김)
-    opt.scales.y.min=0; opt.scales.y.max=118;
-    opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:20,callback:v=>v>100?'':v});
-    const cols=s.map(p=>p.color||'#bc8cff');                       // 점 = 신호등 색(녹/황/적) 유지
-    const mcols=_mesoNamesFor(dates).map(nm=>nm?_mesoColor(nm):'#bc8cff');
+    // y: 0 고정이면 아래 절반이 빈칸 → 데이터 최저점 아래로만 여유. 상단은 주차 요약 라벨 자리(>100 눈금 숨김)
+    const _vs=s.map(p=>p.v).filter(v=>v!=null&&isFinite(v));
+    const _yMin=_vs.length?Math.max(0,Math.floor((Math.min(..._vs)-10)/10)*10):0;
+    opt.scales.y.min=_yMin; opt.scales.y.max=100+Math.max(12,Math.round((100-_yMin)*0.16));
+    opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:10,callback:v=>v>100?'':v});
+    // x: 날짜가 촘촘해 겹침 → 자동 솎아내기. 메소/주간 divider는 인덱스 기반이라 영향 없음
+    opt.scales.x.ticks=Object.assign({},opt.scales.x.ticks,{autoSkip:true,autoSkipPadding:10,maxTicksLimit:14});
+    const mcols=_mesoNamesFor(dates).map(nm=>nm?_mesoColor(nm):'#bc8cff');   // 점·라벨도 메소사이클 색으로 통일
     _ltAttachInteract(opt,dates,null,true);                        // 메소사이클/주간 밴드 on (_weekBandPlugin)
-    const cfg=_wkAttachCfg({type:'line',data:{labels:s.map(p=>fmt(p.d)),datasets:[{data:s.map(p=>p.v),_metas:s.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,'#bc8cff',''),backgroundColor:_mesoFillGrad(mcols,'#bc8cff','2b'),fill:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:cols,pointBorderColor:cols,_ptUnit:'rdy'}]},options:opt,plugins:[_mkPtRpeVals('rdy')]},s,'rdy','avg');
+    const cfg=_wkAttachCfg({type:'line',data:{labels:s.map(p=>fmt(p.d)),datasets:[{data:s.map(p=>p.v),_metas:s.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,'#bc8cff',''),backgroundColor:_mesoFillGrad(mcols,'#bc8cff','2b'),fill:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols,_ptUnit:'rdy'}]},options:opt,plugins:[_mkPtRpeVals('rdy')]},s,'rdy','avg');
     return _ltCard('Readiness','0~100 · condition composite',cfg,320,_ltCat.indexOf('__rdy__'));
   };
   // ── Conditioning(컨디셔닝 세션 평균 난이도) 시리즈 — 세션별 Ø Schwierigkeit(0~10) ──
@@ -2983,7 +2986,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       let h=`<div style="display:flex;flex-direction:column;gap:12px">`;
       // 선택(클릭)한 순서 그대로 렌더링
       const _cardFor=n=>{
-        if(n==='__rdy__'&&hasRdy){const _c=_mk(rdy,'#bc8cff',false,'rdy',rdy.map(p=>p.color||'#bc8cff'),null,true);_c.plugins=[_mkPtRpeVals('rdy')];_c.data.datasets[0]._ptUnit='rdy';return _ltCard('Readiness','0~100 · condition composite',_c,190,_ltCat.indexOf('__rdy__'));}
+        if(n==='__rdy__'&&hasRdy){const _c=_mk(rdy,'#bc8cff',false,'rdy',false,null,true);_c.plugins=[_mkPtRpeVals('rdy')];_c.data.datasets[0]._ptUnit='rdy';return _ltCard('Readiness','0~100 · condition composite',_c,190,_ltCat.indexOf('__rdy__'));}
         if(n==='__cond__'&&hasCond)return _ltCard('Conditioning','0~10 · Ø Schwierigkeit',_mk(condS,'#E07B39',false,'cond',false,null,true),150,_ltCat.indexOf('__cond__'));
         if(n==='__vol__'&&hasVol)return _ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false,null,true),150,_ltCat.indexOf('__vol__'));
         if(n==='__dist__'&&hasDist)return _ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false,null,true),150,_ltCat.indexOf('__dist__'));
