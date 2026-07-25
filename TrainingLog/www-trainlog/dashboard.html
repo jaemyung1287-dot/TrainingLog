@@ -2492,6 +2492,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       const _cfg=_ptLblAttach({type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,color,''),backgroundColor:_mesoFillGrad(mcols,color,'2b'),fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx,true)});
       // 0선 아래로 축이 내려가지 않게 고정 → 날짜·메소사이클 라벨이 볼륨 차트처럼 하단에 붙음
       if(_cfg.options&&_cfg.options.scales&&_cfg.options.scales.y){_cfg.options.scales.y.beginAtZero=true;_cfg.options.scales.y.min=0;}
+      if(_cfg.options&&_cfg.options.scales&&_cfg.options.scales.x)_cfg.options.scales.x.ticks=_ltDateTicks(_cfg.options.scales.x.ticks,series.map(p=>p.d));
       return _cfg;
     }
     return _ptLblAttach({type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:color,backgroundColor:color+'22',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx)});
@@ -2548,8 +2549,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const _yMin=_vs.length?Math.max(0,Math.floor((Math.min(..._vs)-10)/10)*10):0;
     opt.scales.y.min=_yMin; opt.scales.y.max=100+Math.max(12,Math.round((100-_yMin)*0.16));
     opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:10,callback:v=>v>100?'':v});
-    // x: 날짜가 촘촘해 겹침 → 자동 솎아내기. 메소/주간 divider는 인덱스 기반이라 영향 없음
-    opt.scales.x.ticks=Object.assign({},opt.scales.x.ticks,{autoSkip:true,autoSkipPadding:10,maxTicksLimit:14});
+    opt.scales.x.ticks=_ltDateTicks(opt.scales.x.ticks,dates);
     const mcols=_mesoNamesFor(dates).map(nm=>nm?_mesoColor(nm):'#bc8cff');   // 점·라벨도 메소사이클 색으로 통일
     _ltAttachInteract(opt,dates,null,true);                        // 메소사이클/주간 밴드 on (_weekBandPlugin)
     const cfg=_wkAttachCfg({type:'line',data:{labels:s.map(p=>fmt(p.d)),datasets:[{data:s.map(p=>p.v),_metas:s.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,'#bc8cff',''),backgroundColor:_mesoFillGrad(mcols,'#bc8cff','2b'),fill:true,tension:.3,pointRadius:4,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols,_ptUnit:'rdy'}]},options:opt,plugins:[_mkPtRpeVals('rdy')]},s,'rdy','avg');
@@ -2616,6 +2616,14 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   const _mkBarVals=(unit,showInit)=>({id:'barvals',afterDatasetsDraw(chart){const ctx=chart.ctx;if(!chart.scales.y)return;const stacked=!!(chart.options.scales.y&&chart.options.scales.y.stacked);ctx.save();ctx.font='700 9px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);if(!chart.isDatasetVisible(di))return;const _ini=(showInit&&ds.label)?_initOf(ds.label)+' ':'';meta.data.forEach((el,i)=>{const v=ds.data[i];if(v==null||v===0)return;const txt=unit==='kg'?Math.round(v).toLocaleString('de-DE')+'kg':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':Math.round(v)+'m';if(stacked){const h=Math.abs(el.base-el.y);let _tot=0;chart.data.datasets.forEach((d2,j)=>{if(!chart.isDatasetVisible(j))return;const vv=d2.data[i];if(typeof vv==='number')_tot+=vv;});const pctTxt=_tot>0?' ('+Math.round(v/_tot*100)+'%)':'';const full=txt+pctTxt,wFull=ctx.measureText(full).width,wShort=ctx.measureText(txt).width;let lbl=null;if(h>=wFull+4)lbl=full;else if(h>=wShort+4)lbl=txt;if(!lbl)return;ctx.save();ctx.translate(el.x,(el.y+el.base)/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='rgba(255,255,255,.95)';ctx.fillText(lbl,0,0);ctx.restore();}else{const dtxt=_ini+txt,barH=Math.abs(el.base-el.y),need=ctx.measureText(dtxt).width+6,inside=barH>need;ctx.save();ctx.translate(el.x,inside?el.y+3:el.y-3);ctx.rotate(-Math.PI/2);ctx.textBaseline='middle';if(inside){ctx.fillStyle='rgba(255,255,255,.95)';ctx.textAlign='right';}else{ctx.fillStyle='rgba(230,237,243,.9)';ctx.textAlign='left';}ctx.fillText(dtxt,0,0);ctx.restore();}});});ctx.restore();}});
   // 연속(일자별) 분해 막대차트에 주간 경계 세로 점선 표시(월요일 기준 · _PDZ 주기와 동일)
   const _weekKey=ds=>{const dt=new Date(ds+'T00:00:00');const off=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-off);return dt.toISOString().slice(0,10);};
+  // x축 날짜 라벨 규칙: 점이 적으면 전부, 많으면 '그 주의 첫 세션'에만 → 주간 점선과 라벨 위치가 일치.
+  // (Chart.js autoSkip은 데이터 인덱스 기준 균등 솎기라 주/메소 경계와 무관한 자리에 라벨이 찍혔음)
+  const _ltDateTicks=(base,dates)=>{
+    const b=Object.assign({},base,{autoSkip:false,maxRotation:0,minRotation:0});
+    if(!dates||dates.length<=24)return b;
+    b.callback=function(v,i){return (i===0||_weekKey(dates[i])!==_weekKey(dates[i-1]))?this.getLabelForValue(v):'';};
+    return b;
+  };
   const _mkWeekSep=dates=>({id:'weeksep',afterDraw(chart){const xs=chart.scales.x;if(!xs||!dates||dates.length<2)return;const area=chart.chartArea,ctx=chart.ctx;ctx.save();ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=1;ctx.setLineDash([4,4]);for(let i=1;i<dates.length;i++){if(_weekKey(dates[i])!==_weekKey(dates[i-1])){const x=(xs.getPixelForValue(i-1)+xs.getPixelForValue(i))/2;ctx.beginPath();ctx.moveTo(x,area.top);ctx.lineTo(x,area.bottom);ctx.stroke();}}ctx.setLineDash([]);ctx.restore();}});
   const _ltBrkData=grp=>{
     const byDate=_lt.volBreak[grp]||{};
@@ -2999,8 +3007,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         const byD={};series.forEach(p=>byD[p.d]=p);
         const opt=_ltTip(sprint,false);
         opt.scales.y.afterFit=function(a){a.width=58;};
-        // 날짜가 촘촘해 겹침 → 자동 솎아내기. 메소/주간 divider는 인덱스 기반이라 영향 없음
-        opt.scales.x.ticks=Object.assign({},opt.scales.x.ticks,{autoSkip:true,autoSkipPadding:10,maxTicksLimit:14});
+        opt.scales.x.ticks=_ltDateTicks(opt.scales.x.ticks,cd);
         if(unit==='rdy'){const _vs=series.map(p=>p.v).filter(v=>v!=null&&isFinite(v));const _yMin=_vs.length?Math.max(0,Math.floor((Math.min(..._vs)-10)/10)*10):0;opt.scales.y.min=_yMin;opt.scales.y.max=100+Math.max(12,Math.round((100-_yMin)*0.16));opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:10,callback:v=>v>100?'':v});}
         if(unit==='cond'){opt.scales.y.min=0;opt.scales.y.max=11.5;opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:2,callback:v=>v>10?'':v});}
         const ds={data:cd.map(d=>byD[d]?byD[d].v:null),_metas:cd.map(d=>byD[d]?byD[d].meta:''),borderColor:color,backgroundColor:color+'1f',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,spanGaps:true,pointBackgroundColor:color,pointBorderColor:color};
