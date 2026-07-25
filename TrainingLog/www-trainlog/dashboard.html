@@ -3025,6 +3025,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const _jobs0=_ltJobs.length;
     LT+=`<div class="lt-grid">`;
     if(ltProg==='strength')LT+=_progStrengthCard();
+    if(hasRdy)LT+=_ltRdyCard();   // 단독 선택 시 스택을 안 타므로 여기서 그려야 함(_stackN>1 게이트)
     if(hasCond)LT+=_ltCondCard();
     if(!selKeys.length&&ltProg!=='strength'){
       LT+=`<div class="lt-hint" style="grid-column:1/-1">Add exercises above to see trends (also select Total Volume / Sprint Distance)</div>`;
