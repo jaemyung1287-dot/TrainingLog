@@ -603,7 +603,7 @@ let ltMode='ex';              // 'ex' 종목비교(한 선수) | 'ath' 선수비
 let ltSel=new Set();          // 선택된 종목명 (ex 모드)
 let ltAthSel=new Set();       // 선택된 선수명 (ath 모드)
 let ltMetric='__vol__';       // ath 모드 지표 키 (__vol__/__dist__/운동명)
-let ltPeriod='all';           // 1d|1w|1m|1y|all|custom (기본 전체)
+let ltPeriod='meso';          // meso|1d|1w|1m|1y|all|custom (기본=현재 메소사이클)
 let ltBucket='none';          // none|week|month|year (비교 단위 — 묶어서 막대 비교)
 let ltBuckSel=new Set();      // 비교 대상 버킷 선택(비면 전체)
 let ltAB=false;               // 기간 A vs 비교 B (직접 기간 비교)
@@ -1477,6 +1477,24 @@ function _planWeeks(){
     else { const ph=w.phase||'—'; cnt[ph]=(cnt[ph]||0)+1; w.label=(w.phase?w.phase+' · W'+cnt[ph]:'W?')+' '+rng; }
   });
   return wks;
+}
+// 오늘이 속한 메소사이클(블록 코드 앞자리)의 전체 주차 범위 → {d1,d2,num}. 시즌 종료 후엔 마지막 메소.
+let _curMesoCache=null;
+function _curMesoRange(){
+  if(_curMesoCache!==null)return _curMesoCache;
+  let r=null;
+  try{
+    const wks=_planWeeks().filter(w=>w.code);
+    if(wks.length){
+      const today=dsFromDate(new Date());
+      let cur=null; wks.forEach(w=>{ if(w.d1<=today)cur=w; });
+      if(!cur)cur=wks[0];
+      const num=String(cur.code).split('-')[0];
+      const grp=wks.filter(w=>String(w.code).split('-')[0]===num);
+      if(grp.length)r={d1:grp[0].d1,d2:grp[grp.length-1].d2,num:num};
+    }
+  }catch(e){}
+  _curMesoCache=r; return r;
 }
 function _planWeekOpts(){
   const wks=_planWeeks().filter(w=>w.code); // _PDZ 주기화 코드(1-1~)가 있는 주만 — 계획 외 pre-season 주 제외
@@ -2377,6 +2395,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   const _forceStack=!!teamMode&&(fAthletes||[]).length>1; // 팀(2명+): 분해차트 카테고리를 세로 스택으로 강제(큰 항목이 맨 아래 — groups는 총량 내림차순 정렬됨)
   const _ltInPeriod=ds=>{
     if(ltPeriod==='all')return true;
+    if(ltPeriod==='meso'){const r=_curMesoRange();return r?(ds>=r.d1&&ds<=r.d2):true;}
     if(ltPeriod==='custom')return (!ltD1||ds>=ltD1)&&(!ltD2||ds<=ltD2);
     const days={'1d':1,'1w':7,'1m':30,'1y':365}[ltPeriod];
     if(days){const dt=new Date();dt.setDate(dt.getDate()-days+1);return ds>=dsFromDate(dt);}
@@ -2808,7 +2827,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   const _ltCompOpt=(v,l)=>`<option value="${v}" ${_ltCompVal===v?'selected':''}>${l}</option>`;
   LT+=`<div class="lt-row"><span class="lt-lbl">Period</span>`
     +`<select class="lt-date" style="width:150px;cursor:pointer" onchange="ltOnBaseSel(this.value)">`
-    + _ltBaseOpt('all','All')+_ltBaseOpt('1w','Last week')+_ltBaseOpt('1m','Last month')+_ltBaseOpt('1y','Last year')+_ltBaseOpt('custom','Custom…')
+    + _ltBaseOpt('meso',(()=>{const r=_curMesoRange();return r?('Mesocycle '+r.num+' (current)'):'Current mesocycle';})())+_ltBaseOpt('all','All')+_ltBaseOpt('1w','Last week')+_ltBaseOpt('1m','Last month')+_ltBaseOpt('1y','Last year')+_ltBaseOpt('custom','Custom…')
     +`</select>`
     +(ltPeriod==='custom'?`<input type="date" class="lt-date" value="${ltD1}" onchange="ltD1=this.value;_rerenderTrends()"><span style="color:var(--hint);font-size:11px">~</span><input type="date" class="lt-date" value="${ltD2}" onchange="ltD2=this.value;_rerenderTrends()">`:'')
     +`<select class="lt-date" style="width:150px;cursor:pointer" onchange="ltPlanPick(this.value);this.value=''">${_planWeekOpts()}</select>`
@@ -3276,7 +3295,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       }
     }
     if(selKeys.length&&_ltJobs.length===_jobs0){
-      LT+=`<div class="lt-hint" style="grid-column:1/-1">선택한 기간(${ltPeriod==='custom'?ltD1+' ~ '+ltD2:'현재 기간'})에 해당 지표의 세션 데이터가 없습니다 — 다른 주차나 기간을 선택해보세요</div>`;
+      LT+=`<div class="lt-hint" style="grid-column:1/-1">선택한 기간(${ltPeriod==='custom'?ltD1+' ~ '+ltD2:(ltPeriod==='meso'?((()=>{const r=_curMesoRange();return r?('Mesocycle '+r.num+' · '+r.d1+' ~ '+r.d2):'현재 메소사이클';})()):'현재 기간')})에 해당 지표의 세션 데이터가 없습니다 — Period를 All로 바꾸거나 다른 주차를 선택해보세요</div>`;
     }
     LT+=`</div>`;
     }
