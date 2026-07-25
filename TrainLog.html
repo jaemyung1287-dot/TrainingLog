@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260724-1';
+const APP_VERSION = '20260726-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1268,14 +1268,29 @@ async function _syncOwnLogsNow(athId,d){
 // Flush pending athlete logs the moment we plausibly CAN upload again: network
 // back (online) or app returned to foreground (visibilitychange). Without this,
 // a backlog only uploaded when the athlete re-entered their profile.
+const _PENDING_MAX_AGE=7*24*60*60*1000; // stop re-pushing a queue nobody ever resolved
 function _flushPendingSync(reason){
   try{
-    if(typeof ST==='undefined'||!ST.athlete?.id) return;
-    const athId=ST.athlete.id;
     const pend=JSON.parse(localStorage.getItem(_PENDING_SYNC_KEY)||'{}');
-    if(pend[athId]==null) return;
-    console.log('[TrainLog] flushing pending log sync:',reason);
-    _syncOwnLogsNow(athId,getData());
+    let ids=Object.keys(pend);
+    if(!ids.length) return;
+    // Drop stale markers so an old queue can never keep overwriting the cloud.
+    const now=Date.now(); let dropped=0;
+    ids=ids.filter(id=>{
+      if(now-(pend[id]||0)>_PENDING_MAX_AGE){ delete pend[id]; dropped++; return false; }
+      return true;
+    });
+    if(dropped){ try{ localStorage.setItem(_PENDING_SYNC_KEY,JSON.stringify(pend)); }catch(e){} }
+    if(!ids.length) return;
+    // Own profile first if we happen to be in one; the rest follow. Crucially we
+    // no longer bail when ST.athlete is empty — a log saved and then backgrounded
+    // used to sit on the phone until the athlete re-entered their profile (Sarah
+    // Klose 2026-07-25: saved 13:24, arrived 17:42 CEST).
+    const mine=(typeof ST!=='undefined'&&ST.athlete?.id)||null;
+    if(mine&&ids.indexOf(mine)>0) ids=[mine,...ids.filter(id=>id!==mine)];
+    console.log('[TrainLog] flushing pending log sync:',reason,ids);
+    const d=getData();
+    ids.forEach(id=>_syncOwnLogsNow(id,d));
   }catch(e){}
 }
 window.addEventListener('online',()=>_flushPendingSync('online'));
@@ -1358,7 +1373,7 @@ const SK_BACKUP='trainlog_v5_backup';
 // orphaned junk that piles up and blows past iOS Safari's ~5MB localStorage cap,
 // which makes saves throw QuotaExceededError and fail silently. Backups are kept
 // here so the global purge never touches them (their creation is coach-gated).
-const _KEEP_KEYS=new Set(['trainlog_v5','trainlog_v5_deleted','trainlog_app_version','trainlog_last_sync','trainlog_chart_collapsed_v1','trainlog_role','trainlog_v5_backup','trainlog_v5_backup2']);
+const _KEEP_KEYS=new Set(['trainlog_v5','trainlog_v5_deleted','trainlog_app_version','trainlog_last_sync','trainlog_chart_collapsed_v1','trainlog_role','trainlog_v5_backup','trainlog_v5_backup2','trainlog_pending_sync']);
 function _purgeLegacyStorage(){
   try{
     const kill=[];
@@ -3219,6 +3234,10 @@ function backToCoach(){ showScreen('s-coach'); document.getElementById('coach-ta
   // Load cloud data
   window._fbStatus='calling-initFirebase';
   await initFirebase();
+
+  // Upload anything the last session failed to push, before the athlete touches
+  // anything. Relaunching the app is now enough to clear a backlog.
+  _flushPendingSync('startup');
 
   // Ensure athletes exist
   const d=getData();
