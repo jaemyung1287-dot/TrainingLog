@@ -1311,7 +1311,7 @@ const _weekBandPlugin={
     const vals=(chart.options&&chart.options._weekVals)||null;
     const unit=(chart.options&&chart.options._weekUnit)||'kg';
     const wAgg=(chart.options&&chart.options._weekAgg)||'sum';
-    const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':unit==='rdy'?String(Math.round(v)):_fmtKg(v);
+    const fv=v=>unit==='m'?Math.round(v).toLocaleString('de-DE')+'m':unit==='s'?(Math.round(v*100)/100).toFixed(2)+'s':unit==='rdy'?String(Math.round(v)):unit==='cond'?(Math.round(v*10)/10).toFixed(1):_fmtKg(v);
     ctx.save();
     const n=dates.length;
     // ── Phase(메소사이클) 경계 divider(흰 점선) + 하단 라벨(배경 없는 색 글자) ── 라인/채움 뒤에 그림
@@ -2406,6 +2406,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   // 각 점 위에 값+RPE 라벨 (추이 라인 차트 공통 · 점 색상과 동일한 색)
   const _mkPtRpeVals=unit=>({id:'ptRpeVals',afterDatasetsDraw(chart){
     const ctx=chart.ctx,area=chart.chartArea;ctx.save();ctx.textAlign='center';
+    let _prevR=-1e9;   // 직전 라벨 오른쪽 끝 — 겹칠 자리면 그 점의 라벨은 건너뜀
     chart.data.datasets.forEach((ds,di)=>{
       if(!chart.isDatasetVisible(di))return;
       const meta=chart.getDatasetMeta(di);
@@ -2419,6 +2420,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         ctx.font='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
         const tw=ctx.measureText(vt).width;
         const x=Math.max(area.left+tw/2+3,Math.min(area.right-tw/2-3,el.x));
+        if(x-tw/2<_prevR+4)return;                 // 앞 라벨과 겹치면 생략
+        _prevR=x+tw/2;
         const below=el.y-(rp!=null?32:20)<area.top;
         ctx.fillStyle=col;
         if(below){
@@ -2859,8 +2862,9 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const units=new Set(selExs.map(n=>_lt.exMap[n].unit));
     const hasVol=ltSel.has('__vol__'), hasDist=ltSel.has('__dist__'), hasRdy=ltSel.has('__rdy__'), hasCond=ltSel.has('__cond__');
     const bucketing=ltBucket!=='none';
-    const _stackN=(hasRdy?1:0)+(hasCond?1:0)+(hasVol?1:0)+(hasDist?1:0)+selExs.length;
-    const _stack=(hasRdy||hasCond)&&_stackN>1&&!bucketing&&!ltAB&&!teamMode;  // Readiness/Conditioning + 다른 지표 → 같은 날짜축 스택. 단독이면 풀사이즈 카드
+    // 날짜축 강제 정렬 스택은 폐기(2026-07-26): 볼륨이 컨디션 날짜까지 끌려와 원래 모양이 뭉개짐.
+    // 날짜는 각 차트의 주차/메소 밴드로 대조 가능하므로, 지표마다 자기 날짜축의 단독 카드를 세로로 쌓는다.
+    const _stack=false;
     // ── 팀 모드 렌더러: 토탈=선수별 세로 스택 막대 · 분해=카테고리 스택 · 개별종목=선수별 라인 ──
     // 선수별 시리즈(개인 트렌드와 동일한 meta: 세션 훈련 상세 포함)
     const _volSOf=lt=>Object.entries(lt.volByDate).map(([d,v])=>{
@@ -2972,25 +2976,36 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       const cd=[...dset].sort();
       if(!cd.length)return `<div class="lt-hint">No data to display</div>`;
       const labels=cd.map(d=>fmt(d));
-      const _mk=(series,color,sprint,unit,ptCol,ctx,meso)=>{
+      const _mk=(series,color,sprint,unit,ptCol,ctx,meso,agg)=>{
         const byD={};series.forEach(p=>byD[p.d]=p);
         const opt=_ltTip(sprint,false);
         opt.scales.y.afterFit=function(a){a.width=58;};
-        if(unit==='rdy'){opt.scales.y.min=0;opt.scales.y.max=112;opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:20,callback:v=>v>100?'':v});}
-        if(unit==='cond'){opt.scales.y.min=0;opt.scales.y.max=10;}
+        // 날짜가 촘촘해 겹침 → 자동 솎아내기. 메소/주간 divider는 인덱스 기반이라 영향 없음
+        opt.scales.x.ticks=Object.assign({},opt.scales.x.ticks,{autoSkip:true,autoSkipPadding:10,maxTicksLimit:14});
+        if(unit==='rdy'){const _vs=series.map(p=>p.v).filter(v=>v!=null&&isFinite(v));const _yMin=_vs.length?Math.max(0,Math.floor((Math.min(..._vs)-10)/10)*10):0;opt.scales.y.min=_yMin;opt.scales.y.max=100+Math.max(12,Math.round((100-_yMin)*0.16));opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:10,callback:v=>v>100?'':v});}
+        if(unit==='cond'){opt.scales.y.min=0;opt.scales.y.max=11.5;opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:2,callback:v=>v>10?'':v});}
         const ds={data:cd.map(d=>byD[d]?byD[d].v:null),_metas:cd.map(d=>byD[d]?byD[d].meta:''),borderColor:color,backgroundColor:color+'1f',fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,spanGaps:true,pointBackgroundColor:color,pointBorderColor:color};
         if(meso){const mcols=_mesoNamesFor(cd).map(nm=>nm?_mesoColor(nm):color);ds.borderColor=_mesoFillGrad(mcols,color,'');ds.backgroundColor=_mesoFillGrad(mcols,color,'2b');ds.fill=true;const _keepPt=Array.isArray(ptCol);ds.pointBackgroundColor=_keepPt?ptCol:mcols;ds.pointBorderColor=_keepPt?ptCol:mcols;}
         _ltAttachInteract(opt,cd,ctx,meso);
-        return {type:'line',data:{labels,datasets:[ds]},options:opt};
+        const cfg={type:'line',data:{labels,datasets:[ds]},options:opt};
+        // 단독 카드와 동일한 마감: 점 위 값 라벨 + 주차 요약(상단 여백은 _wkAttachCfg가 확보)
+        if(unit){
+          ds._ptUnit=unit;
+          ds._rpes=cd.map(d=>(byD[d]&&byD[d].rpe!=null)?byD[d].rpe:null);
+          cfg.plugins=[_mkPtRpeVals(unit)];
+          if(agg)_wkAttachCfg(cfg,cd.map(d=>({d,v:byD[d]?byD[d].v:null})),unit,agg);
+          else {opt.layout=opt.layout||{};opt.layout.padding=Object.assign({},opt.layout.padding,{top:Math.max((opt.layout.padding&&opt.layout.padding.top)||0,26)});if(opt.scales.y&&!opt.scales.y.max&&!opt.scales.y.grace)opt.scales.y.grace='28%';}
+        }
+        return cfg;
       };
       let h=`<div style="display:flex;flex-direction:column;gap:12px">`;
       // 선택(클릭)한 순서 그대로 렌더링
       const _cardFor=n=>{
-        if(n==='__rdy__'&&hasRdy){const _c=_mk(rdy,'#bc8cff',false,'rdy',false,null,true);_c.plugins=[_mkPtRpeVals('rdy')];_c.data.datasets[0]._ptUnit='rdy';return _ltCard('Readiness','0~100 · condition composite',_c,190,_ltCat.indexOf('__rdy__'));}
-        if(n==='__cond__'&&hasCond)return _ltCard('Conditioning','0~10 · Ø Schwierigkeit',_mk(condS,'#E07B39',false,'cond',false,null,true),150,_ltCat.indexOf('__cond__'));
-        if(n==='__vol__'&&hasVol)return _ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false,null,true),150,_ltCat.indexOf('__vol__'));
-        if(n==='__dist__'&&hasDist)return _ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false,null,true),150,_ltCat.indexOf('__dist__'));
-        if(exSer[n]&&exSer[n].length&&_lt.exMap[n]){const m=_lt.exMap[n];return _ltCard(n,(m.sprint?'best time(s)':'top set(kg)'),_mk(exSer[n],_ltColor(n),m.sprint,m.sprint?'s':'kg',false,{ex:n,sp:m.sprint}),150,_ltCat.indexOf(n),_ltBadge(exSer[n],m.sprint?'s':'kg',m.sprint));}
+        if(n==='__rdy__'&&hasRdy)return _ltCard('Readiness','0~100 · condition composite',_mk(rdy,'#bc8cff',false,'rdy',false,null,true,'avg'),240,_ltCat.indexOf('__rdy__'));
+        if(n==='__cond__'&&hasCond)return _ltCard('Conditioning','0~10 · Ø Schwierigkeit',_mk(condS,'#E07B39',false,'cond',false,null,true,'avg'),240,_ltCat.indexOf('__cond__'));
+        if(n==='__vol__'&&hasVol)return _ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false,null,true,'sum'),240,_ltCat.indexOf('__vol__'));
+        if(n==='__dist__'&&hasDist)return _ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false,null,true,'sum'),240,_ltCat.indexOf('__dist__'));
+        if(exSer[n]&&exSer[n].length&&_lt.exMap[n]){const m=_lt.exMap[n];return _ltCard(n,(m.sprint?'best time(s)':'top set(kg)'),_mk(exSer[n],_ltColor(n),m.sprint,m.sprint?'s':'kg',false,{ex:n,sp:m.sprint}),240,_ltCat.indexOf(n),_ltBadge(exSer[n],m.sprint?'s':'kg',m.sprint));}
         return '';
       };
       [...ltSel].forEach(n=>h+=_cardFor(n));
@@ -3026,7 +3041,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     LT+=(ltProg==='strength'?`<div class="lt-grid">${_progStrengthCard()}</div>`:'')+_ltStackedAligned();
     } else {
     const _jobs0=_ltJobs.length;
-    LT+=`<div class="lt-grid">`;
+    LT+=`<div class="lt-grid"${(hasRdy||hasCond)?' style="grid-template-columns:1fr"':''}>`;
     if(ltProg==='strength')LT+=_progStrengthCard();
     if(hasRdy)LT+=_ltRdyCard();   // 단독 선택 시 스택을 안 타므로 여기서 그려야 함(_stackN>1 게이트)
     if(hasCond)LT+=_ltCondCard();
