@@ -522,10 +522,10 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
     </div>
     <nav>
       <div class="sb-section-label">Views</div>
-      <button class="nb on" onclick="switchTab('load',this)"><span class="ni">📊</span>Load</button>
+      <button class="nb on" onclick="switchTab('overview',this)"><span class="ni">📋</span>Overview</button>
+      <button class="nb" onclick="switchTab('load',this)"><span class="ni">📊</span>Load</button>
       <button class="nb" onclick="switchTab('plan',this)"><span class="ni">📝</span>Plan</button>
       <button class="nb" onclick="switchTab('schedule',this)"><span class="ni">📅</span>Schedule</button>
-      <button class="nb" onclick="switchTab('overview',this)"><span class="ni">📋</span>Overview</button>
       <button class="nb" onclick="switchTab('soreness',this)"><span class="ni">🔴</span>Soreness</button>
       <button class="nb" onclick="switchTab('condition',this)"><span class="ni">😴</span>Condition</button>
       <button class="nb" onclick="switchTab('perf',this)"><span class="ni">🏃</span>Performance</button>
@@ -558,16 +558,16 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
   <div id="main">
     <div id="topbar">
       <div class="tb-left">
-        <div class="tb-title" id="tb-title">Training Load</div>
+        <div class="tb-title" id="tb-title">Overview</div>
         <div class="tb-sub" id="tb-sub"></div>
       </div>
       <div class="live-badge"><div class="live-dot"></div>Live</div>
     </div>
     <div id="content">
+      <div class="tab on" id="tab-overview"></div>
+      <div class="tab" id="tab-load"></div>
       <div class="tab" id="tab-plan"></div>
       <div class="tab" id="tab-schedule"></div>
-      <div class="tab" id="tab-overview"></div>
-      <div class="tab on" id="tab-load"></div>
       <div class="tab" id="tab-soreness"></div>
       <div class="tab" id="tab-condition"></div>
       <div class="tab" id="tab-perf"></div>
@@ -585,7 +585,7 @@ const db=firebase.firestore(), auth=firebase.auth();
 const ALLOWED='jaemyung1287@gmail.com';
 
 // ══ STATE ══
-let coachData=null, athLogs={}, athNotes={}, unsubs=[], athUnsubs=[], curTab='load';
+let coachData=null, athLogs={}, athNotes={}, unsubs=[], athUnsubs=[], curTab='overview';
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
 let selScope='all';   // 공통 선수 셀렉터: 'all' | 'A' | 'B' (그룹 컨텍스트)
 let selNames=new Set(); // 개별 선수 다중선택 (탭 간 공유, 비면 그룹/전체)
