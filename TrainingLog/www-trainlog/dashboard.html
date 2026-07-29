@@ -639,11 +639,20 @@ function _pushLayout(){
   const cards=[...par.querySelectorAll('[data-pushcard]')];if(!cards.length)return;
   const W=par.clientWidth||900;
   const cols=Math.max(1,Math.floor((W+_PUSH_GAP)/(_PUSH_W+_PUSH_GAP)));
-  const colH=new Array(cols).fill(0);
+  const colH=new Array(cols).fill(0), free=[];
+  // 1차: 저장된 위치 적용 + 그 카드가 걸치는 열의 높이를 선점시켜 자동배치와 겹치지 않게
   cards.forEach(el=>{
     const nm=_pushCardNames[+el.getAttribute('data-pushcard')];
     const sv=nm?_pushPos[nm]:null;
-    if(sv&&isFinite(sv.x)&&isFinite(sv.y)){el.style.left=Math.max(0,sv.x)+'px';el.style.top=Math.max(0,sv.y)+'px';return;}
+    if(!(sv&&isFinite(sv.x)&&isFinite(sv.y))){free.push(el);return;}
+    const x=Math.max(0,sv.x), y=Math.max(0,sv.y);
+    el.style.left=x+'px';el.style.top=y+'px';
+    const c0=Math.max(0,Math.min(cols-1,Math.floor(x/(_PUSH_W+_PUSH_GAP))));
+    const c1=Math.max(0,Math.min(cols-1,Math.floor((x+_PUSH_W-1)/(_PUSH_W+_PUSH_GAP))));
+    for(let c=c0;c<=c1;c++)colH[c]=Math.max(colH[c],y+el.offsetHeight+_PUSH_GAP);
+  });
+  // 2차: 위치 없는 카드는 가장 짧은 열에
+  free.forEach(el=>{
     let c=0;for(let i=1;i<cols;i++)if(colH[i]<colH[c])c=i;
     el.style.left=(c*(_PUSH_W+_PUSH_GAP))+'px';el.style.top=colH[c]+'px';
     colH[c]+=el.offsetHeight+_PUSH_GAP;
