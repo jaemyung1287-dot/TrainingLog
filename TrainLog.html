@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260729-1';
+const APP_VERSION = '20260729-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -763,7 +763,10 @@ const APP_VERSION = '20260729-1';
         <span class="ico">⛰️</span>
         <div class="lbl">Uphill</div>
       </div>
-      <div></div>
+      <div class="type-card" id="rt-push" onclick="selectRecType('push')">
+        <span class="ico">🛷</span>
+        <div class="lbl">Push Start</div>
+      </div>
     </div>
   </div>
 
@@ -4784,7 +4787,16 @@ function delPushAttempt(i){
   renderPushRows();
 }
 // 로그 한 건의 유효 시도(Finish 있는 것) — 대시보드 _pushOK 와 같은 규칙
-function _puOK(l){ return (Array.isArray(l&&l.attempts)?l.attempts:[]).filter(a=>Array.isArray(a.t)&&a.t[1]!=null); }
+function _puOK(l){ return (Array.isArray(l&&l.attempts)?l.attempts:[]).filter(a=>a&&a.valid!==false&&Array.isArray(a.t)&&a.t[1]!=null); }
+// Push Start PB 풀 — records 의 {type:'push', distance:종점게이트}. 스프린트 PB 풀과 완전히 분리.
+function _pushPB(name,recs){
+  if(!name) return null;
+  recs=recs||((getData().records)||[]);
+  const fin=PUSH_GATES[2];
+  const m=recs.filter(r=>r&&r.type==='push'&&_normName(r.athleteName)===_normName(name)
+      &&Math.abs((parseFloat(r.distance)||0)-fin)<0.5).map(r=>parseFloat(r.time)).filter(t=>!isNaN(t)&&t>0);
+  return m.length?Math.min(...m):null;
+}
 function _puBest(l){ const ok=_puOK(l); return ok.length?Math.min(...ok.map(a=>a.t[1])):null; }
 // 로그 상세용 시도 표 (코치 Today / 세션 상세 공용). 그날 best만 금색 — 나머지는 흰색.
 function _puRowsHtml(l){
@@ -4860,10 +4872,24 @@ function savePush(dupMode){
     attempts:attempts,
     bestFinish:Math.min(...attempts.map(a=>a.t[1]))
   };
+  // PB 자동 갱신 — Finish(5→종점) 기준, records type:'push'
+  if(!d.records) d.records=[];
+  const _pbPrev=_pushPB(athName,d.records);
+  const _isPB=(_pbPrev==null||log.bestFinish<_pbPrev-1e-9);
+  if(_isPB){
+    log.pbAchieved=true; log.pbTime=log.bestFinish;
+    d.records.push({id:genId(),date:log.date,athleteName:athName,group:log.group,
+      type:'push',distance:PUSH_GATES[2],time:log.bestFinish,notes:'[Auto PB · Training]'});
+  }
   d.logs.push(log); saveData(d);
   ST._logDate=null; ST.pushAttempts=null;
   const _sm=document.getElementById('success-msg');
-  if(_sm) _sm.textContent=`Push Start gespeichert! Best: ${log.bestFinish.toFixed(2)}s 🛷`;
+  if(_isPB&&_pbPrev!=null){
+    showToast(`🏆 NEUER PB! ${athName}: ${log.bestFinish.toFixed(2)}s 🎉`);
+    if(_sm) _sm.innerHTML=`<span style="color:#ffc400;font-weight:900">🏆 NEUER PB!</span> ${log.bestFinish.toFixed(2)}s (bisher ${_pbPrev.toFixed(2)}s)<br><span style="font-size:13px">Push Start gespeichert 🛷</span>`;
+  } else if(_sm){
+    _sm.textContent=`Push Start gespeichert! Best: ${log.bestFinish.toFixed(2)}s 🛷`;
+  }
   _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
 }
@@ -7515,7 +7541,7 @@ function goCoachRecord(){
   document.getElementById('rec-distance').value='';
   document.getElementById('rec-notes').value='';
   document.getElementById('rec-load').value='';
-  document.querySelectorAll('#rt-sprint,#rt-uphill,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
+  document.querySelectorAll('#rt-sprint,#rt-uphill,#rt-ice,#rt-track,#rt-strength,#rt-push').forEach(el=>el.classList.remove('sel'));
   document.getElementById('rt-sprint').classList.add('sel');
   document.getElementById('rec-timed-fields').style.display='';
   document.getElementById('rec-strength-fields').style.display='none';
@@ -7533,14 +7559,15 @@ function backFromRecord(){
 
 function selectRecType(t){
   recType=t;
-  document.querySelectorAll('#rt-sprint,#rt-uphill,#rt-ice,#rt-track,#rt-strength').forEach(el=>el.classList.remove('sel'));
-  const idMap={sprint:'rt-sprint',uphill:'rt-uphill',icestart:'rt-ice',trackstart:'rt-track',strength:'rt-strength'};
+  document.querySelectorAll('#rt-sprint,#rt-uphill,#rt-ice,#rt-track,#rt-strength,#rt-push').forEach(el=>el.classList.remove('sel'));
+  const idMap={sprint:'rt-sprint',uphill:'rt-uphill',icestart:'rt-ice',trackstart:'rt-track',strength:'rt-strength',push:'rt-push'};
   document.getElementById(idMap[t]).classList.add('sel');
   const isStrength=t==='strength';
   document.getElementById('rec-timed-fields').style.display=isStrength?'none':'';
   document.getElementById('rec-strength-fields').style.display=isStrength?'':'none';
   if(t!=='strength') document.getElementById('rec-distance').value='';
   if(t==='uphill') document.getElementById('rec-distance').value='50';
+  if(t==='push') document.getElementById('rec-distance').value=String(PUSH_GATES[2]);
 }
 
 function selectExercise(ex,el){
@@ -7578,9 +7605,9 @@ function saveRecord(){
 
 function _timedRecHtml(recs, maxRows){
   const byKey={};
-  const _TLBL={sprint:'⚡ Sprint',uphill:'⛰️ Uphill',icestart:'🧊 Ice Start'};
-  const _TORD={sprint:0,uphill:1,icestart:2};
-  recs.filter(r=>r.type==='sprint'||r.type==='uphill'||r.type==='icestart').forEach(r=>{
+  const _TLBL={sprint:'⚡ Sprint',uphill:'⛰️ Uphill',icestart:'🧊 Ice Start',push:'🛷 Push Start'};
+  const _TORD={sprint:0,uphill:1,icestart:2,push:3};
+  recs.filter(r=>r.type==='sprint'||r.type==='uphill'||r.type==='icestart'||r.type==='push').forEach(r=>{
     const k=`${r.type}:${r.distance}`;
     if(!byKey[k]) byKey[k]={type:r.type,distance:r.distance,entries:[]};
     byKey[k].entries.push(r);
