@@ -629,24 +629,30 @@ let ltPushView='finish';      // Push Start 지표: finish|split1|zone2|speed
 // Push Start 카드 드래그 정렬 (선수 여러 명 비교용) — 순서는 localStorage에 보존
 let _pushOrder=[];try{const _o=localStorage.getItem('lt_push_order');if(_o)_pushOrder=JSON.parse(_o)||[];}catch(e){_pushOrder=[];}
 let _pushDragI=-1;
-function _pushDragStart(ev,i){_pushDragI=i;try{ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',String(i));}catch(e){}}
+function _pushClear(){try{document.querySelectorAll('[data-pushcard]').forEach(el=>{el.style.boxShadow='';el.style.opacity='';});}catch(e){}}
+// 커서가 카드 가로 중앙보다 오른쪽이면 '뒤에 삽입'
+function _pushSide(ev,c){try{const r=c.getBoundingClientRect();return ev.clientX>r.left+r.width/2;}catch(e){return false;}}
+function _pushDragStart(ev,i){_pushDragI=i;
+  try{ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',String(i));}catch(e){}
+  const c=ev.currentTarget;if(c)setTimeout(()=>{c.style.opacity='.35';},0);}
 function _pushDragOver(ev){ev.preventDefault();try{ev.dataTransfer.dropEffect='move';}catch(e){}
-  const c=ev.currentTarget;if(c)c.style.outline='2px dashed rgba(247,169,79,.7)';}
-function _pushDragLeave(ev){const c=ev.currentTarget;if(c)c.style.outline='';}
-function _pushDragEnd(){_pushDragI=-1;document.querySelectorAll('[data-pushcard]').forEach(el=>{el.style.outline='';el.style.opacity='';});}
-function _pushDrop(ev,j){ev.preventDefault();const c=ev.currentTarget;if(c)c.style.outline='';
-  const i=_pushDragI;_pushDragI=-1;
-  if(i<0||i===j||i>=_pushOrder.length||j>=_pushOrder.length)return;
-  const o=_pushOrder.slice(),m=o.splice(i,1)[0];o.splice(j,0,m);_pushOrder=o;
+  const c=ev.currentTarget;if(!c||_pushDragI<0)return;
+  if(+c.getAttribute('data-pushcard')===_pushDragI){c.style.boxShadow='';return;}
+  c.style.boxShadow=(_pushSide(ev,c)?'inset -3px 0 0 0 #f7a94f':'inset 3px 0 0 0 #f7a94f');}
+function _pushDragLeave(ev){const c=ev.currentTarget;if(c)c.style.boxShadow='';}
+function _pushDragEnd(){_pushDragI=-1;_pushClear();}
+function _pushDrop(ev,j){ev.preventDefault();
+  const c=ev.currentTarget, after=c?_pushSide(ev,c):false;
+  const i=_pushDragI;_pushDragI=-1;_pushClear();
+  if(i<0||i>=_pushOrder.length||j<0||j>=_pushOrder.length)return;
+  let pos=j+(after?1:0);
+  if(i<pos)pos--;                       // 앞에서 빼면 뒤쪽 인덱스가 한 칸 당겨짐
+  if(pos===i)return;
+  const o=_pushOrder.slice(), m=o.splice(i,1)[0];
+  o.splice(Math.max(0,Math.min(pos,o.length)),0,m);
+  _pushOrder=o;
   try{localStorage.setItem('lt_push_order',JSON.stringify(o));}catch(e){}
   _rerenderTrends();}
-let _ltBrkHidden=new Set();    // 분해 막대 범례로 숨긴 항목 'grp|label' (재렌더/핀 후에도 유지)
-let _ltCat=[],_ltAthList=[],_ltMetricList=[],_ltCatNames=[];
-const _LT_PAL=['#58a6ff','#bc8cff','#3ecf8e','#f7a94f','#f85149','#56d4dd','#e879c9','#a3e635','#fbbf24','#f472b6'];
-// 팀 뷰 선수 전용 고대비 팔레트(색상환 균등 분산 — 9명 구분 용이)
-const _ATH_PAL=['#ff5d5d','#ff9e3d','#e6c229','#5ec16a','#2bd0c4','#4e9bff','#7c6bff','#c072f0','#ff6fb5'];
-const _LT_MON=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-const charts={};
 
 // ══ AUTH ══
 function doLogin(){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>showErr(e.message));}
