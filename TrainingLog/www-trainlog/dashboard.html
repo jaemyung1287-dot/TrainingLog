@@ -1621,12 +1621,12 @@ function _ltPinKey(p){return p.d+'|'+(p.ex||'')+'|'+(p.cat||'')+'|'+(p.grp||'')+
 // ══ Push Start (스타트) ══════════════════════════════════════════════
 // 데이터: coachData.pushTests[] = {id,date,athleteName,athleteId,group,type:'push',
 //                                  attempts:[{t:[Split1,Finish],valid,note}],notes}
-//        coachData.pushTrack    = {gates:[5,15,45],labels:['Split 1','Finish'],
+//        coachData.pushTrack    = {gates:[5,15,55],labels:['Split 1','Finish'],
 //                                  mode:'cumulative',downhill,confirmed,note}
-// ⚠️ 게이트 거리는 트랙 실측 전 잠정값. 거리·라벨은 전부 pushTrack에서 파생시킬 것(하드코딩 금지).
+// 게이트: 2026-07-29 실측 확정 5·15·55m (그 전 잠정값 45m는 오류). 거리·라벨은 전부 pushTrack에서 파생시킬 것(하드코딩 금지).
 function _pushTrack(){
   const t=(typeof pushData!=='undefined'&&pushData&&pushData.track)||{};
-  const g=(Array.isArray(t.gates)&&t.gates.length>=3)?t.gates.map(Number):[5,15,45];
+  const g=(Array.isArray(t.gates)&&t.gates.length>=3)?t.gates.map(Number):[5,15,55];
   const lb=(Array.isArray(t.labels)&&t.labels.length>=2)?t.labels:['Split 1','Finish'];
   const mode=t.mode||'cumulative';
   return {gates:g,labels:lb,mode,confirmed:!!t.confirmed,note:t.note||'',
