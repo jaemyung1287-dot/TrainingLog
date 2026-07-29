@@ -1634,7 +1634,25 @@ function _pushTrack(){
     z1Lbl:lb[0], z2Lbl:'Split 2',
     z1Rng:g[0]+'→'+g[1]+'m', z2Rng:g[1]+'→'+g[2]+'m', finLbl:lb[1]};
 }
-function _pushAll(){const a=(typeof pushData!=='undefined'&&pushData&&pushData.tests);return Array.isArray(a)?a:[];}
+// Push Start 소스는 두 곳:
+//   1) trainlog/pushdata 문서의 tests[]  — 코치가 광전자 기록을 REST로 직접 넣은 세션(7/23·7/28 등)
+//   2) 선수 앱 로그 type:'push'          — 2026-07-29부터 선수가 앱에서 직접 입력(TrainLog.html savePush)
+// 같은 선수·같은 날짜가 양쪽에 있으면 선수 로그를 우선한다(선수가 나중에 고칠 수 있으므로).
+function _pushAll(){
+  const a=(typeof pushData!=='undefined'&&pushData&&pushData.tests);
+  const docTests=Array.isArray(a)?a:[];
+  let logTests=[];
+  try{
+    logTests=(typeof getAllLogs==='function'?getAllLogs():[])
+      .filter(l=>l&&l.type==='push'&&Array.isArray(l.attempts)&&l.attempts.length)
+      .map(l=>({id:l.id,date:l.date,athleteName:l.athleteName,athleteId:l.athleteId||null,
+                group:l.group,type:'push',attempts:l.attempts,notes:l.notes||'',_src:'log'}));
+  }catch(_){ logTests=[]; }
+  if(!logTests.length) return docTests;
+  const key=t=>(t&&t.athleteName||'')+'|'+(t&&t.date||'');
+  const seen=new Set(logTests.map(key));
+  return docTests.filter(t=>!seen.has(key(t))).concat(logTests);
+}
 function _pushTests(nm){return _pushAll().filter(t=>t&&t.athleteName===nm).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));}
 function _pushAtt(t){return (t&&Array.isArray(t.attempts)?t.attempts:[]).map((a,i)=>({n:i+1,t:Array.isArray(a.t)?a.t:[null,null],valid:a.valid!==false,note:a.note||''}));}
 function _pushOK(t){return _pushAtt(t).filter(a=>a.valid&&a.t[1]!=null);}

@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260726-1';
+const APP_VERSION = '20260729-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -439,13 +439,22 @@ const APP_VERSION = '20260726-1';
       <div id="team-acc-body-weight" style="display:none;padding:0 14px 10px"></div>
     </div>
     <!-- Sprint accordion -->
-    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);overflow:hidden">
+    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);margin-bottom:12px;overflow:hidden">
       <div onclick="toggleTeamAcc('sprint')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
         <span style="font-size:22px;line-height:1">⚡</span>
         <div style="flex:1;font-size:16px;font-weight:800;color:#3ecf8e">Sprint</div>
         <span id="team-acc-arrow-sprint" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
       </div>
       <div id="team-acc-body-sprint" style="display:none;padding:0 14px 10px"></div>
+    </div>
+    <!-- Push Start accordion -->
+    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);overflow:hidden">
+      <div onclick="toggleTeamAcc('push')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
+        <span style="font-size:22px;line-height:1">🛷</span>
+        <div style="flex:1;font-size:16px;font-weight:800;color:#58a6ff">Push Start</div>
+        <span id="team-acc-arrow-push" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
+      </div>
+      <div id="team-acc-body-push" style="display:none;padding:0 14px 10px"></div>
     </div>
   </div>
 </div>
@@ -569,6 +578,12 @@ const APP_VERSION = '20260726-1';
       <div class="desc" style="color:var(--gold)">Sprinttraining</div>
       <div class="desc">Distance · Sets · Intensity</div>
     </div>
+    <div class="type-card" id="tc-push" onclick="selectType('push')">
+      <span class="ico">🛷</span>
+      <div class="lbl">Push Start</div>
+      <div class="desc" style="color:var(--gold)">Anschieben</div>
+      <div class="desc">Split 1 · Finish</div>
+    </div>
   </div>
 </div>
 
@@ -690,6 +705,25 @@ const APP_VERSION = '20260726-1';
     <textarea class="fi" id="sprint-notes" placeholder="How did it feel?"></textarea>
   </div>
   <button class="btn btn-g" onclick="saveSprint()">Save →</button>
+</div>
+
+<!-- PUSH START FORM -->
+<div id="s-push" class="screen">
+  <div class="hdr">
+    <button class="back" onclick="showScreen('s-log-session')">← Back</button>
+    <span class="logo">🛷 Push Start</span>
+  </div>
+  <div class="ttl">Push Start</div>
+  <div id="pu-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:13px;color:#e94560;font-weight:700">
+    ✏️ Editing · Bearbeitung — saving will update this log
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+      <label style="font-size:12px;color:#e94560;font-weight:600;white-space:nowrap">📅 Log Date</label>
+      <input type="date" id="pu-edit-date" style="flex:1;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.3);border-radius:8px;padding:5px 10px;color:#f0f0ff;font-size:13px;font-family:inherit;outline:none">
+    </div>
+  </div>
+  <div id="push-rows"></div>
+  <button class="btn btn-s" onclick="addPushAttempt()" style="border-style:dashed;margin-bottom:16px">+ Versuch</button>
+  <button class="btn btn-g" onclick="savePush()">Save →</button>
 </div>
 
 <!-- RECORD FORM (Coach enters for athlete) -->
@@ -2137,13 +2171,13 @@ function toggleTeamAcc(which){
 async function goTeamData(){
   showScreen('s-team-data');
   // Team data is fetched on demand (not kept in local storage). Show a loading hint.
-  const wWrap=document.getElementById('team-acc-body-weight'), sWrap=document.getElementById('team-acc-body-sprint');
+  const wWrap=document.getElementById('team-acc-body-weight'), sWrap=document.getElementById('team-acc-body-sprint'), pWrap=document.getElementById('team-acc-body-push');
   const loadHtml='<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">⏳ Lade Teamdaten…</div>';
-  if(wWrap) wWrap.innerHTML=loadHtml; if(sWrap) sWrap.innerHTML=loadHtml;
+  if(wWrap) wWrap.innerHTML=loadHtml; if(sWrap) sWrap.innerHTML=loadHtml; if(pWrap) pWrap.innerHTML=loadHtml;
   try{ _teamLogsCache=await _fetchAllAthleteLogs(); }
   catch(e){ _teamLogsCache=null; showToast('⚠️ Internet nötig für Teamdaten'); }
   renderTeamTrainingData();
-  ['weight','sprint'].forEach(w=>{
+  ['weight','sprint','push'].forEach(w=>{
     const b=document.getElementById('team-acc-body-'+w); if(b) b.style.display='none';
     const a=document.getElementById('team-acc-arrow-'+w); if(a) a.style.transform='rotate(0deg)';
   });
@@ -2165,6 +2199,7 @@ function teamWeekShift(delta){
 function renderTeamTrainingData(){
   const wWrap=document.getElementById('team-acc-body-weight');
   const sWrap=document.getElementById('team-acc-body-sprint');
+  const pWrap=document.getElementById('team-acc-body-push');
   if(!wWrap||!sWrap) return;
   const d=getData();
   const teamLogs=_teamLogsCache||(d.logs||[]); // team view uses on-demand fetch; falls back to local
@@ -2267,6 +2302,34 @@ function renderTeamTrainingData(){
     const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
     return row('sA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
   }).join('') : emptyWeek);
+
+  // ===== PUSH START (week → name → dates → attempts) =====
+  if(pWrap){
+    const pGroups=groupByAthlete(teamLogs.filter(l=>l.type==='push'&&inWeek(l)));
+    pWrap.innerHTML = nav + (pGroups.length ? pGroups.map((g,ai)=>{
+      const mine=g.name===me;
+      const sess=g.ls.map((l,si)=>{
+        const ok=_puOK(l), best=_puBest(l);
+        const gt=(Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES;
+        const c=v=>v==null?'—':v.toFixed(2);
+        let n=0;
+        const det=ok.map(a=>{
+          n++;
+          const s1=a.t[0], fin=a.t[1], z2=(s1!=null)?+(fin-s1).toFixed(2):null;
+          const gold=(fin===best);
+          return detRow(`<span style="font-weight:700">${n}.</span>`,
+            `<span style="color:var(--muted)">${c(s1)} · ${c(z2)}</span> &nbsp;<span style="color:${gold?'var(--gold)':'var(--text)'};font-weight:${gold?800:600}">${c(fin)}s</span>`);
+        }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
+        const colHd=`<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0 5px"><span style="font-size:10px;color:var(--muted)">Nr</span><span style="font-size:10px;color:var(--muted)">${gt[0]}→${gt[1]} · ${gt[1]}→${gt[2]} · ${gt[0]}→${gt[2]}m</span></div>`;
+        const right=best!=null
+          ? `<span style="color:#58a6ff;font-weight:700">${best.toFixed(2)} s</span><span style="color:var(--muted)"> · ${ok.length}×</span>`
+          : `<span style="color:var(--muted)">kein Eintrag</span>`;
+        return row('pA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,colHd+det,false,16);
+      }).join('');
+      const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
+      return row('pA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
+    }).join('') : emptyWeek);
+  }
 }
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('Please select your name'); return; }
@@ -2742,7 +2805,7 @@ function goLogTraining(){
         </div>
       </div>`;
     }
-    wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_recentLogsSection();
+    wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_pushEntryCard()+_recentLogsSection();
   } else {
     title.textContent=`${ST.athlete.name}, what did you do?`;
     sub.textContent=isYesterday?`Log for ${today} — select type manually`:'No session plan for today — select type manually';
@@ -2757,6 +2820,11 @@ function goLogTraining(){
           <span class="ico">⚡</span>
           <div class="lbl">Sprint Training</div>
           <div class="desc" style="color:var(--gold)">Sprinttraining</div>
+        </div>
+        <div class="type-card" onclick="selectType('push')">
+          <span class="ico">🛷</span>
+          <div class="lbl">Push Start</div>
+          <div class="desc" style="color:var(--gold)">Anschieben</div>
         </div>
       </div>`+_recentLogsSection();
   }
@@ -2774,6 +2842,7 @@ function _selectLogSession(sess,type){
   selectType(type);
 }
 function selectType(t){
+  if(t==='push'){ goPushStart(); return; }
   const d=getData(); const prog=d.programs[ST.athlete.group];
   if(t==='weight'){
     // Load session plan for the target date (yesterday or today)
@@ -3060,9 +3129,9 @@ function goAthleteStats(){ document.getElementById('astats-name').textContent=ST
 function _renderAthRecentLogs(targetId){
   const wrap=document.getElementById(targetId); if(!wrap||!ST.athlete) return;
   const d=getData();
-  const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s'};
-  const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡'};
-  const typeLabel={weight:'Weight Training',plyo:'Plyo Training',sprint:'Sprint Training'};
+  const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s',push:'b-s'};
+  const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡',push:'🛷'};
+  const typeLabel={weight:'Weight Training',plyo:'Plyo Training',sprint:'Sprint Training',push:'Push Start'};
   const grp=ST.athlete.group;
   const today=todayStr();
   const last14=getLast(14);
@@ -3094,7 +3163,7 @@ function _renderAthRecentLogs(targetId){
   // Get recent logs (last 14 days)
   const myLogs=d.logs.filter(l=>
     l.athleteName===ST.athlete.name&&
-    (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility')&&
+    (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility'||l.type==='push')&&
     l.date>=cutoff
   );
   const logsByDate={};
@@ -3136,6 +3205,10 @@ function _renderAthRecentLogs(targetId){
         if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
         stat=pts.join(' · ')||'—';
       }
+      else if(l.type==='push'){
+        const _pb=_puBest(l);
+        stat=_pb!=null?`${_pb.toFixed(2)} s · ${_puOK(l).length}×`:'—';
+      }
       // RPE colour helper
       const rpe=Number(l.rpe)||0;
       const rpeColor=rpe>=7?'#e94560':rpe>=4?'#f7a94f':'#3ecf8e';
@@ -3147,6 +3220,13 @@ function _renderAthRecentLogs(targetId){
       // Sprint set summary chips
       const sprintChips=l.type==='sprint'&&Array.isArray(l.sets)&&l.sets.length
         ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.sets.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${s.name||s.distance+'m'||'?'}</span>`).join('')}</div>`
+        :'';
+      // Push Start 시도 칩 — 그날 best는 금색
+      const pushChips=l.type==='push'&&_puOK(l).length
+        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${_puOK(l).map((a,ai)=>{
+            const _b=_puBest(l), _g=(a.t[1]===_b);
+            return `<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:${_g?'var(--gold)':'var(--muted)'};font-weight:${_g?700:400}">${ai+1}. ${a.t[1].toFixed(2)}s</span>`;
+          }).join('')}</div>`
         :'';
       html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
         <div class="detail-row">
@@ -3167,7 +3247,7 @@ function _renderAthRecentLogs(targetId){
             <span style="font-size:12px;font-weight:700;color:${rpeColor}">${rpe}/10 ${rpeLabel}</span>
           </div>
         </div>`:''}
-        ${exChips}${sprintChips}
+        ${exChips}${sprintChips}${pushChips}
       </div>`;
     });
 
@@ -4648,6 +4728,147 @@ function saveSprint(dupMode){
 }
 
 // ════════════════════════════════════════════════
+//  PUSH START FORM  (log type:'push')
+// ════════════════════════════════════════════════
+// 게이트: 2026-07-29 트랙 실측 확정 — 5 · 15 · 55m. 두 시간 모두 5m 트리거 기준 누적.
+//   Split 1 = 5→15m,  Finish = 5→55m,  Split 2(=15→55m)는 Finish−Split1로 파생.
+// ⚠️ 대시보드 _pushTrack()/Firestore trainlog/pushdata 의 track.gates 와 반드시 같은 값을 쓸 것.
+const PUSH_GATES=[5,15,55];
+const _puRng=(a,b)=>PUSH_GATES[a]+'→'+PUSH_GATES[b]+'m';
+
+// 플랜이 있는 날에도 Push Start로 들어갈 수 있게 s-log-session 하단에 붙이는 진입 카드
+function _pushEntryCard(){
+  return `<div onclick="selectType('push')" style="margin:4px 0 2px;padding:13px 15px;border-radius:12px;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.25);display:flex;align-items:center;gap:11px;cursor:pointer">
+      <span style="font-size:19px">🛷</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">Push Start</div>
+        <div style="font-size:11px;color:var(--muted)">Anschieben · ${_puRng(0,1)} / ${_puRng(0,2)}</div>
+      </div>
+      <span style="color:#58a6ff;font-size:13px;font-weight:700">→</span>
+    </div>`;
+}
+
+function goPushStart(){
+  if(!ST.athlete){ showToast('Please select your name'); return; }
+  ST.editingLogId=null; ST._extraEditLogIds=[];
+  ST.pushAttempts=[{s1:'',fin:''},{s1:'',fin:''},{s1:'',fin:''}];
+  ST._activeSess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
+  ST._todayPlanSession=null;
+  const b=document.getElementById('pu-edit-banner'); if(b) b.style.display='none';
+  renderPushRows();
+  showScreen('s-push');
+}
+
+function renderPushRows(){
+  const wrap=document.getElementById('push-rows'); if(!wrap) return;
+  const A=ST.pushAttempts||[];
+  const th=(l,sub)=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3">${l}<i style="display:block;font-style:normal;font-size:9.5px;font-weight:400;color:var(--muted)">${sub}</i></span>`;
+  const hd=`<div style="display:flex;align-items:flex-end;gap:8px;padding:0 2px 9px">
+      <span style="width:34px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)">Nr</span>
+      ${th('Split 1',_puRng(0,1))}${th('Finish',_puRng(0,2))}
+      <span style="width:24px"></span>
+    </div>`;
+  const rows=A.map((a,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <span style="width:34px;font-size:13px;font-weight:700;color:var(--text)">${i+1}.</span>
+      <input class="fi" style="flex:1;min-width:0;text-align:center;margin:0" type="number" step="0.01" inputmode="decimal" placeholder="—" value="${a.s1==null?'':a.s1}" oninput="ST.pushAttempts[${i}].s1=this.value">
+      <input class="fi" style="flex:1;min-width:0;text-align:center;margin:0" type="number" step="0.01" inputmode="decimal" placeholder="—" value="${a.fin==null?'':a.fin}" oninput="ST.pushAttempts[${i}].fin=this.value">
+      <span onclick="delPushAttempt(${i})" style="width:24px;text-align:center;cursor:pointer;color:var(--muted);font-size:16px;line-height:1">×</span>
+    </div>`).join('');
+  wrap.innerHTML=hd+rows;
+}
+function addPushAttempt(){ ST.pushAttempts=(ST.pushAttempts||[]); ST.pushAttempts.push({s1:'',fin:''}); renderPushRows(); }
+function delPushAttempt(i){
+  if(!ST.pushAttempts) return;
+  ST.pushAttempts.splice(i,1);
+  if(!ST.pushAttempts.length) ST.pushAttempts.push({s1:'',fin:''});
+  renderPushRows();
+}
+// 로그 한 건의 유효 시도(Finish 있는 것) — 대시보드 _pushOK 와 같은 규칙
+function _puOK(l){ return (Array.isArray(l&&l.attempts)?l.attempts:[]).filter(a=>Array.isArray(a.t)&&a.t[1]!=null); }
+function _puBest(l){ const ok=_puOK(l); return ok.length?Math.min(...ok.map(a=>a.t[1])):null; }
+// 로그 상세용 시도 표 (코치 Today / 세션 상세 공용). 그날 best만 금색 — 나머지는 흰색.
+function _puRowsHtml(l){
+  const ok=_puOK(l); if(!ok.length) return '';
+  const gt=(Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES;
+  const best=_puBest(l);
+  const c=v=>v==null?'—':v.toFixed(2);
+  const hd=`<div style="display:flex;gap:8px;padding:0 0 5px;font-size:10px;color:var(--muted)">
+      <span style="width:26px">Nr</span>
+      <span style="flex:1;text-align:right">${gt[0]}→${gt[1]}</span>
+      <span style="flex:1;text-align:right">${gt[1]}→${gt[2]}</span>
+      <span style="flex:1;text-align:right">${gt[0]}→${gt[2]}m</span>
+    </div>`;
+  return hd+ok.map((a,i)=>{
+    const s1=a.t[0], fin=a.t[1], z2=(s1!=null)?+(fin-s1).toFixed(2):null;
+    const g=(fin===best);
+    return `<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12.5px;font-variant-numeric:tabular-nums">
+      <span style="width:26px;color:var(--muted)">${i+1}.</span>
+      <span style="flex:1;text-align:right;color:var(--text)">${c(s1)}</span>
+      <span style="flex:1;text-align:right;color:var(--text)">${c(z2)}</span>
+      <span style="flex:1;text-align:right;color:${g?'var(--gold)':'var(--text)'};font-weight:${g?800:600}">${c(fin)}</span>
+    </div>`;
+  }).join('');
+}
+
+function savePush(dupMode){
+  if(!ST.athlete){ showToast('Please select your name'); return; }
+  const num=v=>{ if(v===''||v==null) return null; const n=parseFloat(v); return (isNaN(n)||n<=0)?null:+n.toFixed(3); };
+  // Finish 없는 줄 = 무효/미기록 시도 → 저장하지 않고 번호를 다시 매긴다(대시보드 표와 동일 규칙)
+  const attempts=(ST.pushAttempts||[]).map(a=>({s1:num(a.s1),fin:num(a.fin)}))
+    .filter(a=>a.fin!=null).map(a=>({t:[a.s1,a.fin]}));
+  if(!attempts.length){ showToast('⚠️ Mindestens eine Finish-Zeit eingeben'); return; }
+  if(attempts.some(a=>a.t[0]!=null&&a.t[0]>=a.t[1])){ showToast('⚠️ Split 1 muss kleiner als Finish sein'); return; }
+
+  // Pre-save confirmation (first call only, not in edit mode)
+  if(!dupMode && !ST.editingLogId){ _showSaveConfirmModal(()=>savePush('confirmed')); return; }
+
+  const _curSess=ST._activeSess||null;
+  const _isThisPushSession=(l)=> (l.sess!=null&&_curSess!=null) ? (l.sess===_curSess) : true;
+
+  if(!ST.editingLogId && dupMode==='confirmed'){
+    const d0=getData(); const today0=ST._logDate||todayStr(); const athName0=ST.athlete.name;
+    if(d0.logs.some(l=>l.athleteName===athName0&&l.date===today0&&l.type==='push'&&_isThisPushSession(l))){
+      _showDupModal('Push Start', ()=>savePush('replace'), ()=>savePush('add'));
+      return;
+    }
+  }
+
+  const d=getData();
+
+  // ── Edit mode: remove original log ──
+  if(ST.editingLogId){
+    const _puDateEl=document.getElementById('pu-edit-date');
+    if(_puDateEl&&_puDateEl.value) ST._logDate=_puDateEl.value;
+    const _eid=ST.editingLogId;
+    _archiveLogs(d, d.logs.filter(l=>l.id===_eid), 'edit');
+    d.logs=d.logs.filter(l=>l.id!==_eid);
+    ST.editingLogId=null; ST._extraEditLogIds=[];
+    const b=document.getElementById('pu-edit-banner'); if(b) b.style.display='none';
+  }
+
+  const today=ST._logDate||todayStr(); const athName=ST.athlete.name;
+  if(dupMode==='replace'){
+    const _dupes=d.logs.filter(l=>l.athleteName===athName&&l.date===today&&l.type==='push'&&_isThisPushSession(l));
+    _archiveLogs(d, _dupes, 'replace');
+    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='push'&&_isThisPushSession(l)));
+  }
+
+  const log={
+    id:genId(), date:today, athleteName:athName, group:ST.athlete.group, type:'push',
+    sess:_curSess,
+    gates:PUSH_GATES.slice(), mode:'cumulative',
+    attempts:attempts,
+    bestFinish:Math.min(...attempts.map(a=>a.t[1]))
+  };
+  d.logs.push(log); saveData(d);
+  ST._logDate=null; ST.pushAttempts=null;
+  const _sm=document.getElementById('success-msg');
+  if(_sm) _sm.textContent=`Push Start gespeichert! Best: ${log.bestFinish.toFixed(2)}s 🛷`;
+  _renderAthRecentLogs('success-recent-logs');
+  showScreen('s-success');
+}
+
+// ════════════════════════════════════════════════
 //  PROGRAM VIEW
 // ════════════════════════════════════════════════
 function typeLabel(t){ return {weight:'🏋️ Weight Training',sprint:'⚡ Sprint Training',conditioning:'🔄 Conditioning',rest:'😴 Rest',tbt:'🎯 TBT'}[t]||t; }
@@ -5007,7 +5228,7 @@ function renderToday(){
   const d=getData(); const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
   const cl=tl.filter(l=>l.type==='condition');
-  const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='mobility');
+  const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='mobility'||l.type==='push');
   const dw=new Date();
   document.getElementById('coach-date-ttl').textContent=`${DAYS[dw.getDay()]}, ${dw.toLocaleString('en',{month:'long'})} ${dw.getDate()}`;
   const tvol=_exVolSplit(tr.filter(l=>l.type==='weight')).total;
@@ -5064,15 +5285,21 @@ function renderToday(){
         const _dBadge=_dv==null?'':`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_EFFCOL(_dv)}22;border:1px solid ${_EFFCOL(_dv)}55;color:${_EFFCOL(_dv)};font-weight:700;flex-shrink:0">D${_dv}</span>`;
         return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--text)"><span>${e.done?'✓':'○'} ${e.name||'—'}</span>${_dBadge}</div>`;
       }).join('');
+    } else if(l.type==='push'){
+      rows=_puRowsHtml(l);
     }
     const sessNote=l.notes&&l.notes.trim()?`<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(247,169,79,.08);border-left:3px solid #f7a94f;font-size:12px;color:var(--text);line-height:1.5;font-style:italic">💬 ${l.notes}</div>`:'';
     return rows+sessNote;
   };
   const _logCard=(l)=>{
-    const badgeClass=l.type==='sprint'?'b-s':l.type==='plyo'?'b-c':l.type==='mobility'?'b-c':'b-w';
-    const badgeText=l.type==='sprint'?'sprint':l.type==='plyo'?'plyo':l.type==='mobility'?'conditioning':'weight';
+    const badgeClass=l.type==='sprint'?'b-s':l.type==='push'?'b-s':l.type==='plyo'?'b-c':l.type==='mobility'?'b-c':'b-w';
+    const badgeText=l.type==='sprint'?'sprint':l.type==='push'?'push start':l.type==='plyo'?'plyo':l.type==='mobility'?'conditioning':'weight';
     let statsHtml='';
-    if(l.type==='mobility'){
+    if(l.type==='push'){
+      const _pb=_puBest(l);
+      statsHtml=`<div class="detail-row"><span class="detail-key">Best Finish</span><span class="detail-val">${_pb!=null?_pb.toFixed(2)+' s':'—'}</span></div>`
+        +`<div class="detail-row"><span class="detail-key">Versuche</span><span class="detail-val">${_puOK(l).length}</span></div>`;
+    } else if(l.type==='mobility'){
       const _md=(l.exercises||[]).filter(e=>e.done).length;
       const _mt=(l.exercises||[]).length;
       const _dvs=(l.exercises||[]).map(e=>_EFFNUM(e.difficulty)).filter(v=>v!=null);
@@ -5101,6 +5328,7 @@ function renderToday(){
     const hasDetail=((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length)
                   ||(l.type==='sprint'&&(l.sets||[]).length)
                   ||(l.type==='mobility'&&(l.exercises||[]).length)
+                  ||(l.type==='push'&&_puOK(l).length)
                   ||(l.notes&&l.notes.trim());
     const detailId=`tlog-${l.id}`,chevId=`tlogc-${l.id}`;
     const detailToggle=hasDetail?`<span onclick="event.stopPropagation();_toggleLogDetail('${detailId}','${chevId}')" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#4f8ef7;font-weight:700;cursor:pointer">상세 <span id="${chevId}" style="display:inline-block;transition:transform .15s">▼</span></span>`:'';
@@ -5433,10 +5661,10 @@ function _renderLoadRecent(logs, wrapId, opts){
   const sorted = logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
   if(!sorted.length){ wrap.innerHTML='<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>'; return; }
 
-  const _typeIcon = {weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀'};
+  const _typeIcon = {weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀',push:'🛷'};
 
   // Type → left-border accent color
-  const _typeBorder = {weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39'};
+  const _typeBorder = {weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39',push:'#58a6ff'};
 
   // Effort color helpers (for exercise rows)
   const _effColor = _EFF_PROXY;
@@ -5466,6 +5694,10 @@ function _renderLoadRecent(logs, wrapId, opts){
       const dvs=exs.map(e=>_EFFNUM(e.difficulty)).filter(v=>v!=null);
       const avg=dvs.length?(dvs.reduce((s,v)=>s+v,0)/dvs.length):null;
       return `<span style="color:#E07B39;font-weight:700">Conditioning</span> · <span style="color:var(--text);font-weight:600">${done}/${exs.length} ✓</span>${avg!=null?` · <span style="color:var(--muted)">Ø D${avg.toFixed(1)}</span>`:''}`;
+    }
+    if(l.type==='push'){
+      const _pb=_puBest(l);
+      return `<span style="color:#58a6ff;font-weight:700">Push Start</span> · <span style="color:var(--text);font-weight:600">${_pb!=null?_pb.toFixed(2)+' s':'—'}</span> · <span style="color:var(--muted)">${_puOK(l).length} Versuche</span>`;
     }
     return l.type;
   };
@@ -5528,6 +5760,7 @@ function _renderLoadRecent(logs, wrapId, opts){
     const hasDetail = ((l.type==='weight'||l.type==='plyo') && (l.exercises||[]).length>0)
                     || (l.type==='sprint' && (l.sets||[]).length>0)
                     || (l.type==='mobility' && (l.exercises||[]).length>0)
+                    || (l.type==='push' && _puOK(l).length>0)
                     || (l.type==='condition');
     const detailId = `lr-${l.id}`;
     const chevId   = `lrc-${l.id}`;
@@ -5547,6 +5780,8 @@ function _renderLoadRecent(logs, wrapId, opts){
           <span style="font-size:12px;color:${e.done?'var(--text)':'var(--muted)'};flex:1;padding-right:8px;font-weight:500">${e.done?'✓':'○'} ${e.name||'—'}</span>${dChip}
         </div>`;
       }).join('');
+    } else if(l.type==='push' && _puOK(l).length){
+      detailHtml = _puRowsHtml(l);
     } else if(l.type==='condition'){
       detailHtml = _conditionDetail(l);
     }
@@ -5600,7 +5835,8 @@ function _renderLoadRecent(logs, wrapId, opts){
       {types:['condition'],            icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'},
       {types:['weight','plyo'],        icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
       {types:['sprint','tabata'],      icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
-      {types:['mobility'],             icon:'🌀', label:'Conditioning',            color:'#E07B39'}
+      {types:['mobility'],             icon:'🌀', label:'Conditioning',            color:'#E07B39'},
+      {types:['push'],                 icon:'🛷', label:'Push Start',              color:'#58a6ff'}
     ];
     let shtml = '';
     _sections.forEach((sec,si)=>{
@@ -5645,6 +5881,15 @@ function _renderLoadRecent(logs, wrapId, opts){
     if(mobHid.length){
       html += `<div id="lr-mob-extra" style="display:none">${mobHid.map(_renderCard).join('')}</div>`;
       html += _moreBtn('lr-mob-extra');
+    }
+  }
+  const { visible: pushVis, hidden: pushHid } = _splitByDays(sorted.filter(l => l.type === 'push'));
+  if(pushVis.length || pushHid.length){
+    html += _sectionHdr('🛷', 'Push Start', '#58a6ff', (trainVis.length||trainHid.length||mobVis.length||mobHid.length) ? 16 : 4);
+    html += pushVis.map(_renderCard).join('');
+    if(pushHid.length){
+      html += `<div id="lr-push-extra" style="display:none">${pushHid.map(_renderCard).join('')}</div>`;
+      html += _moreBtn('lr-push-extra');
     }
   }
   if(condVis.length || condHid.length){
@@ -5835,9 +6080,9 @@ function _renderDetailLogs(logs, opts){
     <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
   </div>`).join('');
 
-  const _typeBorder={weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39'};
-  const _typeColor={weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c',mobility:'b-c'};
-  const _typeIcon={weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀'};
+  const _typeBorder={weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39',push:'#58a6ff'};
+  const _typeColor={weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c',mobility:'b-c',push:'b-s'};
+  const _typeIcon={weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀',push:'🛷'};
 
   // Soreness chip colors by intensity (mild / moderate / severe)
   const _intensityCol = n => n>=7?{color:'#e94560',bg:'rgba(233,69,96,.15)',border:'rgba(233,69,96,.35)'}
@@ -5849,6 +6094,7 @@ function _renderDetailLogs(logs, opts){
     const hasDetail=((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length>0)
                   ||(l.type==='sprint'&&(l.sets||[]).length>0)
                   ||(l.type==='mobility'&&(l.exercises||[]).length>0)
+                  ||(l.type==='push'&&_puOK(l).length>0)
                   || hasSore;
     const detailId=`ld-${l.id}`, chevId=`lc-${l.id}`;
     const borderColor=_typeBorder[l.type]||'rgba(255,255,255,.1)';
@@ -5879,6 +6125,12 @@ function _renderDetailLogs(logs, opts){
         <span style="font-size:12px;color:var(--muted)">Completed${_mavg!=null?` · Ø Schwierigkeit D${_mavg.toFixed(1)}`:''}</span>
         <span style="font-size:13px;font-weight:700;color:var(--text)">${_me.filter(e=>e.done).length}/${_me.length} ✓</span>
       </div>`;
+    } else if(l.type==='push'){
+      const _pb=_puBest(l), _ok=_puOK(l);
+      summaryHtml=`<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--muted)">Best Finish · ${_ok.length} Versuche</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${_pb!=null?_pb.toFixed(2)+' s':'—'}</span>
+      </div>`;
     }
 
     let detailHtml='';
@@ -5895,6 +6147,8 @@ function _renderDetailLogs(logs, opts){
           <span style="font-size:12px;color:${e.done?'var(--text)':'var(--muted)'};flex:1;padding-right:8px;font-weight:500">${e.done?'✓':'○'} ${e.name}</span>${dChip}
         </div>`;
       }).join('')}</div>`;
+    } else if(l.type==='push'&&_puOK(l).length){
+      detailHtml=`<div style="margin-top:4px;padding-top:4px">${_puRowsHtml(l)}</div>`;
     } else if(hasSore){
       const chips=l.soreness.map(s=>{const c=_intensityCol(s.intensity);return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;}).join('');
       detailHtml=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -5909,7 +6163,7 @@ function _renderDetailLogs(logs, opts){
           <span style="font-size:18px">${_typeIcon[l.type]||'📝'}</span>
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--text)">${l.date}</div>
-            <span class="badge ${_typeColor[l.type]||'b-c'}" style="margin-top:2px">${l.type==='mobility'?'conditioning':l.type}${l.rpe?` · RPE ${l.rpe}/10`:''}</span>
+            <span class="badge ${_typeColor[l.type]||'b-c'}" style="margin-top:2px">${l.type==='mobility'?'conditioning':(l.type==='push'?'push start':l.type)}${l.rpe?` · RPE ${l.rpe}/10`:''}</span>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
@@ -5927,7 +6181,8 @@ function _renderDetailLogs(logs, opts){
     {types:['condition'],       icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'},
     {types:['weight','plyo'],   icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
     {types:['sprint','tabata'], icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
-    {types:['mobility'],        icon:'🌀', label:'Conditioning',            color:'#E07B39'}
+    {types:['mobility'],        icon:'🌀', label:'Conditioning',            color:'#E07B39'},
+    {types:['push'],            icon:'🛷', label:'Push Start',              color:'#58a6ff'}
   ];
   let html='';
   _sections.forEach((sec,si)=>{
@@ -6350,7 +6605,7 @@ function renderRestorePanel(){
   const arc=(d.logArchive||[]).slice().sort((a,b)=>(b._removedAt||0)-(a._removedAt||0));
   if(!arc.length){ wrap.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0">Keine · 보관된 기록 없음</div>'; return; }
   const _reasonLbl={replace:'überschrieben · 덮어씀',edit:'bearbeitet · 편집',delete:'gelöscht · 삭제'};
-  const _typeIc={weight:'🏋️',sprint:'⚡',plyo:'🦘',mobility:'🌀'};
+  const _typeIc={weight:'🏋️',sprint:'⚡',plyo:'🦘',mobility:'🌀',push:'🛷'};
   wrap.innerHTML=arc.slice(0,80).map((l)=>{
     const when=l._removedAt?new Date(l._removedAt).toLocaleString('en',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
     const sess=l.sess?(l.sess==='am'?'🌅AM':'🌇PM'):'';
@@ -7091,6 +7346,16 @@ function _editLog(logId){
     const spDateEl=document.getElementById('sp-edit-date'); if(spDateEl) spDateEl.value=log.date||todayStr();
     renderSprintSets();
     showScreen('s-sprint');
+  } else if(log.type==='push'){
+    ST.pushAttempts=(log.attempts||[]).map(a=>({
+      s1:(a.t&&a.t[0]!=null)?String(a.t[0]):'',
+      fin:(a.t&&a.t[1]!=null)?String(a.t[1]):''
+    }));
+    if(!ST.pushAttempts.length) ST.pushAttempts=[{s1:'',fin:''}];
+    const puBan=document.getElementById('pu-edit-banner'); if(puBan) puBan.style.display='block';
+    const puDateEl=document.getElementById('pu-edit-date'); if(puDateEl) puDateEl.value=log.date||todayStr();
+    renderPushRows();
+    showScreen('s-push');
   }
 }
 
