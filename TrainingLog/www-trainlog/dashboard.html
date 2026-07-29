@@ -1567,7 +1567,7 @@ function _pushTrack(){
   const mode=t.mode||'cumulative';
   return {gates:g,labels:lb,mode,confirmed:!!t.confirmed,note:t.note||'',
     d1:g[1]-g[0], d2:g[2]-g[1],
-    z1Lbl:lb[0], z2Lbl:'Zone 2',
+    z1Lbl:lb[0], z2Lbl:'Split 2',
     z1Rng:g[0]+'→'+g[1]+'m', z2Rng:g[1]+'→'+g[2]+'m', finLbl:lb[1]};
 }
 function _pushAll(){const a=(typeof pushData!=='undefined'&&pushData&&pushData.tests);return Array.isArray(a)?a:[];}
@@ -2794,22 +2794,64 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     return _ltCard('재현성 · '+fmt(date),'← 빠름 · ◆ = 평균',cfg,Math.max(160,rows.length*30+46));
   };
 
-  // Push Start 전체 묶음 — 기간 내 마지막 2세션의 Attempt Profile + 최신 세션 분해/재현성
+  // Push Start — 선수별 시도 기록표 (차트 대신 숫자 중심, 2026-07-29 재설계)
+  const _pushDM=d=>{const p=String(d||'').split('-');return p.length<3?'':(+p[2])+'.'+(+p[1]);};
+  const _pushCardOne=(nm,date)=>{
+    const TR=_pushTrack();
+    const t=_pushTests(nm).find(x=>x.date===date); if(!t)return '';
+    const att=_pushAtt(t), ok=_pushOK(t); if(!ok.length)return '';
+    const best=Math.min(...ok.map(_pushFin));
+    const s1s=ok.map(_pushS1).filter(v=>v!=null), bS1=s1s.length?Math.min(...s1s):null;
+    const z2s=ok.map(_pushZ2).filter(v=>v!=null), bZ2=z2s.length?Math.min(...z2s):null;
+    // PB = 전 기간 통틀어 Finish 가장 빠른 시도 1개 (그 시도의 세 구간을 그대로)
+    let pb=null;
+    _pushTests(nm).forEach(tt=>_pushOK(tt).forEach(a=>{ if(!pb||a.t[1]<pb.f)pb={f:a.t[1],s1:a.t[0],d:tt.date}; }));
+    const GD='#e3b341', GR='#3fb950';
+    const num=(v,gold)=>v==null?`<td style="text-align:right;font-size:13px;padding:4px 0;border-top:1px solid #1c232d;color:#5b636c">—</td>`
+      :`<td style="text-align:right;font-size:13px;padding:4px 0;border-top:1px solid #1c232d;color:${gold?GD:'#fff'};font-weight:${gold?700:400}">${v.toFixed(2)}</td>`;
+    let i=0;
+    const rows=att.map(a=>{
+      if(!a.valid&&a.t[1]==null)return '';           // 미기록 시도는 행 자체를 제거
+      i++;
+      const s1=a.t[0], fin=a.t[1], z2=_pushZ2(a);
+      const hl=(fin===best)?'background:rgba(227,177,65,.09)':'';
+      return `<tr style="${hl}"><td style="text-align:left;font-size:10.5px;padding:4px 0;border-top:1px solid #1c232d;color:#fff">${i}</td>`
+        +num(s1,bS1!=null&&s1===bS1)+num(z2,bZ2!=null&&z2===bZ2)+num(fin,fin===best)+`</tr>`;
+    }).join('');
+    // 직전 세션까지의 최고 Finish (오늘 제외) — 델타 기준
+    let prevF=null;
+    _pushTests(nm).forEach(tt=>{ if(tt.date>=date)return;
+      _pushOK(tt).forEach(a=>{ if(prevF==null||a.t[1]<prevF)prevF=a.t[1]; }); });
+    let pbRow='';
+    if(pb){
+      const gap=(prevF==null)?null:+(best-prevF).toFixed(2);
+      const tail=(gap==null)?''
+        :`<span style="margin-left:4px;font-weight:650;color:${gap<0?GR:(gap>0?'#f85149':'#fff')}">${gap>0?'+':''}${gap.toFixed(2)}</span>`;
+      const pz=(pb.s1==null)?null:+(pb.f-pb.s1).toFixed(3);
+      const pn=v=>v==null?'—':v.toFixed(2);
+      pbRow=`<tr><td style="text-align:left;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:${GD};font-weight:700">PB <span style="font-weight:400;font-size:10px;color:#fff">(${_pushDM(pb.d)})</span></td>`
+        +`<td style="text-align:right;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:#fff;font-weight:620">${pn(pb.s1)}</td>`
+        +`<td style="text-align:right;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:#fff;font-weight:620">${pn(pz)}</td>`
+        +`<td style="text-align:right;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:#fff;font-weight:620">${pb.f.toFixed(2)}${tail}</td></tr>`;
+    }
+    const th=(l,sub,first)=>`<th style="color:#fff;font-size:${first?11:10}px;font-weight:${first?700:500};text-align:${first?'left':'right'};padding:0 0 6px;line-height:1.35${first?';width:66px':''}">${_esc(l)}`
+      +(sub?`<i style="display:block;font-style:normal;font-size:8.5px;font-weight:400">${_esc(sub)}</i>`:'')+`</th>`;
+    return `<div class="card" style="padding:12px 14px 8px">`
+      +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
+      +`<span style="font-size:13.5px;font-weight:650;color:#fff">${_esc(nm)}</span>`
+      +`<span title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
+      +`<table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">`
+      +`<thead><tr>${th(_pushDM(date),'',true)}${th(TR.z1Lbl,TR.z1Rng)}${th(TR.z2Lbl,TR.z2Rng)}${th(TR.finLbl,TR.gates[0]+'→'+TR.gates[2]+'m')}</tr></thead>`
+      +`<tbody>${rows}${pbRow}</tbody></table></div>`;
+  };
   const _pushAllCards=()=>{
     const names=_pushNames();
     const ds=[...new Set(_pushAll().filter(t=>names.indexOf(t.athleteName)>=0).map(t=>t.date))]
       .filter(d=>_ltInPeriod(d)).sort();
     if(!ds.length)return _pushEmpty('Push Start');
-    const last=ds[ds.length-1], show=ds.slice(-2);
-    // 세션 카드끼리 비교되도록 페이드 y축 최대값을 공유
-    let ym=0;
-    show.forEach(d=>names.forEach(nm=>{const t=_pushTests(nm).find(t=>t.date===d);if(!t)return;
-      const bf=_pushBestFin(t);if(bf==null)return;
-      _pushOK(t).forEach(a=>{const v=a.t[1]-bf;if(v>ym)ym=v;});}));
-    ym=Math.ceil((ym+0.02)*20)/20;
-    return _progPushCard()
-      +show.reverse().map(d=>_pushFadeCard(d,ym)).join('')
-      +_pushSplitCard(last)+_pushBandCard(last);
+    const last=ds[ds.length-1];
+    const out=names.map(nm=>_pushCardOne(nm,last)).filter(Boolean).join('');
+    return out||_pushEmpty('Push Start');
   };
   // 비교 단위(주/월/연) 집계
   const _ltBKey=ds=>{
@@ -3071,11 +3113,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       +`</div>`;
     if(ltProg==='push'){
       const _pTR=_pushTrack();
-      const _pv=[['finish',_pTR.finLbl],['split1',_pTR.z1Lbl],['zone2',_pTR.z2Lbl]];
-      progRow+=`<div class="lt-row" style="margin-left:0"><span class="lt-lbl">Push Start</span>`
-        +_pv.map(([v,l])=>`<button class="lt-chip" style="${ltPushView===v?'border-color:rgba(247,169,79,.55);background:rgba(247,169,79,.10);color:#f7a94f;font-weight:700':''}" onclick="ltPushViewTg('${v}')">${_esc(l)}</button>`).join('')
-        +(_pTR.confirmed?'':`<span class="lt-hint" style="padding:0 6px">⚠ 게이트 거리 미확정 · gates ${_pTR.gates.join('·')}m 가정</span>`)
-        +`</div>`;
+      if(!_pTR.confirmed)progRow+=`<div class="lt-row" style="margin-left:0"><span class="lt-hint" style="padding:0 6px">⚠ 게이트 거리 미확정 · gates ${_pTR.gates.join('·')}m 가정</span></div>`;
     }
     if(ltProg==='strength'){
       const _plCur=_PROG_LIFTS.find(x=>x.n===ltProgLift)||_PROG_LIFTS[0];
