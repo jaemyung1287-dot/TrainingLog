@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260729-2';
+const APP_VERSION = '20260729-3';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1248,6 +1248,51 @@ function _mergeCloudSprintTimes(localLogs, cloudLogs){
   return localLogs;
 }
 
+// ── logs 배열 id 단위 union 병합 ────────────────────────────────────────────
+// 2026-07-29 사건: 선수 문서에 REST로 넣은 Push Start 로그 2건이, 거의 같은 순간
+// 저장 버튼을 누른 선수 폰의 `set({logs})` 에 통째로 덮여 사라졌다. merge:true 는
+// 최상위 필드만 병합하므로 logs 배열은 언제나 "마지막에 쓴 기기의 목록"이 된다.
+// → 쓰기 전에 클라우드를 읽어 id 단위로 합친다. 내 폰에 없는 기록은 지우지 않고,
+//   진짜 지운 것만 deletedIds(묘비)로 걸러낸다.
+// 로그 id 앞부분은 생성시각(base36 ms)이라 별도 필드 없이도 시각 비교가 된다.
+// 대시보드처럼 같은 id를 제자리 수정하는 경로를 위해 _ts 가 있으면 그걸 우선한다.
+function _idMs(id){
+  const n=parseInt(String(id||'').slice(0,8),36);
+  return (isFinite(n)&&n>1.4e12&&n<4e12)?n:0;   // 2014~2096 범위만 시각으로 인정
+}
+function _logStamp(l){
+  const t=Number(l&&l._ts);
+  return (isFinite(t)&&t>0)?t:_idMs(l&&l.id);
+}
+// cloudLogs + localLogs → id 단위 합집합. 같은 id는 더 최근에 손댄 쪽이 이긴다.
+// 동점이면 local(=이 기기가 방금 만든 것)이 이긴다. delSet 에 있는 id는 양쪽 모두 제외.
+function _mergeLogsById(cloudLogs, localLogs, delSet){
+  const out=new Map();
+  const put=(l,localPass)=>{
+    if(!l||l.id==null) return;
+    if(delSet&&delSet.has(l.id)) return;
+    const prev=out.get(l.id);
+    if(!prev){ out.set(l.id,l); return; }
+    const a=_logStamp(l), b=_logStamp(prev);
+    if(localPass?(a>=b):(a>b)) out.set(l.id,l);
+  };
+  (Array.isArray(cloudLogs)?cloudLogs:[]).forEach(l=>put(l,false));
+  (Array.isArray(localLogs)?localLogs:[]).forEach(l=>put(l,true));
+  return [...out.values()];
+}
+// 클라우드 묘비를 로컬 묘비에 흡수 — 다른 기기가 지운 로그가 이 기기에서 되살아나는 것 방지
+function _absorbCloudDeleted(cloudDeleted, delSet){
+  (Array.isArray(cloudDeleted)?cloudDeleted:[]).forEach(id=>{
+    if(id!=null&&!delSet.has(id)){ _addDeletedId(id); delSet.add(id); }
+  });
+  return delSet;
+}
+// 병합의 전제는 "클라우드를 실제로 읽었다"는 것. 오프라인 캐시본을 읽고 합치면
+// 캐시에 없는 최신 로그를 그대로 날려 버리므로 반드시 서버에서 읽는다.
+function _getFromServer(ref){
+  try{ return ref.get({source:'server'}); }catch(e){ return ref.get(); }
+}
+
 // ── Pending-sync bookkeeping (per athlete) — remember when a log upload failed
 //    so we can show it and auto-retry, instead of silently dropping data. ──
 const _PENDING_SYNC_KEY='trainlog_pending_sync';
@@ -1279,12 +1324,17 @@ async function _syncOwnLogsNow(athId,d){
   try{
     const _delSet=_getDeletedIds();
     const athLogs=(d.logs||[]).filter(l=>(d.athletes||[]).find(a=>a.name===l.athleteName)?.id===athId&&!_delSet.has(l.id));
-    const payload={logs:athLogs,deletedIds:[..._delSet],_lastUpdated:d._lastUpdated||Date.now()};
     for(let attempt=0;attempt<3;attempt++){
       try{
-        // Fetch cloud first so a stale local copy can never wipe coach-entered sprint times.
-        try{ const snap=await _withTimeout(ATHLETE_DOC(athId).get(),6000); _mergeCloudSprintTimes(athLogs,(snap.exists&&snap.data().logs)||[]); }
-        catch(e){ console.warn('[TrainLog] athlete pre-merge read failed:',e); }
+        // 서버에서 현재 문서를 읽어 id 단위로 합친다. 읽기가 실패하면 쓰지 않는다 —
+        // 못 읽은 채로 쓰면 이 기기가 모르는 로그를 지우게 되므로(2026-07-29 유실 사건).
+        const snap=await _withTimeout(_getFromServer(ATHLETE_DOC(athId)),6000);
+        const cloudLogs=(snap.exists&&snap.data().logs)||[];
+        _absorbCloudDeleted((snap.exists&&snap.data().deletedIds)||[],_delSet);
+        _mergeCloudSprintTimes(athLogs,cloudLogs);   // 코치 입력 repTimes 보존(로그 내부 필드 단위)
+        const payload={logs:_mergeLogsById(cloudLogs,athLogs,_delSet),
+                       deletedIds:[..._delSet],
+                       _lastUpdated:d._lastUpdated||Date.now()};
         await _withTimeout(ATHLETE_DOC(athId).set(payload,{merge:true}),8000);
         _clearPendingSync(athId); _hideSyncError();
         if(ST.athlete) showToast('☁️ Log hochgeladen ✓');
@@ -1616,7 +1666,22 @@ async function _fullSyncToCloud(d){
     const ath=(d.athletes||[]).find(a=>a.name===log.athleteName);
     if(ath){ if(!logsByAthlete[ath.id]) logsByAthlete[ath.id]=[]; logsByAthlete[ath.id].push(log); }
   });
-  await Promise.all(Object.entries(logsByAthlete).map(([athId,logs])=>ATHLETE_DOC(athId).set({logs,deletedIds:[..._delSet],_lastUpdated:d._lastUpdated||Date.now()},{merge:true})));
+  await Promise.all(Object.entries(logsByAthlete).map(async ([athId,logs])=>{
+    // 코치 기기가 팀 전체를 밀어넣는 경로 — 여기가 가장 위험하다(선수 8명분을 한꺼번에
+    // 덮어쓰므로). 선수 저장 경로와 같은 규칙으로 읽고 합친 뒤 쓴다.
+    let merged=logs, dels=_delSet;
+    try{
+      const snap=await _withTimeout(_getFromServer(ATHLETE_DOC(athId)),6000);
+      const cloudLogs=(snap.exists&&snap.data().logs)||[];
+      dels=_absorbCloudDeleted((snap.exists&&snap.data().deletedIds)||[],new Set([..._delSet]));
+      _mergeCloudSprintTimes(logs,cloudLogs);
+      merged=_mergeLogsById(cloudLogs,logs,dels);
+    }catch(e){
+      console.warn('[TrainLog] full-sync pre-read failed for',athId,'— 덮어쓰기 방지를 위해 건너뜀:',e);
+      return;   // 못 읽었으면 쓰지 않는다
+    }
+    await ATHLETE_DOC(athId).set({logs:merged,deletedIds:[...dels],_lastUpdated:d._lastUpdated||Date.now()},{merge:true});
+  }));
 }
 
 // Start real-time listener (coach dashboard)
