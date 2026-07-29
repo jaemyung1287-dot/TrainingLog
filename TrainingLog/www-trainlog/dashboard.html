@@ -654,6 +654,14 @@ function _pushDrop(ev,j){ev.preventDefault();
   try{localStorage.setItem('lt_push_order',JSON.stringify(o));}catch(e){}
   _rerenderTrends();}
 
+let _ltBrkHidden=new Set();    // 분해 막대 범례로 숨긴 항목 'grp|label' (재렌더/핀 후에도 유지)
+let _ltCat=[],_ltAthList=[],_ltMetricList=[],_ltCatNames=[];
+const _LT_PAL=['#58a6ff','#bc8cff','#3ecf8e','#f7a94f','#f85149','#56d4dd','#e879c9','#a3e635','#fbbf24','#f472b6'];
+// 팀 뷰 선수 전용 고대비 팔레트(색상환 균등 분산 — 9명 구분 용이)
+const _ATH_PAL=['#ff5d5d','#ff9e3d','#e6c229','#5ec16a','#2bd0c4','#4e9bff','#7c6bff','#c072f0','#ff6fb5'];
+const _LT_MON=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const charts={};
+
 // ══ AUTH ══
 function doLogin(){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>showErr(e.message));}
 function showErr(m){const el=document.getElementById('auth-err');el.textContent=m;el.style.display='block';}
