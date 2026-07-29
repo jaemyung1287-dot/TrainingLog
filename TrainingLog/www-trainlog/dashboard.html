@@ -626,33 +626,59 @@ let ltProg=null;              // Progression 선택: null|'strength'|'push' ('sp
 let ltProgLift='Squat';       // Strength Progression 선택 리프트(raw 운동명)
 let ltPushView='finish';      // Push Start 지표: finish|split1|zone2|speed
 
-// Push Start 카드 드래그 정렬 (선수 여러 명 비교용) — 순서는 localStorage에 보존
-let _pushOrder=[];try{const _o=localStorage.getItem('lt_push_order');if(_o)_pushOrder=JSON.parse(_o)||[];}catch(e){_pushOrder=[];}
-let _pushDragI=-1;
-function _pushClear(){try{document.querySelectorAll('[data-pushcard]').forEach(el=>{el.style.boxShadow='';el.style.opacity='';});}catch(e){}}
-// 커서가 카드 가로 중앙보다 오른쪽이면 '뒤에 삽입'
-function _pushSide(ev,c){try{const r=c.getBoundingClientRect();return ev.clientX>r.left+r.width/2;}catch(e){return false;}}
-function _pushDragStart(ev,i){_pushDragI=i;
-  try{ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',String(i));}catch(e){}
-  const c=ev.currentTarget;if(c)setTimeout(()=>{c.style.opacity='.35';},0);}
-function _pushDragOver(ev){ev.preventDefault();try{ev.dataTransfer.dropEffect='move';}catch(e){}
-  const c=ev.currentTarget;if(!c||_pushDragI<0)return;
-  if(+c.getAttribute('data-pushcard')===_pushDragI){c.style.boxShadow='';return;}
-  c.style.boxShadow=(_pushSide(ev,c)?'inset -3px 0 0 0 #f7a94f':'inset 3px 0 0 0 #f7a94f');}
-function _pushDragLeave(ev){const c=ev.currentTarget;if(c)c.style.boxShadow='';}
-function _pushDragEnd(){_pushDragI=-1;_pushClear();}
-function _pushDrop(ev,j){ev.preventDefault();
-  const c=ev.currentTarget, after=c?_pushSide(ev,c):false;
-  const i=_pushDragI;_pushDragI=-1;_pushClear();
-  if(i<0||i>=_pushOrder.length||j<0||j>=_pushOrder.length)return;
-  let pos=j+(after?1:0);
-  if(i<pos)pos--;                       // 앞에서 빼면 뒤쪽 인덱스가 한 칸 당겨짐
-  if(pos===i)return;
-  const o=_pushOrder.slice(), m=o.splice(i,1)[0];
-  o.splice(Math.max(0,Math.min(pos,o.length)),0,m);
-  _pushOrder=o;
-  try{localStorage.setItem('lt_push_order',JSON.stringify(o));}catch(e){}
-  _rerenderTrends();}
+// Push Start 카드 자유 배치 — 카드를 아무 데나 끌어다 놓고 위치는 localStorage에 보존
+let _pushPos={};try{const _p=localStorage.getItem('lt_push_pos');if(_p)_pushPos=JSON.parse(_p)||{};}catch(e){_pushPos={};}
+let _pushCardNames=[];      // 렌더 시점의 카드 인덱스 → 선수명
+let _pushDrag=null;
+const _PUSH_W=340, _PUSH_GAP=14;
+function _pushSavePos(){try{localStorage.setItem('lt_push_pos',JSON.stringify(_pushPos));}catch(e){}}
+function _pushFitH(par){if(!par)return;let m=0;par.querySelectorAll('[data-pushcard]').forEach(el=>{m=Math.max(m,el.offsetTop+el.offsetHeight);});par.style.height=(m+8)+'px';}
+// 저장된 위치 적용 + 저장 안 된 카드는 빈 칸에 자동 배치(짧은 열 우선)
+function _pushLayout(){
+  const par=document.getElementById('push-canvas');if(!par)return;
+  const cards=[...par.querySelectorAll('[data-pushcard]')];if(!cards.length)return;
+  const W=par.clientWidth||900;
+  const cols=Math.max(1,Math.floor((W+_PUSH_GAP)/(_PUSH_W+_PUSH_GAP)));
+  const colH=new Array(cols).fill(0);
+  cards.forEach(el=>{
+    const nm=_pushCardNames[+el.getAttribute('data-pushcard')];
+    const sv=nm?_pushPos[nm]:null;
+    if(sv&&isFinite(sv.x)&&isFinite(sv.y)){el.style.left=Math.max(0,sv.x)+'px';el.style.top=Math.max(0,sv.y)+'px';return;}
+    let c=0;for(let i=1;i<cols;i++)if(colH[i]<colH[c])c=i;
+    el.style.left=(c*(_PUSH_W+_PUSH_GAP))+'px';el.style.top=colH[c]+'px';
+    colH[c]+=el.offsetHeight+_PUSH_GAP;
+  });
+  _pushFitH(par);
+}
+function _pushGrab(ev,idx){
+  if(ev.button!==0)return;
+  if(ev.target&&ev.target.closest&&ev.target.closest('[data-pushclose]'))return;
+  const el=ev.currentTarget.closest?ev.currentTarget.closest('[data-pushcard]'):null;if(!el)return;
+  const r=el.getBoundingClientRect(), p=el.parentNode.getBoundingClientRect();
+  _pushDrag={idx,el,dx:ev.clientX-r.left,dy:ev.clientY-r.top,x:r.left-p.left,y:r.top-p.top};
+  el.style.zIndex='99';el.style.cursor='grabbing';el.style.boxShadow='0 8px 24px rgba(0,0,0,.55)';
+  document.addEventListener('mousemove',_pushMove);
+  document.addEventListener('mouseup',_pushRelease);
+  ev.preventDefault();
+}
+function _pushMove(ev){
+  if(!_pushDrag)return;
+  const p=_pushDrag.el.parentNode.getBoundingClientRect();
+  const x=Math.max(0,ev.clientX-p.left-_pushDrag.dx), y=Math.max(0,ev.clientY-p.top-_pushDrag.dy);
+  _pushDrag.x=x;_pushDrag.y=y;
+  _pushDrag.el.style.left=x+'px';_pushDrag.el.style.top=y+'px';
+}
+function _pushRelease(){
+  if(!_pushDrag)return;
+  const d=_pushDrag;_pushDrag=null;
+  document.removeEventListener('mousemove',_pushMove);
+  document.removeEventListener('mouseup',_pushRelease);
+  d.el.style.zIndex='';d.el.style.cursor='';d.el.style.boxShadow='';
+  const nm=_pushCardNames[d.idx];
+  if(nm){_pushPos[nm]={x:Math.round(d.x),y:Math.round(d.y)};_pushSavePos();}
+  _pushFitH(d.el.parentNode);
+}
+function _pushResetPos(){_pushPos={};_pushSavePos();_rerenderTrends();}
 
 let _ltBrkHidden=new Set();    // 분해 막대 범례로 숨긴 항목 'grp|label' (재렌더/핀 후에도 유지)
 let _ltCat=[],_ltAthList=[],_ltMetricList=[],_ltCatNames=[];
@@ -2865,11 +2891,10 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     }
     const th=(l,sub,first)=>`<th style="color:#fff;font-size:${first?11:10}px;font-weight:${first?700:500};text-align:${first?'left':'right'};padding:0 0 6px;line-height:1.35${first?';width:66px':''}">${_esc(l)}`
       +(sub?`<i style="display:block;font-style:normal;font-size:8.5px;font-weight:400">${_esc(sub)}</i>`:'')+`</th>`;
-    return `<div class="card" data-pushcard="${idx}" draggable="true" style="padding:12px 14px 8px"`
-      +` ondragstart="_pushDragStart(event,${idx})" ondragover="_pushDragOver(event)" ondragleave="_pushDragLeave(event)" ondrop="_pushDrop(event,${idx})" ondragend="_pushDragEnd()">`
+    return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;width:${_PUSH_W}px;cursor:grab;user-select:none">`
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
-      +`<span style="font-size:13.5px;font-weight:650;color:#fff"><span title="끌어서 순서 변경" style="cursor:grab;color:var(--hint);font-size:12px;margin-right:7px">⠿</span>${_esc(nm)}</span>`
-      +`<span title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
+      +`<span style="font-size:13.5px;font-weight:650;color:#fff"><span title="끌어서 이동" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>${_esc(nm)}</span>`
+      +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
       +`<table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">`
       +`<thead><tr>${th(_pushDM(date),'',true)}${th(TR.z1Lbl,TR.z1Rng)}${th(TR.z2Lbl,TR.z2Rng)}${th(TR.finLbl,TR.gates[0]+'→'+TR.gates[2]+'m')}</tr></thead>`
       +`<tbody>${rows}${pbRow}</tbody></table></div>`;
@@ -2883,14 +2908,15 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       .filter(d=>_ltInPeriod(d)).sort();
     if(!ds.length)return _pushEmpty('Push Start');
     const last=ds[ds.length-1];
-    // 데이터 있는 선수만 → 저장된 드래그 순서 적용(새 선수는 뒤에 추가)
     const shown=names.filter(nm=>{const t=_pushTests(nm).find(x=>x.date===last);return t&&_pushOK(t).length;});
     if(!shown.length)return _pushEmpty('Push Start');
-    _pushOrder=_pushOrder.filter(n=>shown.indexOf(n)>=0).concat(shown.filter(n=>_pushOrder.indexOf(n)<0));
-    const out=_pushOrder.map((nm,i)=>_pushCardOne(nm,last,i)).filter(Boolean).join('');
+    _pushCardNames=shown.slice();
+    const out=shown.map((nm,i)=>_pushCardOne(nm,last,i)).filter(Boolean).join('');
     if(!out)return _pushEmpty('Push Start');
-    // 카드가 가로로 늘어지지 않게 자체 그리드로 감싼다(부모가 1fr 그리드여도 안전)
-    return `<div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,380px));justify-content:start;gap:12px;align-items:start">${out}</div>`;
+    // 자유 배치 캔버스 — 카드는 절대좌표, 삽입 직후 _pushLayout()으로 자리 잡음
+    return `<div id="push-canvas" style="grid-column:1/-1;position:relative;width:100%;min-height:120px">${out}`
+      +`<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onload="setTimeout(_pushLayout,0)">`
+      +`</div>`;
   };
   // 비교 단위(주/월/연) 집계
   const _ltBKey=ds=>{
@@ -3281,7 +3307,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       return _ltCard(key+' · 선수별',(sprint?'best time(s)':'top set(kg)')+(_ltBkSub?' · '+_ltBkSub:''),{type:'line',data:{labels,datasets:dss},options:opt,plugins},250,_ltCat.indexOf(key));
     };
     const _teamCharts=()=>{
-      if(!selKeys.length)return `<div class="lt-hint" style="grid-column:1/-1">지표를 선택하면 팀 추이(누적 막대)와 카테고리 분해가 표시됩니다</div>`;
+      if(!selKeys.length)return ltProg?'':`<div class="lt-hint" style="grid-column:1/-1">지표를 선택하면 팀 추이(누적 막대)와 카테고리 분해가 표시됩니다</div>`;
       let out='';
       if(hasRdy)out+=_ltRdyCard();
       if(hasCond)out+=_ltCondCard();
@@ -3370,7 +3396,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     if(hasRdy)LT+=_ltRdyCard();   // 단독 선택 시 스택을 안 타므로 여기서 그려야 함(_stackN>1 게이트)
     if(hasCond)LT+=_ltCondCard();
     if(!selKeys.length&&ltProg!=='strength'&&ltProg!=='push'){
-      LT+=`<div class="lt-hint" style="grid-column:1/-1">Add exercises above to see trends (also select Total Volume / Sprint Distance)</div>`;
+      if(!ltProg)LT+=`<div class="lt-hint" style="grid-column:1/-1">Add exercises above to see trends (also select Total Volume / Sprint Distance)</div>`;
     } else if(ltWeeks.length){
       // ── 주차 비교 스택: 선택한 주차마다 차트 추가 (Split=세로 스택 · Overlay=한 차트에 겹침) ──
       const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
