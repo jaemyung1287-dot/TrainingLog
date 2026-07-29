@@ -2851,7 +2851,9 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     if(!ds.length)return _pushEmpty('Push Start');
     const last=ds[ds.length-1];
     const out=names.map(nm=>_pushCardOne(nm,last)).filter(Boolean).join('');
-    return out||_pushEmpty('Push Start');
+    if(!out)return _pushEmpty('Push Start');
+    // 카드가 가로로 늘어지지 않게 자체 그리드로 감싼다(부모가 1fr 그리드여도 안전)
+    return `<div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,380px));justify-content:start;gap:12px;align-items:start">${out}</div>`;
   };
   // 비교 단위(주/월/연) 집계
   const _ltBKey=ds=>{
