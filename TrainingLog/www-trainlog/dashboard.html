@@ -620,6 +620,7 @@ let ltWeeks=[];              // 주차 비교 스택: 'd1|d2' 배열 — 고를 
 let ltWkPins={};             // 주차 비교 세션 핀: 'metric|d1|dayIdx' → 차트 아래 세션 상세 고정
 let ltBrkPins={};            // 분해(카테고리) 막대 세션 핀: 'kind|grp|date' → 그 날 세션 상세 고정
 let ltDistBreak='none';       // none|sub|disc — Sprint Distance 분해 보기(누적)
+let ltRdyMode='avg';          // avg|per — Readiness: 선택 선수 평균 한 줄 | 선수별 한 줄씩
 let ltBrkBars='group';        // group|stack — 분해 비교(주/월/연) 막대 모양
 let _ltPins=[];               // 추이 차트 점 클릭 → 아래 고정 비교할 세션 날짜들(YYYY-MM-DD)
 let ltProg=null;              // Progression 선택: null|'strength'|'push' ('sprint' 예정)
@@ -633,12 +634,31 @@ let _pushDrag=null;
 const _PUSH_W=340, _PUSH_GAP=14;
 function _pushSavePos(){try{localStorage.setItem('lt_push_pos',JSON.stringify(_pushPos));}catch(e){}}
 function _pushFitH(par){if(!par)return;let m=0;par.querySelectorAll('[data-pushcard]').forEach(el=>{m=Math.max(m,el.offsetTop+el.offsetHeight);});par.style.height=(m+8)+'px';}
+// All Athletes 에서는 자유 배치를 쓰지 않는다 — 위 이름 칩 순서 그대로 격자로 고정.
+// 이유: 절대좌표를 저장해 두면 선수를 바꿔 보거나 All Athletes로 돌아왔을 때 카드가
+// 어긋나고(겹쳐서 아예 안 보이는 카드까지 생김) 순서가 매번 달라진다.
+// 그룹/개별 선택에서는 기존대로 드래그 위치를 기억한다.
+function _pushFixedOrder(){ return selScope==='all'&&!(typeof selNames!=='undefined'&&selNames.size); }
 // 저장된 위치 적용 + 저장 안 된 카드는 빈 칸에 자동 배치(짧은 열 우선)
 function _pushLayout(){
   const par=document.getElementById('push-canvas');if(!par)return;
   const cards=[...par.querySelectorAll('[data-pushcard]')];if(!cards.length)return;
   const W=par.clientWidth||900;
   const cols=Math.max(1,Math.floor((W+_PUSH_GAP)/(_PUSH_W+_PUSH_GAP)));
+  // ── All Athletes: data-pushcard 인덱스(=이름 순서)대로 좌→우, 줄바꿈. 같은 줄은 윗변 정렬 ──
+  if(_pushFixedOrder()){
+    const ordered=cards.slice().sort((a,b)=>(+a.getAttribute('data-pushcard'))-(+b.getAttribute('data-pushcard')));
+    let rowTop=0, rowMax=0;
+    ordered.forEach((el,i)=>{
+      const c=i%cols;
+      if(c===0&&i>0){ rowTop+=rowMax+_PUSH_GAP; rowMax=0; }
+      el.style.left=(c*(_PUSH_W+_PUSH_GAP))+'px';
+      el.style.top=rowTop+'px';
+      rowMax=Math.max(rowMax,el.offsetHeight);
+    });
+    _pushFitH(par);
+    return;
+  }
   const colH=new Array(cols).fill(0), free=[];
   // 1차: 저장된 위치 적용 + 그 카드가 걸치는 열의 높이를 선점시켜 자동배치와 겹치지 않게
   cards.forEach(el=>{
@@ -684,7 +704,9 @@ function _pushRelease(){
   document.removeEventListener('mouseup',_pushRelease);
   d.el.style.zIndex='';d.el.style.cursor='';d.el.style.boxShadow='';
   const nm=_pushCardNames[d.idx];
-  if(nm){_pushPos[nm]={x:Math.round(d.x),y:Math.round(d.y)};_pushSavePos();}
+  // All Athletes는 이름순 고정이 원칙 — 끌어서 잠깐 옮겨 보는 건 되지만 위치를 기억하지는 않는다
+  // (기억하면 다음에 들어올 때 또 순서가 흐트러지고, 그룹/개별용 저장 배치까지 덮어쓴다)
+  if(nm&&!_pushFixedOrder()){_pushPos[nm]={x:Math.round(d.x),y:Math.round(d.y)};_pushSavePos();}
   _pushFitH(d.el.parentNode);
 }
 function _pushResetPos(){_pushPos={};_pushSavePos();_rerenderTrends();}
@@ -2712,7 +2734,54 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     });
     return Object.entries(byDate).map(([d,o])=>({d,v:Math.round(o.sum/o.cnt),meta:o.lines.slice(),color:(o.cnt===1?o.colors[0]:'#bc8cff')})).sort((a,b)=>a.d.localeCompare(b.d));
   })();
-  const _ltRdyCard=()=>{
+  // ── Readiness 선수별 시리즈 — 평균 대신 각자 한 줄씩(ltRdyMode==='per') ──
+  // 평균 한 줄은 그날 로그한 사람만 세므로 분모가 날마다 바뀐다. 누가 끌어내렸는지
+  // 보려면 개별 값이 필요해서 모드를 하나 더 뒀다. 평균 모드는 그대로 기본값.
+  const _ltRdyNames=selAth?[selAth.name]:(fAthletes||[]).map(a=>a.name);
+  const _ltRdyPer=(()=>{
+    if(_ltRdyNames.length<2)return [];
+    return _ltRdyNames.map((nm,i)=>{
+      const full=getLogsByName(nm);
+      const pts=[...new Set(full.filter(l=>l.type==='condition'&&l.athleteName===nm).map(l=>l.date))]
+        .map(d=>{
+          const r=_readiness(full,nm,d); if(!r||!r.ok)return null;
+          const c=_condOn(full,nm,d);
+          const lt=r.light==='g'?'양호':r.light==='y'?'주의':'회복';
+          const lines=['Readiness '+r.score+'/100 · '+lt+(r.mode==='abs'?' (기준선 구축중)':'')];
+          if(c){
+            if(c.fatigue!=null)lines.push('Fatigue '+c.fatigue+'/10');
+            lines.push('근육통 '+_soreSev(c)+'/10');
+            if(c.sleepHours!=null||c.sleepQuality!=null)lines.push('Sleep '+(c.sleepHours!=null?c.sleepHours+'h':'-')+(c.sleepQuality!=null?' · 질 '+c.sleepQuality+'/10':''));
+            if(c.mood!=null)lines.push('Mood '+c.mood+'/10');
+          }
+          return {d,v:r.score,meta:lines};
+        }).filter(Boolean).sort((a,b)=>a.d.localeCompare(b.d));
+      return {nm,col:_ATH_PAL[i%_ATH_PAL.length],s:_flt(pts)};
+    }).filter(o=>o.s.length);
+  })();
+  const _ltRdyCardPer=()=>{
+    const per=_ltRdyPer;
+    if(!per.length)return _ltRdyCardAvg();
+    const dates=[...new Set(per.flatMap(o=>o.s.map(p=>p.d)))].sort();
+    const opt=_ltTip(false,true);
+    const _vs=per.flatMap(o=>o.s.map(p=>p.v)).filter(v=>v!=null&&isFinite(v));
+    const _yMin=_vs.length?Math.max(0,Math.floor((Math.min(..._vs)-10)/10)*10):0;
+    opt.scales.y.min=_yMin; opt.scales.y.max=100+Math.max(12,Math.round((100-_yMin)*0.16));
+    opt.scales.y.ticks=Object.assign({},opt.scales.y.ticks,{stepSize:10,callback:v=>v>100?'':v});
+    opt.scales.x.ticks=_ltDateTicks(opt.scales.x.ticks,dates);
+    _ltAttachInteract(opt,dates,null,true);
+    // 선을 겹쳐 그리므로 점 위 값 라벨은 붙이지 않는다(겹쳐 읽을 수 없음) — 값은 호버로.
+    const dss=per.map(o=>{
+      const byD={}; o.s.forEach(p=>byD[p.d]=p);
+      return {label:o.nm,data:dates.map(d=>byD[d]?byD[d].v:null),_metas:dates.map(d=>byD[d]?byD[d].meta:''),
+        borderColor:o.col,backgroundColor:o.col,pointBackgroundColor:o.col,pointBorderColor:o.col,
+        fill:false,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,spanGaps:true};
+    });
+    const cfg={type:'line',data:{labels:dates.map(d=>fmt(d)),datasets:dss},options:opt};
+    return _ltCard('Readiness','0~100 · 선수별',cfg,320,_ltCat.indexOf('__rdy__'));
+  };
+  const _ltRdyCard=()=>(ltRdyMode==='per'&&_ltRdyPer.length>1)?_ltRdyCardPer():_ltRdyCardAvg();
+  const _ltRdyCardAvg=()=>{
     const s=_flt(_ltRdyS);
     if(!s.length)return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">Readiness</span><span title="제거" onclick="ltToggleEx(${_ltCat.indexOf('__rdy__')})" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">No condition logs in this period</div></div>`;
     const dates=s.map(p=>p.d);
@@ -2920,7 +2989,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       +(sub?`<i style="display:block;font-style:normal;font-size:8.5px;font-weight:400">${_esc(sub)}</i>`:'')+`</th>`;
     return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;width:${_PUSH_W}px;cursor:grab;user-select:none">`
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
-      +`<span style="font-size:13.5px;font-weight:650;color:#fff"><span title="끌어서 이동" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>${_esc(nm)}</span>`
+      +`<span style="font-size:13.5px;font-weight:650;color:#fff"><span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>${_esc(nm)}</span>`
       +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
       +`<table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">`
       +`<thead><tr>${th(_pushDM(date),'',true)}${th(TR.z1Lbl,TR.z1Rng)}${th(TR.z2Lbl,TR.z2Rng)}${th(TR.finLbl,TR.gates[0]+'→'+TR.gates[2]+'m')}</tr></thead>`
@@ -3377,7 +3446,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       let h=`<div style="display:flex;flex-direction:column;gap:12px">`;
       // 선택(클릭)한 순서 그대로 렌더링
       const _cardFor=n=>{
-        if(n==='__rdy__'&&hasRdy)return _ltCard('Readiness','0~100 · condition composite',_mk(rdy,'#bc8cff',false,'rdy',false,null,true,'avg'),240,_ltCat.indexOf('__rdy__'));
+        if(n==='__rdy__'&&hasRdy)return (ltRdyMode==='per'&&_ltRdyPer.length>1)?_ltRdyCardPer()
+          :_ltCard('Readiness','0~100 · condition composite',_mk(rdy,'#bc8cff',false,'rdy',false,null,true,'avg'),240,_ltCat.indexOf('__rdy__'));
         if(n==='__cond__'&&hasCond)return _ltCard('Conditioning','0~10 · Ø Schwierigkeit',_mk(condS,'#E07B39',false,'cond',false,null,true,'avg'),240,_ltCat.indexOf('__cond__'));
         if(n==='__vol__'&&hasVol)return _ltCard('Total Volume','kg/session',_mk(volS,'#f7a94f',false,'kg',false,null,true,'sum'),240,_ltCat.indexOf('__vol__'));
         if(n==='__dist__'&&hasDist)return _ltCard('Sprint Distance','m/session',_mk(distS,'#3ecf8e',false,'m',false,null,true,'sum'),240,_ltCat.indexOf('__dist__'));
@@ -3406,6 +3476,10 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     if(hasDist&&!ltAB&&!volDistOverlay&&!_stack){
       const _db=(v,l)=>`<button class="${ltDistBreak===v?'on':''}" style="${ltDistBreak===v?'background:rgba(62,207,142,.16);color:#3ecf8e':''}" onclick="ltDistBreak=ltDistBreak==='${v}'?'none':'${v}';ltBrkBars='group';_ltBrkHidden.clear();_rerenderTrends()">${l}</button>`;
       LT+=`<div class="lt-row"><span class="lt-lbl">Distance</span><div class="lt-seg">${_db('none','Total')}${_db('sub','Quality')}${_db('disc','Method')}</div></div>`;
+    }
+    if(hasRdy&&_ltRdyNames.length>1){
+      const _rb=(v,l)=>`<button class="${ltRdyMode===v?'on':''}" style="${ltRdyMode===v?'background:rgba(188,140,255,.16);color:#bc8cff':''}" onclick="ltRdyMode='${v}';_rerenderTrends()">${l}</button>`;
+      LT+=`<div class="lt-row"><span class="lt-lbl">Readiness</span><div class="lt-seg">${_rb('avg','Team average')}${_rb('per','Per athlete')}</div></div>`;
     }
     if(((hasVol&&ltVolBreak!=='none')||(hasDist&&ltDistBreak!=='none'))&&!ltAB&&!volDistOverlay&&!_stack&&!_forceStack){
       const _bb=(v,l)=>`<button class="${ltBrkBars===v?'on':''}" onclick="ltBrkBars='${v}';_rerenderTrends()">${l}</button>`;
