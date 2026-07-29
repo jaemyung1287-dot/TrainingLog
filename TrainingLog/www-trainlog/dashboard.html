@@ -2866,7 +2866,10 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       +`<thead><tr>${th(_pushDM(date),'',true)}${th(TR.z1Lbl,TR.z1Rng)}${th(TR.z2Lbl,TR.z2Rng)}${th(TR.finLbl,TR.gates[0]+'→'+TR.gates[2]+'m')}</tr></thead>`
       +`<tbody>${rows}${pbRow}</tbody></table></div>`;
   };
-  const _pushAllCards=()=>{
+  const _pushAllCards=()=>{try{return _pushAllCards0();}catch(err){
+    console.error('[PushStart] 렌더 실패',err);
+    return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">Push Start</span><span onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">표를 그리지 못했습니다 — ${_esc(String(err&&err.message||err))}</div></div>`;}};
+  const _pushAllCards0=()=>{
     const names=_pushNames();
     const ds=[...new Set(_pushAll().filter(t=>names.indexOf(t.athleteName)>=0).map(t=>t.date))]
       .filter(d=>_ltInPeriod(d)).sort();
