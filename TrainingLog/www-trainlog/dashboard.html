@@ -631,6 +631,14 @@ let ltPushView='finish';      // Push Start 지표: finish|split1|zone2|speed
 let _pushPos={};try{const _p=localStorage.getItem('lt_push_pos');if(_p)_pushPos=JSON.parse(_p)||{};}catch(e){_pushPos={};}
 let _pushCardNames=[];      // 렌더 시점의 카드 인덱스 → 선수명
 let _pushDrag=null;
+// 카드 안에서 펼쳐 둔 세션 — 선수명 → 날짜 배열. 기본은 전부 접힘(점 차트만 보임)
+let _pushOpenSess={};
+function _pushTgSess(idx,d){
+  const nm=_pushCardNames[idx]; if(!nm)return;
+  const cur=_pushOpenSess[nm]||[];
+  _pushOpenSess[nm]=(cur.indexOf(d)>=0)?cur.filter(x=>x!==d):cur.concat([d]);
+  _rerenderTrends();
+}
 const _PUSH_W=340, _PUSH_GAP=14;
 function _pushSavePos(){try{localStorage.setItem('lt_push_pos',JSON.stringify(_pushPos));}catch(e){}}
 function _pushFitH(par){if(!par)return;let m=0;par.querySelectorAll('[data-pushcard]').forEach(el=>{m=Math.max(m,el.offsetTop+el.offsetHeight);});par.style.height=(m+8)+'px';}
@@ -681,7 +689,7 @@ function _pushLayout(){
 }
 function _pushGrab(ev,idx){
   if(ev.button!==0)return;
-  if(ev.target&&ev.target.closest&&ev.target.closest('[data-pushclose]'))return;
+  if(ev.target&&ev.target.closest&&ev.target.closest('[data-pushclose],[data-nodrag]'))return;
   const el=ev.currentTarget.closest?ev.currentTarget.closest('[data-pushcard]'):null;if(!el)return;
   const r=el.getBoundingClientRect(), p=el.parentNode.getBoundingClientRect();
   _pushDrag={idx,el,dx:ev.clientX-r.left,dy:ev.clientY-r.top,x:r.left-p.left,y:r.top-p.top};
@@ -1668,7 +1676,7 @@ function _pushAll(){
     logTests=(typeof getAllLogs==='function'?getAllLogs():[])
       .filter(l=>l&&l.type==='push'&&Array.isArray(l.attempts)&&l.attempts.length)
       .map(l=>({id:l.id,date:l.date,athleteName:l.athleteName,athleteId:l.athleteId||null,
-                group:l.group,type:'push',attempts:l.attempts,notes:l.notes||'',_src:'log'}));
+                group:l.group,type:'push',sess:l.sess||null,attempts:l.attempts,notes:l.notes||'',_src:'log'}));
   }catch(_){ logTests=[]; }
   if(!logTests.length) return docTests;
   const key=t=>(t&&t.athleteName||'')+'|'+(t&&t.date||'');
@@ -2947,9 +2955,59 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
 
   // Push Start — 선수별 시도 기록표 (차트 대신 숫자 중심, 2026-07-29 재설계)
   const _pushDM=d=>{const p=String(d||'').split('-');return p.length<3?'':(+p[2])+'.'+(+p[1]);};
-  const _pushCardOne=(nm,date,idx)=>{
+  // 같은 날 로그가 여러 건일 때: am/pm 등 세션이 다르면 시도를 합치고,
+  // 같은 세션이 중복되면 가장 나중에 만들어진 것만 쓴다(선수 앱 수정 저장이 원본을 남겨 두는 경우가 있다 — id 앞 8자리 base36 = 생성 ms).
+  const _pushLogTs=t=>{const s=String(t&&t.id||'').slice(0,8);const v=parseInt(s,36);return isNaN(v)?0:v;};
+  const _pushSessOf=(nm,date)=>{
+    const ts=_pushTests(nm).filter(x=>x.date===date);
+    if(!ts.length)return null;
+    if(ts.length===1)return ts[0];
+    const bySess={};
+    ts.forEach(t=>{const k=t.sess||'_';
+      if(!bySess[k]||_pushLogTs(t)>=_pushLogTs(bySess[k]))bySess[k]=t;});
+    const keep=Object.keys(bySess).sort().map(k=>bySess[k]);
+    if(keep.length===1)return keep[0];
+    return {date,athleteName:nm,type:'push',
+      attempts:keep.reduce((a,t)=>a.concat(Array.isArray(t.attempts)?t.attempts:[]),[])};
+  };
+  // 세션 점 차트 — x=세션 순서, y=그날 best Finish(빠를수록 위). 점 클릭 → 아래 표 펼침/접힘
+  const _pushDots=(nm,dates,idx,open)=>{
+    const W=_PUSH_W-28, H=96, PL=16, PR=16, TOP=24, BOT=22, PH=H-TOP-BOT;
+    const vs=dates.map(d=>{const s=_pushSessOf(nm,d),ok=s?_pushOK(s):[];return ok.length?Math.min(...ok.map(_pushFin)):null;});
+    const fin=vs.filter(v=>v!=null); if(!fin.length)return '';
+    const lo=Math.min(...fin), hi=Math.max(...fin), sp=(hi-lo)||1;
+    const X=i=>dates.length<2?W/2:PL+(W-PL-PR)*(i/(dates.length-1));
+    const Y=v=>(hi===lo)?TOP+PH/2:TOP+PH*((v-lo)/sp);
+    let ln='';
+    for(let i=1;i<dates.length;i++){ if(vs[i-1]==null||vs[i]==null)continue;
+      ln+=`<line x1="${X(i-1).toFixed(1)}" y1="${Y(vs[i-1]).toFixed(1)}" x2="${X(i).toFixed(1)}" y2="${Y(vs[i]).toFixed(1)}" stroke="#30363d" stroke-width="1.5"/>`; }
+    const pts=dates.map((d,i)=>{ if(vs[i]==null)return '';
+      const on=open.indexOf(d)>=0, x=X(i).toFixed(1), y=Y(vs[i]).toFixed(1), pbv=(vs[i]===lo);
+      return `<g data-nodrag="1" style="cursor:pointer" onclick="_pushTgSess(${idx},'${d}')">`
+        +`<circle cx="${x}" cy="${y}" r="14" fill="transparent"/>`
+        +`<circle cx="${x}" cy="${y}" r="6" fill="${on?'#e3b341':'#161b22'}" stroke="${on?'#e3b341':'#8b949e'}" stroke-width="1.6"/>`
+        +`<text x="${x}" y="${(+y-12).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="${pbv?700:500}" fill="${on?'#e3b341':(pbv?'#e3b341':'#fff')}">${vs[i].toFixed(2)}</text>`
+        +`<text x="${x}" y="${H-7}" text-anchor="middle" font-size="10" fill="${on?'#e3b341':'#8b949e'}">${_esc(_pushDM(d))}</text></g>`; }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;overflow:visible">${ln}${pts}</svg>`;
+  };
+  const _pushCardOne=(nm,dates,idx)=>{
+    if(!dates||!dates.length)return '';
     const TR=_pushTrack();
-    const t=_pushTests(nm).find(x=>x.date===date); if(!t)return '';
+    const open=(_pushOpenSess[nm]||[]).filter(d=>dates.indexOf(d)>=0).slice().sort().reverse();
+    const narrow=open.length>1;
+    const body=open.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d">`
+        +open.map(d=>`<div style="flex:1 1 132px;min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`
+      : `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`;
+    return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;width:${_PUSH_W}px;cursor:grab;user-select:none">`
+      +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
+      +`<span style="font-size:13.5px;font-weight:650;color:#fff"><span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>${_esc(nm)}</span>`
+      +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
+      +_pushDots(nm,dates,idx,open)+body+`</div>`;
+  };
+  // 세션 하나의 시도 기록표 (기존 표 그대로 — 첫 열 머리 = 날짜)
+  const _pushSessTable=(nm,date,TR,narrow)=>{
+    const t=_pushSessOf(nm,date); if(!t)return '';
     const att=_pushAtt(t), ok=_pushOK(t); if(!ok.length)return '';
     const best=Math.min(...ok.map(_pushFin));
     const s1s=ok.map(_pushS1).filter(v=>v!=null), bS1=s1s.length?Math.min(...s1s):null;
@@ -2980,34 +3038,29 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         :`<span style="margin-left:4px;font-weight:650;color:${gap<0?GR:(gap>0?'#f85149':'#fff')}">${gap>0?'+':''}${gap.toFixed(2)}</span>`;
       const pz=(pb.s1==null)?null:+(pb.f-pb.s1).toFixed(3);
       const pn=v=>v==null?'—':v.toFixed(2);
-      pbRow=`<tr><td style="text-align:left;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:${GD};font-weight:700">PB <span style="font-weight:400;font-size:10px;color:#fff">(${_pushDM(pb.d)})</span></td>`
+      pbRow=`<tr><td style="text-align:left;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:${GD};font-weight:700">PB${narrow?'':` <span style="font-weight:400;font-size:10px;color:#fff">(${_pushDM(pb.d)})</span>`}</td>`
         +`<td style="text-align:right;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:#fff;font-weight:620">${pn(pb.s1)}</td>`
         +`<td style="text-align:right;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:#fff;font-weight:620">${pn(pz)}</td>`
         +`<td style="text-align:right;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:#fff;font-weight:620">${pb.f.toFixed(2)}${tail}</td></tr>`;
     }
-    const th=(l,sub,first)=>`<th style="color:#fff;font-size:${first?11:10}px;font-weight:${first?700:500};text-align:${first?'left':'right'};padding:0 0 6px;line-height:1.35${first?';width:66px':''}">${_esc(l)}`
-      +(sub?`<i style="display:block;font-style:normal;font-size:8.5px;font-weight:400">${_esc(sub)}</i>`:'')+`</th>`;
-    return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;width:${_PUSH_W}px;cursor:grab;user-select:none">`
-      +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
-      +`<span style="font-size:13.5px;font-weight:650;color:#fff"><span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>${_esc(nm)}</span>`
-      +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
-      +`<table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums">`
+    const th=(l,sub,first)=>`<th style="color:#fff;font-size:${first?11:10}px;font-weight:${first?700:500};text-align:${first?'left':'right'};padding:0 0 6px;line-height:1.35${first?(narrow?';width:34px':';width:66px'):''}">${_esc(l)}`
+      +(sub&&!narrow?`<i style="display:block;font-style:normal;font-size:8.5px;font-weight:400">${_esc(sub)}</i>`:'')+`</th>`;
+    return `<table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;table-layout:fixed">`
       +`<thead><tr>${th(_pushDM(date),'',true)}${th(TR.z1Lbl,TR.z1Rng)}${th(TR.z2Lbl,TR.z2Rng)}${th(TR.finLbl,TR.gates[0]+'→'+TR.gates[2]+'m')}</tr></thead>`
-      +`<tbody>${rows}${pbRow}</tbody></table></div>`;
+      +`<tbody>${rows}${pbRow}</tbody></table>`;
   };
   const _pushAllCards=()=>{try{return _pushAllCards0();}catch(err){
     console.error('[PushStart] 렌더 실패',err);
     return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">Push Start</span><span onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">표를 그리지 못했습니다 — ${_esc(String(err&&err.message||err))}</div></div>`;}};
   const _pushAllCards0=()=>{
-    const names=_pushNames();
-    const ds=[...new Set(_pushAll().filter(t=>names.indexOf(t.athleteName)>=0).map(t=>t.date))]
-      .filter(d=>_ltInPeriod(d)).sort();
-    if(!ds.length)return _pushEmpty('Push Start');
-    const last=ds[ds.length-1];
-    const shown=names.filter(nm=>{const t=_pushTests(nm).find(x=>x.date===last);return t&&_pushOK(t).length;});
-    if(!shown.length)return _pushEmpty('Push Start');
-    _pushCardNames=shown.slice();
-    const out=shown.map((nm,i)=>_pushCardOne(nm,last,i)).filter(Boolean).join('');
+    // 기간 내 푸쉬 세션이 하나라도 있으면 카드를 띄운다(예전엔 "기간 내 최신 날짜"에 기록이 있는 선수만 나와서
+    // 그날 입력 안 한 선수는 카드 자체가 사라졌다). 세션 선택은 카드 안 점 차트에서.
+    const perAth=_pushNames().map(nm=>({nm,
+      ds:[...new Set(_pushTests(nm).filter(t=>_ltInPeriod(t.date)&&_pushOK(t).length).map(t=>t.date))].sort()}))
+      .filter(o=>o.ds.length);
+    if(!perAth.length)return _pushEmpty('Push Start');
+    _pushCardNames=perAth.map(o=>o.nm);
+    const out=perAth.map((o,i)=>_pushCardOne(o.nm,o.ds,i)).filter(Boolean).join('');
     if(!out)return _pushEmpty('Push Start');
     // 자유 배치 캔버스 — 카드는 절대좌표, 삽입 직후 _pushLayout()으로 자리 잡음
     return `<div id="push-canvas" style="grid-column:1/-1;position:relative;width:100%;min-height:120px">${out}`

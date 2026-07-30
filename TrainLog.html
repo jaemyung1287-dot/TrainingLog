@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260730-5';
+const APP_VERSION = '20260730-6';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -590,7 +590,7 @@ const APP_VERSION = '20260730-5';
 <!-- WEIGHT FORM -->
 <div id="s-weight" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-log-session')">← Zurück</button>
+    <button class="back" onclick="backFromLogForm()">← Zurück</button>
     <span class="logo" id="w-screen-logo">🏋️ Kraft</span>
   </div>
   <div class="ttl" id="w-screen-title">Krafttraining</div>
@@ -652,7 +652,7 @@ const APP_VERSION = '20260730-5';
 <!-- SPRINT FORM -->
 <div id="s-sprint" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-log-session')">← Zurück</button>
+    <button class="back" onclick="backFromLogForm()">← Zurück</button>
     <span class="logo">⚡ Sprint</span>
   </div>
   <div class="ttl">Sprinttraining</div>
@@ -710,7 +710,7 @@ const APP_VERSION = '20260730-5';
 <!-- PUSH START FORM -->
 <div id="s-push" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-log-session')">← Zurück</button>
+    <button class="back" onclick="backFromLogForm()">← Zurück</button>
     <span class="logo">🛷 Push Start</span>
   </div>
   <div class="ttl">Push Start</div>
@@ -1766,11 +1766,15 @@ function _refreshPlansFromCloud(onUpdated){
 
 const SK='trainlog_v5'; // bumped to avoid stale cache conflicts
 const SK_DELETED='trainlog_v5_deleted'; // blacklist of deleted log IDs
+const SK_DELETED_MAX=4000;   // 묘비가 무한정 커져 localStorage를 먹지 않도록 상한(오래된 것부터 버림)
 function _addDeletedId(id){
   try{
     const raw=localStorage.getItem(SK_DELETED);
     const set=new Set(raw?JSON.parse(raw):[]);
-    set.add(id); localStorage.setItem(SK_DELETED,JSON.stringify([...set]));
+    set.add(id);
+    let arr=[...set];
+    if(arr.length>SK_DELETED_MAX) arr=arr.slice(-SK_DELETED_MAX);
+    localStorage.setItem(SK_DELETED,JSON.stringify(arr));
   }catch(e){}
 }
 function _getDeletedIds(){
@@ -1794,6 +1798,12 @@ function _archiveLogs(d, removed, reason){
     if(!Array.isArray(d.logArchive)) d.logArchive=[];
     removed.forEach(l=>{
       if(!l) return;
+      // ⚠️ 지운 로그는 반드시 묘비(SK_DELETED)도 남긴다.
+      // 동기화는 id 단위 합집합(_mergeLogsById)이라, 묘비가 없으면 클라우드에 남아 있는 원본이
+      // 다음 병합에서 그대로 되살아나 중복이 된다. edit/replace 경로가 묘비를 안 남겨서
+      // 2026-07-30 Maria·Sarah의 Push Start 로그가 각각 2건씩 남았다(수정본 + 부활한 원본).
+      // 수정 저장은 항상 genId()로 새 id를 만들므로 옛 id를 막아도 새 로그에는 영향이 없다.
+      if(l.id!=null) _addDeletedId(l.id);
       const copy=JSON.parse(JSON.stringify(l));
       copy._removedAt=Date.now();
       copy._reason=reason||'removed';
@@ -2213,7 +2223,15 @@ const ST={athlete:null,selectedParts:{},exercises:[],sprintSets:[],progGroup:'A'
 // ════════════════════════════════════════════════
 // Screens that should always show the coach tabbar
 const _COACH_TABBAR_SCREENS=new Set(['s-coach','s-session-plan']);
+// 코치 전용 화면 — 선수 모드에서는 절대 열리면 안 된다.
+// (2026-07-30: 선수가 로그 수정 후 뒤로 가면 s-ath-detail → s-coach 로 넘어가던 사고.
+//  개별 경로는 각자 고쳤지만, 새 경로가 또 생겨도 여기서 한 번 더 막는다.)
+const _COACH_ONLY_SCREENS=new Set(['s-coach','s-coach-login','s-ath-detail','s-session-plan','s-record']);
 function showScreen(id){
+  if(ST._mode==='athlete'&&_COACH_ONLY_SCREENS.has(id)){
+    console.warn('[TrainLog] 선수 모드에서 코치 화면 차단:',id);
+    id=ST.athlete?'s-athlete-menu':'s-athlete-select';
+  }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   // Any successful save clears today's coach reminder for this athlete
@@ -2224,8 +2242,28 @@ function showScreen(id){
   window.scrollTo(0,0);
   if(typeof _restoreChartCollapsedStates==='function') _restoreChartCollapsedStates();
 }
-function goHome(){ stopCloudSync(); ST.editingLogId=null; ST._extraEditLogIds=[]; if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;} showScreen('s-home'); }
-function goAthleteMode(){ stopCloudSync(); ST.athlete=null; showScreen('s-athlete-select'); renderAthleteChips(); }
+function goHome(){ stopCloudSync(); ST.editingLogId=null; ST._extraEditLogIds=[]; ST._editFromCoach=false; ST._editReturn=null; ST._logDate=null; ST._mode=null; if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;} showScreen('s-home'); }
+// 로그 입력·편집 폼(무게/스프린트/푸쉬)의 뒤로가기 — 들어온 화면으로 정확히 되돌린다.
+// 예전엔 무조건 s-log-session 으로 갔고, 거기서 한 번 더 뒤로 가면 _editFromCoach 때문에
+// 선수가 코치 화면으로 넘어갔다. 코치·선수 경로가 섞이지 않도록 한 곳에서 처리한다.
+const _LOG_FORM_RETURN=new Set(['s-log-session','s-success','s-ath-detail','s-coach','s-athlete-menu','s-athlete-stats','s-type-select']);
+function backFromLogForm(){
+  const back=ST._editReturn, wasEditing=!!ST.editingLogId;
+  ST.editingLogId=null; ST._extraEditLogIds=[]; ST._logDate=null;
+  ST._editReturn=null; ST._editFromCoach=false;
+  ['w-edit-banner','sp-edit-banner','pu-edit-banner'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  const wt=document.getElementById('w-screen-title'); if(wt) wt.textContent='Krafttraining';
+  const wl=document.getElementById('w-screen-logo'); if(wl) wl.textContent='🏋️ Kraft';
+  if(wasEditing&&back&&_LOG_FORM_RETURN.has(back)&&document.getElementById(back)){
+    showScreen(back);
+    if(back==='s-ath-detail'&&ST._detailAthName&&typeof openAthDetail==='function') openAthDetail(ST._detailAthName);
+    else if(back==='s-coach'&&typeof renderToday==='function') renderToday();
+    else if(back==='s-log-session'&&typeof goLogTraining==='function') goLogTraining();
+    return;
+  }
+  showScreen('s-log-session');
+}
+function goAthleteMode(){ stopCloudSync(); ST.athlete=null; ST._mode='athlete'; ST._editFromCoach=false; ST._editReturn=null; showScreen('s-athlete-select'); renderAthleteChips(); }
 function backToAthleteMenu(){
   ST.editingLogId=null; ST._extraEditLogIds=[]; ST._logDate=null;
   if(ST._tabataTimer){clearInterval(ST._tabataTimer);ST._tabataTimer=null;ST._tabataRunning=false;}
@@ -3385,6 +3423,7 @@ function _renderAthRecentLogs(targetId){
   }).join('');
 }
 function goCoachLogin(){
+  ST._mode='coach';
   ST.pinBuf=''; updatePinDots(); document.getElementById('pin-error').textContent=''; showScreen('s-coach-login');
   // Keyboard support for Mac/desktop
   document.addEventListener('keydown',_coachPinKey);
@@ -3396,6 +3435,7 @@ function _coachPinKey(e){
   else if(e.key==='Enter'&&ST.pinBuf.length===4) checkPin();
 }
 async function goCoachDashboard(){
+  ST._mode='coach';
   // 로컬 데이터로 즉시 코치 화면 진입 — 팀 전체 클라우드 로드(8명×~1MB)를 await로 기다리면
   // PIN 입력 후 화면이 수 초간 멈춘다. 팀 로그는 startCloudSync()의 실시간 리스너가 도착하는
   // 대로 _onAnyChange→renderToday()로 백그라운드에서 채워 넣는다(블로킹 제거).
@@ -7432,7 +7472,11 @@ function _editLog(logId){
   ST._extraEditLogIds=[];
   ST._activeSess=log.sess||null; // preserve the edited log's session (am/pm)
   ST._logDate=log.date;      // preserve original log date
-  ST._editFromCoach=true;    // back button returns to s-ath-detail
+  // 편집을 어느 화면에서 시작했는지 기억해 뒤로가기를 정확히 되돌린다.
+  // 예전에는 _editFromCoach=true 를 무조건 켰다 → 선수가 자기 로그를 고치다 뒤로 가면
+  // 코치 화면(s-ath-detail → s-coach)으로 튕겼다(2026-07-30 Sarah 외 신고).
+  ST._editReturn=(document.querySelector('.screen.active')||{}).id||null;
+  ST._editFromCoach=(ST._editReturn==='s-ath-detail'||ST._editReturn==='s-coach');
   const prog=d.programs[ath.group]||{};
 
   if(log.type==='weight'||log.type==='plyo'){
