@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260730-3';
+const APP_VERSION = '20260730-4';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -2298,6 +2298,13 @@ function renderTeamTrainingData(){
   const emptyWeek=`<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">Keine Daten diese Woche</div>`;
   // detail line (level 3)
   const detRow=(left,right)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0">${left}</span><span style="font-size:11px;color:var(--text);white-space:nowrap;text-align:right">${right}</span></div>`;
+  // ── 표 형태 상세줄 (Weight·Sprint 공용) — 값은 전부 흰색, 숫자는 tabular-nums 로 자리수 정렬
+  const tdRow=cells=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">${cells}</div>`;
+  const tdHdRow=cells=>`<div style="display:flex;align-items:center;gap:8px;padding:2px 0 6px;border-bottom:1px solid rgba(255,255,255,.08)">${cells}</div>`;
+  const tdName=t=>`<span style="flex:1.3;min-width:0;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span>`;
+  const tdNum=(t,w,extra)=>`<span style="${w?`width:${w}px;flex-shrink:0;`:'flex:1;min-width:0;'}text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;letter-spacing:.2px;color:var(--text);${extra||''}">${t}</span>`;
+  const tdHd=(t,w)=>`<span style="${w?`width:${w}px;flex-shrink:0;`:'flex:1;min-width:0;'}text-align:right;font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--text);opacity:.75">${t}</span>`;
+  const tdHdName=t=>`<span style="flex:1.3;min-width:0;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text);opacity:.75">${t}</span>`;
   // generic collapsible row — level 1 (athlete) and level 2 (session)
   const row=(id,leftHtml,rightHtml,bodyHtml,mine,padL)=>`
     <div style="border-bottom:1px solid rgba(255,255,255,.06)">
@@ -2333,11 +2340,12 @@ function renderTeamTrainingData(){
           : (e.sets?`${e.sets}×${e.reps||'—'}`:'—');
         const vidRow=_setVideoChips(e);
         const _noteBadge=e.athleteNote?`<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0 6px 8px"><span style="font-size:11px;flex-shrink:0">💬</span><span style="font-size:11px;color:#9db8ec;line-height:1.4">${e.athleteNote}</span></div>`:'';
-        return detRow(e.name||'—',`${w} · ${sr}`)+_noteBadge+vidRow;
-      }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Details</div>';
+        return tdRow(tdName(e.name||'—')+tdNum(w,66)+tdNum(sr,null,'white-space:normal;line-height:1.55'))+_noteBadge+vidRow;
+      }).join('')||'<div style="font-size:11px;color:var(--text);padding:6px 0">Keine Details</div>';
+      const wColHd=tdHdRow(tdHdName('Übung')+tdHd('Last',66)+tdHd('Sätze × Wdh.'));
       const rv=Math.round(vol);
-      const right=rv>0?`<span style="color:#f7a94f;font-weight:700">${rv.toLocaleString()} kg</span>`:`<span style="color:var(--muted)">kein Eintrag</span>`;
-      return row('wA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,det,false,16);
+      const right=rv>0?`<span style="color:#f7a94f;font-weight:700">${rv.toLocaleString()} kg</span>`:`<span style="color:var(--text)">kein Eintrag</span>`;
+      return row('wA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,wColHd+det,false,16);
     }).join('');
     const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
     return row('wA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
@@ -2349,7 +2357,7 @@ function renderTeamTrainingData(){
     const mine=g.name===me;
     const sess=g.ls.map((l,si)=>{
       const td=l.totalDistance!=null?l.totalDistance:(l.sets||[]).reduce((t,s)=>t+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
-      const tag=l.sprintType?` <span style="color:var(--muted)">· ${l.sprintType}</span>`:'';
+      const tag=l.sprintType?` <span style="color:var(--text);opacity:.8">· ${l.sprintType}</span>`:'';
       const det=(l.sets||[]).map(s=>{
         const _f2=x=>{ const n=parseFloat(x); return isNaN(n)?x:n.toFixed(2); };
         const reps=`${s.sets||1}×${s.reps||1}`;
@@ -2357,20 +2365,20 @@ function renderTeamTrainingData(){
         const _rt=(Array.isArray(s.repTimes)?s.repTimes:[]).filter(x=>x!=null&&x!=='');
         // PB(개인 최고기록)와 일치하는 렙타임은 고급 금색으로 — 배지/표시 없이 색상만
         const _pb=_pbForAthlete(g.name,s.distance,_setDisc(s),d.records);
-        const _repHtml=x=>{ const n=parseFloat(x); const _isPb=(_pb!=null&&!isNaN(n)&&n<=_pb+0.005); return _isPb?`<span style="color:var(--gold);font-weight:700">${_f2(x)}s</span>`:`${_f2(x)}s`; };
-        const _left=`${_nmH?`${_nmH} `:''}<span style="font-weight:700">${s.distance||'—'}m</span> <span style="color:var(--muted);font-size:11px">${reps}</span>`;
-        let _right;
+        const _repHtml=x=>{ const n=parseFloat(x); const _isPb=(_pb!=null&&!isNaN(n)&&n<=_pb+0.005); return _isPb?`<span style="color:var(--gold);font-weight:700">${_f2(x)}</span>`:`${_f2(x)}`; };
+        let _times;
         if(_rt.length){
-          _right=_rt.map(_repHtml).join('  ');
+          _times=_rt.map(_repHtml).join('<span style="opacity:.35"> · </span>');
         } else {
           const _t=(s.actualTime!=null&&s.actualTime!=='')?s.actualTime:null;
-          _right=_t!=null?_repHtml(_t):'—';
+          _times=_t!=null?_repHtml(_t):'—';
         }
-        return detRow(_left,_right);
-      }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten</div>';
+        return tdRow(tdName(_nmH||'—')+tdNum((s.distance||'—')+'m',52)+tdNum(reps,42)+tdNum(_times,null,'white-space:normal;line-height:1.55'));
+      }).join('')||'<div style="font-size:11px;color:var(--text);padding:6px 0">Keine Zeiten</div>';
+      const sColHd=tdHdRow(tdHdName('Übung')+tdHd('Dist.',52)+tdHd('S×W',42)+tdHd('Zeiten (s)'));
       const rd=Math.round(td);
-      const right=`${rd>0?`<span style="color:#3ecf8e;font-weight:700">${rd.toLocaleString()} m</span>`:`<span style="color:var(--muted)">kein Eintrag</span>`}${tag}`;
-      return row('sA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,det,false,16);
+      const right=`${rd>0?`<span style="color:#3ecf8e;font-weight:700">${rd.toLocaleString()} m</span>`:`<span style="color:var(--text)">kein Eintrag</span>`}${tag}`;
+      return row('sA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,sColHd+det,false,16);
     }).join('');
     const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
     return row('sA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
