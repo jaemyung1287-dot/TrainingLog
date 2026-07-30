@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260729-3';
+const APP_VERSION = '20260730-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -324,7 +324,7 @@ const APP_VERSION = '20260729-3';
 <!-- ATHLETE SELECT -->
 <div id="s-athlete-select" class="screen">
   <div class="hdr">
-    <button class="back" onclick="goHome()">← Back</button>
+    <button class="back" onclick="goHome()">← Zurück</button>
     <span class="logo">🏔️ Team Bayern Skeleton</span>
   </div>
   <div class="ttl">Wähle deinen Namen</div>
@@ -334,13 +334,13 @@ const APP_VERSION = '20260729-3';
 <!-- ATHLETE PIN -->
 <div id="s-athlete-pin" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-athlete-select')">← Back</button>
-    <span class="logo">🔒 Athlete</span>
+    <button class="back" onclick="showScreen('s-athlete-select')">← Zurück</button>
+    <span class="logo">🔒 Athlet</span>
   </div>
   <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
     <div style="font-size:48px;margin-bottom:12px">👤</div>
     <div class="ttl" style="text-align:center" id="ath-pin-name">—</div>
-    <div class="sub" style="text-align:center">Enter your PIN</div>
+    <div class="sub" style="text-align:center">Gib deine PIN ein</div>
     <div class="pin-wrap" id="ath-pin-dots">
       <div class="pin-dot" id="apd0"></div><div class="pin-dot" id="apd1"></div>
       <div class="pin-dot" id="apd2"></div><div class="pin-dot" id="apd3"></div>
@@ -353,7 +353,7 @@ const APP_VERSION = '20260729-3';
 <!-- ATHLETE MENU -->
 <div id="s-athlete-menu" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-athlete-select')">← Back</button>
+    <button class="back" onclick="showScreen('s-athlete-select')">← Zurück</button>
     <span class="logo">🏔️ Team Bayern Skeleton</span>
   </div>
   <div class="ttl" id="menu-greeting">Hey! 👋</div>
@@ -363,19 +363,19 @@ const APP_VERSION = '20260729-3';
     <div style="display:flex;align-items:flex-start;gap:10px">
       <span style="font-size:26px;line-height:1">🔔</span>
       <div style="flex:1">
-        <div style="font-size:14px;font-weight:800;color:#f7a94f">Reminder from your coach · Erinnerung vom Trainer</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">Don't forget to log today's training! · Vergiss nicht, dein Training einzutragen!</div>
+        <div style="font-size:14px;font-weight:800;color:#f7a94f">Erinnerung vom Trainer</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Vergiss nicht, dein Training einzutragen!</div>
       </div>
     </div>
-    <button onclick="dismissNotification(ST.athlete?.name)" style="margin-top:10px;width:100%;padding:8px;border-radius:10px;border:1.5px solid rgba(247,169,79,.4);background:rgba(247,169,79,.12);color:#f7a94f;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Got it · Verstanden ✓</button>
+    <button onclick="dismissNotification(ST.athlete?.name)" style="margin-top:10px;width:100%;padding:8px;border-radius:10px;border:1.5px solid rgba(247,169,79,.4);background:rgba(247,169,79,.12);color:#f7a94f;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Verstanden ✓</button>
   </div>
   <!-- Missed yesterday banner (shown when yesterday had a plan but no log) -->
   <div id="menu-missed-yesterday" style="display:none;margin-bottom:16px;border-radius:16px;background:linear-gradient(135deg,rgba(228,69,69,.15),rgba(247,120,79,.08));border:1.5px solid rgba(228,69,69,.45);padding:16px;cursor:pointer" onclick="goMissedTraining()">
     <div style="display:flex;align-items:center;gap:10px">
       <span style="font-size:30px">⚠️</span>
       <div style="flex:1">
-        <div style="font-size:15px;font-weight:800;color:#e45555">Yesterday's Training · Gestriges Training</div>
-        <div id="menu-missed-yesterday-sub" style="font-size:12px;color:var(--muted);margin-top:3px">Not logged yet — tap to add now</div>
+        <div style="font-size:15px;font-weight:800;color:#e45555">Gestriges Training</div>
+        <div id="menu-missed-yesterday-sub" style="font-size:12px;color:var(--muted);margin-top:3px">Noch nicht eingetragen — jetzt nachtragen</div>
       </div>
       <span style="font-size:22px;color:#e45555">→</span>
     </div>
@@ -393,19 +393,19 @@ const APP_VERSION = '20260729-3';
   <div class="menu-grid">
     <div class="menu-card" onclick="goCondition()">
       <span class="ico">🌡️</span>
-      <div class="lbl">Morning Check</div>
+      <div class="lbl">Morgen-Check</div>
     </div>
     <div class="menu-card" onclick="goProgram()">
       <span class="ico">📅</span>
-      <div class="lbl">Weekly Plan</div>
+      <div class="lbl">Wochenplan</div>
     </div>
     <div class="menu-card" onclick="goLogTraining()">
       <span class="ico">📝</span>
-      <div class="lbl">Log Training</div>
+      <div class="lbl">Training eintragen</div>
     </div>
     <div class="menu-card" onclick="goAthleteStats()">
       <span class="ico">📈</span>
-      <div class="lbl">My Data</div>
+      <div class="lbl">Meine Daten</div>
     </div>
   </div>
 
@@ -413,8 +413,8 @@ const APP_VERSION = '20260729-3';
   <div onclick="goTeamData()" style="border-radius:18px;background:var(--card);border:2px solid var(--border);padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer">
     <span style="font-size:26px;line-height:1">🏟️</span>
     <div style="flex:1">
-      <div style="font-size:15px;font-weight:800;color:var(--text)">Team Training Data</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:2px">alle Athleten · all athletes</div>
+      <div style="font-size:15px;font-weight:800;color:var(--text)">Team-Trainingsdaten</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">alle Athleten</div>
     </div>
     <span style="font-size:20px;color:var(--muted)">→</span>
   </div>
@@ -423,17 +423,17 @@ const APP_VERSION = '20260729-3';
 <!-- TEAM TRAINING DATA SCREEN -->
 <div id="s-team-data" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-athlete-menu')">← Back</button>
+    <button class="back" onclick="showScreen('s-athlete-menu')">← Zurück</button>
     <span class="logo">🏔️ Team Bayern Skeleton</span>
   </div>
-  <div class="ttl">🏟️ Team Training Data</div>
-  <div class="sub">alle Athleten · all athletes</div>
+  <div class="ttl">🏟️ Team-Trainingsdaten</div>
+  <div class="sub">alle Athleten</div>
   <div style="margin-top:10px">
     <!-- Weight accordion -->
     <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);margin-bottom:12px;overflow:hidden">
       <div onclick="toggleTeamAcc('weight')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
         <span style="font-size:22px;line-height:1">🏋️</span>
-        <div style="flex:1;font-size:16px;font-weight:800;color:#f7a94f">Weight</div>
+        <div style="flex:1;font-size:16px;font-weight:800;color:#f7a94f">Kraft</div>
         <span id="team-acc-arrow-weight" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
       </div>
       <div id="team-acc-body-weight" style="display:none;padding:0 14px 10px"></div>
@@ -462,13 +462,13 @@ const APP_VERSION = '20260729-3';
 <!-- CONDITION FORM -->
 <div id="s-condition" class="screen">
   <div class="hdr">
-    <button class="back" onclick="backToAthleteMenu()">← Back</button>
-    <span class="logo">🌡️ Condition</span>
+    <button class="back" onclick="backToAthleteMenu()">← Zurück</button>
+    <span class="logo">🌡️ Zustand</span>
   </div>
   <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:6px">Morgen-Check</div>
   <div style="color:rgba(255,255,255,.55);font-size:10px;margin-bottom:12px;line-height:1.6">Bewerte deinen heutigen Zustand mit einem Schieberegler. Schlaf und Stimmung: 10 = sehr gut. Erschöpfung: 10 = extrem erschöpft.</div>
   <div id="condition-edit-notice" style="display:none;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.35);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#f7a94f;font-weight:600">
-    ✏️ 오늘 이미 작성한 컨디션이 있어요. 수정 후 저장하면 기존 내용이 교체됩니다.
+    ✏️ Für heute gibt es schon einen Eintrag. Beim Speichern wird er überschrieben.
   </div>
   <div class="fg" style="margin-bottom:16px">
     <label class="fl" style="color:#fff;font-size:13px;text-transform:none;letter-spacing:0;font-weight:600;margin-bottom:8px">📅 Datum</label>
@@ -523,19 +523,19 @@ const APP_VERSION = '20260729-3';
     <label class="fl" style="color:#fff;font-size:15px;text-transform:none;letter-spacing:0;font-weight:600">Anmerkungen (optional)</label>
     <textarea class="fi" id="condition-notes" placeholder="Weitere Bemerkungen..."></textarea>
   </div>
-  <button class="btn btn-g" onclick="saveCondition()">Save ✓</button>
+  <button class="btn btn-g" onclick="saveCondition()">Speichern ✓</button>
 </div>
 
 <!-- PROGRAM VIEW -->
 <div id="s-program" class="screen">
   <div class="hdr">
-    <button class="back" onclick="backToAthleteMenu()">← Back</button>
-    <span class="logo">📅 Weekly Plan</span>
+    <button class="back" onclick="backToAthleteMenu()">← Zurück</button>
+    <span class="logo">📅 Wochenplan</span>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
     <button onclick="shiftWeek(-1)" style="padding:6px 14px;border-radius:10px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:18px;font-weight:700;cursor:pointer;line-height:1">‹</button>
     <div style="text-align:center;flex:1;padding:0 10px">
-      <div class="ttl" id="prog-title" style="margin:0;font-size:20px">Weekly Plan</div>
+      <div class="ttl" id="prog-title" style="margin:0;font-size:20px">Wochenplan</div>
       <div class="sub" id="prog-sub" style="margin:2px 0 0"></div>
     </div>
     <button onclick="shiftWeek(1)" style="padding:6px 14px;border-radius:10px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:18px;font-weight:700;cursor:pointer;line-height:1">›</button>
@@ -549,10 +549,10 @@ const APP_VERSION = '20260729-3';
 <!-- LOG SESSION SCREEN -->
 <div id="s-log-session" class="screen">
   <div class="hdr">
-    <button class="back" onclick="backToAthleteMenu()">← Back</button>
-    <span class="logo">📝 Log Training</span>
+    <button class="back" onclick="backToAthleteMenu()">← Zurück</button>
+    <span class="logo">📝 Training eintragen</span>
   </div>
-  <div class="ttl" id="log-sess-title">Today's Training</div>
+  <div class="ttl" id="log-sess-title">Heutiges Training</div>
   <div class="sub" id="log-sess-sub"></div>
   <div id="log-sess-area" style="margin-top:8px"></div>
 </div>
@@ -560,29 +560,29 @@ const APP_VERSION = '20260729-3';
 <!-- TYPE SELECT -->
 <div id="s-type-select" class="screen">
   <div class="hdr">
-    <button class="back" onclick="backToAthleteMenu()">← Back</button>
+    <button class="back" onclick="backToAthleteMenu()">← Zurück</button>
     <span class="logo">🏔️ Team Bayern Skeleton</span>
   </div>
-  <div class="ttl" id="type-greeting">What did you do?</div>
-  <div class="sub">Select training type</div>
+  <div class="ttl" id="type-greeting">Was hast du gemacht?</div>
+  <div class="sub">Trainingsart wählen</div>
   <div class="type-grid" id="type-grid-wrap">
     <div class="type-card" id="tc-weight" onclick="selectType('weight')">
       <span class="ico">🏋️</span>
-      <div class="lbl">Weight Training</div>
-      <div class="desc" style="color:var(--gold)">Krafttraining</div>
-      <div class="desc">Volume · Sets · Load</div>
+      <div class="lbl">Krafttraining</div>
+      <div class="desc" style="color:var(--gold)">Volumen · Sätze · Last</div>
+      
     </div>
     <div class="type-card" id="tc-sprint" onclick="selectType('sprint')">
       <span class="ico">⚡</span>
-      <div class="lbl">Sprint Training</div>
-      <div class="desc" style="color:var(--gold)">Sprinttraining</div>
-      <div class="desc">Distance · Sets · Intensity</div>
+      <div class="lbl">Sprinttraining</div>
+      <div class="desc" style="color:var(--gold)">Distanz · Sätze · Intensität</div>
+      
     </div>
     <div class="type-card" id="tc-push" onclick="selectType('push')">
       <span class="ico">🛷</span>
       <div class="lbl">Push Start</div>
-      <div class="desc" style="color:var(--gold)">Anschieben</div>
-      <div class="desc">Split 1 · Finish</div>
+      <div class="desc" style="color:var(--gold)">Anschieben · Split 1 · Finish</div>
+      
     </div>
   </div>
 </div>
@@ -590,20 +590,20 @@ const APP_VERSION = '20260729-3';
 <!-- WEIGHT FORM -->
 <div id="s-weight" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-log-session')">← Back</button>
-    <span class="logo" id="w-screen-logo">🏋️ Weights</span>
+    <button class="back" onclick="showScreen('s-log-session')">← Zurück</button>
+    <span class="logo" id="w-screen-logo">🏋️ Kraft</span>
   </div>
-  <div class="ttl" id="w-screen-title">Weight Training</div>
+  <div class="ttl" id="w-screen-title">Krafttraining</div>
   <div id="w-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:13px;color:#e94560;font-weight:700">
-    ✏️ Editing · Bearbeitung — saving will update this log
+    ✏️ Bearbeitung — beim Speichern wird dieser Eintrag aktualisiert
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <label style="font-size:12px;color:#e94560;font-weight:600;white-space:nowrap">📅 Log Date</label>
+      <label style="font-size:12px;color:#e94560;font-weight:600;white-space:nowrap">📅 Datum</label>
       <input type="date" id="w-edit-date" style="flex:1;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.3);border-radius:8px;padding:5px 10px;color:#f0f0ff;font-size:13px;font-family:inherit;outline:none">
     </div>
   </div>
   <div id="w-progress-bar" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Progress · Fortschritt</span>
+      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Fortschritt</span>
       <span id="w-prog-text" style="font-size:12px;font-weight:800;color:var(--text)">0 / 0</span>
     </div>
     <div style="height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden">
@@ -613,14 +613,14 @@ const APP_VERSION = '20260729-3';
   <div id="w-plan-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(198,168,90,.1);border:1px solid rgba(198,168,90,.25);font-size:12px;color:var(--gold)"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <div class="fg" style="margin:0"><label class="fl">Phase</label><input class="fi" id="w-phase" placeholder="e.g. GPP1" readonly></div>
-    <div class="fg" style="margin:0"><label class="fl">Week</label><input class="fi" id="w-week" placeholder="e.g. 3" readonly></div>
+    <div class="fg" style="margin:0"><label class="fl">Woche</label><input class="fi" id="w-week" placeholder="e.g. 3" readonly></div>
   </div>
   <div id="w-warmup-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(247,169,79,.07);border:1px solid rgba(247,169,79,.25)">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f7a94f;margin-bottom:6px">🔆 Aufwärmen</div>
     <div id="w-warmup-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
   </div>
   <div id="exercise-list"></div>
-  <div id="w-add-ex-btn" style="display:none"><button class="btn btn-s" onclick="addExercise()" style="border-style:dashed;margin-bottom:16px">+ Add Exercise</button></div>
+  <div id="w-add-ex-btn" style="display:none"><button class="btn btn-s" onclick="addExercise()" style="border-style:dashed;margin-bottom:16px">+ Übung hinzufügen</button></div>
   <div id="w-conditioning-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:rgba(224,123,57,.07);border:1px solid rgba(224,123,57,.25)">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#E07B39;margin-bottom:6px">🌀 Conditioning</div>
     <div id="w-conditioning-text" style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.6"></div>
@@ -643,29 +643,29 @@ const APP_VERSION = '20260729-3';
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Notes (optional)</label>
+    <label class="fl">Anmerkungen (optional)</label>
     <textarea class="fi" id="weight-notes" placeholder="Any remarks..."></textarea>
   </div>
-  <button class="btn btn-g" onclick="saveWeight()">Save →</button>
+  <button class="btn btn-g" onclick="saveWeight()">Speichern →</button>
 </div>
 
 <!-- SPRINT FORM -->
 <div id="s-sprint" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-log-session')">← Back</button>
+    <button class="back" onclick="showScreen('s-log-session')">← Zurück</button>
     <span class="logo">⚡ Sprint</span>
   </div>
-  <div class="ttl">Sprint Training</div>
+  <div class="ttl">Sprinttraining</div>
   <div id="sp-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:13px;color:#e94560;font-weight:700">
-    ✏️ Editing · Bearbeitung — saving will update this log
+    ✏️ Bearbeitung — beim Speichern wird dieser Eintrag aktualisiert
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <label style="font-size:12px;color:#e94560;font-weight:600;white-space:nowrap">📅 Log Date</label>
+      <label style="font-size:12px;color:#e94560;font-weight:600;white-space:nowrap">📅 Datum</label>
       <input type="date" id="sp-edit-date" style="flex:1;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.3);border-radius:8px;padding:5px 10px;color:#f0f0ff;font-size:13px;font-family:inherit;outline:none">
     </div>
   </div>
   <div id="sp-progress-bar" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--border)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Progress · Fortschritt</span>
+      <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Fortschritt</span>
       <span id="sp-prog-text" style="font-size:12px;font-weight:800;color:var(--text)">0 / 0</span>
     </div>
     <div style="height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden">
@@ -683,10 +683,10 @@ const APP_VERSION = '20260729-3';
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <div class="fg" style="margin:0"><label class="fl">Phase</label><input class="fi" id="sp-phase" placeholder="e.g. Mesocycle 1"></div>
-    <div class="fg" style="margin:0"><label class="fl">Week</label><input class="fi" id="sp-week" placeholder="e.g. 5.11~5.15"></div>
+    <div class="fg" style="margin:0"><label class="fl">Woche</label><input class="fi" id="sp-week" placeholder="e.g. 5.11~5.15"></div>
   </div>
   <div id="sprint-sets-list"></div>
-  <button class="btn btn-s" id="sp-add-btn" onclick="addSprintSet()" style="border-style:dashed;margin-bottom:16px">+ Add Set Group</button>
+  <button class="btn btn-s" id="sp-add-btn" onclick="addSprintSet()" style="border-style:dashed;margin-bottom:16px">+ Satzgruppe hinzufügen</button>
   <div class="fg">
     <label class="fl" style="font-size:13px;font-weight:800;letter-spacing:.3px">SESSION RPE (1–10) &nbsp;<span style="color:var(--muted);font-weight:500;font-size:11px">— Wie anstrengend war die Einheit?</span></label>
     <div class="slider-row">
@@ -701,29 +701,29 @@ const APP_VERSION = '20260729-3';
     </div>
   </div>
   <div class="fg">
-    <label class="fl">Notes (optional)</label>
+    <label class="fl">Anmerkungen (optional)</label>
     <textarea class="fi" id="sprint-notes" placeholder="How did it feel?"></textarea>
   </div>
-  <button class="btn btn-g" onclick="saveSprint()">Save →</button>
+  <button class="btn btn-g" onclick="saveSprint()">Speichern →</button>
 </div>
 
 <!-- PUSH START FORM -->
 <div id="s-push" class="screen">
   <div class="hdr">
-    <button class="back" onclick="showScreen('s-log-session')">← Back</button>
+    <button class="back" onclick="showScreen('s-log-session')">← Zurück</button>
     <span class="logo">🛷 Push Start</span>
   </div>
   <div class="ttl">Push Start</div>
   <div id="pu-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:13px;color:#e94560;font-weight:700">
-    ✏️ Editing · Bearbeitung — saving will update this log
+    ✏️ Bearbeitung — beim Speichern wird dieser Eintrag aktualisiert
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <label style="font-size:12px;color:#e94560;font-weight:600;white-space:nowrap">📅 Log Date</label>
+      <label style="font-size:12px;color:#e94560;font-weight:600;white-space:nowrap">📅 Datum</label>
       <input type="date" id="pu-edit-date" style="flex:1;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.3);border-radius:8px;padding:5px 10px;color:#f0f0ff;font-size:13px;font-family:inherit;outline:none">
     </div>
   </div>
   <div id="push-rows"></div>
   <button class="btn btn-s" onclick="addPushAttempt()" style="border-style:dashed;margin-bottom:16px">+ Versuch</button>
-  <button class="btn btn-g" onclick="savePush()">Save →</button>
+  <button class="btn btn-g" onclick="savePush()">Speichern →</button>
 </div>
 
 <!-- RECORD FORM (Coach enters for athlete) -->
@@ -818,13 +818,13 @@ const APP_VERSION = '20260729-3';
   <div class="hdr"><span class="logo">🏔️ Team Bayern Skeleton</span></div>
   <div class="success-wrap">
     <div class="success-ico">🎉</div>
-    <div class="success-ttl">Saved!</div>
-    <div class="success-sub" id="success-msg">Training session logged</div>
-    <button class="btn btn-b" onclick="goAthleteMenu()" style="max-width:300px">Back to Menu</button>
-    <button class="btn btn-s" onclick="goHome()" style="max-width:300px">Home</button>
+    <div class="success-ttl">Gespeichert!</div>
+    <div class="success-sub" id="success-msg">Training eingetragen</div>
+    <button class="btn btn-b" onclick="goAthleteMenu()" style="max-width:300px">Zurück zum Menü</button>
+    <button class="btn btn-s" onclick="goHome()" style="max-width:300px">Start</button>
   </div>
   <div style="margin-top:8px">
-    <div class="sec-ttl" style="margin-bottom:10px">Recent Logs · Letzte Einträge</div>
+    <div class="sec-ttl" style="margin-bottom:10px">Letzte Einträge</div>
     <div id="success-recent-logs"></div>
   </div>
 </div>
@@ -832,46 +832,46 @@ const APP_VERSION = '20260729-3';
 <!-- ATHLETE STATS -->
 <div id="s-athlete-stats" class="screen">
   <div class="hdr">
-    <button class="back" onclick="backToAthleteMenu()">← Back</button>
-    <span class="logo">📈 My Data</span>
+    <button class="back" onclick="backToAthleteMenu()">← Zurück</button>
+    <span class="logo">📈 Meine Daten</span>
   </div>
-  <div class="ttl" id="astats-name">My Stats</div>
-  <div class="sub">Last 14 days</div>
+  <div class="ttl" id="astats-name">Meine Daten</div>
+  <div class="sub">Letzte 14 Tage</div>
   <!-- vol-split-summary removed -->
   <div class="chart-box">
-    <div class="chart-title">🏋️ Power Development Volume (kg)</div>
+    <div class="chart-title">🏋️ Power Development · Volumen (kg)</div>
     <canvas id="chart-my-upper"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">💪 Resistance Training Volume (kg)</div>
+    <div class="chart-title">💪 Krafttraining · Volumen (kg)</div>
     <canvas id="chart-my-lower"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">⚡ Sprint Distance (m)</div>
+    <div class="chart-title">⚡ Sprint-Distanz (m)</div>
     <canvas id="chart-my-sprint"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">🦘 Plyometric Volume (reps + contacts)</div>
+    <div class="chart-title">🦘 Plyometrie · Volumen (Wdh. + Kontakte)</div>
     <canvas id="chart-my-plyo"></canvas>
   </div>
   <div class="chart-box">
-    <div class="chart-title">😩 Fatigue · 😊 Mood · 😴 Sleep Quality</div>
+    <div class="chart-title">😩 Erschöpfung · 😊 Stimmung · 😴 Schlafqualität</div>
     <canvas id="chart-my-condition"></canvas>
   </div>
   <div class="chart-box" id="vbt-chart-box" style="display:none">
-    <div class="chart-title">⚡ Velocity (m/s) — VBT Peak Speed</div>
+    <div class="chart-title">⚡ Geschwindigkeit (m/s) — VBT Peak Speed</div>
     <canvas id="chart-my-vbt"></canvas>
     <div id="vbt-vl-row" style="margin-top:10px"></div>
   </div>
 
   <!-- Session RPE Trend -->
   <div class="chart-box">
-    <div class="chart-title">📈 Session RPE Trend · RPE-Verlauf</div>
+    <div class="chart-title">📈 RPE-Verlauf</div>
     <canvas id="chart-my-rpe"></canvas>
   </div>
 
   <!-- Recent Sessions -->
-  <div class="sec-ttl" style="margin-top:20px">📋 Recent Sessions · Letzte Sitzungen</div>
+  <div class="sec-ttl" style="margin-top:20px">📋 Letzte Sitzungen</div>
   <div id="my-recent-list"></div>
 </div>
 
@@ -1807,6 +1807,9 @@ const BODY_PARTS={
   lower:['Hip','Quad','Glute','Hamstring','Adductor','Calf','Ankle','Foot'],
   core:['Lower Back','Abs','Oblique']
 };
+// 근육통 부위 — 저장 값은 영어 그대로, 화면에만 독일어(대시보드·엑셀 호환)
+const PART_DE={'Neck':'Nacken','Shoulder':'Schulter','Chest':'Brust','Back':'Rücken','Arm':'Arm','Hip':'Hüfte','Quad':'Quadrizeps','Glute':'Gesäß','Hamstring':'Hamstring','Adductor':'Adduktor','Calf':'Wade','Ankle':'Knöchel','Foot':'Fuß','Lower Back':'Unterer Rücken','Abs':'Bauch','Oblique':'Schräger Bauch'};
+function _partDE(p){ return PART_DE[p]||p; }
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAYS_DE=['So','Mo','Di','Mi','Do','Fr','Sa'];
 
@@ -1826,7 +1829,7 @@ const TRAINING_STRUCTURE={
   },
   'Sprint Training':{
     icon:'⚡',
-    subs:['Acceleration','Maximum Velocity','Speed Endurance','Special Endurance 1','Special Endurance 2','Resistance Sprinting'],
+    subs:['Acceleration','Maximum Velocity','Speed Endurance','Special Endurance 1','Special Endurance 2','Resistance Sprinting','Push Start'],
     color:'#3A7A5A',
     params:'sprint'
   },
@@ -1854,7 +1857,7 @@ const SUB_COLOR={
   'Weightlifting':'#B8944A','Medicine Ball':'#9A7A48','Velocity-Based Training':'#7A6038',
   // Sprint
   'Acceleration':'#3A7A5A','Maximum Velocity':'#2A6A4A','Speed Endurance':'#1A5A3A',
-  'Special Endurance 1':'#3A8A5A','Special Endurance 2':'#2A7A4A','Resistance Sprinting':'#7A5A2A',
+  'Special Endurance 1':'#3A8A5A','Special Endurance 2':'#2A7A4A','Resistance Sprinting':'#7A5A2A','Push Start':'#58a6ff',
   // Plyometric
   'Vertical Power':'#6A4A8A','Horizontal Power':'#5A3A7A','Reactive / Elastic':'#7A5A9A'
 };
@@ -1958,6 +1961,8 @@ const EXERCISE_LIBRARY={
   'Resistance Sprinting':[
     'Uphill Sprint','Towing Sled','Pushing Sled'
   ],
+  // subCategory 'Push Start' 종목은 선수 앱에서 Push Start 입력(log type:'push')으로 라우팅된다 — _exIsPush()
+  'Push Start':['Push Training'],
   // Plyometric — Vertical Power (easy → hard)
   'Vertical Power':[
     'Kneeling Pop Up','Box Step Up Jump','Squat Jump (BW)',
@@ -2290,7 +2295,7 @@ function renderTeamTrainingData(){
       <span style="font-size:12px;color:var(--text);text-align:center">${lbl} <span style="font-size:11px;color:var(--muted)">(${fmtDate(wkStart)} – ${fmtDate(wkEnd)})</span></span>
       <span ${atNow?'':'onclick="teamWeekShift(1)"'} style="cursor:${atNow?'default':'pointer'};padding:2px 12px;color:${atNow?'rgba(255,255,255,.15)':'#f7a94f'};font-size:14px;user-select:none">▶</span>
     </div>`;
-  const emptyWeek=`<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">Keine Daten diese Woche · 이번 주 기록 없음</div>`;
+  const emptyWeek=`<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">Keine Daten diese Woche</div>`;
   // detail line (level 3)
   const detRow=(left,right)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0">${left}</span><span style="font-size:11px;color:var(--muted);white-space:nowrap;text-align:right">${right}</span></div>`;
   // generic collapsible row — level 1 (athlete) and level 2 (session)
@@ -2329,7 +2334,7 @@ function renderTeamTrainingData(){
         const vidRow=_setVideoChips(e);
         const _noteBadge=e.athleteNote?`<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0 6px 8px"><span style="font-size:11px;flex-shrink:0">💬</span><span style="font-size:11px;color:#9db8ec;line-height:1.4">${e.athleteNote}</span></div>`:'';
         return detRow(e.name||'—',`${w} · ${sr}`)+_noteBadge+vidRow;
-      }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Details · No details</div>';
+      }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Details</div>';
       const rv=Math.round(vol);
       const right=rv>0?`<span style="color:#f7a94f;font-weight:700">${rv.toLocaleString()} kg</span>`:`<span style="color:var(--muted)">kein Eintrag</span>`;
       return row('wA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,det,false,16);
@@ -2362,7 +2367,7 @@ function renderTeamTrainingData(){
           _right=_t!=null?_repHtml(_t):'—';
         }
         return detRow(_left,_right);
-      }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
+      }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten</div>';
       const rd=Math.round(td);
       const right=`${rd>0?`<span style="color:#3ecf8e;font-weight:700">${rd.toLocaleString()} m</span>`:`<span style="color:var(--muted)">kein Eintrag</span>`}${tag}`;
       return row('sA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,det,false,16);
@@ -2387,7 +2392,7 @@ function renderTeamTrainingData(){
           const gold=(fin===best);
           return detRow(`<span style="font-weight:700">${n}.</span>`,
             `<span style="color:var(--muted)">${c(s1)} · ${c(z2)}</span> &nbsp;<span style="color:${gold?'var(--gold)':'var(--text)'};font-weight:${gold?800:600}">${c(fin)}s</span>`);
-        }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten · No times</div>';
+        }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten</div>';
         const colHd=`<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0 5px"><span style="font-size:10px;color:var(--muted)">Nr</span><span style="font-size:10px;color:var(--muted)">${gt[0]}→${gt[1]} · ${gt[1]}→${gt[2]} · ${gt[0]}→${gt[2]}m</span></div>`;
         const right=best!=null
           ? `<span style="color:#58a6ff;font-weight:700">${best.toFixed(2)} s</span><span style="color:var(--muted)"> · ${ok.length}×</span>`
@@ -2400,7 +2405,7 @@ function renderTeamTrainingData(){
   }
 }
 function goAthleteMenu(){
-  if(!ST.athlete){ showToast('Please select your name'); return; }
+  if(!ST.athlete){ showToast('Bitte wähle deinen Namen'); return; }
   // If coming from coach edit, return to coach athlete detail
   if(ST._editFromCoach){ ST._editFromCoach=false; ST._logDate=null; document.getElementById('coach-tabbar').classList.remove('show'); showScreen('s-ath-detail'); return; }
   // If athlete has a PIN, show PIN screen first
@@ -2417,9 +2422,9 @@ function goAthleteMenu(){
 function _enterAthleteMenu(){
   // Pull latest plans from cloud (dashboard edits) — re-render menu if they changed
   _refreshPlansFromCloud(()=>{ if(document.getElementById('s-athlete-menu')?.classList.contains('active')) _enterAthleteMenu(); });
-  document.getElementById('menu-greeting').textContent=`Hey, ${ST.athlete.name}! 👋`;
+  document.getElementById('menu-greeting').textContent=`Hallo, ${ST.athlete.name}! 👋`;
   // Always use Europe/Berlin timezone for date display (team is based in Germany)
-  const _berlinDate=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Berlin',weekday:'short',month:'long',day:'numeric'}).format(new Date());
+  const _berlinDate=new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',weekday:'short',day:'numeric',month:'long'}).format(new Date());
   document.getElementById('menu-date-sub').textContent=_berlinDate;
   // Show today's plan quick-start card if plan exists
   const data=getData(); const today=todayStr();
@@ -2443,11 +2448,13 @@ function _enterAthleteMenu(){
   // Check if today's planned sessions are already logged
   const todayLogs=data.logs.filter(l=>l.athleteName===ST.athlete.name&&l.date===today);
   // Match planned exercise names against BOTH weight/plyo logs (exercises[]) and sprint logs (sets[])
-  const _logHasName=(l,nameSet)=>((l.exercises||[]).some(e=>nameSet.has(e.name)))||((l.sets||[]).some(e=>nameSet.has(e.name)));
+  // Push Start 로그는 종목 이름이 없으므로 플랜에 Push 종목이 있으면 그 세션이 기록된 것으로 본다
+  const _logHasName=(l,nameSet,exsArr,sess)=>((l.exercises||[]).some(e=>nameSet.has(e.name)))||((l.sets||[]).some(e=>nameSet.has(e.name)))
+    ||(l.type==='push'&&(exsArr||[]).some(_exIsPush)&&(l.sess==null||sess==null||l.sess===sess));
   const amNames=new Set(amExs.map(e=>e.name));
   const pmNames=new Set(pmExs.map(e=>e.name));
-  const amLogged=amExs.length===0||todayLogs.some(l=>_logHasName(l,amNames));
-  const pmLogged=pmExs.length===0||todayLogs.some(l=>_logHasName(l,pmNames));
+  const amLogged=amExs.length===0||todayLogs.some(l=>_logHasName(l,amNames,amExs,'am'));
+  const pmLogged=pmExs.length===0||todayLogs.some(l=>_logHasName(l,pmNames,pmExs,'pm'));
   const todayAllLogged=amLogged&&pmLogged;
   if((totalExs>0||hasCond)&&!todayAllLogged){
     card.style.display='block';
@@ -2476,15 +2483,15 @@ function _enterAthleteMenu(){
     const yAmExs=_yExs(yGrpData,'am'); const yPmExs=_yExs(yGrpData,'pm');
     const yAmNames=new Set(yAmExs.map(e=>e.name));
     const yPmNames=new Set(yPmExs.map(e=>e.name));
-    const yAmLogged=yAmExs.length===0||yLogs.some(l=>_logHasName(l,yAmNames));
-    const yPmLogged=yPmExs.length===0||yLogs.some(l=>_logHasName(l,yPmNames));
+    const yAmLogged=yAmExs.length===0||yLogs.some(l=>_logHasName(l,yAmNames,yAmExs,'am'));
+    const yPmLogged=yPmExs.length===0||yLogs.some(l=>_logHasName(l,yPmNames,yPmExs,'pm'));
     const yAllLogged=yAmLogged&&yPmLogged;
     const yUnlogged=[];
     if(!yAmLogged&&yAmExs.length) yUnlogged.push('AM');
     if(!yPmLogged&&yPmExs.length) yUnlogged.push('PM');
     if(yHasPlan&&!yAllLogged){
       missedCard.style.display='block';
-      if(missedSub){ const d=new Date(yesterday+'T12:00:00'); missedSub.textContent=`${d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})} — ${yUnlogged.join(' & ')} not logged yet`; }
+      if(missedSub){ const d=new Date(yesterday+'T12:00:00'); missedSub.textContent=`${d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'short'})} — ${yUnlogged.join(' & ')} noch nicht eingetragen`; }
     } else {
       missedCard.style.display='none';
     }
@@ -2577,7 +2584,7 @@ function _toggleProgDay(ds){
   if(chev) chev.style.transform=isOpen?'rotate(0deg)':'rotate(180deg)';
 }
 function goTypeSelect(){
-  document.getElementById('type-greeting').textContent=`${ST.athlete.name}, what did you do?`;
+  document.getElementById('type-greeting').textContent=`${ST.athlete.name}, was hast du gemacht?`;
   showScreen('s-type-select');
 }
 // ── Session accordion toggle ──
@@ -2633,7 +2640,7 @@ function _applyDoneStyle(card, done){
     doneBtn.style.border=`1.5px solid ${done?'#3ecf8e':'rgba(255,255,255,.15)'}`;
     doneBtn.style.background=done?'rgba(62,207,142,.12)':'transparent';
     doneBtn.style.color=done?'#3ecf8e':'var(--muted)';
-    doneBtn.textContent=done?'✅ Done':'○ Mark as Done';
+    doneBtn.textContent=done?'✅ Erledigt':'○ Als erledigt markieren';
   }
   const nameEl=card.querySelector('._ex-name-done');
   if(nameEl){ nameEl.style.textDecoration=done?'line-through':''; nameEl.style.opacity=done?'.5':'1'; }
@@ -2750,17 +2757,17 @@ function goLogTraining(){
   const title=document.getElementById('log-sess-title');
   const sub=document.getElementById('log-sess-sub');
   if(hasPlan){
-    title.textContent=isYesterday?'Yesterday\'s Sessions · Gestern':'Today\'s Sessions';
-    sub.textContent=plan?.phase?`${plan.phase}${plan.week?' · Week '+plan.week:''}`:'';
+    title.textContent=isYesterday?'Gestrige Einheiten':'Heutige Einheiten';
+    sub.textContent=plan?.phase?`${plan.phase}${plan.week?' · Woche '+plan.week:''}`:'';
     function _condCard(sess,condText){
       if(!condText) return '';
-      const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
+      const label=sess==='am'?'🌅 Vormittag':'🌇 Nachmittag';
       return `<div style="border-radius:14px;background:var(--card);border:1px solid rgba(224,123,57,.3);overflow:hidden;margin-bottom:12px">
         <div style="padding:14px 16px;display:flex;align-items:center;gap:10px">
           <span style="font-size:22px">🌀</span>
           <div style="flex:1">
             <div style="font-size:13px;color:var(--muted);margin-bottom:2px">${label}</div>
-            <div style="font-size:15px;font-weight:700;color:#E07B39">Conditioning Session</div>
+            <div style="font-size:15px;font-weight:700;color:#E07B39">Konditionstraining</div>
           </div>
         </div>
         <div style="padding:0 16px 14px;font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.5">${condText}</div>
@@ -2770,17 +2777,25 @@ function goLogTraining(){
       const _wuSb=grpData?.[sess]||(sess==='am'?grpData:null);
       const wu=_warmupHasContent(_wuSb);
       if(!exs.length&&!wu) return '';
-      const label=sess==='am'?'🌅 AM Session':'🌇 PM Session';
-      const isSprintOnly=exs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
+      const label=sess==='am'?'🌅 Vormittag':'🌇 Nachmittag';
+      // Push Start(subCategory) 종목은 스프린트 입력이 아니라 Push Start 입력(type:'push')으로 보낸다
+      const pushExs=exs.filter(_exIsPush);
+      const otherExs=exs.filter(e=>!_exIsPush(e));
+      const isSprintOnly=otherExs.length>0&&otherExs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
+      const _logBtns=[
+        otherExs.length?`<button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Einheit eintragen →</button>`:'',
+        pushExs.length?`<button onclick="_selectLogSession('${sess}','push')" style="width:100%;padding:11px;border-radius:10px;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:#58a6ff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;${otherExs.length?'margin-top:8px':''}">🛷 Push Start eintragen →</button>`:''
+      ].join('');
       const isOpen=ST._sessExpanded.has(sess);
 
       // ── Actual logged status for today ──
       const _todayLogs=getData().logs.filter(l=>
         l.athleteName===ST.athlete.name&&l.date===today&&
-        (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility'));
+        (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility'||l.type==='push'));
       // Which types does this session require?
       const _sessTypes=new Set();
       exs.forEach(e=>{
+        if(_exIsPush(e)){ _sessTypes.add('push'); return; }
         const p=TRAINING_STRUCTURE[e.trainingType]?.params;
         if(p==='sprint') _sessTypes.add('sprint');
         else if(p==='plyo') _sessTypes.add('plyo');
@@ -2793,6 +2808,8 @@ function goLogTraining(){
       const _skippedExNames=new Set(_todayLogs.flatMap(l=>l.skippedExercises||[]));
       // Actually logged exercise names (excluding skipped)
       const _actualLogNames=new Set(_todayLogs.flatMap(l=>{
+        // Push Start 로그에는 종목 이름이 없다 → 이 세션의 Push 종목을 처리된 것으로 본다
+        if(l.type==='push') return (l.sess==null||l.sess===sess)?pushExs.map(e=>e.name||'').filter(Boolean):[];
         const arr=(l.type==='weight'||l.type==='plyo'||l.type==='mobility')?(l.exercises||[]):(l.sets||[]);
         return arr.map(e=>e.name||'').filter(Boolean);
       }));
@@ -2803,9 +2820,9 @@ function goLogTraining(){
       // Header status badge
       const _statusBadge=_sessLogged
         ?(_missingExs.length
-          ?`<span style="font-size:11px;font-weight:700;background:rgba(247,169,79,.15);color:#f7a94f;border-radius:6px;padding:3px 8px">⚠️ ${_missingExs.length} not logged</span>`
-          :`<span style="font-size:11px;font-weight:700;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:6px;padding:3px 8px">✓ Logged</span>`)
-        :`<span style="font-size:11px;font-weight:700;background:rgba(247,169,79,.1);color:#f7a94f;border-radius:6px;padding:3px 8px">⏳ Not yet</span>`;
+          ?`<span style="font-size:11px;font-weight:700;background:rgba(247,169,79,.15);color:#f7a94f;border-radius:6px;padding:3px 8px">⚠️ ${_missingExs.length} fehlen</span>`
+          :`<span style="font-size:11px;font-weight:700;background:rgba(62,207,142,.15);color:#3ecf8e;border-radius:6px;padding:3px 8px">✓ Eingetragen</span>`)
+        :`<span style="font-size:11px;font-weight:700;background:rgba(247,169,79,.1);color:#f7a94f;border-radius:6px;padding:3px 8px">⏳ Offen</span>`;
 
       // Collapsed preview: first 3 exercise names
       const previewNames=exs.slice(0,3).map(e=>e.name).join(', ')+(exs.length>3?` +${exs.length-3}`:'');
@@ -2825,8 +2842,8 @@ function goLogTraining(){
         const _cardIsSprint=TRAINING_STRUCTURE[e.trainingType]?.params==='sprint';
         if(_cardIsSprint&&(e.planRestTime||e.planRestTimeReps)){
           const parts=[];
-          if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · sets`);
-          if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · reps`);
+          if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · Sätze`);
+          if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · Wdh.`);
           restStr=`<span style="color:rgba(79,142,247,.7)"> / Rest: ${parts.join(' · ')}</span>`;
         } else if(!_cardIsSprint&&e.planRestTime){
           const rUnit=e.planRestUnit||'s';
@@ -2844,8 +2861,8 @@ function goLogTraining(){
           ?(_wasLogged
             ?`<span style="font-size:10px;font-weight:700;color:#3ecf8e;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(62,207,142,.08)">✓</span>`
             :_wasSkipped
-              ?`<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.06)">↩ Skipped</span>`
-              :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! Not logged</span>`)
+              ?`<span style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.06)">↩ Übersprungen</span>`
+              :`<span style="font-size:10px;font-weight:700;color:#f7a94f;margin-left:auto;flex-shrink:0;padding:1px 5px;border-radius:4px;background:rgba(247,169,79,.12)">! Fehlt</span>`)
           :'';
         const _rowColor=_wasSkipped?'rgba(255,255,255,.2)':_isMissing?'#f7a94f':'var(--muted)';
         return `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:8px;color:${_rowColor}">
@@ -2869,30 +2886,32 @@ function goLogTraining(){
         <!-- Expandable body -->
         <div id="_sess_body_${sess}" style="display:${isOpen?'block':'none'};padding:0 16px 16px">
           ${wu?`<div style="font-size:12px;color:rgba(247,169,79,.85);padding:8px 10px;background:rgba(247,169,79,.07);border-radius:9px;margin-bottom:10px;line-height:1.7">🔆 <span style="font-weight:700">Aufwärmen</span><br>${_warmupHtml(_wuSb)}</div>`:''}
-          ${exs.length?`${wu?`<div style="display:flex;align-items:center;gap:8px;margin:2px 0 9px"><span style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(62,207,142,.9)">💪 Haupttraining</span><div style="flex:1;height:1px;background:rgba(255,255,255,.08)"></div></div>`:''}<div class="sess-chk-wrap" data-total="${exs.length}" style="margin-bottom:12px">${allLines}</div><button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Log this session →</button>`:''}
+          ${exs.length?`${wu?`<div style="display:flex;align-items:center;gap:8px;margin:2px 0 9px"><span style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(62,207,142,.9)">💪 Haupttraining</span><div style="flex:1;height:1px;background:rgba(255,255,255,.08)"></div></div>`:''}<div class="sess-chk-wrap" data-total="${exs.length}" style="margin-bottom:12px">${allLines}</div>${_logBtns}`:''}
         </div>
       </div>`;
     }
-    wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_pushEntryCard()+_recentLogsSection();
+    // 플랜에 Push Start 종목이 있으면 그 세션 카드 안에서 입력하므로 바깥 진입 카드는 숨긴다
+    const _planHasPush=amExs.concat(pmExs).some(_exIsPush);
+    wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+(_planHasPush?'':_pushEntryCard())+_recentLogsSection();
   } else {
-    title.textContent=`${ST.athlete.name}, what did you do?`;
-    sub.textContent=isYesterday?`Log for ${today} — select type manually`:'No session plan for today — select type manually';
+    title.textContent=`${ST.athlete.name}, was hast du gemacht?`;
+    sub.textContent=isYesterday?`Eintrag für ${today} — Trainingsart selbst wählen`:'Kein Plan für heute — Trainingsart selbst wählen';
     wrap.innerHTML=`
       <div class="type-grid">
         <div class="type-card" onclick="selectType('weight')">
           <span class="ico">🏋️</span>
-          <div class="lbl">Weight Training</div>
-          <div class="desc" style="color:var(--gold)">Krafttraining</div>
+          <div class="lbl">Krafttraining</div>
+          <div class="desc" style="color:var(--gold)">Volumen · Sätze · Last</div>
         </div>
         <div class="type-card" onclick="selectType('sprint')">
           <span class="ico">⚡</span>
-          <div class="lbl">Sprint Training</div>
-          <div class="desc" style="color:var(--gold)">Sprinttraining</div>
+          <div class="lbl">Sprinttraining</div>
+          <div class="desc" style="color:var(--gold)">Distanz · Sätze · Intensität</div>
         </div>
         <div class="type-card" onclick="selectType('push')">
           <span class="ico">🛷</span>
           <div class="lbl">Push Start</div>
-          <div class="desc" style="color:var(--gold)">Anschieben</div>
+          <div class="desc" style="color:var(--gold)">Anschieben · Split 1 · Finish</div>
         </div>
       </div>`+_recentLogsSection();
   }
@@ -2901,7 +2920,7 @@ function goLogTraining(){
 }
 function _recentLogsSection(){
   return `<div style="margin-top:20px">
-    <div class="sec-ttl" style="margin-bottom:10px">📋 Recent Logs · Letzte Einträge</div>
+    <div class="sec-ttl" style="margin-bottom:10px">📋 Letzte Einträge</div>
     <div id="log-sess-recent"></div>
   </div>`;
 }
@@ -2971,7 +2990,7 @@ function selectType(t){
       } else {
         ST._extraEditLogIds=[];
         banner.style.display='block';
-        banner.textContent=`📋 ${sessLabel} session loaded — enter your numbers below`;
+        banner.textContent=`📋 ${sessLabel} · Plan geladen — trage deine Zahlen ein`;
       }
 
       // Pre-fill: use actual logged values where available, plan defaults for new/missing exercises
@@ -3025,10 +3044,10 @@ function selectType(t){
       const screenTitle=document.getElementById('w-screen-title');
       const screenLogo=document.getElementById('w-screen-logo');
       const allMob=planExs.length&&planExs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='mobility');
-      if(allSprint){ screenTitle.textContent='Sprint Training'; screenLogo.textContent='⚡ Sprint'; }
-      else if(allMob){ screenTitle.textContent='Mobility & Conditioning'; screenLogo.textContent='🌀 Mobility'; }
-      else if(hasSprint&&hasWeight){ screenTitle.textContent='Combined Session'; screenLogo.textContent='🏋️⚡ Session'; }
-      else { screenTitle.textContent='Weight Training'; screenLogo.textContent='🏋️ Weights'; }
+      if(allSprint){ screenTitle.textContent='Sprinttraining'; screenLogo.textContent='⚡ Sprint'; }
+      else if(allMob){ screenTitle.textContent='Mobility & Kondition'; screenLogo.textContent='🌀 Mobility'; }
+      else if(hasSprint&&hasWeight){ screenTitle.textContent='Kombinierte Einheit'; screenLogo.textContent='🏋️⚡ Einheit'; }
+      else { screenTitle.textContent='Krafttraining'; screenLogo.textContent='🏋️ Kraft'; }
       addBtn.style.display='none';
       document.getElementById('w-phase').value=plan.phase||prog.phase||'';
       document.getElementById('w-week').value=plan.week||prog.week||'';
@@ -3086,8 +3105,8 @@ function selectType(t){
       else { cooldownBox2.style.display='none'; }
       if(ct2.trim()){ condBox2.style.display='block'; document.getElementById('w-conditioning-text').textContent=ct2; }
       else { condBox2.style.display='none'; }
-      document.getElementById('w-screen-title').textContent='Weight Training';
-      document.getElementById('w-screen-logo').textContent='🏋️ Weights';
+      document.getElementById('w-screen-title').textContent='Krafttraining';
+      document.getElementById('w-screen-logo').textContent='🏋️ Kraft';
     }
     renderExList();
     showScreen('s-weight');
@@ -3132,7 +3151,7 @@ function selectType(t){
       } else {
         ST._extraEditLogIds=[];
         sprintBanner.style.display='block';
-        sprintBanner.textContent=`📋 ${sessLabel2} · ${sprintExs.length} sprint exercise${sprintExs.length>1?'s':''} loaded from today's plan`;
+        sprintBanner.textContent=`📋 ${sessLabel2} · ${sprintExs.length} Sprint-Übung${sprintExs.length>1?'en':''} aus dem Tagesplan`;
       }
 
       ST.sprintSets=sprintExs.map(e=>{
@@ -3199,7 +3218,7 @@ function _renderAthRecentLogs(targetId){
   const d=getData();
   const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s',push:'b-s'};
   const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡',push:'🛷'};
-  const typeLabel={weight:'Weight Training',plyo:'Plyo Training',sprint:'Sprint Training',push:'Push Start'};
+  const typeLabel={weight:'Krafttraining',plyo:'Plyometrie',sprint:'Sprinttraining',push:'Push Start'};
   const grp=ST.athlete.group;
   const today=todayStr();
   const last14=getLast(14);
@@ -3269,8 +3288,8 @@ function _renderAthRecentLogs(targetId){
       else if(l.type==='sprint') stat=`${(l.totalDistance||0).toLocaleString()} m`;
       else if(l.type==='plyo'){
         const pts=[];
-        if((l.totalReps||0)>0) pts.push(`${l.totalReps} reps`);
-        if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} contacts`);
+        if((l.totalReps||0)>0) pts.push(`${l.totalReps} Wdh.`);
+        if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} Kontakte`);
         stat=pts.join(' · ')||'—';
       }
       else if(l.type==='push'){
@@ -3298,16 +3317,16 @@ function _renderAthRecentLogs(targetId){
         :'';
       html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
         <div class="detail-row">
-          <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Today</span>':''}</span>
+          <span style="font-size:12px;color:var(--muted)">${ds}${isToday?' <span style="color:#3ecf8e;font-weight:700">· Heute</span>':''}</span>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge ${typeBadge[l.type]}">${l.type}</span>
-            <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
-            <button onclick="_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete</button>
+            <button onclick="_editLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer">✏️ Bearbeiten</button>
+            <button onclick="_deleteAthLog('${l.id}')" style="padding:4px 10px;border-radius:7px;background:rgba(233,69,96,.12);border:1px solid rgba(233,69,96,.25);color:#e94560;font-size:11px;font-weight:700;cursor:pointer">🗑 Löschen</button>
           </div>
         </div>
-        <div class="detail-row"><span class="detail-key">Result</span><span class="detail-val">${stat}</span></div>
+        <div class="detail-row"><span class="detail-key">Ergebnis</span><span class="detail-val">${stat}</span></div>
         ${rpe?`<div class="detail-row" style="align-items:center">
-          <span class="detail-key">Effort</span>
+          <span class="detail-key">Anstrengung</span>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="width:80px;height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden">
               <div style="width:${rpe*10}%;height:100%;border-radius:3px;background:${rpeColor};transition:width .3s"></div>
@@ -3325,10 +3344,10 @@ function _renderAthRecentLogs(targetId){
         if(!loggedTypes.has(t)){
           html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(247,169,79,.5)">
             <div class="detail-row">
-              <span style="font-size:12px;color:var(--muted)">${ds} <span style="color:#f7a94f;font-weight:700">· Today</span></span>
-              <span style="font-size:11px;font-weight:700;color:#f7a94f;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.3);padding:3px 8px;border-radius:6px">⏳ Not yet</span>
+              <span style="font-size:12px;color:var(--muted)">${ds} <span style="color:#f7a94f;font-weight:700">· Heute</span></span>
+              <span style="font-size:11px;font-weight:700;color:#f7a94f;background:rgba(247,169,79,.12);border:1px solid rgba(247,169,79,.3);padding:3px 8px;border-radius:6px">⏳ Offen</span>
             </div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px">${typeEmoji[t]} ${typeLabel[t]} not logged yet · Noch nicht eingetragen</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">${typeEmoji[t]} ${typeLabel[t]} — noch nicht eingetragen</div>
           </div>`;
         }
       });
@@ -3339,9 +3358,9 @@ function _renderAthRecentLogs(targetId){
       html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(239,68,68,.45);opacity:.85">
         <div class="detail-row">
           <span style="font-size:12px;color:var(--muted)">${ds}</span>
-          <span style="font-size:11px;font-weight:700;color:#ef4444;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);padding:3px 8px;border-radius:6px">✗ Not logged · Nicht eingetragen</span>
+          <span style="font-size:11px;font-weight:700;color:#ef4444;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);padding:3px 8px;border-radius:6px">✗ Nicht eingetragen</span>
         </div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">Training was scheduled but no log was submitted.</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Training war geplant, aber es gibt keinen Eintrag.</div>
       </div>`;
     }
 
@@ -3475,7 +3494,7 @@ function renderPartGroup(id,parts,gk){
     const sel=ST.selectedParts[key]!==undefined;
     const el=document.createElement('div');
     el.className='part-chip';
-    el.textContent=p;
+    el.textContent=_partDE(p);
     if(sel){
       el.style.borderColor=sc.color; el.style.background=sc.bg;
       el.style.color=sc.color; el.style.fontWeight='700';
@@ -3519,7 +3538,7 @@ function renderSorenessSliders(){
     groups[sec].forEach(({key,part,val})=>{
       const div=document.createElement('div'); div.className='soreness-slider-item';
       div.style.borderColor=sc.border;
-      div.innerHTML=`<span class="soreness-part-lbl" style="color:${sc.color}">${part}</span>
+      div.innerHTML=`<span class="soreness-part-lbl" style="color:${sc.color}">${_partDE(part)}</span>
         <input type="range" min="1" max="10" value="${val}" style="flex:1;-webkit-appearance:none;height:6px;border-radius:3px;background:var(--border);outline:none">
         <span style="font-size:14px;font-weight:700;min-width:24px;text-align:right;color:${sc.color}">${val}</span>`;
       const slider=div.querySelector('input');
@@ -3552,7 +3571,7 @@ function saveCondition(){
   else d.logs.push(log);
   ST._editingConditionId=null;
   saveData(d);
-  document.getElementById('success-msg').textContent='Morning check saved! 🌅';
+  document.getElementById('success-msg').textContent='Morgen-Check gespeichert! 🌅';
   showScreen('s-success');
 }
 
@@ -3656,8 +3675,8 @@ function renderExList(){
       let liftRestStr='';
       if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
         const parts=[];
-        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · sets`);
-        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · reps`);
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · Sätze`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · Wdh.`);
         liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       // 이전 기록은 아래 📈 Last 줄에서 세트별로 더 자세히 보여주므로, 플랜 줄의 "Letzt." 중복 제거
@@ -3737,7 +3756,7 @@ function renderExList(){
              <input type="number" placeholder="${_pKg?'+'+_pKg:'+kg'}" value="${sr.extraKg||''}" oninput="updateSetRowField(${i},${j},'extraKg',this.value)" style="${inStyle};width:56px;color:#f7a94f">`
           :`<input type="number" placeholder="${_pKg||'kg'}" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
         return `<div style="${rowStyle}">
-          <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Set ${j+1}</span>
+          <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Satz ${j+1}</span>
           ${kgField}
           <span style="font-size:11px;color:var(--muted)">×</span>
           <input type="number" placeholder="${_pReps||'reps'}" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">
@@ -3792,15 +3811,15 @@ function renderExList(){
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
-      const repLbl=repType==='contacts'?'Contacts':'Reps';
+      const repLbl=repType==='contacts'?'Kontakte':'Wdh.';
       const legTag=`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:rgba(62,207,142,.15);color:#3ecf8e;margin-left:4px">${legMode}</span>`;
       const _plyoPlanParts=[];
       if(fromPlan&&(ex.planSets||ex.planReps)) _plyoPlanParts.push(`${ex.planSets||'—'}×${ex.planReps||'—'}`);
       let plyoRestStr='';
       if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
         const parts=[];
-        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · sets`);
-        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · reps`);
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · Sätze`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · Wdh.`);
         plyoRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       const plyoPlanSummary=_plyoPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_plyoPlanParts.join(' · ')}${plyoRestStr}</div>`:'';
@@ -3808,7 +3827,7 @@ function renderExList(){
         <div class="ex-nums" style="grid-template-columns:1fr 1fr">
           <div class="mini-wrap">
             <input class="mini-in${setsEdited?' plan-edited':''}" type="number" placeholder="0" value="${ex.sets||''}" oninput="ST.exercises[${i}].sets=this.value" onblur="renderExList()">
-            <div class="mini-lbl">Sets${setsEdited?' ✎':''}</div>
+            <div class="mini-lbl">Sätze${setsEdited?' ✎':''}</div>
           </div>
           <div class="mini-wrap">
             <input class="mini-in${repsEdited?' plan-edited':''}" type="number" placeholder="0" value="${ex.reps||''}" oninput="ST.exercises[${i}].reps=this.value" onblur="renderExList()">
@@ -3849,31 +3868,31 @@ function renderExList(){
       let sprintRestStr='';
       if(fromPlan&&(ex.planRestTime||ex.planRestTimeReps)){
         const parts=[];
-        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · sets`);
-        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · reps`);
+        if(ex.planRestTime) parts.push(`${ex.planRestTime}${ex.planRestUnit||'s'} · Sätze`);
+        if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · Wdh.`);
         sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
       paramsHtml=`
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-bottom:6px">
-          <div class="mini-wrap"><input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${ex.distance||''}" oninput="ST.exercises[${i}].distance=this.value" onblur="renderExList()"><div class="mini-lbl">Distance (m)${distEdited?' ✎':''}</div></div>
-          <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="3.58" value="${_spPbVal}" oninput="ST.exercises[${i}].pb=this.value" onblur="renderExList()" style="color:#3ecf8e"><div class="mini-lbl" style="color:#3ecf8e">${_spDisc!=='flat'?_discMeta(_spDisc).ic+' '+_discMeta(_spDisc).lbl+' PB':'My PB'} (s)</div></div>
+          <div class="mini-wrap"><input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${ex.distance||''}" oninput="ST.exercises[${i}].distance=this.value" onblur="renderExList()"><div class="mini-lbl">Distanz (m)${distEdited?' ✎':''}</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" step="0.001" placeholder="3.58" value="${_spPbVal}" oninput="ST.exercises[${i}].pb=this.value" onblur="renderExList()" style="color:#3ecf8e"><div class="mini-lbl" style="color:#3ecf8e">${_spDisc!=='flat'?_discMeta(_spDisc).ic+' '+_discMeta(_spDisc).lbl+' PB':'Mein PB'} (s)</div></div>
         </div>
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-bottom:6px">
-          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="%" value="${ex.intensity||''}" oninput="ST.exercises[${i}].intensity=this.value" onblur="renderExList()"><div class="mini-lbl">Intensity %</div></div>
+          <div class="mini-wrap"><input class="mini-in" type="number" placeholder="%" value="${ex.intensity||''}" oninput="ST.exercises[${i}].intensity=this.value" onblur="renderExList()"><div class="mini-lbl">Intensität %</div></div>
           <div class="mini-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
             <div style="font-size:18px;font-weight:800;color:${_spTarget?'#3ecf8e':'var(--muted)'}">${_spTarget?_spTarget+'s':'—'}</div>
-            <div class="mini-lbl"${_spTarget?' style="color:#3ecf8e"':''}>🎯 Target (s)</div>
+            <div class="mini-lbl"${_spTarget?' style="color:#3ecf8e"':''}>🎯 Ziel (s)</div>
           </div>
         </div>
         <div class="ex-nums" style="grid-template-columns:1fr 1fr">
           <div class="mini-wrap">
             <input class="mini-in${sprintSetsEdited?' plan-edited':''}" type="number" placeholder="0" value="${ex.sets||''}" oninput="ST.exercises[${i}].sets=this.value" onblur="renderExList()">
-            <div class="mini-lbl">Sets${sprintSetsEdited?' ✎':''}</div>
+            <div class="mini-lbl">Sätze${sprintSetsEdited?' ✎':''}</div>
           </div>
           <div class="mini-wrap">
             <input class="mini-in${sprintRepsEdited?' plan-edited':''}" type="number" placeholder="0" value="${ex.reps||''}" oninput="ST.exercises[${i}].reps=this.value" onblur="renderExList()">
-            <div class="mini-lbl">Reps${sprintRepsEdited?' ✎':''}</div>
+            <div class="mini-lbl">Wdh.${sprintRepsEdited?' ✎':''}</div>
           </div>
         </div>
         ${sprintFallbackPlanSummary}${ytEmbed}`;
@@ -3923,7 +3942,7 @@ function renderExList(){
       :`
       <div style="margin-top:10px">
         <div class="effort-lbl" style="display:flex;justify-content:space-between;align-items:center">
-          <span>Effort</span>
+          <span>Anstrengung</span>
           <span id="eff-val-${i}" style="font-size:13px;font-weight:800;color:${_en==null?'var(--muted)':_EFFCOL(_en)}">${_en==null?'—':_en+' / 10'}</span>
         </div>
         <input type="range" class="eff-slider" min="0" max="10" step="1" value="${_en==null?5:_en}" oninput="setExEffort(${i},this.value)">
@@ -3943,16 +3962,16 @@ function renderExList(){
       :`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
       <button onclick="addSetToEx(${i})"
         style="padding:7px 14px;border-radius:10px;border:1.5px solid rgba(79,142,247,.4);background:rgba(79,142,247,.1);color:#4f8ef7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-        + Set
+        + Satz
       </button>
       <div style="display:flex;gap:8px;align-items:center">
         <button onclick="_toggleExSkip(${i})"
           style="padding:7px 14px;border-radius:10px;border:1.5px solid ${ex.skipped?'rgba(255,255,255,.3)':'rgba(255,255,255,.1)'};background:${ex.skipped?'rgba(255,255,255,.1)':'transparent'};color:${ex.skipped?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${ex.skipped?'↩ Skip':'Skip'}
+          ${ex.skipped?'↩ Übersprungen':'Überspringen'}
         </button>
         <button class="_ex-done-btn" onclick="_toggleExDone(${i})"
           style="padding:7px 16px;border-radius:10px;border:1.5px solid ${ex.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${ex.done?'rgba(62,207,142,.12)':'transparent'};color:${ex.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${ex.done?'✅ Done':'○ Mark as Done'}
+          ${ex.done?'✅ Erledigt':'○ Als erledigt markieren'}
         </button>
       </div>
     </div>`;
@@ -4097,7 +4116,7 @@ function addSetToEx(i){
   const last=ST.exercises[i].setRows[ST.exercises[i].setRows.length-1]||{};
   ST.exercises[i].setRows.push({kg:last.kg||'', reps:last.reps||'', extraKg:last.extraKg||'', done:false});
   renderExList();
-  showToast(`Set ${ST.exercises[i].setRows.length} added`);
+  showToast(`Satz ${ST.exercises[i].setRows.length} hinzugefügt`);
 }
 
 // ── 앞으로: 이전에 무게가 기록됐던 운동인데 done 세트에 kg 미입력 감지 ──
@@ -4120,7 +4139,7 @@ function _kgMissingLoaded(allExs){
 
 function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 'confirmed'
   const allExs=ST.exercises.filter(e=>e.name&&e.name.trim());
-  if(!allExs.length){ showToast('Add at least one exercise'); return; }
+  if(!allExs.length){ showToast('Mindestens eine Übung hinzufügen'); return; }
 
   // ── 무게(kg) 미입력 경고 (최초 호출 1회) — 이전에 무게가 있던 운동만 ──
   if(dupMode===undefined){
@@ -4190,8 +4209,8 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     d.logs=d.logs.filter(l=>l.id!==_eid&&!_xids.includes(l.id));
     ST.editingLogId=null; ST._extraEditLogIds=[];
     document.getElementById('w-edit-banner').style.display='none';
-    document.getElementById('w-screen-title').textContent='Weight Training';
-    document.getElementById('w-screen-logo').textContent='🏋️ Weights';
+    document.getElementById('w-screen-title').textContent='Krafttraining';
+    document.getElementById('w-screen-logo').textContent='🏋️ Kraft';
   }
 
   // ── Replace mode: delete today's duplicate logs ──
@@ -4295,8 +4314,8 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       skippedExercises:_skippedPlyo
     });
     const sp=[];
-    if(totalReps>0) sp.push(`${totalReps} reps`);
-    if(totalContacts>0) sp.push(`${totalContacts} contacts`);
+    if(totalReps>0) sp.push(`${totalReps} Wdh.`);
+    if(totalContacts>0) sp.push(`${totalContacts} Kontakte`);
     summaryParts.push(`${sp.join(' · ')} 🦘`);
   }
 
@@ -4332,13 +4351,13 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
   if(!liftingExs.length&&!plyoExs.length&&!sprintExs.length&&_allSkipped.length){
     d.logs.push({id:genId(),date:ST._logDate||todayStr(),athleteName:ST.athlete.name,group:ST.athlete.group,
       type:'weight',sess:_curSess,phase,week,exercises:[],skippedExercises:_allSkipped,totalVolume:0,rpe,notes});
-    summaryParts.push(`${_allSkipped.length} skipped ↩`);
+    summaryParts.push(`${_allSkipped.length} übersprungen ↩`);
   }
 
   saveData(d);
   ST._logDate=null;
   const _wasEdit=!!document.getElementById('w-edit-banner')?.style.display?.includes('block');
-  document.getElementById('success-msg').textContent=_wasEdit?`Updated! · Aktualisiert! ✅ ${summaryParts.join(' · ')}`:`Session saved! · Einheit gespeichert! ${summaryParts.join(' · ')}`;
+  document.getElementById('success-msg').textContent=_wasEdit?`Aktualisiert! ✅ ${summaryParts.join(' · ')}`:`Einheit gespeichert! ${summaryParts.join(' · ')}`;
   _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
 }
@@ -4403,12 +4422,12 @@ function _updateSprintCalc(i){
     const targetT=(pb/(pct/100)).toFixed(2);
     calcDiv.innerHTML=`
       <div style="font-size:18px;font-weight:800;color:#3ecf8e">${targetT}s</div>
-      <div class="mini-lbl" style="color:#3ecf8e">🎯 Target (s)</div>`;
+      <div class="mini-lbl" style="color:#3ecf8e">🎯 Ziel (s)</div>`;
   } else {
     const _noPb=(pct&&pct>0&&!pb);
     calcDiv.innerHTML=`
       <div style="font-size:18px;font-weight:800;color:var(--muted)">—</div>
-      <div class="mini-lbl">🎯 Target (s)</div>${_noPb?'<div style="font-size:9px;color:var(--muted);margin-top:1px">kein PB</div>':''}`;
+      <div class="mini-lbl">🎯 Ziel (s)</div>${_noPb?'<div style="font-size:9px;color:var(--muted);margin-top:1px">kein PB</div>':''}`;
   }
 }
 
@@ -4542,7 +4561,7 @@ function renderSprintSets(){
     const effortHtml=`
       <div style="margin-top:10px">
         <div class="effort-lbl" style="display:flex;justify-content:space-between;align-items:center">
-          <span>Effort</span>
+          <span>Anstrengung</span>
           <span id="speff-val-${i}" style="font-size:13px;font-weight:800;color:${_sen==null?'var(--muted)':_EFFCOL(_sen)}">${_sen==null?'—':_sen+' / 10'}</span>
         </div>
         <input type="range" class="eff-slider" min="0" max="10" step="1" value="${_sen==null?5:_sen}" oninput="setSprintEffort(${i},this.value)">
@@ -4565,8 +4584,8 @@ function renderSprintSets(){
     const _spPlanParts=[];
     if(fromPlan&&s.planIntensity) _spPlanParts.push(`${s.planIntensity}%`);
     if(fromPlan&&s.planDistance) _spPlanParts.push(`${s.planDistance}m`);
-    if(fromPlan&&s.planSets) _spPlanParts.push(`${s.planSets} sets`);
-    if(fromPlan&&s.planReps) _spPlanParts.push(`${s.planReps} reps`);
+    if(fromPlan&&s.planSets) _spPlanParts.push(`${s.planSets} Sätze`);
+    if(fromPlan&&s.planReps) _spPlanParts.push(`${s.planReps} Wdh.`);
     let _spRestStr='';
     if(fromPlan&&(s.planRestTime||s.planRestTimeReps)){
       const _rp=[];
@@ -4597,11 +4616,11 @@ function renderSprintSets(){
     const targetDisplay=targetT
       ? `<div id="sp-calc-${i}" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
            <div style="font-size:18px;font-weight:800;color:#3ecf8e">${targetT}s</div>
-           <div class="mini-lbl" style="color:#3ecf8e">🎯 Target (s)</div>
+           <div class="mini-lbl" style="color:#3ecf8e">🎯 Ziel (s)</div>
          </div>`
       : `<div id="sp-calc-${i}" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
            <div style="font-size:18px;font-weight:800;color:var(--muted)">—</div>
-           <div class="mini-lbl">🎯 Target (s)</div>
+           <div class="mini-lbl">🎯 Ziel (s)</div>
          </div>`;
 
     const div=document.createElement('div'); div.className='ex-row';
@@ -4613,31 +4632,31 @@ function renderSprintSets(){
         <div class="mini-wrap">
           <input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${s.distance||''}"
             oninput="ST.sprintSets[${i}].distance=this.value;ST.sprintSets[${i}].pb='';ST.sprintSets[${i}]._pbAuto=false;renderSprintSets()">
-          <div class="mini-lbl">Distance (m)${distEdited?' ✎':''}</div>
+          <div class="mini-lbl">Distanz (m)${distEdited?' ✎':''}</div>
         </div>
         <div class="mini-wrap">
           <input class="mini-in" type="number" step="0.001" placeholder="3.58" value="${s.pb||''}"
             oninput="ST.sprintSets[${i}].pb=this.value;ST.sprintSets[${i}]._pbAuto=false;_updateSprintCalc(${i})"
             style="color:#3ecf8e">
-          <div class="mini-lbl" style="color:#3ecf8e">${_disc!=='flat'?_discMeta(_disc).ic+' '+_discMeta(_disc).lbl+' PB':'My PB'} (s)</div>
+          <div class="mini-lbl" style="color:#3ecf8e">${_disc!=='flat'?_discMeta(_disc).ic+' '+_discMeta(_disc).lbl+' PB':'Mein PB'} (s)</div>
         </div>
       </div>
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in sp-int-input${intEdited?' plan-edited':''}" type="number" placeholder="%" value="${s.intensity||''}"
             oninput="ST.sprintSets[${i}].intensity=this.value;_updateSprintCalc(${i})">
-          <div class="mini-lbl">Intensity %${intEdited?' ✎':''}</div>
+          <div class="mini-lbl">Intensität %${intEdited?' ✎':''}</div>
         </div>
         ${targetDisplay}
       </div>
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in${setsEdited?' plan-edited':''}" type="number" placeholder="0" value="${s.sets||''}" oninput="ST.sprintSets[${i}].sets=this.value">
-          <div class="mini-lbl">Sets${setsEdited?' ✎':''}</div>
+          <div class="mini-lbl">Sätze${setsEdited?' ✎':''}</div>
         </div>
         <div class="mini-wrap">
           <input class="mini-in${repsEdited?' plan-edited':''}" type="number" placeholder="0" value="${s.reps||''}" oninput="ST.sprintSets[${i}].reps=this.value">
-          <div class="mini-lbl">Reps${repsEdited?' ✎':''}</div>
+          <div class="mini-lbl">Wdh.${repsEdited?' ✎':''}</div>
         </div>
       </div>
       ${spPlanSummary}
@@ -4650,11 +4669,11 @@ function renderSprintSets(){
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
         <button onclick="_toggleSprintSkip(${i})"
           style="padding:7px 14px;border-radius:10px;border:1.5px solid ${s.skipped?'rgba(255,255,255,.3)':'rgba(255,255,255,.1)'};background:${s.skipped?'rgba(255,255,255,.1)':'transparent'};color:${s.skipped?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${s.skipped?'↩ Skip':'Skip'}
+          ${s.skipped?'↩ Übersprungen':'Überspringen'}
         </button>
         <button class="_ex-done-btn" onclick="_toggleSprintDone(${i})"
           style="padding:7px 16px;border-radius:10px;border:1.5px solid ${s.done?'#3ecf8e':'rgba(255,255,255,.15)'};background:${s.done?'rgba(62,207,142,.12)':'transparent'};color:${s.done?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-          ${s.done?'✅ Done':'○ Mark as Done'}
+          ${s.done?'✅ Erledigt':'○ Als erledigt markieren'}
         </button>
       </div>`;
     wrap.appendChild(div);
@@ -4698,7 +4717,7 @@ function _rmLap(i,k){ const s=ST.sprintSets[i]; if(Array.isArray(s.repTimes)) s.
 function saveSprint(dupMode){
   const sets=ST.sprintSets.filter(s=>parseFloat(s.distance)>0 && !s.skipped && s.done!==false);
   const _skippedSprintSets=ST.sprintSets.filter(s=>s.skipped).map(s=>s.name).filter(Boolean);
-  if(!sets.length){ showToast('Enter at least one distance'); return; }
+  if(!sets.length){ showToast('Mindestens eine Distanz eingeben'); return; }
   const totalDist=sets.reduce((sum,s)=>sum+(parseFloat(s.distance)||0)*(parseInt(s.sets)||1)*(parseInt(s.reps)||1),0);
 
   // Pre-save confirmation (first call only, not in edit mode)
@@ -4789,7 +4808,7 @@ function saveSprint(dupMode){
     showToast(`🏆 NEUER PB! ${log.athleteName}: ${_m} 🎉`);
     if(_sm) _sm.innerHTML=`<span style="color:#ffc400;font-weight:900">🏆 NEUER PB!</span> ${_m}<br><span style="font-size:13px">Sprint gespeichert · ${Math.round(totalDist).toLocaleString()} m ⚡</span>`;
   } else {
-    if(_sm) _sm.textContent=`Sprint Training saved! Total: ${Math.round(totalDist).toLocaleString()} m ⚡`;
+    if(_sm) _sm.textContent=`Sprinttraining gespeichert! Gesamt: ${Math.round(totalDist).toLocaleString()} m ⚡`;
   }
   _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
@@ -4803,6 +4822,9 @@ function saveSprint(dupMode){
 // ⚠️ 대시보드 _pushTrack()/Firestore trainlog/pushdata 의 track.gates 와 반드시 같은 값을 쓸 것.
 const PUSH_GATES=[5,15,55];
 const _puRng=(a,b)=>PUSH_GATES[a]+'→'+PUSH_GATES[b]+'m';
+// 플랜 종목이 Push Start인지 — 코치가 subCategory='Push Start'로 넣는다(trainingType은 Sprint Training).
+// 이 종목은 스프린트 입력 화면이 아니라 Push Start 입력(log type:'push')으로 보내야 한다.
+function _exIsPush(e){ return !!e && (e.subCategory==='Push Start'||e.subType==='Push Start'); }
 
 // 플랜이 있는 날에도 Push Start로 들어갈 수 있게 s-log-session 하단에 붙이는 진입 카드
 function _pushEntryCard(){
@@ -4817,7 +4839,7 @@ function _pushEntryCard(){
 }
 
 function goPushStart(){
-  if(!ST.athlete){ showToast('Please select your name'); return; }
+  if(!ST.athlete){ showToast('Bitte wähle deinen Namen'); return; }
   ST.editingLogId=null; ST._extraEditLogIds=[];
   ST.pushAttempts=[{s1:'',fin:''},{s1:'',fin:''},{s1:'',fin:''}];
   ST._activeSess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
@@ -4888,7 +4910,7 @@ function _puRowsHtml(l){
 }
 
 function savePush(dupMode){
-  if(!ST.athlete){ showToast('Please select your name'); return; }
+  if(!ST.athlete){ showToast('Bitte wähle deinen Namen'); return; }
   const num=v=>{ if(v===''||v==null) return null; const n=parseFloat(v); return (isNaN(n)||n<=0)?null:+n.toFixed(3); };
   // Finish 없는 줄 = 무효/미기록 시도 → 저장하지 않고 번호를 다시 매긴다(대시보드 표와 동일 규칙)
   const attempts=(ST.pushAttempts||[]).map(a=>({s1:num(a.s1),fin:num(a.fin)}))
@@ -4976,8 +4998,8 @@ function renderProgram(){
   const now=new Date(); const dow=now.getDay();
   const monday=new Date(now); monday.setDate(now.getDate()-(dow===0?6:dow-1)+offset*7);
   const sunday=new Date(monday); sunday.setDate(monday.getDate()+6);
-  const fmtShort=dt=>`${dt.toLocaleString('en',{month:'short'})} ${dt.getDate()}`;
-  document.getElementById('prog-title').textContent='Wochenplan · Weekly Plan';
+  const fmtShort=dt=>`${dt.getDate()}. ${dt.toLocaleString('de-DE',{month:'short'})}`;
+  document.getElementById('prog-title').textContent='Wochenplan';
   document.getElementById('prog-sub').textContent=`${fmtShort(monday)} – ${fmtShort(sunday)}, ${sunday.getFullYear()}`;
   // 이번 주 돌아가기 버튼 표시 여부
   const todayBtn=document.getElementById('prog-today-btn');
@@ -5018,8 +5040,8 @@ function renderProgram(){
     let restStr='';
     if(e.planRestTime||e.planRestTimeReps){
       const parts=[];
-      if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · sets`);
-      if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · reps`);
+      if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · Sätze`);
+      if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · Wdh.`);
       restStr=`<span style="color:rgba(79,142,247,.7);font-size:11px"> / Rest: ${parts.join(' · ')}</span>`;
     }
     // Contraction info
@@ -5063,7 +5085,7 @@ function renderProgram(){
 
     const phaseInfo=plan?[plan.phase,plan.week?'Wk '+plan.week:''].filter(Boolean).join(' · '):'';
     const totalExs=amExs.length+pmExs.length;
-    const summaryText=hasPlan?`${totalExs} exercise${totalExs!==1?'s':''}${phaseInfo?' · '+phaseInfo:''}`:phaseInfo||'Rest Day · Ruhetag';
+    const summaryText=hasPlan?`${totalExs} Übung${totalExs!==1?'en':''}${phaseInfo?' · '+phaseInfo:''}`:phaseInfo||'Ruhetag';
     const isOpen=isToday; // today opens by default, others collapsed
     const card=document.createElement('div');
     card.style.cssText=`margin-bottom:10px;border-radius:16px;border:1px solid ${isToday?'rgba(79,142,247,.4)':'rgba(255,255,255,.07)'};background:${isToday?'rgba(79,142,247,.07)':'var(--card)'};overflow:hidden`;
@@ -5071,7 +5093,7 @@ function renderProgram(){
     card.innerHTML=`
     <div onclick="_toggleProgDay('${ds}')" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
       <div style="display:flex;align-items:baseline;gap:8px;flex:1;min-width:0">
-        <span style="font-size:14px;font-weight:800;color:${isToday?'var(--blue)':'var(--text)'}">${dayNamesDE_W[i]} · ${dayNamesEN[i]}</span>
+        <span style="font-size:14px;font-weight:800;color:${isToday?'var(--blue)':'var(--text)'}">${dayNamesDE_W[i]}</span>
         <span style="font-size:12px;color:var(--muted)">${day.getDate()}.${day.getMonth()+1}.</span>
         ${isToday?'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(79,142,247,.2);color:var(--blue);letter-spacing:.5px">TODAY</span>':''}
         ${!isOpen&&hasPlan?`<span style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${summaryText}</span>`:''}
@@ -5080,14 +5102,14 @@ function renderProgram(){
     </div>
     <div id="prog-body-${ds}" style="overflow:hidden;transition:max-height .28s ease;max-height:${isOpen?'2000px':'0px'}">
       ${!hasPlan
-        ?`<div style="padding:6px 14px 12px;font-size:13px;color:rgba(255,255,255,.2)">Rest Day · Ruhetag</div>`
+        ?`<div style="padding:6px 14px 12px;font-size:13px;color:rgba(255,255,255,.2)">Ruhetag</div>`
         :_sessBlock(amExs,amSd,'🌅 AM','#f7a94f')+_sessBlock(pmExs,pmSd,'🌇 PM','#a78bfa')
       }
     </div>`;
     wrap.appendChild(card);
   }
   if(!hasAnyPlan){
-    wrap.innerHTML='<div class="empty"><div class="ei">📅</div>No plan for this week yet.<br><span style="color:var(--muted);font-size:13px">Kein Wochenplan vorhanden</span></div>';
+    wrap.innerHTML='<div class="empty"><div class="ei">📅</div>Für diese Woche gibt es noch keinen Plan.<br><span style="color:var(--muted);font-size:13px">Kein Wochenplan vorhanden</span></div>';
   }
 }
 
@@ -5826,21 +5848,21 @@ function _renderLoadRecent(logs, wrapId, opts){
     if((l.soreness||[]).length){
       const sChips = l.soreness.map(s=>{
         const c = _intensityCol(s.intensity);
-        return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;
+        return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${_partDE(s.part)} ${s.intensity}</span>`;
       }).join('');
       parts.push(`<div style="padding:4px 0">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <span style="font-size:11px;color:var(--muted);font-weight:600">🔴 Soreness</span>
+          <span style="font-size:11px;color:var(--muted);font-weight:600">🔴 Muskelkater</span>
           <span style="font-size:10px;color:var(--muted);letter-spacing:.3px">
-            <span style="color:#3ecf8e">●</span> mild
-            <span style="color:#f7a94f;margin-left:6px">●</span> moderate
-            <span style="color:#e94560;margin-left:6px">●</span> severe
+            <span style="color:#3ecf8e">●</span> leicht
+            <span style="color:#f7a94f;margin-left:6px">●</span> mittel
+            <span style="color:#e94560;margin-left:6px">●</span> stark
           </span>
         </div>
         <div>${sChips}</div>
       </div>`);
     } else {
-      parts.push(`<div style="padding:4px 0;font-size:12px;color:var(--muted);font-style:italic">No soreness reported</div>`);
+      parts.push(`<div style="padding:4px 0;font-size:12px;color:var(--muted);font-style:italic">Kein Muskelkater gemeldet</div>`);
     }
     if(l.notes) parts.push(`<div style="padding:6px 0 2px;font-size:12px;color:var(--muted);font-style:italic;border-top:1px solid rgba(255,255,255,.04);margin-top:6px">"${l.notes}"</div>`);
     return parts.join('');
@@ -5923,8 +5945,8 @@ function _renderLoadRecent(logs, wrapId, opts){
   // collapsed by default. Each session card inside also expands on tap (_renderCard).
   if(opts.splitByType){
     const _sections = [
-      {types:['condition'],            icon:'🌡️', label:'Condition · Befinden',    color:'#a78bfa'},
-      {types:['weight','plyo'],        icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
+      {types:['condition'],            icon:'🌡️', label:'Befinden',    color:'#a78bfa'},
+      {types:['weight','plyo'],        icon:'🏋️', label:'Krafttraining', color:'#f7a94f'},
       {types:['sprint','tabata'],      icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
       {types:['mobility'],             icon:'🌀', label:'Conditioning',            color:'#E07B39'},
       {types:['push'],                 icon:'🛷', label:'Push Start',              color:'#58a6ff'}
@@ -6013,7 +6035,7 @@ function _renderLoadSoreness(logs, wrapId){
     const chips = l.soreness.map(s=>{
       const sec = _partSection[s.part]||'upper';
       const col = _SECTION_COL[sec];
-      return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${col.bg};border:1px solid ${col.border};font-size:11px;color:${col.color};font-weight:700;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;
+      return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${col.bg};border:1px solid ${col.border};font-size:11px;color:${col.color};font-weight:700;margin:3px 4px 0 0">${_partDE(s.part)} ${s.intensity}</span>`;
     }).join('');
     return `<div class="detail-card" style="border-left:3px solid #e94560;padding:11px 13px">
       <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px">${l.date}</div>
@@ -6241,10 +6263,10 @@ function _renderDetailLogs(logs, opts){
     } else if(l.type==='push'&&_puOK(l).length){
       detailHtml=`<div style="margin-top:4px;padding-top:4px">${_puRowsHtml(l)}</div>`;
     } else if(hasSore){
-      const chips=l.soreness.map(s=>{const c=_intensityCol(s.intensity);return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${s.part} ${s.intensity}</span>`;}).join('');
+      const chips=l.soreness.map(s=>{const c=_intensityCol(s.intensity);return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${_partDE(s.part)} ${s.intensity}</span>`;}).join('');
       detailHtml=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:11px;color:var(--muted);font-weight:600">🔴 Soreness · Muskelkater</span>
-        <span style="font-size:10px;color:var(--muted)"><span style="color:#3ecf8e">●</span> mild<span style="color:#f7a94f;margin-left:6px">●</span> moderate<span style="color:#e94560;margin-left:6px">●</span> severe</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:600">🔴 Muskelkater · Muskelkater</span>
+        <span style="font-size:10px;color:var(--muted)"><span style="color:#3ecf8e">●</span> leicht<span style="color:#f7a94f;margin-left:6px">●</span> mittel<span style="color:#e94560;margin-left:6px">●</span> stark</span>
       </div><div style="display:flex;flex-wrap:wrap;gap:0">${chips}</div>`;
     }
 
@@ -6654,7 +6676,7 @@ function renderSettings(){
   const syncBar=document.getElementById('sync-status-bar');
   if(syncBar){
     const t=localStorage.getItem('trainlog_last_sync');
-    if(t){ const dt=new Date(parseInt(t)); syncBar.textContent=`Last synced: ${dt.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'})} · Today (Berlin): ${todayStr()}`; }
+    if(t){ const dt=new Date(parseInt(t)); syncBar.textContent=`Last synced: ${dt.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'})} · Heute (Berlin): ${todayStr()}`; }
     else { syncBar.textContent=`Today (Berlin): ${todayStr()} · Not yet synced this session`; }
   }
   d.athletes.forEach(a=>{
@@ -7228,6 +7250,7 @@ function exportExcel(){
     'Special Endurance 1':'Special Endurance 1 (SE1)',
     'Special Endurance 2':'Special Endurance 2 (SE2)',
     'Resistance Sprinting':'Resistance Sprinting',
+    'Push Start':'Push Start',
     'Sprint Training':'Sprint Training'
   };
   const sloadHdr=['Date','Athlete','Group','Phase','Week','Sprint Category','Sprint Name','Distance (m)','Sets','Reps','Total Distance (m)','Intensity (%)','Rest Time','Rest Unit','Rest Type'];
@@ -7295,12 +7318,12 @@ function _showSaveConfirmModal(onConfirm){
   el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
   el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:24px 20px 36px;width:100%;max-width:480px;border-top:1px solid var(--border)">
     <div style="font-size:22px;text-align:center;margin-bottom:10px">🔍</div>
-    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;text-align:center">Did you enter everything correctly?</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;text-align:center">Hast du alles richtig eingegeben?</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:6px;text-align:center">Please double-check your numbers before saving.</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:22px;text-align:center">Bitte überprüfe deine Eingaben noch einmal.</div>
     <div style="display:flex;flex-direction:column;gap:9px">
-      <button id="_sc-confirm" style="padding:14px;border-radius:12px;background:#3ecf8e;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save log · Eintrag speichern</button>
-      <button id="_sc-review" style="padding:14px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Review again · Nochmal prüfen</button>
+      <button id="_sc-confirm" style="padding:14px;border-radius:12px;background:#3ecf8e;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Eintrag speichern</button>
+      <button id="_sc-review" style="padding:14px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Nochmal prüfen</button>
     </div>
   </div>`;
   document.body.appendChild(el);
@@ -7344,12 +7367,12 @@ function _showDupModal(typeLbl, onReplace, onKeep){
   const el=document.createElement('div');
   el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
   el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:24px 20px 36px;width:100%;max-width:480px;border-top:1px solid var(--border)">
-    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Log already exists · Eintrag existiert bereits</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Eintrag existiert bereits</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:20px">A <b style="color:var(--text)">${typeLbl}</b> log already exists for today. What would you like to do? · Was möchtest du tun?</div>
     <div style="display:flex;flex-direction:column;gap:9px">
-      <button id="_dup-rep" style="padding:14px;border-radius:12px;background:#4f8ef7;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Replace · Ersetzen (deletes existing)</button>
-      <button id="_dup-add" style="padding:14px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Add anyway · Trotzdem hinzufügen</button>
-      <button id="_dup-cxl" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Cancel · Abbrechen</button>
+      <button id="_dup-rep" style="padding:14px;border-radius:12px;background:#4f8ef7;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Ersetzen (löscht den alten Eintrag)</button>
+      <button id="_dup-add" style="padding:14px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Trotzdem hinzufügen</button>
+      <button id="_dup-cxl" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Abbrechen</button>
     </div>
   </div>`;
   document.body.appendChild(el);
@@ -7409,8 +7432,8 @@ function _editLog(logId){
     document.getElementById('w-add-ex-btn').style.display='none';
     document.getElementById('w-edit-banner').style.display='block';
     const wDateEl=document.getElementById('w-edit-date'); if(wDateEl) wDateEl.value=log.date||todayStr();
-    document.getElementById('w-screen-title').textContent='Edit Log · Eintrag bearbeiten';
-    document.getElementById('w-screen-logo').textContent='✏️ Edit';
+    document.getElementById('w-screen-title').textContent='Eintrag bearbeiten';
+    document.getElementById('w-screen-logo').textContent='✏️ Bearbeiten';
     renderExList();
     showScreen('s-weight');
   } else if(log.type==='sprint'){
@@ -7558,13 +7581,13 @@ function _deleteAthLog(id){
   const el=document.createElement('div');
   el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
   el.innerHTML=`<div style="background:var(--bg2);border-radius:18px 18px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;border-top:1px solid var(--border)">
-    <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">Delete this log?</div>
+    <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">Diesen Eintrag löschen?</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:6px">${log.date} · <b style="color:var(--text)">${label}</b></div>
-    ${stat?`<div style="font-size:13px;color:var(--muted);margin-bottom:20px">Result: <b style="color:var(--text)">${stat}</b></div>`:'<div style="margin-bottom:20px"></div>'}
+    ${stat?`<div style="font-size:13px;color:var(--muted);margin-bottom:20px">Ergebnis: <b style="color:var(--text)">${stat}</b></div>`:'<div style="margin-bottom:20px"></div>'}
     <div style="font-size:12px;color:#f7a94f;margin-bottom:20px;padding:10px 12px;background:rgba(247,169,79,.08);border:1px solid rgba(247,169,79,.25);border-radius:10px">⚠️ This will also remove it from the coach view.</div>
     <div style="display:flex;flex-direction:column;gap:9px">
-      <button id="_del-confirm" style="padding:14px;border-radius:12px;background:#e94560;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Delete · Löschen</button>
-      <button id="_del-cancel" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Cancel · Abbrechen</button>
+      <button id="_del-confirm" style="padding:14px;border-radius:12px;background:#e94560;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Löschen · Löschen</button>
+      <button id="_del-cancel" style="padding:12px;border-radius:12px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit">Abbrechen</button>
     </div>
   </div>`;
   document.body.appendChild(el);
@@ -7576,7 +7599,7 @@ function _deleteAthLog(id){
     _archiveLogs(dd, dd.logs.filter(l=>l.id===id), 'delete');
     dd.logs=dd.logs.filter(l=>l.id!==id);
     saveData(dd);
-    showToast('Log deleted · Gelöscht');
+    showToast('Eintrag gelöscht');
     _renderAthRecentLogs('log-sess-recent');
     const logSess=document.getElementById('s-log-session');
     if(logSess?.classList.contains('active')) goLogTraining();
@@ -8467,8 +8490,8 @@ function renderPlanAccordion(){
       const _ovIsSprint=TRAINING_STRUCTURE[e.trainingType]?.params==='sprint';
       if(_ovIsSprint&&(e.planRestTime||e.planRestTimeReps)){
         const parts=[];
-        if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · sets`);
-        if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · reps`);
+        if(e.planRestTime) parts.push(`${e.planRestTime}${e.planRestUnit||'s'} · Sätze`);
+        if(e.planRestTimeReps) parts.push(`${e.planRestTimeReps}${e.planRestUnitReps||'s'} · Wdh.`);
         restStr=`<span style="color:rgba(79,142,247,.75)"> / Rest: ${parts.join(' · ')}</span>`;
       } else if(!_ovIsSprint&&e.planRestTime){
         const rUnit=e.planRestUnit||'s';
