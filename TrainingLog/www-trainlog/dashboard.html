@@ -2971,33 +2971,53 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       attempts:keep.reduce((a,t)=>a.concat(Array.isArray(t.attempts)?t.attempts:[]),[])};
   };
   // 세션 점 차트 — x=세션 순서, y=그날 best Finish(빠를수록 위). 점 클릭 → 아래 표 펼침/접힘
+  // 메소사이클 구분은 Total Volume·Sprint Distance 라인차트와 같은 규칙([[project_dashboard_trend_meso_band]]):
+  // 선 아래만 메소 색 ~17%(2b) 채움, 메소 경계는 색 점선(88), 라벨은 배경 없이 색 글자만, 선·점도 메소 색으로 분절.
   const _pushDots=(nm,dates,idx,open)=>{
-    const W=_PUSH_W-28, H=96, PL=16, PR=16, TOP=24, BOT=22, PH=H-TOP-BOT;
+    const W=_PUSH_W-28, H=118, PL=15, PR=15, TOP=26, BOT=34, PH=H-TOP-BOT;
     const vs=dates.map(d=>{const s=_pushSessOf(nm,d),ok=s?_pushOK(s):[];return ok.length?Math.min(...ok.map(_pushFin)):null;});
     const fin=vs.filter(v=>v!=null); if(!fin.length)return '';
     const lo=Math.min(...fin), hi=Math.max(...fin), sp=(hi-lo)||1;
     const X=i=>dates.length<2?W/2:PL+(W-PL-PR)*(i/(dates.length-1));
     const Y=v=>(hi===lo)?TOP+PH/2:TOP+PH*((v-lo)/sp);
+    const mn=dates.map(d=>{const m=(typeof _mesoOf==='function')?_mesoOf(d):null;return (m&&m.l)||'';});
+    const mc=mn.map(l=>l?_mesoColor(l):'#8b949e');
+    const BASE=(TOP+PH).toFixed(1);
     let ln='';
     for(let i=1;i<dates.length;i++){ if(vs[i-1]==null||vs[i]==null)continue;
-      ln+=`<line x1="${X(i-1).toFixed(1)}" y1="${Y(vs[i-1]).toFixed(1)}" x2="${X(i).toFixed(1)}" y2="${Y(vs[i]).toFixed(1)}" stroke="#30363d" stroke-width="1.5"/>`; }
+      const x1=X(i-1).toFixed(1),y1=Y(vs[i-1]).toFixed(1),x2=X(i).toFixed(1),y2=Y(vs[i]).toFixed(1);
+      ln+=`<path d="M${x1} ${y1} L${x2} ${y2} L${x2} ${BASE} L${x1} ${BASE} Z" fill="${(mn[i]===mn[i-1]?mc[i-1]:mc[i])}2b"/>`
+        +`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${mc[i-1]}" stroke-width="1.8"/>`; }
+    // 메소 경계 점선 + 구간 중앙 라벨
+    let bands='', span={};
+    for(let i=1;i<dates.length;i++){ if(mn[i]===mn[i-1])continue;
+      const bx=((X(i-1)+X(i))/2).toFixed(1);
+      bands+=`<line x1="${bx}" y1="${TOP-9}" x2="${bx}" y2="${(TOP+PH+13).toFixed(1)}" stroke="${mc[i]}88" stroke-width="1" stroke-dasharray="3 3"/>`; }
+    mn.forEach((l,i)=>{ if(!l)return; (span[l]=span[l]||[]).push(i); });
+    Object.keys(span).forEach(l=>{const ix=span[l], cx=((X(ix[0])+X(ix[ix.length-1]))/2).toFixed(1);
+      bands+=`<text x="${cx}" y="${H-4}" text-anchor="middle" font-size="10" font-weight="600" fill="${_mesoColor(l)}">${_esc(l)}</text>`; });
+    // 세션이 많아지면 날짜 라벨을 솎고, 값은 펼친 세션·최고기록만
+    const step=Math.max(1,Math.ceil(dates.length/6)), few=dates.length<=6;
     const pts=dates.map((d,i)=>{ if(vs[i]==null)return '';
-      const on=open.indexOf(d)>=0, x=X(i).toFixed(1), y=Y(vs[i]).toFixed(1), pbv=(vs[i]===lo);
-      return `<g data-nodrag="1" style="cursor:pointer" onclick="_pushTgSess(${idx},'${d}')">`
-        +`<circle cx="${x}" cy="${y}" r="14" fill="transparent"/>`
-        +`<circle cx="${x}" cy="${y}" r="6" fill="${on?'#e3b341':'#161b22'}" stroke="${on?'#e3b341':'#8b949e'}" stroke-width="1.6"/>`
-        +`<text x="${x}" y="${(+y-12).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="${pbv?700:500}" fill="${on?'#e3b341':(pbv?'#e3b341':'#fff')}">${vs[i].toFixed(2)}</text>`
-        +`<text x="${x}" y="${H-7}" text-anchor="middle" font-size="10" fill="${on?'#e3b341':'#8b949e'}">${_esc(_pushDM(d))}</text></g>`; }).join('');
-    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;overflow:visible">${ln}${pts}</svg>`;
+      const on=open.indexOf(d)>=0, x=X(i).toFixed(1), y=Y(vs[i]).toFixed(1), pbv=(vs[i]===lo), c=mc[i];
+      let g=`<g data-nodrag="1" style="cursor:pointer" onclick="_pushTgSess(${idx},'${d}')">`
+        +`<circle cx="${x}" cy="${y}" r="13" fill="transparent"/>`
+        +`<circle cx="${x}" cy="${y}" r="${on?5.5:4}" fill="${on?c:'#161b22'}" stroke="${c}" stroke-width="1.6"/>`;
+      if(on||pbv||few) g+=`<text x="${x}" y="${(+y-11).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="${pbv?700:500}" fill="${pbv?'#e3b341':'#fff'}">${vs[i].toFixed(2)}</text>`;
+      if(on||few||i%step===0||i===dates.length-1) g+=`<text x="${x}" y="${(TOP+PH+13).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${on?c:'#8b949e'}">${_esc(_pushDM(d))}</text>`;
+      return g+`</g>`; }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;overflow:visible">${ln}${bands}${pts}</svg>`;
   };
   const _pushCardOne=(nm,dates,idx)=>{
     if(!dates||!dates.length)return '';
     const TR=_pushTrack();
     const open=(_pushOpenSess[nm]||[]).filter(d=>dates.indexOf(d)>=0).slice().sort().reverse();
+    // 표는 항상 가로 한 줄. 2개 이상이면 150px 고정 열로 나란히 두고, 넘치면 가로 스크롤
+    // (줄바꿈을 쓰면 3개째부터 2+1로 어긋나 보인다).
     const narrow=open.length>1;
     const body=open.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d">`
-        +open.map(d=>`<div style="flex:1 1 132px;min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`
+      ? `<div style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
+        +open.map(d=>`<div style="${narrow?'flex:0 0 150px':'flex:1 1 100%'};min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`
       : `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`;
     return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;width:${_PUSH_W}px;cursor:grab;user-select:none">`
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
