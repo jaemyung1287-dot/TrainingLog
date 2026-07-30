@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260730-2';
+const APP_VERSION = '20260730-3';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -2292,19 +2292,19 @@ function renderTeamTrainingData(){
   const atNow=TEAM_WEEK_OFFSET>=0;
   const nav=`<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;margin:2px 4px 8px;background:rgba(255,255,255,.04);border-radius:8px">
       <span onclick="teamWeekShift(-1)" style="cursor:pointer;padding:2px 12px;color:#f7a94f;font-size:14px;user-select:none">◀</span>
-      <span style="font-size:12px;color:var(--text);text-align:center">${lbl} <span style="font-size:11px;color:var(--muted)">(${fmtDate(wkStart)} – ${fmtDate(wkEnd)})</span></span>
+      <span style="font-size:12px;color:var(--text);text-align:center">${lbl} <span style="font-size:11px;color:var(--text);opacity:.7">(${fmtDate(wkStart)} – ${fmtDate(wkEnd)})</span></span>
       <span ${atNow?'':'onclick="teamWeekShift(1)"'} style="cursor:${atNow?'default':'pointer'};padding:2px 12px;color:${atNow?'rgba(255,255,255,.15)':'#f7a94f'};font-size:14px;user-select:none">▶</span>
     </div>`;
   const emptyWeek=`<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">Keine Daten diese Woche</div>`;
   // detail line (level 3)
-  const detRow=(left,right)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0">${left}</span><span style="font-size:11px;color:var(--muted);white-space:nowrap;text-align:right">${right}</span></div>`;
+  const detRow=(left,right)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="font-size:12px;color:var(--text);flex:1;min-width:0">${left}</span><span style="font-size:11px;color:var(--text);white-space:nowrap;text-align:right">${right}</span></div>`;
   // generic collapsible row — level 1 (athlete) and level 2 (session)
   const row=(id,leftHtml,rightHtml,bodyHtml,mine,padL)=>`
     <div style="border-bottom:1px solid rgba(255,255,255,.06)">
       <div onclick="toggleTeamRow('${id}')" style="display:flex;align-items:center;gap:8px;padding:11px 6px;cursor:pointer;border-radius:8px;${mine?'background:rgba(247,169,79,.07)':''}">
         <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${leftHtml}</div>
-        <div style="text-align:right;font-size:11px;color:var(--muted);white-space:nowrap">${rightHtml}</div>
-        <span id="twarr-${id}" style="font-size:11px;color:var(--muted);transition:transform .2s ease;flex-shrink:0">▼</span>
+        <div style="text-align:right;font-size:11px;color:var(--text);opacity:.85;white-space:nowrap">${rightHtml}</div>
+        <span id="twarr-${id}" style="font-size:11px;color:var(--text);opacity:.55;transition:transform .2s ease;flex-shrink:0">▼</span>
       </div>
       <div id="twbody-${id}" style="display:none;padding:0 0 6px ${padL}px">${bodyHtml}</div>
     </div>`;
@@ -2386,17 +2386,25 @@ function renderTeamTrainingData(){
         const gt=(Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES;
         const c=v=>v==null?'—':v.toFixed(2);
         let n=0;
+        // 구간별 3열 표 — 숫자는 전부 흰색·tabular-nums 로 자리수 정렬, 그날 최고 Finish 만 금색
+        const _pcell=(v,extra)=>`<span style="flex:1;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.2px;${extra||'color:var(--text);font-weight:600'}">${v}</span>`;
         const det=ok.map(a=>{
           n++;
           const s1=a.t[0], fin=a.t[1], z2=(s1!=null)?+(fin-s1).toFixed(2):null;
           const gold=(fin===best);
-          return detRow(`<span style="font-weight:700">${n}.</span>`,
-            `<span style="color:var(--muted)">${c(s1)} · ${c(z2)}</span> &nbsp;<span style="color:${gold?'var(--gold)':'var(--text)'};font-weight:${gold?800:600}">${c(fin)}s</span>`);
-        }).join('')||'<div style="font-size:11px;color:var(--muted);padding:6px 0">Keine Zeiten</div>';
-        const colHd=`<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0 5px"><span style="font-size:10px;color:var(--muted)">Nr</span><span style="font-size:10px;color:var(--muted)">${gt[0]}→${gt[1]} · ${gt[1]}→${gt[2]} · ${gt[0]}→${gt[2]}m</span></div>`;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+            <span style="width:24px;font-size:12px;font-weight:600;color:var(--text)">${n}.</span>
+            ${_pcell(c(s1))}${_pcell(c(z2))}${_pcell(c(fin),gold?'color:var(--gold);font-weight:800':'color:var(--text);font-weight:700')}
+          </div>`;
+        }).join('')||'<div style="font-size:11px;color:var(--text);padding:6px 0">Keine Zeiten</div>';
+        const _pchd=t=>`<span style="flex:1;text-align:right;font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--text);opacity:.75">${t}</span>`;
+        const colHd=`<div style="display:flex;align-items:center;gap:8px;padding:2px 0 6px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <span style="width:24px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text);opacity:.75">Nr</span>
+            ${_pchd(`${gt[0]}→${gt[1]}m`)}${_pchd(`${gt[1]}→${gt[2]}m`)}${_pchd(`${gt[0]}→${gt[2]}m`)}
+          </div>`;
         const right=best!=null
-          ? `<span style="color:#58a6ff;font-weight:700">${best.toFixed(2)} s</span><span style="color:var(--muted)"> · ${ok.length}×</span>`
-          : `<span style="color:var(--muted)">kein Eintrag</span>`;
+          ? `<span style="color:#58a6ff;font-weight:700">${best.toFixed(2)} s</span><span style="color:var(--text)"> · ${ok.length}×</span>`
+          : `<span style="color:var(--text)">kein Eintrag</span>`;
         return row('pA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,colHd+det,false,16);
       }).join('');
       const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
