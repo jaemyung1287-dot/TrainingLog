@@ -656,6 +656,7 @@ function _pushFixedOrder(){ return selScope==='all'&&!(typeof selNames!=='undefi
 function _pushLayout(){
   const par=document.getElementById('push-canvas');if(!par)return;
   const cards=[...par.querySelectorAll('[data-pushcard]')];if(!cards.length)return;
+  _pushAlignRows(par);
   // wide(단일 카드): 폭이 캔버스 전체라 자유배치가 의미 없다 — 좌상단 고정
   if(_pushWide&&cards.length===1){const el=cards[0];el.style.left='0px';el.style.top='0px';_pushFitH(par);return;}
   const W=par.clientWidth||900;
@@ -693,6 +694,35 @@ function _pushLayout(){
     colH[c]+=el.offsetHeight+_PUSH_GAP;
   });
   _pushFitH(par);
+}
+// 점 차트 i번째 점의 x 위치를 카드 내용폭 대비 비율로 — 표를 그 점 아래에 맞춰 놓기 위함.
+// _pushDots의 X(i)와 반드시 같은 식이어야 한다(PL/PR=15, viewBox 폭도 동일).
+function _pushXFrac(n,i){const W=(_pushWide?_PUSH_WIDE_VB:_PUSH_W-28),PL=15,PR=15;return n<2?0.5:(PL+(W-PL-PR)*(i/(n-1)))/W;}
+// 펼친 세션 표를 각자 점 아래로 정렬. 겹치면 오른쪽으로 밀고, 폭이 모자라면 순서대로 타일링+가로 스크롤.
+function _pushAlignRows(par){
+  const root=par||document;
+  root.querySelectorAll('[data-pushrow]').forEach(row=>{
+    const kids=[...row.querySelectorAll('[data-pushtbl]')];
+    const sp=row.querySelector('[data-pushspace]');
+    if(!kids.length)return;
+    const n=kids.length, G=12, RW=row.clientWidth||1;
+    const w=Math.min(250,Math.max(150,Math.floor((RW-G*(n-1))/n)));
+    const need=n*w+G*(n-1), overflow=need>RW;
+    kids.forEach(k=>{k.style.width=w+'px';});
+    let xs;
+    if(overflow){ xs=kids.map((k,i)=>i*(w+G)); }
+    else{
+      xs=kids.map(k=>Math.max(0,Math.min(RW-w,(parseFloat(k.getAttribute('data-cx'))||0)*RW-w/2)));
+      for(let i=1;i<n;i++) xs[i]=Math.max(xs[i],xs[i-1]+w+G);          // 왼→오 겹침 해소
+      const over=xs[n-1]+w-RW;
+      if(over>0){ xs=xs.map(x=>x-over); for(let i=0;i<n;i++) xs[i]=Math.max(xs[i],i*(w+G)); }
+    }
+    let mh=0;
+    kids.forEach((k,i)=>{k.style.left=xs[i]+'px';mh=Math.max(mh,k.offsetHeight);});
+    if(sp)sp.style.width=(overflow?need:RW)+'px';
+    row.style.overflowX=overflow?'auto':'hidden';
+    row.style.height=(mh+9)+'px';
+  });
 }
 function _pushGrab(ev,idx){
   if(ev.button!==0)return;
@@ -3019,16 +3049,23 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   const _pushCardOne=(nm,dates,idx)=>{
     if(!dates||!dates.length)return '';
     const TR=_pushTrack();
-    const open=(_pushOpenSess[nm]||[]).filter(d=>dates.indexOf(d)>=0).slice().sort().reverse();
+    // ⚠ 옛날→최근 순. 점 차트 x축과 같은 방향이어야 진행 흐름이 읽힌다(최신 먼저로 되돌리지 말 것).
+    const open=(_pushOpenSess[nm]||[]).filter(d=>dates.indexOf(d)>=0).slice().sort();
     // 표는 항상 가로 한 줄. 2개 이상이면 150px 고정 열로 나란히 두고, 넘치면 가로 스크롤
     // (줄바꿈을 쓰면 3개째부터 2+1로 어긋나 보인다).
     // wide(단일 카드)면 열을 넉넉히 잡아 부제·PB 날짜까지 보여준다. 줄바꿈은 절대 쓰지 않는다(3개째부터 2+1로 어긋남).
     const narrow=open.length>1&&!_pushWide;
     const colW=_pushWide?'flex:0 0 250px':'flex:0 0 150px';
-    const body=open.length
-      ? `<div style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
-        +open.map(d=>`<div style="${open.length>1?colW:'flex:1 1 100%'};min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`
-      : `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`;
+    // wide + 2개 이상이면 각 표를 자기 점 아래에 절대배치(_pushAlignRows가 실측 폭으로 자리 잡음).
+    const aligned=_pushWide&&open.length>1;
+    const body=!open.length
+      ? `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`
+      : aligned
+        ? `<div data-pushrow="1" style="position:relative;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow:hidden">`
+          +open.map(d=>`<div data-pushtbl="1" data-cx="${_pushXFrac(dates.length,dates.indexOf(d)).toFixed(4)}" style="position:absolute;top:9px;left:0;width:250px">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')
+          +`<div data-pushspace="1" style="height:1px"></div></div>`
+        : `<div style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
+          +open.map(d=>`<div style="${open.length>1?colW:'flex:1 1 100%'};min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`;
     const wcss=_pushWide?`width:100%;max-width:${_PUSH_WIDE_MAX}px;cursor:default`:`width:${_PUSH_W}px;cursor:grab`;
     return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;${wcss};user-select:none">`
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
@@ -3066,7 +3103,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     if(pb){
       const gap=(prevF==null)?null:+(best-prevF).toFixed(2);
       const tail=(gap==null)?''
-        :`<span style="margin-left:4px;font-weight:650;color:${gap<0?GR:(gap>0?'#f85149':'#fff')}">${gap>0?'+':''}${gap.toFixed(2)}</span>`;
+        :`<span style="display:block;margin-top:1px;font-weight:650;white-space:nowrap;color:${gap<0?GR:(gap>0?'#f85149':'#fff')}">${gap>0?'+':''}${gap.toFixed(2)}</span>`;
       const pz=(pb.s1==null)?null:+(pb.f-pb.s1).toFixed(3);
       const pn=v=>v==null?'—':v.toFixed(2);
       pbRow=`<tr><td style="text-align:left;font-size:11px;padding-top:7px;border-top:1px solid #2a323d;color:${GD};font-weight:700">PB${narrow?'':` <span style="font-weight:400;font-size:10px;color:#fff">(${_pushDM(pb.d)})</span>`}</td>`
