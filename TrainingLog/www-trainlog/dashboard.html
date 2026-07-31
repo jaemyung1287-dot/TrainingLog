@@ -643,8 +643,9 @@ const _PUSH_W=340, _PUSH_GAP=14;
 // 선수 1명만 잡혔을 때는 카드를 캔버스 폭 전체로 넓힌다(세션 표 3~4개를 잘리지 않게 가로로).
 // 여러 명이면 기존대로 340px 격자. 렌더할 때마다 _pushAllCards0가 갱신한다.
 let _pushWide=false;
-const _PUSH_WIDE_MAX=1240;   // 너무 넓어지면 표가 허전해서 상한
-const _PUSH_WIDE_VB=900;     // wide 모드 점 차트 viewBox 폭(높이 118 고정 → 화면폭에 맞춰 스케일)
+const _LT_GUTTER=48;         // 라인 차트 y축(=좌측 여백) 고정 폭. 푸쉬 카드도 같은 만큼 들여써서 같은 날짜가 같은 x에 온다
+const _PUSH_WIDE_MAX=4000;   // 상한 사실상 해제 — 아래 볼륨·거리 차트와 폭을 맞춘다(2026-07-31)
+const _PUSH_WIDE_VB=1300;    // wide 모드 점 차트 viewBox 폭. 높이 118 고정이라 이 값이 작을수록 차트가 세로로 늘어난다
 function _pushSavePos(){try{localStorage.setItem('lt_push_pos',JSON.stringify(_pushPos));}catch(e){}}
 function _pushFitH(par){if(!par)return;let m=0;par.querySelectorAll('[data-pushcard]').forEach(el=>{m=Math.max(m,el.offsetTop+el.offsetHeight);});par.style.height=(m+8)+'px';}
 // All Athletes 에서는 자유 배치를 쓰지 않는다 — 위 이름 칩 순서 그대로 격자로 고정.
@@ -695,9 +696,28 @@ function _pushLayout(){
   });
   _pushFitH(par);
 }
-// 점 차트 i번째 점의 x 위치를 카드 내용폭 대비 비율로 — 표를 그 점 아래에 맞춰 놓기 위함.
-// _pushDots의 X(i)와 반드시 같은 식이어야 한다(PL/PR=15, viewBox 폭도 동일).
-function _pushXFrac(n,i){const W=(_pushWide?_PUSH_WIDE_VB:_PUSH_W-28),PL=15,PR=15;return n<2?0.5:(PL+(W-PL-PR)*(i/(n-1)))/W;}
+// 푸쉬 점 차트 x축 범위 = 선택한 Period 전체(Meso/커스텀/최근 N일). 데이터가 축 밖이면 그만큼 넓힌다.
+// 'all'이거나 기간을 못 구하면 기록 첫날~마지막날로 폴백.
+function _pushAxisRange(dates){
+  const T=d=>new Date(d+'T00:00:00').getTime();
+  let lo=null,hi=null;
+  if(typeof ltPeriod!=='undefined'){
+    if(ltPeriod==='meso'){const r=(typeof _curMesoRange==='function')?_curMesoRange():null;if(r){lo=r.d1;hi=r.d2;}}
+    else if(ltPeriod==='custom'){if(ltD1)lo=ltD1;if(ltD2)hi=ltD2;}
+    else{const days={'1d':1,'1w':7,'1m':30,'1y':365}[ltPeriod];
+      if(days){const dt=new Date();dt.setDate(dt.getDate()-days+1);lo=dsFromDate(dt);hi=todayStr();}}
+  }
+  if(dates&&dates.length){ if(!lo||dates[0]<lo)lo=dates[0]; if(!hi||dates[dates.length-1]>hi)hi=dates[dates.length-1]; }
+  return (lo&&hi)?{lo,hi,span:T(hi)-T(lo)}:null;
+}
+// 점(그리고 그 아래 표)의 x 위치를 카드 내용폭 대비 비율로. **날짜 기준**(세션 순서 균등 배치 아님).
+// _pushDots의 X(i)가 이 함수를 그대로 쓰므로 표-점 정렬이 항상 일치한다.
+function _pushXFrac(dates,i){
+  const W=(_pushWide?_PUSH_WIDE_VB:_PUSH_W-28),PL=(_pushWide?0:15),PR=(_pushWide?2:15);
+  const r=_pushAxisRange(dates), T=d=>new Date(d+'T00:00:00').getTime();
+  const f=(!r||r.span<=0)?0.5:Math.max(0,Math.min(1,(T(dates[i])-T(r.lo))/r.span));
+  return (PL+(W-PL-PR)*f)/W;
+}
 // 펼친 세션 표를 각자 점 아래로 정렬. 겹치면 오른쪽으로 밀고, 폭이 모자라면 순서대로 타일링+가로 스크롤.
 function _pushAlignRows(par){
   const root=par||document;
@@ -723,6 +743,70 @@ function _pushAlignRows(par){
     row.style.overflowX=overflow?'auto':'hidden';
     row.style.height=(mh+9)+'px';
   });
+}
+// ══ Trends 카드 세로 순서 바꾸기 ══
+// 카드 위쪽 가운데 ⠿ 를 잡고 위아래로 끌면 순서가 바뀐다. 순서는 제목 기반 키로 localStorage에 보존.
+// (카드 HTML은 매 렌더마다 새로 만들어지므로 DOM 삽입 직후 _ltApplyOrder()로 저장된 순서를 다시 입힌다)
+let _ltOrder=[];try{_ltOrder=JSON.parse(localStorage.getItem('lt_card_order')||'[]')||[];}catch(e){_ltOrder=[];}
+function _ltCardKey(el){
+  if(el.id==='push-canvas')return 'push';
+  const t=el.querySelector('span');
+  return 'c:'+String((t&&t.textContent||'').trim().replace(/\s+/g,' ').slice(0,36));
+}
+function _ltCardsOf(g){return [...g.children].filter(e=>e.classList&&(e.classList.contains('card')||e.id==='push-canvas'));}
+function _ltApplyOrder(){
+  document.querySelectorAll('#tab-load .lt-grid').forEach(g=>{
+    const kids=_ltCardsOf(g); if(kids.length<2)return;
+    kids.forEach(k=>{k.setAttribute('data-ltkey',_ltCardKey(k));_ltAddHandle(k);});
+    const rank=k=>{const i=_ltOrder.indexOf(k);return i<0?9999:i;};   // 처음 보는 카드는 뒤로(정렬은 stable이라 원래 순서 유지)
+    kids.slice().sort((a,b)=>rank(a.getAttribute('data-ltkey'))-rank(b.getAttribute('data-ltkey'))).forEach(k=>g.appendChild(k));
+  });
+}
+function _ltAddHandle(card){
+  if(card.querySelector(':scope>[data-lthandle]'))return;
+  if(getComputedStyle(card).position==='static')card.style.position='relative';
+  const h=document.createElement('div');
+  h.setAttribute('data-lthandle','1');h.textContent='⠿';h.title='끌어서 위아래로 순서 변경';
+  h.style.cssText='position:absolute;left:50%;transform:translateX(-50%);top:0;padding:2px 16px 4px;font-size:11px;line-height:1;'
+    +'color:var(--hint);cursor:grab;user-select:none;z-index:6;opacity:.35;border-radius:0 0 6px 6px;background:rgba(255,255,255,.04)';
+  h.onmouseenter=()=>{h.style.opacity='1';};h.onmouseleave=()=>{h.style.opacity='.35';};
+  h.addEventListener('mousedown',e=>_ltDragStart(e,card));
+  card.appendChild(h);
+}
+let _ltDrag=null;
+function _ltDragStart(ev,card){
+  if(ev.button!==0)return;ev.preventDefault();ev.stopPropagation();
+  const g=card.parentNode,r=card.getBoundingClientRect();
+  const ph=document.createElement('div');
+  ph.setAttribute('data-ltph','1');
+  ph.style.cssText='border:1px dashed var(--border);border-radius:12px;background:rgba(255,255,255,.02);height:'+r.height+'px';
+  g.insertBefore(ph,card);
+  const st={pos:card.style.position,top:card.style.top,left:card.style.left,w:card.style.width,z:card.style.zIndex,pe:card.style.pointerEvents,op:card.style.opacity};
+  card.style.position='fixed';card.style.left=r.left+'px';card.style.top=r.top+'px';
+  card.style.width=r.width+'px';card.style.zIndex='90';card.style.pointerEvents='none';card.style.opacity='.92';
+  _ltDrag={card,g,ph,st,dy:ev.clientY-r.top};
+  document.addEventListener('mousemove',_ltDragMove);document.addEventListener('mouseup',_ltDragEnd);
+  document.body.style.userSelect='none';
+}
+function _ltDragMove(ev){
+  const d=_ltDrag;if(!d)return;
+  d.card.style.top=(ev.clientY-d.dy)+'px';
+  const sibs=_ltCardsOf(d.g).filter(e=>e!==d.card);
+  let before=null;
+  for(const sb of sibs){const r=sb.getBoundingClientRect();if(ev.clientY<r.top+r.height/2){before=sb;break;}}
+  if(before)d.g.insertBefore(d.ph,before);else d.g.appendChild(d.ph);
+}
+function _ltDragEnd(){
+  const d=_ltDrag;if(!d)return;_ltDrag=null;
+  document.removeEventListener('mousemove',_ltDragMove);document.removeEventListener('mouseup',_ltDragEnd);
+  document.body.style.userSelect='';
+  d.g.insertBefore(d.card,d.ph);d.ph.remove();
+  const c=d.card,st=d.st;
+  c.style.position=st.pos;c.style.top=st.top;c.style.left=st.left;c.style.width=st.w;c.style.zIndex=st.z;c.style.pointerEvents=st.pe;c.style.opacity=st.op;
+  const keys=[];
+  document.querySelectorAll('#tab-load .lt-grid').forEach(g=>_ltCardsOf(g).forEach(k=>{const kk=k.getAttribute('data-ltkey');if(kk&&keys.indexOf(kk)<0)keys.push(kk);}));
+  _ltOrder=keys;try{localStorage.setItem('lt_card_order',JSON.stringify(_ltOrder));}catch(e){}
+  if(typeof _pushLayout==='function')setTimeout(_pushLayout,0);
 }
 function _pushGrab(ev,idx){
   if(ev.button!==0)return;
@@ -1524,8 +1608,9 @@ const _weekBandPlugin={
 };
 try{ if(window.Chart&&Chart.register) Chart.register(_weekBandPlugin); }catch(e){}
 // 라인 차트 옵션에 주간 밴드 날짜 + 점 클릭(핀) 연결
-function _ltAttachInteract(opt,dates,ctx,bands){
+function _ltAttachInteract(opt,dates,ctx,bands,pinDates){
   if(!opt)return opt;
+  const _PD=pinDates||dates;   // 날짜축 패딩으로 생긴 빈 날은 ''이라 핀이 안 찍힌다
   if(bands){opt._weekDates=dates;opt.layout=opt.layout||{};opt.layout.padding=(typeof opt.layout.padding==='object'&&opt.layout.padding)?opt.layout.padding:{};opt.layout.padding.bottom=Math.max(opt.layout.padding.bottom||0,20);}   // 메소/주간 밴드 + 하단 라벨 여백
   opt.onClick=function(evt,els,chart){
     let idx=-1;
@@ -1533,7 +1618,7 @@ function _ltAttachInteract(opt,dates,ctx,bands){
     else if(chart&&chart.scales&&chart.scales.x){const px=evt.x;let bd=1e9;(chart.data.labels||[]).forEach((_,k)=>{const cx=chart.scales.x.getPixelForValue(k);const dd=Math.abs(cx-px);if(dd<bd){bd=dd;idx=k;}});if(bd>34)idx=-1;}
     // Chart.js가 이벤트 처리를 끝내기 전에 _rerenderTrends가 캔버스를 파괴하면
     // "Cannot read properties of undefined (reading 'handleEvent')" 콘솔 에러가 남는다 → 다음 틱으로 미룸
-    if(idx>=0&&dates[idx]){const _d=dates[idx];setTimeout(()=>_ltTogglePin(_d,ctx),0);}
+    if(idx>=0&&_PD[idx]){const _d=_PD[idx];setTimeout(()=>_ltTogglePin(_d,ctx),0);}
   };
   return opt;
 }
@@ -2617,6 +2702,7 @@ function renderLoad(){
   html+=_tr.html;
 
   wrap.innerHTML=html;
+  try{_ltApplyOrder();}catch(e){console.warn('[lt] 카드 순서 적용 실패',e);}   // 저장된 세로 순서 재적용
 
   ['ld-reg','ld-spr'].forEach(killChart);
   setTimeout(_ldMakeBreakdownCharts,50);
@@ -2641,6 +2727,22 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const days={'1d':1,'1w':7,'1m':30,'1y':365}[ltPeriod];
     if(days){const dt=new Date();dt.setDate(dt.getDate()-days+1);return ds>=dsFromDate(dt);}
     return true;
+  };
+  // ── 날짜축: 라인 차트를 '기록 있는 날만 균등 배치'가 아니라 실제 날짜 간격으로 ──
+  // 카테고리 축은 그대로 두고 기간 내 빠진 날을 v:null로 채운다. 데이터셋 인덱스 정합(_metas·_rpes·
+  // 메소색·주간 점선·핀)이 하나도 안 깨지는 대신 간격만 실제 날짜가 된다.
+  // 비교(연도/AB)·버킷(주·월·메소) 모드는 x가 이미 날짜가 아니므로 제외. 기간이 너무 길면(>140일) 포기.
+  const _LT_PAD_MAX=140;
+  const _padDateList=arr=>(arr&&arr.length>1)?_padDays(arr.map(d=>({d,v:0}))).map(p=>p.d):arr;
+  const _padDays=s=>{
+    if(!s||s.length<2||ltCmp||ltAB||ltBucket!=='none')return s;
+    const r=(typeof _pushAxisRange==='function')?_pushAxisRange(s.map(p=>p.d)):null; if(!r)return s;
+    const n=Math.round(r.span/86400000)+1;
+    if(n<3||n>_LT_PAD_MAX||n<=s.length)return s;
+    const by={}; s.forEach(p=>{by[p.d]=p;});
+    const t0=new Date(r.lo+'T00:00:00'), out=[];
+    for(let i=0;i<n;i++){const dt=new Date(t0);dt.setDate(t0.getDate()+i);const ds=dsFromDate(dt);out.push(by[ds]||{d:ds,v:null,meta:'',rpe:null});}
+    return out;
   };
   const _ltTip=(sprint,legend)=>({responsive:true,maintainAspectRatio:false,interaction:{mode:'nearest',intersect:false},
     plugins:{legend:{display:!!legend,labels:{color:'rgba(230,237,243,.55)',font:{size:10},boxWidth:10}},
@@ -2669,6 +2771,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     let _prevR=-1e9;   // 직전 라벨 오른쪽 끝 — 겹칠 자리면 그 점의 라벨은 건너뜀
     chart.data.datasets.forEach((ds,di)=>{
       if(!chart.isDatasetVisible(di))return;
+      _prevR=-1e9;   // ⚠ 시리즈마다 초기화. 안 하면 오버레이(이중축)에서 두 번째 선의 라벨이 전부 사라진다
       const meta=chart.getDatasetMeta(di);
       meta.data.forEach((el,i)=>{
         const v=ds.data[i];if(v==null)return;
@@ -2730,9 +2833,10 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     };
     if(meso){
       const mcols=_mesoNamesFor(series.map(p=>p.d)).map(nm=>nm?_mesoColor(nm):color);
-      const _cfg=_ptLblAttach({type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,color,''),backgroundColor:_mesoFillGrad(mcols,color,'2b'),fill:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx,true)});
+      const _cfg=_ptLblAttach({type:'line',data:{labels:series.map(p=>fmt(p.d)),datasets:[{data:series.map(p=>p.v),_metas:series.map(p=>p.meta),borderColor:_mesoFillGrad(mcols,color,''),backgroundColor:_mesoFillGrad(mcols,color,'2b'),fill:true,spanGaps:true,tension:.3,pointRadius:3,pointHoverRadius:6,borderWidth:2,pointBackgroundColor:mcols,pointBorderColor:mcols}]},options:_ltAttachInteract(_ltTip(sprint,false),series.map(p=>p.d),ctx,true,series.map(p=>p.v==null?'':p.d))});
       // 0선 아래로 축이 내려가지 않게 고정 → 날짜·메소사이클 라벨이 볼륨 차트처럼 하단에 붙음
-      if(_cfg.options&&_cfg.options.scales&&_cfg.options.scales.y){_cfg.options.scales.y.beginAtZero=true;_cfg.options.scales.y.min=0;}
+      if(_cfg.options&&_cfg.options.scales&&_cfg.options.scales.y){_cfg.options.scales.y.beginAtZero=true;_cfg.options.scales.y.min=0;
+        _cfg.options.scales.y.afterFit=sc=>{sc.width=_LT_GUTTER;};}   // 푸쉬 카드와 세로 눈 맞추기
       if(_cfg.options&&_cfg.options.scales&&_cfg.options.scales.x)_cfg.options.scales.x.ticks=_ltDateTicks(_cfg.options.scales.x.ticks,series.map(p=>p.d));
       return _cfg;
     }
@@ -3012,11 +3116,11 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   // 메소사이클 구분은 Total Volume·Sprint Distance 라인차트와 같은 규칙([[project_dashboard_trend_meso_band]]):
   // 선 아래만 메소 색 ~17%(2b) 채움, 메소 경계는 색 점선(88), 라벨은 배경 없이 색 글자만, 선·점도 메소 색으로 분절.
   const _pushDots=(nm,dates,idx,open)=>{
-    const W=(_pushWide?_PUSH_WIDE_VB:_PUSH_W-28), H=118, PL=15, PR=15, TOP=26, BOT=34, PH=H-TOP-BOT;
+    const W=(_pushWide?_PUSH_WIDE_VB:_PUSH_W-28), H=118, PL=(_pushWide?0:15), PR=(_pushWide?2:15), TOP=26, BOT=34, PH=H-TOP-BOT;
     const vs=dates.map(d=>{const s=_pushSessOf(nm,d),ok=s?_pushOK(s):[];return ok.length?Math.min(...ok.map(_pushFin)):null;});
     const fin=vs.filter(v=>v!=null); if(!fin.length)return '';
     const lo=Math.min(...fin), hi=Math.max(...fin), sp=(hi-lo)||1;
-    const X=i=>dates.length<2?W/2:PL+(W-PL-PR)*(i/(dates.length-1));
+    const X=i=>_pushXFrac(dates,i)*W;   // 날짜축
     const Y=v=>(hi===lo)?TOP+PH/2:TOP+PH*((v-lo)/sp);
     const mn=dates.map(d=>{const m=(typeof _mesoOf==='function')?_mesoOf(d):null;return (m&&m.l)||'';});
     const mc=mn.map(l=>l?_mesoColor(l):'#8b949e');
@@ -3034,15 +3138,19 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     mn.forEach((l,i)=>{ if(!l)return; (span[l]=span[l]||[]).push(i); });
     Object.keys(span).forEach(l=>{const ix=span[l], cx=((X(ix[0])+X(ix[ix.length-1]))/2).toFixed(1);
       bands+=`<text x="${cx}" y="${H-4}" text-anchor="middle" font-size="10" font-weight="600" fill="${_mesoColor(l)}">${_esc(l)}</text>`; });
-    // 세션이 많아지면 날짜 라벨을 솎고, 값은 펼친 세션·최고기록만
-    const step=Math.max(1,Math.ceil(dates.length/6)), few=dates.length<=6;
+    // 날짜축이라 점 간격이 제각각 — 라벨은 개수가 아니라 **실제 간격**으로 솎는다(펼친 세션은 무조건 표시)
+    const few=dates.length<=6, MINGAP=(_pushWide?52:34);
+    const lbOK=[]; let _lx=-1e9;
+    dates.forEach((d,i)=>{ if(vs[i]==null){lbOK.push(false);return;}
+      const x=X(i), on=open.indexOf(d)>=0;
+      if(on||x-_lx>=MINGAP){lbOK.push(true);_lx=x;}else lbOK.push(false); });
     const pts=dates.map((d,i)=>{ if(vs[i]==null)return '';
       const on=open.indexOf(d)>=0, x=X(i).toFixed(1), y=Y(vs[i]).toFixed(1), pbv=(vs[i]===lo), c=mc[i];
       let g=`<g data-nodrag="1" style="cursor:pointer" onclick="_pushTgSess(${idx},'${d}')">`
         +`<circle cx="${x}" cy="${y}" r="13" fill="transparent"/>`
         +`<circle cx="${x}" cy="${y}" r="${on?5.5:4}" fill="${on?c:'#161b22'}" stroke="${c}" stroke-width="1.6"/>`;
       if(on||pbv||few) g+=`<text x="${x}" y="${(+y-11).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="${pbv?700:500}" fill="${pbv?'#e3b341':'#fff'}">${vs[i].toFixed(2)}</text>`;
-      if(on||few||i%step===0||i===dates.length-1) g+=`<text x="${x}" y="${(TOP+PH+13).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${on?c:'#8b949e'}">${_esc(_pushDM(d))}</text>`;
+      if(lbOK[i]) g+=`<text x="${x}" y="${(TOP+PH+13).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${on?c:'#8b949e'}">${_esc(_pushDM(d))}</text>`;
       return g+`</g>`; }).join('');
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;overflow:visible">${ln}${bands}${pts}</svg>`;
   };
@@ -3062,7 +3170,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       ? `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`
       : aligned
         ? `<div data-pushrow="1" style="position:relative;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow:hidden">`
-          +open.map(d=>`<div data-pushtbl="1" data-cx="${_pushXFrac(dates.length,dates.indexOf(d)).toFixed(4)}" style="position:absolute;top:9px;left:0;width:250px">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')
+          +open.map(d=>`<div data-pushtbl="1" data-cx="${_pushXFrac(dates,dates.indexOf(d)).toFixed(4)}" style="position:absolute;top:9px;left:0;width:250px">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')
           +`<div data-pushspace="1" style="height:1px"></div></div>`
         : `<div style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
           +open.map(d=>`<div style="${open.length>1?colW:'flex:1 1 100%'};min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`;
@@ -3071,7 +3179,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
       +`<span style="font-size:13.5px;font-weight:650;color:#fff">${_pushWide?'':`<span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>`}${_esc(nm)}</span>`
       +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
-      +_pushDots(nm,dates,idx,open)+body+`</div>`;
+      +(_pushWide?`<div style="padding-left:${_LT_GUTTER-14}px">`:'')   // 카드 padding 14 + 이만큼 = 차트 y축 폭
+      +_pushDots(nm,dates,idx,open)+body+(_pushWide?`</div>`:'')+`</div>`;
   };
   // 세션 하나의 시도 기록표 (기존 표 그대로 — 첫 열 머리 = 날짜)
   const _pushSessTable=(nm,date,TR,narrow)=>{
@@ -3820,7 +3929,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     } else {
       if(volDistOverlay){
         const vs=_flt(_ltVolS), ds=_flt(_ltDistS);
-        const dates=[...new Set(vs.map(p=>p.d).concat(ds.map(p=>p.d)))].sort();
+        const dates=_padDateList([...new Set(vs.map(p=>p.d).concat(ds.map(p=>p.d)))].sort());
         const vByD={};vs.forEach(p=>vByD[p.d]=p);const dByD={};ds.forEach(p=>dByD[p.d]=p);
         const opt=_ltTip(false,true);
         opt.scales={x:opt.scales.x,
@@ -3832,6 +3941,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         ]},options:opt,plugins:[_mkPtRpeVals(null),_mkWeekSep(dates),_mkMesoLabels(dates)]};
         opt.layout={padding:{top:28}};
         opt.scales.y.grace='32%';opt.scales.y1.grace='32%';
+        opt.scales.y.afterFit=sc=>{sc.width=_LT_GUTTER;};   // 푸쉬·단독 차트와 좌측 여백 일치
         LT+=_ltCard('Total Volume + Sprint Distance','kg · m dual axis',cfg,320);
       }
       {
@@ -3839,8 +3949,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         const _wkAttach=(cfg,s,u,agg)=>ltCmp?cfg:_wkAttachCfg(cfg,s,u,agg);
         let _ovDone=false;
         [...ltSel].forEach(n=>{
-          if(n==='__vol__'){ if(volDistOverlay)return; if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_flt(_ltVolS); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp,null,true,'kg'),s,'kg'),ltCmp?null:320,_ltCat.indexOf('__vol__'));} }
-          else if(n==='__dist__'){ if(volDistOverlay)return; if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_flt(_ltDistS); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp,null,true,'m'),s,'m'),ltCmp?null:320,_ltCat.indexOf('__dist__'));} }
+          if(n==='__vol__'){ if(volDistOverlay)return; if(ltVolBreak!=='none'){LT+=_ltVolStackCard(ltVolBreak);} else {const s=ltCmp?_ltVolS:_padDays(_flt(_ltVolS)); if(s.length)LT+=_ltCard('Total Volume','kg/session',_wkAttach(_ltLineCfg(s,'#f7a94f',false,ltCmp,null,true,'kg'),s,'kg'),ltCmp?null:320,_ltCat.indexOf('__vol__'));} }
+          else if(n==='__dist__'){ if(volDistOverlay)return; if(ltDistBreak!=='none'){LT+=_ltDistStackCard(ltDistBreak);} else {const s=ltCmp?_ltDistS:_padDays(_flt(_ltDistS)); if(s.length)LT+=_ltCard('Sprint Distance','m/session',_wkAttach(_ltLineCfg(s,'#3ecf8e',false,ltCmp,null,true,'m'),s,'m'),ltCmp?null:320,_ltCat.indexOf('__dist__'));} }
           else if(!_LT_SPECIAL[n]&&_lt.exMap[n]){
             if(ltChartMode==='overlay'&&!ltCmp){ if(!_ovDone&&selExs.length){LT+=_ltOverlayCard(selExs,units);_ovDone=true;} }
             else {const col=_ltColor(n);const m=_lt.exMap[n];const s=ltCmp?_ltExSeries(n):_flt(_ltExSeries(n));if(s.length)LT+=_ltCard(n,(m.sprint?'best time(s)':'top set(kg)')+(ltCmp?' · 연도':''),_ltLineCfg(s,col,m.sprint,ltCmp,{ex:n,sp:m.sprint},false,m.sprint?'s':'kg'),ltCmp?null:320,_ltCat.indexOf(n),_ltBadge(s,m.sprint?'s':'kg',m.sprint));}
