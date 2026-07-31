@@ -643,6 +643,7 @@ const _PUSH_W=340, _PUSH_GAP=14;
 // 선수 1명만 잡혔을 때는 카드를 캔버스 폭 전체로 넓힌다(세션 표 3~4개를 잘리지 않게 가로로).
 // 여러 명이면 기존대로 340px 격자. 렌더할 때마다 _pushAllCards0가 갱신한다.
 let _pushWide=false;
+let _pushChartMap={};   // 카드 idx → {cid, dates} — wide 모드 Chart.js 인스턴스 찾기용
 const _LT_GUTTER=48;         // 라인 차트 y축(=좌측 여백) 고정 폭. 푸쉬 카드도 같은 만큼 들여써서 같은 날짜가 같은 x에 온다
 const _PUSH_WIDE_MAX=4000;   // 상한 사실상 해제 — 아래 볼륨·거리 차트와 폭을 맞춘다(2026-07-31)
 const _PUSH_WIDE_VB=1300;    // wide 모드 점 차트 viewBox 폭. 높이 118 고정이라 이 값이 작을수록 차트가 세로로 늘어난다
@@ -726,13 +727,25 @@ function _pushAlignRows(par){
     const sp=row.querySelector('[data-pushspace]');
     if(!kids.length)return;
     const n=kids.length, G=12, RW=row.clientWidth||1;
+    // wide 모드는 Chart.js 차트라 점의 x를 스케일에서 직접 읽는다(축 여백까지 정확히 일치). 없으면 data-cx 폴백.
+    const _ci=_pushChartMap[+(row.getAttribute('data-pushidx')||-1)];
+    const _ch=(_ci&&typeof charts!=='undefined')?charts[_ci.cid]:null;
+    const _rb=row.getBoundingClientRect();
+    const _cxOf=k=>{
+      const di=k.getAttribute('data-di');
+      if(_ch&&_ch.scales&&_ch.scales.x&&di!=null){
+        const cb=_ch.canvas.getBoundingClientRect();
+        return (cb.left-_rb.left+_ch.scales.x.getPixelForValue(+di))/RW;
+      }
+      return parseFloat(k.getAttribute('data-cx'))||0;
+    };
     const w=Math.min(250,Math.max(150,Math.floor((RW-G*(n-1))/n)));
     const need=n*w+G*(n-1), overflow=need>RW;
     kids.forEach(k=>{k.style.width=w+'px';});
     let xs;
     if(overflow){ xs=kids.map((k,i)=>i*(w+G)); }
     else{
-      xs=kids.map(k=>Math.max(0,Math.min(RW-w,(parseFloat(k.getAttribute('data-cx'))||0)*RW-w/2)));
+      xs=kids.map(k=>Math.max(0,Math.min(RW-w,_cxOf(k)*RW-w/2)));
       for(let i=1;i<n;i++) xs[i]=Math.max(xs[i],xs[i-1]+w+G);          // 왼→오 겹침 해소
       const over=xs[n-1]+w-RW;
       if(over>0){ xs=xs.map(x=>x-over); for(let i=0;i<n;i++) xs[i]=Math.max(xs[i],i*(w+G)); }
@@ -2710,6 +2723,8 @@ function renderLoad(){
   Object.keys(charts).filter(k=>k.startsWith('prog-')||k.startsWith('lt-')).forEach(killChart);
   setTimeout(()=>{
     _tr.jobs.forEach(j=>{const c=document.getElementById(j.id);if(c){killChart(j.id);try{charts[j.id]=new Chart(c,j.cfg);}catch(e){console.warn('lt chart',j.id,e);}}});
+    // 푸쉬 카드의 세션 표는 차트 x스케일을 읽어 자리를 잡으므로 차트가 만들어진 뒤 한 번 더
+    try{_pushLayout();}catch(e){}
   },50);
 }
 
@@ -3164,13 +3179,45 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     // wide(단일 카드)면 열을 넉넉히 잡아 부제·PB 날짜까지 보여준다. 줄바꿈은 절대 쓰지 않는다(3개째부터 2+1로 어긋남).
     const narrow=open.length>1&&!_pushWide;
     const colW=_pushWide?'flex:0 0 250px':'flex:0 0 150px';
-    // wide + 2개 이상이면 각 표를 자기 점 아래에 절대배치(_pushAlignRows가 실측 폭으로 자리 잡음).
+    // ── wide면 차트를 Chart.js로 그린다 ──
+    // 손으로 그린 SVG는 width:100%로 늘어나면서 글씨까지 같이 커져 볼륨·거리 차트와 안 맞았다.
+    // Chart.js로 그리면 폰트·격자·y축 여백·주차 점선·메소 밴드·주간 요약이 전부 같은 코드(_ltLineCfg
+    // /_wkAttachCfg/_weekBandPlugin)를 타므로 형식이 정확히 동일해진다. 좁은 카드(여러 명)는 기존 스파크라인 유지.
+    let chartHtml='', chartDates=null;
+    if(_pushWide){
+      const sBase=dates.map(d=>{
+        const t=_pushSessOf(nm,d), ok=t?_pushOK(t):[];
+        if(!ok.length)return null;
+        const s1=ok.map(_pushS1).filter(v=>v!=null), z2=ok.map(_pushZ2).filter(v=>v!=null);
+        return {d,v:Math.min(...ok.map(_pushFin)),rpe:null,
+          meta:['시도 '+ok.length+'회'].concat(s1.length?['Split 1 최고 '+Math.min(...s1).toFixed(2)+'s']:[]).concat(z2.length?['Zone 2 최고 '+Math.min(...z2).toFixed(2)+'s']:[])};
+      }).filter(Boolean);
+      const sp=_padDays(sBase);
+      const cfg=_ltLineCfg(sp,'#3ecf8e',true,false,null,true,'s');
+      // 시간축은 0부터 그리면 전부 위쪽에 뭉친다 — 메소 분기가 넣는 y.min=0/beginAtZero 제거
+      if(cfg.options&&cfg.options.scales&&cfg.options.scales.y){delete cfg.options.scales.y.beginAtZero;delete cfg.options.scales.y.min;}
+      _wkAttachCfg(cfg,sp,'s','min');   // 주간 요약 = 그 주 최고기록(작을수록 향상)
+      cfg.data.datasets[0].pointRadius=sp.map(p=>p.v==null?0:(open.indexOf(p.d)>=0?6:3));
+      // ⚠ els(nearest)를 쓰면 y까지 보고 고르는 탓에 위쪽(빠른 기록) 점이 잡힌다 — 세션 펼치기는 x만 본다
+      cfg.options.onClick=function(evt,els,chart){
+        if(!chart||!chart.scales||!chart.scales.x)return;
+        let i=-1,bd=1e9;
+        sp.forEach((p,k)=>{ if(p.v==null)return; const dd=Math.abs(chart.scales.x.getPixelForValue(k)-evt.x); if(dd<bd){bd=dd;i=k;} });
+        if(i>=0&&bd<=30){const _d=sp[i].d;setTimeout(()=>_pushTgSess(idx,_d),0);}
+      };
+      const cid='lt-'+(_ltN++); _ltJobs.push({id:cid,cfg});
+      _pushChartMap[idx]={cid,dates:sp.map(p=>p.d)};
+      chartDates=sp.map(p=>p.d);
+      chartHtml=`<div style="position:relative;height:320px"><canvas id="${cid}"></canvas></div>`;
+    } else chartHtml=_pushDots(nm,dates,idx,open);
+    // wide + 2개 이상이면 각 표를 자기 점 아래에 절대배치(_pushAlignRows가 차트 x스케일로 자리 잡음).
     const aligned=_pushWide&&open.length>1;
+    const _di=d=>chartDates?chartDates.indexOf(d):-1;
     const body=!open.length
       ? `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`
       : aligned
-        ? `<div data-pushrow="1" style="position:relative;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow:hidden">`
-          +open.map(d=>`<div data-pushtbl="1" data-cx="${_pushXFrac(dates,dates.indexOf(d)).toFixed(4)}" style="position:absolute;top:9px;left:0;width:250px">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')
+        ? `<div data-pushrow="1" data-pushidx="${idx}" style="position:relative;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow:hidden">`
+          +open.map(d=>`<div data-pushtbl="1" data-di="${_di(d)}" data-cx="${_pushXFrac(dates,dates.indexOf(d)).toFixed(4)}" style="position:absolute;top:9px;left:0;width:250px">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')
           +`<div data-pushspace="1" style="height:1px"></div></div>`
         : `<div style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
           +open.map(d=>`<div style="${open.length>1?colW:'flex:1 1 100%'};min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`;
@@ -3179,8 +3226,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
       +`<span style="font-size:13.5px;font-weight:650;color:#fff">${_pushWide?'':`<span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>`}${_esc(nm)}</span>`
       +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
-      +(_pushWide?`<div style="padding-left:${_LT_GUTTER-14}px">`:'')   // 카드 padding 14 + 이만큼 = 차트 y축 폭
-      +_pushDots(nm,dates,idx,open)+body+(_pushWide?`</div>`:'')+`</div>`;
+      +chartHtml+body+`</div>`;
   };
   // 세션 하나의 시도 기록표 (기존 표 그대로 — 첫 열 머리 = 날짜)
   const _pushSessTable=(nm,date,TR,narrow)=>{
@@ -3237,6 +3283,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       .filter(o=>o.ds.length);
     if(!perAth.length)return _pushEmpty('Push Start');
     _pushWide=(perAth.length===1);   // 선수 1명 → 카드를 폭 전체로
+    _pushChartMap={};
     _pushCardNames=perAth.map(o=>o.nm);
     const out=perAth.map((o,i)=>_pushCardOne(o.nm,o.ds,i)).filter(Boolean).join('');
     if(!out)return _pushEmpty('Push Start');
