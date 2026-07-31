@@ -640,6 +640,11 @@ function _pushTgSess(idx,d){
   _rerenderTrends();
 }
 const _PUSH_W=340, _PUSH_GAP=14;
+// 선수 1명만 잡혔을 때는 카드를 캔버스 폭 전체로 넓힌다(세션 표 3~4개를 잘리지 않게 가로로).
+// 여러 명이면 기존대로 340px 격자. 렌더할 때마다 _pushAllCards0가 갱신한다.
+let _pushWide=false;
+const _PUSH_WIDE_MAX=1240;   // 너무 넓어지면 표가 허전해서 상한
+const _PUSH_WIDE_VB=900;     // wide 모드 점 차트 viewBox 폭(높이 118 고정 → 화면폭에 맞춰 스케일)
 function _pushSavePos(){try{localStorage.setItem('lt_push_pos',JSON.stringify(_pushPos));}catch(e){}}
 function _pushFitH(par){if(!par)return;let m=0;par.querySelectorAll('[data-pushcard]').forEach(el=>{m=Math.max(m,el.offsetTop+el.offsetHeight);});par.style.height=(m+8)+'px';}
 // All Athletes 에서는 자유 배치를 쓰지 않는다 — 위 이름 칩 순서 그대로 격자로 고정.
@@ -651,6 +656,8 @@ function _pushFixedOrder(){ return selScope==='all'&&!(typeof selNames!=='undefi
 function _pushLayout(){
   const par=document.getElementById('push-canvas');if(!par)return;
   const cards=[...par.querySelectorAll('[data-pushcard]')];if(!cards.length)return;
+  // wide(단일 카드): 폭이 캔버스 전체라 자유배치가 의미 없다 — 좌상단 고정
+  if(_pushWide&&cards.length===1){const el=cards[0];el.style.left='0px';el.style.top='0px';_pushFitH(par);return;}
   const W=par.clientWidth||900;
   const cols=Math.max(1,Math.floor((W+_PUSH_GAP)/(_PUSH_W+_PUSH_GAP)));
   // ── All Athletes: data-pushcard 인덱스(=이름 순서)대로 좌→우, 줄바꿈. 같은 줄은 윗변 정렬 ──
@@ -689,6 +696,7 @@ function _pushLayout(){
 }
 function _pushGrab(ev,idx){
   if(ev.button!==0)return;
+  if(_pushWide)return;   // 폭 100% 카드는 끌 자리가 없다
   if(ev.target&&ev.target.closest&&ev.target.closest('[data-pushclose],[data-nodrag]'))return;
   const el=ev.currentTarget.closest?ev.currentTarget.closest('[data-pushcard]'):null;if(!el)return;
   const r=el.getBoundingClientRect(), p=el.parentNode.getBoundingClientRect();
@@ -1288,8 +1296,8 @@ function _sprintProgression(logs){
 
 // ══ 추이/비교 모듈 (Load 탭) ══
 const _LT_MAIN=['__rdy__','__vol__','__dist__','__cond__'];
-function _ltResetChartSub(){ // 차트 전환 시 이전 차트 하위요소 전부 초기화(핀·분해뷰·막대모양·범례숨김·Progression·펼친카테고리)
-  _ltPins=[];ltBrkPins={};ltVolBreak='none';ltDistBreak='none';ltBrkBars='group';_ltBrkHidden.clear();ltProg=null;ltOpenCat=null;
+function _ltResetChartSub(){ // 차트 전환 시 이전 차트 하위요소 초기화(핀·분해뷰·막대모양·범례숨김·펼친카테고리). ⚠ Progression(ltProg)은 건드리지 않는다 — Metrics와 동시 표시 허용(2026-07-31)
+  _ltPins=[];ltBrkPins={};ltVolBreak='none';ltDistBreak='none';ltBrkBars='group';_ltBrkHidden.clear();ltOpenCat=null;
 }
 function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;
   if(_LT_MAIN.includes(n)){
@@ -1300,7 +1308,7 @@ function ltToggleEx(i){const n=_ltCat[i];if(n==null)return;
     _rerenderTrends();return;
   }
   // 개별 운동(카테고리 세부) 토글 — 다중 비교는 유지하되 이전 차트 핀은 초기화
-  const wasOn=ltSel.has(n);if(wasOn){ltSel.delete(n);}else{ltSel.add(n);if(ltProg){ltProg=null;}}
+  const wasOn=ltSel.has(n);if(wasOn){ltSel.delete(n);}else{ltSel.add(n);}
   _ltPins=[];ltBrkPins={};
   _rerenderTrends();}
 function ltAddEx(n){if(!n)return;ltMode='ex';if(ltSel.has(n))ltSel.delete(n);else ltSel.add(n);_rerenderTrends();}
@@ -1749,7 +1757,7 @@ function _pushPinCards(scopeNames){
 // ── Strength Progression: e1RM(Epley) 시리즈 ──
 const _PROG_LIFTS=[{n:'Squat',l:'Squat'},{n:'Deadlift',l:'Deadlift'},{n:'Romanian Deadlift',l:'RDL'},{n:'Bench Press',l:'Bench'},{n:'Power Clean',l:'Power Clean',top:true},{n:'Real Leg Elevated Squat w/DB',l:'Real Leg Squat'}];
 function _epley(kg,reps){const r=Math.min(parseFloat(reps)||0,12);return kg*(1+r/30);}
-function ltProgTg(v){ltProg=ltProg===v?null:v;_ltPins=[];ltBrkPins={};ltBrkBars='group';if(ltProg){ltSel.clear();ltOpenCat=null;ltVolBreak='none';ltDistBreak='none';_ltBrkHidden.clear();}_rerenderTrends();}
+function ltProgTg(v){ltProg=ltProg===v?null:v;_ltPins=[];ltBrkPins={};_rerenderTrends();} // Metrics 선택은 유지 — Progression과 동시 표시(2026-07-31)
 function ltProgLiftTg(n){if(ltProgLift!==n)_ltPins=[];ltProgLift=n;_rerenderTrends();}
 function ltPushViewTg(v){if(ltPushView!==v){ltPushView=v;_ltPins=[];}_rerenderTrends();}
 function _e1rmSeries(nm,ex,topOnly){
@@ -2974,7 +2982,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   // 메소사이클 구분은 Total Volume·Sprint Distance 라인차트와 같은 규칙([[project_dashboard_trend_meso_band]]):
   // 선 아래만 메소 색 ~17%(2b) 채움, 메소 경계는 색 점선(88), 라벨은 배경 없이 색 글자만, 선·점도 메소 색으로 분절.
   const _pushDots=(nm,dates,idx,open)=>{
-    const W=_PUSH_W-28, H=118, PL=15, PR=15, TOP=26, BOT=34, PH=H-TOP-BOT;
+    const W=(_pushWide?_PUSH_WIDE_VB:_PUSH_W-28), H=118, PL=15, PR=15, TOP=26, BOT=34, PH=H-TOP-BOT;
     const vs=dates.map(d=>{const s=_pushSessOf(nm,d),ok=s?_pushOK(s):[];return ok.length?Math.min(...ok.map(_pushFin)):null;});
     const fin=vs.filter(v=>v!=null); if(!fin.length)return '';
     const lo=Math.min(...fin), hi=Math.max(...fin), sp=(hi-lo)||1;
@@ -3014,14 +3022,17 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const open=(_pushOpenSess[nm]||[]).filter(d=>dates.indexOf(d)>=0).slice().sort().reverse();
     // 표는 항상 가로 한 줄. 2개 이상이면 150px 고정 열로 나란히 두고, 넘치면 가로 스크롤
     // (줄바꿈을 쓰면 3개째부터 2+1로 어긋나 보인다).
-    const narrow=open.length>1;
+    // wide(단일 카드)면 열을 넉넉히 잡아 부제·PB 날짜까지 보여준다. 줄바꿈은 절대 쓰지 않는다(3개째부터 2+1로 어긋남).
+    const narrow=open.length>1&&!_pushWide;
+    const colW=_pushWide?'flex:0 0 250px':'flex:0 0 150px';
     const body=open.length
       ? `<div style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
-        +open.map(d=>`<div style="${narrow?'flex:0 0 150px':'flex:1 1 100%'};min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`
+        +open.map(d=>`<div style="${open.length>1?colW:'flex:1 1 100%'};min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`
       : `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`;
-    return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;width:${_PUSH_W}px;cursor:grab;user-select:none">`
+    const wcss=_pushWide?`width:100%;max-width:${_PUSH_WIDE_MAX}px;cursor:default`:`width:${_PUSH_W}px;cursor:grab`;
+    return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;${wcss};user-select:none">`
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
-      +`<span style="font-size:13.5px;font-weight:650;color:#fff"><span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>${_esc(nm)}</span>`
+      +`<span style="font-size:13.5px;font-weight:650;color:#fff">${_pushWide?'':`<span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>`}${_esc(nm)}</span>`
       +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
       +_pushDots(nm,dates,idx,open)+body+`</div>`;
   };
@@ -3079,6 +3090,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       ds:[...new Set(_pushTests(nm).filter(t=>_ltInPeriod(t.date)&&_pushOK(t).length).map(t=>t.date))].sort()}))
       .filter(o=>o.ds.length);
     if(!perAth.length)return _pushEmpty('Push Start');
+    _pushWide=(perAth.length===1);   // 선수 1명 → 카드를 폭 전체로
     _pushCardNames=perAth.map(o=>o.nm);
     const out=perAth.map((o,i)=>_pushCardOne(o.nm,o.ds,i)).filter(Boolean).join('');
     if(!out)return _pushEmpty('Push Start');
