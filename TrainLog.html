@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260802-1';
+const APP_VERSION = '20260802-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1182,6 +1182,11 @@ const ATHLETE_DOC=(id)=>db.collection('trainlog').doc('athlete_'+id);
 // 로컬이 빈 기기가 저장하면 서버의 남의 기록까지 지웠다(2026-07-27 Moritz·Laura 유실).
 // 문서 단위로 쪼개면 자기 로그 외에는 건드릴 수단 자체가 없다.
 const ATHLETE_LOGS=(id)=>ATHLETE_DOC(id).collection('logs');
+// trainlog/coach/plans/[YYYY-MM-DD] → 주간 플랜 하루 = 문서 1건.
+// coach 문서 하나에 sessionPlans 전체(날짜 56개·8.3MB)를 담던 구조는 저장 때마다
+// 전체를 다시 써야 해서, 오래된 상태의 코치 기기가 저장하면 플랜이 통째로 날아갔다
+// (2026-07-21 웜업 유실). 날짜별 문서로 쪼개면 그 날짜 외에는 건드릴 수 없다.
+const PLAN_DOCS=COACH_DOC.collection('plans');
 let _unsubscribe=null; // real-time listener handle
 let _syncAthleteId=null; // set before saveData() when coach modifies a specific athlete's log
 
@@ -1221,6 +1226,34 @@ function _unionPlans(primary,secondary){
     if(sTs>pTs) out[day]=JSON.parse(JSON.stringify(plan));
   });
   return out;
+}
+// 날짜별 플랜 문서를 전부 읽어 {날짜: 플랜} 으로 돌려준다. 실패하면 null → 호출부는 통짜 필드로 폴백.
+async function _fetchPlanDocs(){
+  try{
+    const qs=await PLAN_DOCS.get();
+    const out={};
+    qs.forEach(doc=>{ const v=doc.data(); if(v) out[doc.id]=v; });
+    return out;
+  }catch(e){ console.warn('[TrainLog] plans 서브컬렉션 읽기 실패 — 통짜 필드로 폴백:',e); return null; }
+}
+// 바뀐 날짜만 각자 문서에 쓴다. 손대지 않은 날짜는 건드리지 않으므로 통째로 날아갈 수 없다.
+async function _syncPlanDocs(plans, known){
+  try{
+    const cur = known || await _fetchPlanDocs() || {};
+    const jobs=[];
+    Object.entries(plans||{}).forEach(([day,plan])=>{
+      if(!plan||!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+      const prev=cur[day];
+      if(prev){
+        const pTs=Number(prev._ts)||0, nTs=Number(plan._ts)||0;
+        if(nTs<pTs) return;                                              // 서버가 더 최신 → 유지
+        if(JSON.stringify(prev)===JSON.stringify(plan)) return;          // 동일 → 쓰지 않음
+      }
+      jobs.push(PLAN_DOCS.doc(day).set(plan));
+    });
+    if(jobs.length) await Promise.all(jobs);
+    return jobs.length;
+  }catch(e){ console.warn('[TrainLog] plans 서브컬렉션 쓰기 실패(통짜 경로는 정상):',e); return -1; }
 }
 // Stamp a plan day as "edited now" so per-day merge (_unionPlans) knows which side is newer.
 function _stampPlanDay(d,day){ try{ if(day&&d&&d.sessionPlans&&d.sessionPlans[day]) d.sessionPlans[day]._ts=Date.now(); }catch(e){} }
@@ -1419,14 +1452,18 @@ function syncToCloud(d){
     logArchive:d.logArchive||[],
     _lastUpdated:d._lastUpdated||Date.now()
   });
-  COACH_DOC.get().then(snap=>{
+  COACH_DOC.get().then(async snap=>{
     if(snap.exists){
       const cloudPlans=snap.data().sessionPlans||{};
       coachData.sessionPlans=_unionPlans(coachData.sessionPlans,cloudPlans);
-      // keep local in sync with the union (direct write, no recursion)
-      try{ const raw=localStorage.getItem(SK); if(raw){ const ld=JSON.parse(raw); ld.sessionPlans=coachData.sessionPlans; localStorage.setItem(SK,JSON.stringify(ld)); } }catch(e){}
     }
-    return COACH_DOC.set(coachData);
+    // 날짜별 문서와도 합친다 — 이 기기가 모르는 날짜를 지우지 않기 위해.
+    const subPlans=await _fetchPlanDocs();
+    if(subPlans) coachData.sessionPlans=_unionPlans(coachData.sessionPlans,subPlans);
+    // keep local in sync with the union (direct write, no recursion)
+    try{ const raw=localStorage.getItem(SK); if(raw){ const ld=JSON.parse(raw); ld.sessionPlans=coachData.sessionPlans; localStorage.setItem(SK,JSON.stringify(ld)); } }catch(e){}
+    await _syncPlanDocs(coachData.sessionPlans, subPlans);  // ① 날짜별 문서 — 바뀐 날짜만
+    return COACH_DOC.set(coachData);                         // ② 호환용 통짜 필드(대시보드가 아직 읽음)
   }).then(()=>{
     try{ localStorage.setItem('trainlog_last_sync',Date.now().toString()); }catch(e){}
     showToast('☁️ Cloud synced ✓');
@@ -1518,6 +1555,9 @@ async function _fetchCoachData(){
   const coachData=_restoreImages(coachSnap.data());
   if(!coachData.records) coachData.records=[];
   if(!coachData.sessionPlans) coachData.sessionPlans={};
+  // 날짜별 플랜 문서를 얹는다(있으면 그쪽이 정본). 읽기 실패 시 통짜 필드 그대로 사용.
+  const _subPlans=await _fetchPlanDocs();
+  if(_subPlans) coachData.sessionPlans=_unionPlans(coachData.sessionPlans,_subPlans);
   if(!coachData.programs) coachData.programs={};
   ['A','B'].forEach(g=>{
     if(!coachData.programs[g]) coachData.programs[g]={phase:'',week:'',days:[],images:{macro:null,meso:null,micro:null}};
