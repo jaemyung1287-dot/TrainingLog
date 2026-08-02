@@ -1,0 +1,42 @@
+name: Backup Firestore
+
+# 매일 04:00 (독일) / 11:00 (한국)에 trainlog 컬렉션 전체를 떠서 저장소에 커밋한다.
+# 커밋 히스토리가 곧 백업 타임라인이고, backups/daily 에는 최근 30일치가 파일로 남는다.
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: backup-firestore
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Snapshot Firestore
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY || 'AIzaSyBF_F7ANEj4n9E5O5-x9YWn9mOBunl8Ze8' }}
+        run: node tools/backup-firestore.mjs
+
+      - name: Commit snapshot
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "backup-bot"
+          git add backups
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "backup: Firestore 스냅샷 $(date -u +%Y-%m-%d)"
+            git push
+          fi
