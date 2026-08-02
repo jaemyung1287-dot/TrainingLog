@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260802-3';
+const APP_VERSION = '20260802-4';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -418,6 +418,27 @@ const APP_VERSION = '20260802-3';
     </div>
     <span style="font-size:20px;color:var(--muted)">→</span>
   </div>
+
+  <!-- ── DATEN-CHECK — Handy vs Cloud vergleichen, fehlende Logs nachladen ── -->
+  <div onclick="goDiag()" style="margin-top:12px;border-radius:18px;background:var(--card);border:2px solid var(--border);padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+    <span style="font-size:26px;line-height:1">🩺</span>
+    <div style="flex:1">
+      <div style="font-size:15px;font-weight:800;color:var(--text)">Daten-Check</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">Fehlt ein Eintrag? Hier prüfen</div>
+    </div>
+    <span style="font-size:20px;color:var(--muted)">→</span>
+  </div>
+</div>
+
+<!-- DATEN-CHECK SCREEN -->
+<div id="s-diag" class="screen">
+  <div class="hdr">
+    <button class="back" onclick="showScreen('s-athlete-menu')">← Zurück</button>
+    <span class="logo">🏔️ Team Bayern Skeleton</span>
+  </div>
+  <div class="ttl">🩺 Daten-Check</div>
+  <div class="sub">Handy ↔ Cloud</div>
+  <div id="diag-body" style="margin-top:10px"></div>
 </div>
 
 <!-- TEAM TRAINING DATA SCREEN -->
@@ -1626,6 +1647,130 @@ async function _loadOwnLogs(athId){
     return d.logs.length;
   }catch(e){ console.warn('[TrainLog] own-log load failed, keeping local:',e); return -1; }
 }
+
+// ════════════════════════════════════════════════════════════════════════
+//  DATEN-CHECK — 폰에만 있고 클라우드엔 없는 로그를 찾아내 그대로 복구한다.
+//  선수 폰(iOS)엔 개발자도구가 없어서, "입력했는데 없다"는 신고가 들어와도
+//  저장이 어디서 샜는지 확인할 방법이 없었다(2026-08-02 Moritz·Laura 조사).
+//  스캔 대상은 SK 하나가 아니라 localStorage 전체 키 — 백업키·레거시키에
+//  옛 로그가 남아 있을 수 있고, 그게 유일한 원본인 경우가 있다.
+//  업로드는 로그 1건 = 문서 1건으로만 하므로 이 경로로는 아무것도 지워지지 않는다.
+// ════════════════════════════════════════════════════════════════════════
+function _diagKB(n){ return n<1024?n+' B':(n/1024).toFixed(0)+' KB'; }
+function _diagEsc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function _diagScanStorage(myName){
+  const rows=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i); if(!k) continue;
+    const raw=localStorage.getItem(k)||'';
+    const row={key:k,bytes:raw.length,total:0,mine:[]};
+    if(raw.length>40&&raw.charAt(0)==='{'){
+      try{
+        const o=JSON.parse(raw);
+        if(Array.isArray(o.logs)){
+          row.total=o.logs.length;
+          row.mine=o.logs.filter(l=>l&&l.id!=null&&l.athleteName===myName);
+        }
+      }catch(e){}
+    }
+    rows.push(row);
+  }
+  return rows.sort((a,b)=>b.bytes-a.bytes);
+}
+// 남은 용량 확인 — iOS Safari는 한도를 안 알려주므로 실제로 써보는 수밖에 없다.
+function _diagQuotaProbe(){
+  const k='__trainlog_probe__';
+  try{ localStorage.setItem(k,'x'.repeat(200*1024)); localStorage.removeItem(k); return '✓ OK (200 KB frei)'; }
+  catch(e){ try{localStorage.removeItem(k);}catch(_){} return '⚠️ VOLL — Speichern schlägt fehl'; }
+}
+let _diagState=null;
+async function goDiag(){
+  const ath=ST.athlete;
+  if(!ath){ showToast('Bitte zuerst Athlet auswählen'); return; }
+  showScreen('s-diag');
+  const box=document.getElementById('diag-body');
+  box.innerHTML='<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">Prüfe Handy und Cloud…</div>';
+  const myName=ath.name, athId=ath.id;
+  const del=_getDeletedIds();
+  const scan=_diagScanStorage(myName);
+  const totalBytes=scan.reduce((s,r)=>s+r.bytes,0);
+  const localById=new Map();
+  scan.forEach(r=>r.mine.forEach(l=>{ if(!localById.has(l.id)) localById.set(l.id,{log:l,key:r.key}); }));
+  let cloud=null, cloudErr=null;
+  try{
+    const snap=await _withTimeout(ATHLETE_DOC(athId).get(),8000);
+    cloud=await _fetchLogsMerged(athId,(snap.exists&&snap.data())||{});
+  }catch(e){ cloudErr=e&&e.message?e.message:String(e); }
+  const cloudIds=new Set((cloud||[]).map(l=>l.id));
+  // 클라우드에 없고 묘비도 아닌 = 아직 한 번도 올라간 적 없는 로그
+  const missing=cloudErr?[]:[...localById.values()]
+    .filter(x=>!cloudIds.has(x.log.id)&&!del.has(x.log.id))
+    .sort((a,b)=>String(a.log.date).localeCompare(String(b.log.date)));
+  let pend='—'; try{ pend=localStorage.getItem('trainlog_pending_sync')||'—'; }catch(e){}
+  _diagState={athId,myName,missing,report:''};
+
+  const line=(a,b,c)=>`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)"><span style="flex:1;font-size:12px;color:var(--muted)">${_diagEsc(a)}</span><span style="font-size:12px;font-weight:700;color:${c||'var(--text)'}">${_diagEsc(b)}</span></div>`;
+  let h='';
+  h+=`<div style="border-radius:14px;background:var(--card);border:1px solid var(--border);padding:14px 16px;margin-bottom:14px">`;
+  h+=line('App-Version',APP_VERSION);
+  h+=line('Athlet',myName+' ('+athId+')');
+  h+=line('Speicher belegt',_diagKB(totalBytes)+' / ~5 MB', totalBytes>3.5*1024*1024?'#e45555':'var(--text)');
+  h+=line('Speicher-Test',_diagQuotaProbe());
+  h+=line('Logs auf dem Handy',String(localById.size));
+  h+=line('Logs in der Cloud',cloudErr?'Fehler':String((cloud||[]).length),cloudErr?'#e45555':'var(--text)');
+  h+=line('Warteschlange',pend);
+  h+=`</div>`;
+  if(cloudErr){
+    h+=`<div style="border-radius:14px;border:1.5px solid rgba(228,69,69,.5);background:rgba(228,69,69,.1);padding:14px 16px;margin-bottom:14px;font-size:12px;color:#e45555">Cloud nicht erreichbar — ${_diagEsc(cloudErr)}<br>Bitte mit WLAN erneut öffnen.</div>`;
+  }
+  h+=`<div style="font-size:14px;font-weight:800;color:var(--text);margin:4px 0 8px">Nur auf diesem Handy · ${missing.length}</div>`;
+  if(!missing.length){
+    h+=`<div style="border-radius:14px;background:var(--card);border:1px solid var(--border);padding:16px;font-size:12px;color:var(--muted)">${cloudErr?'Vergleich nicht möglich.':'Alles ist in der Cloud. ✓'}</div>`;
+  }else{
+    h+=`<div style="border-radius:14px;background:var(--card);border:1px solid var(--border);padding:6px 14px;margin-bottom:12px;max-height:320px;overflow:auto">`;
+    missing.forEach(x=>{ h+=line(x.log.date+' · '+(x.log.type||'?'), x.key.replace('trainlog_','')); });
+    h+=`</div>`;
+    h+=`<button id="diag-upload-btn" onclick="diagUploadMissing()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--gold),#a07c2d);color:#0d1117;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:10px">☁️ ${missing.length} Logs in die Cloud hochladen</button>`;
+  }
+  const rep=['TrainLog Daten-Check','App '+APP_VERSION+' · '+myName+' ('+athId+')',
+    'Speicher '+_diagKB(totalBytes)+' · '+_diagQuotaProbe(),
+    'Handy '+localById.size+' Logs · Cloud '+(cloudErr?('FEHLER '+cloudErr):((cloud||[]).length+' Logs')),
+    'Warteschlange '+pend,'Nur auf dem Handy ('+missing.length+'):']
+    .concat(missing.map(x=>'  '+x.log.date+' '+(x.log.type||'?')+' '+x.log.id+' ['+x.key+']'))
+    .concat(['Speicher-Keys:']).concat(scan.map(r=>'  '+r.key+' '+_diagKB(r.bytes)+' logs='+r.total+' meine='+r.mine.length))
+    .join('\n');
+  _diagState.report=rep;
+  h+=`<button onclick="diagCopyReport()" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📋 Bericht kopieren (an Trainer senden)</button>`;
+  h+=`<textarea id="diag-report" readonly style="width:100%;box-sizing:border-box;margin-top:10px;height:150px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:10px;font-family:ui-monospace,Menlo,monospace;padding:8px">${_diagEsc(rep)}</textarea>`;
+  box.innerHTML=h;
+}
+async function diagUploadMissing(){
+  if(!_diagState||!_diagState.missing.length) return;
+  const btn=document.getElementById('diag-upload-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Lade hoch…'; }
+  const athId=_diagState.athId, missing=_diagState.missing;
+  let ok=0,fail=0;
+  for(const x of missing){
+    try{ await _withTimeout(ATHLETE_LOGS(athId).doc(String(x.log.id)).set(x.log),10000); ok++; }
+    catch(e){ fail++; console.warn('[TrainLog] Diag-Upload fehlgeschlagen',x.log.id,e); }
+  }
+  // 대시보드가 아직 배열을 읽으므로 배열에도 반영 — 서버 값을 먼저 읽어 합치기만 하니 축소될 수 없다.
+  try{
+    const snap=await _withTimeout(_getFromServer(ATHLETE_DOC(athId)),8000);
+    const cur=(snap.exists&&snap.data().logs)||[];
+    const merged=_mergeLogsById(cur,missing.map(x=>x.log),null);
+    await _withTimeout(ATHLETE_DOC(athId).set({logs:merged,_lastUpdated:Date.now()},{merge:true}),12000);
+  }catch(e){ console.warn('[TrainLog] Diag-Array-Spiegel fehlgeschlagen:',e); }
+  showToast(fail?('☁️ '+ok+' hochgeladen, '+fail+' fehlgeschlagen'):('☁️ '+ok+' Logs wiederhergestellt ✓'));
+  goDiag();
+}
+function diagCopyReport(){
+  const t=_diagState&&_diagState.report||'';
+  const done=()=>showToast('📋 Kopiert — an den Trainer senden');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(()=>{ const el=document.getElementById('diag-report'); if(el){el.focus();el.select();} }); }
+  else { const el=document.getElementById('diag-report'); if(el){ el.focus(); el.select(); try{document.execCommand('copy');done();}catch(e){} } }
+}
+
 // Full merge (coach doc + every athlete's logs) — used by coach real-time sync.
 async function _fetchAllCloudData(){
   const coachData=await _fetchCoachData();
