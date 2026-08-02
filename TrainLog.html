@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260802-4';
+const APP_VERSION = '20260802-5';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -419,14 +419,16 @@ const APP_VERSION = '20260802-4';
     <span style="font-size:20px;color:var(--muted)">→</span>
   </div>
 
-  <!-- ── DATEN-CHECK — Handy vs Cloud vergleichen, fehlende Logs nachladen ── -->
-  <div onclick="goDiag()" style="margin-top:12px;border-radius:18px;background:var(--card);border:2px solid var(--border);padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer">
-    <span style="font-size:26px;line-height:1">🩺</span>
-    <div style="flex:1">
-      <div style="font-size:15px;font-weight:800;color:var(--text)">Daten-Check</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:2px">Fehlt ein Eintrag? Hier prüfen</div>
+  <!-- ── DATEN-CHECK — 평소엔 숨김. _diagQuickCheck가 문제를 찾았을 때만 나타난다 ── -->
+  <div id="menu-diag-alert" style="display:none;margin-top:12px;border-radius:18px;background:linear-gradient(135deg,rgba(228,69,69,.15),rgba(247,120,79,.08));border:1.5px solid rgba(228,69,69,.45);padding:16px;cursor:pointer" onclick="goDiag()">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:26px;line-height:1">🩺</span>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:800;color:#e45555">Daten-Check</div>
+        <div id="menu-diag-alert-sub" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <span style="font-size:20px;color:#e45555">→</span>
     </div>
-    <span style="font-size:20px;color:var(--muted)">→</span>
   </div>
 </div>
 
@@ -1678,10 +1680,48 @@ function _diagScanStorage(myName){
   return rows.sort((a,b)=>b.bytes-a.bytes);
 }
 // 남은 용량 확인 — iOS Safari는 한도를 안 알려주므로 실제로 써보는 수밖에 없다.
+// 프로브가 스스로 공간을 잡아먹으면 안 되니 작게 쓰고 finally로 반드시 지운다.
 function _diagQuotaProbe(){
   const k='__trainlog_probe__';
-  try{ localStorage.setItem(k,'x'.repeat(200*1024)); localStorage.removeItem(k); return '✓ OK (200 KB frei)'; }
-  catch(e){ try{localStorage.removeItem(k);}catch(_){} return '⚠️ VOLL — Speichern schlägt fehl'; }
+  try{ localStorage.setItem(k,'x'.repeat(64*1024)); return '✓ OK (64 KB frei)'; }
+  catch(e){ return '⚠️ VOLL — Speichern schlägt fehl'; }
+  finally{ try{ localStorage.removeItem(k); }catch(_){} }
+}
+// 폰에만 있는 로그 계산 — 진단 화면과 배너 자동감지가 같은 계산을 공유한다.
+// ⚠ 클라우드 묘비(deletedIds)를 먼저 흡수한 뒤에 비교해야 한다. 안 그러면 코치가
+//   대시보드에서 지운 로그를 이 폰이 "클라우드에 없네" 하고 되살려 올린다.
+async function _diagMissing(athId,myName){
+  const scan=_diagScanStorage(myName);
+  const localById=new Map();
+  scan.forEach(r=>r.mine.forEach(l=>{ if(!localById.has(l.id)) localById.set(l.id,{log:l,key:r.key}); }));
+  const snap=await _withTimeout(ATHLETE_DOC(athId).get(),8000);
+  const dd=(snap.exists&&snap.data())||{};
+  const del=_absorbCloudDeleted(dd.deletedIds||[],_getDeletedIds());
+  const cloud=await _fetchLogsMerged(athId,dd);
+  const cloudIds=new Set(cloud.map(l=>l.id));
+  const missing=[...localById.values()]
+    .filter(x=>!cloudIds.has(x.log.id)&&!del.has(x.log.id))
+    .sort((a,b)=>String(a.log.date).localeCompare(String(b.log.date)));
+  return {scan,localById,cloud,missing};
+}
+// 문제가 있을 때만 선수 메뉴에 배너를 띄운다 — 평소엔 화면에 아무것도 안 보인다.
+// 큰 JSON을 두 번 파싱하므로 메뉴가 다 그려진 뒤에 늦게 돌린다.
+async function _diagQuickCheck(){
+  try{
+    const ath=ST.athlete, banner=document.getElementById('menu-diag-alert');
+    if(!ath||!banner) return;
+    const reasons=[];
+    let bytes=0;
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); bytes+=(localStorage.getItem(k)||'').length; }
+    if(_diagQuotaProbe().charAt(0)==='⚠') reasons.push('Speicher voll');
+    else if(bytes>3.6*1024*1024) reasons.push('Speicher fast voll');
+    try{ const p=JSON.parse(localStorage.getItem('trainlog_pending_sync')||'{}'); if(p&&p[ath.id]!=null) reasons.push('Upload wartet'); }catch(e){}
+    const r=await _diagMissing(ath.id,ath.name);
+    if(r.missing.length) reasons.push(r.missing.length+' Einträge nicht in der Cloud');
+    if(!reasons.length){ banner.style.display='none'; return; }
+    document.getElementById('menu-diag-alert-sub').textContent=reasons.join(' · ');
+    banner.style.display='block';
+  }catch(e){ console.warn('[TrainLog] Daten-Check (Hintergrund):',e); }
 }
 let _diagState=null;
 async function goDiag(){
@@ -1691,21 +1731,15 @@ async function goDiag(){
   const box=document.getElementById('diag-body');
   box.innerHTML='<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">Prüfe Handy und Cloud…</div>';
   const myName=ath.name, athId=ath.id;
-  const del=_getDeletedIds();
-  const scan=_diagScanStorage(myName);
-  const totalBytes=scan.reduce((s,r)=>s+r.bytes,0);
-  const localById=new Map();
-  scan.forEach(r=>r.mine.forEach(l=>{ if(!localById.has(l.id)) localById.set(l.id,{log:l,key:r.key}); }));
-  let cloud=null, cloudErr=null;
+  let scan=_diagScanStorage(myName), localById=new Map(), cloud=null, missing=[], cloudErr=null;
   try{
-    const snap=await _withTimeout(ATHLETE_DOC(athId).get(),8000);
-    cloud=await _fetchLogsMerged(athId,(snap.exists&&snap.data())||{});
-  }catch(e){ cloudErr=e&&e.message?e.message:String(e); }
-  const cloudIds=new Set((cloud||[]).map(l=>l.id));
-  // 클라우드에 없고 묘비도 아닌 = 아직 한 번도 올라간 적 없는 로그
-  const missing=cloudErr?[]:[...localById.values()]
-    .filter(x=>!cloudIds.has(x.log.id)&&!del.has(x.log.id))
-    .sort((a,b)=>String(a.log.date).localeCompare(String(b.log.date)));
+    const r=await _diagMissing(athId,myName);
+    scan=r.scan; localById=r.localById; cloud=r.cloud; missing=r.missing;
+  }catch(e){
+    cloudErr=e&&e.message?e.message:String(e);
+    scan.forEach(r=>r.mine.forEach(l=>{ if(!localById.has(l.id)) localById.set(l.id,{log:l,key:r.key}); }));
+  }
+  const totalBytes=scan.reduce((s,r)=>s+r.bytes,0);
   let pend='—'; try{ pend=localStorage.getItem('trainlog_pending_sync')||'—'; }catch(e){}
   _diagState={athId,myName,missing,report:''};
 
@@ -1746,6 +1780,7 @@ async function goDiag(){
 }
 async function diagUploadMissing(){
   if(!_diagState||!_diagState.missing.length) return;
+  if(!confirm(_diagState.missing.length+' Einträge in die Cloud hochladen?')) return;
   const btn=document.getElementById('diag-upload-btn');
   if(btn){ btn.disabled=true; btn.textContent='Lade hoch…'; }
   const athId=_diagState.athId, missing=_diagState.missing;
@@ -2698,6 +2733,8 @@ function _enterAthleteMenu(){
   // Always use Europe/Berlin timezone for date display (team is based in Germany)
   const _berlinDate=new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',weekday:'short',day:'numeric',month:'long'}).format(new Date());
   document.getElementById('menu-date-sub').textContent=_berlinDate;
+  // 저장이 새고 있을 때만 배너를 띄운다. 큰 JSON을 훑으므로 메뉴가 그려진 뒤로 미룬다.
+  if(typeof _diagQuickCheck==='function') setTimeout(_diagQuickCheck,1200);
   // Show today's plan quick-start card if plan exists
   const data=getData(); const today=todayStr();
   const plan=data.sessionPlans[today];
