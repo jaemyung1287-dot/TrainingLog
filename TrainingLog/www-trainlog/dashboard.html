@@ -2783,10 +2783,12 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   // 각 점 위에 값+RPE 라벨 (추이 라인 차트 공통 · 점 색상과 동일한 색)
   const _mkPtRpeVals=unit=>({id:'ptRpeVals',afterDatasetsDraw(chart){
     const ctx=chart.ctx,area=chart.chartArea;ctx.save();ctx.textAlign='center';
-    let _prevR=-1e9;   // 직전 라벨 오른쪽 끝 — 겹칠 자리면 그 점의 라벨은 건너뜀
+    // 점 위/아래 두 줄을 번갈아 쓴다. 예전엔 한 줄만 써서 앞 라벨과 겹치는 점은 라벨을 통째로 버렸는데,
+    // x축을 날짜축으로 통일한 뒤(2026-07-31) 훈련일이 달력상 몰리면서 볼륨 라벨이 대부분 사라졌다.
+    let _prevUp=-1e9,_prevDn=-1e9;   // 위·아래 줄 각각의 직전 라벨 오른쪽 끝
     chart.data.datasets.forEach((ds,di)=>{
       if(!chart.isDatasetVisible(di))return;
-      _prevR=-1e9;   // ⚠ 시리즈마다 초기화. 안 하면 오버레이(이중축)에서 두 번째 선의 라벨이 전부 사라진다
+      _prevUp=-1e9;_prevDn=-1e9;   // ⚠ 시리즈마다 초기화. 안 하면 오버레이(이중축)에서 두 번째 선의 라벨이 전부 사라진다
       const meta=chart.getDatasetMeta(di);
       meta.data.forEach((el,i)=>{
         const v=ds.data[i];if(v==null)return;
@@ -2798,9 +2800,15 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
         ctx.font='700 10px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif';
         const tw=ctx.measureText(vt).width;
         const x=Math.max(area.left+tw/2+3,Math.min(area.right-tw/2-3,el.x));
-        if(x-tw/2<_prevR+4)return;                 // 앞 라벨과 겹치면 생략
-        _prevR=x+tw/2;
-        const below=el.y-(rp!=null?32:20)<area.top;
+        const _h=rp!=null?32:20;
+        const _fitUp=el.y-_h>=area.top,   _freeUp=x-tw/2>=_prevUp+4;
+        const _fitDn=el.y+_h<=area.bottom,_freeDn=x-tw/2>=_prevDn+4;
+        let below;
+        if(_fitUp&&_freeUp)      below=false;   // 기본은 점 위
+        else if(_fitDn&&_freeDn) below=true;    // 위가 막히면 아래 줄로 내려서 살린다
+        else if(_freeDn)         below=true;    // 위아래 공간이 빠듯해도 아래 줄이 비었으면 그린다
+        else return;                            // 두 줄 다 겹칠 때만 생략
+        if(below)_prevDn=x+tw/2; else _prevUp=x+tw/2;
         ctx.fillStyle=col;
         if(below){
           ctx.textBaseline='top';ctx.fillText(vt,x,el.y+8);

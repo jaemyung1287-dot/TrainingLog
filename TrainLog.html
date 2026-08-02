@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260802-2';
+const APP_VERSION = '20260802-3';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -6299,7 +6299,10 @@ function openAthDetail(name){
         style="width:100%;box-sizing:border-box;padding:9px 12px 9px 32px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;-webkit-appearance:none"
         oninput="filterDetailLogs(this.value)">
     </div>`;
-  _renderDetailLogs(d.logs.filter(l=>l.athleteName===name).slice(-50).reverse());
+  // 최근 50건만 보여주던 slice(-50) 제거 — 로그가 50건을 넘는 선수는 그 이전 기록이
+  // 화면에서 통째로 사라져 "데이터가 없어졌다"로 보였다(2026-08-02). 섹션은 어차피
+  // 접힌 채로 시작하므로 선수 1명치(현재 최대 123건) 전량을 넘겨도 부담 없다.
+  _renderDetailLogs(d.logs.filter(l=>l.athleteName===name).reverse());
 
   document.getElementById('coach-tabbar').classList.remove('show');
   showScreen('s-ath-detail');
@@ -6471,7 +6474,7 @@ function _renderDetailLogs(logs, opts){
 function filterDetailLogs(query){
   const d=getData(), name=ST._detailAthName;
   if(!name) return;
-  const all=d.logs.filter(l=>l.athleteName===name).slice(-50).reverse();
+  const all=d.logs.filter(l=>l.athleteName===name).reverse();   // 검색도 전 기간 대상(위 slice 제거와 동일 이유)
   const q=query.trim().toLowerCase();
   const filtered=q?all.filter(l=>{
     if(l.type==='weight'||l.type==='plyo') return (l.exercises||[]).some(e=>(e.name||'').toLowerCase().includes(q));
