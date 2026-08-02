@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260802-6';
+const APP_VERSION = '20260802-7';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1397,22 +1397,38 @@ async function _syncOwnLogsNow(athId,d){
         _mergeCloudSprintTimes(athLogs,cloudLogs);   // 코치 입력 repTimes 보존(로그 내부 필드 단위)
         // ① 문서 단위 쓰기 — 새 로그와 이 기기에서 더 최근에 손댄 로그만 각자 문서에 쓴다.
         //    다른 로그는 손대지 않으므로 이 경로로는 남의 기록이 지워질 수 없다.
-        const _writes=[];
+        const _writes=[], _wroteIds=[];
         athLogs.forEach(l=>{
           if(l==null||l.id==null) return;
           const prev=subMap.get(l.id);
           if(prev&&_logStamp(prev)>=_logStamp(l)) return;   // 서버 쪽이 더 최신이면 건드리지 않음
+          _wroteIds.push(l.id);
           _writes.push(ATHLETE_LOGS(athId).doc(String(l.id)).set(l));
         });
         // ② 묘비 처리 — 지운 로그는 그 문서만 삭제
         _delSet.forEach(id=>{ if(subMap.has(id)) _writes.push(ATHLETE_LOGS(athId).doc(String(id)).delete()); });
         if(_writes.length) await _withTimeout(Promise.all(_writes),15000);
-        // ③ 구조 호환용 배열 쓰기 — 아직 옛 버전 앱/대시보드가 배열을 읽으므로 당분간 병행.
-        //    서버 값을 먼저 읽어 합친 결과라 이 경로도 축소되지 않는다.
-        const payload={logs:_mergeLogsById(cloudLogs,athLogs,_delSet),
-                       deletedIds:[..._delSet],
-                       _lastUpdated:d._lastUpdated||Date.now()};
-        await _withTimeout(ATHLETE_DOC(athId).set(payload,{merge:true}),8000);
+        // ②-b 저장 영수증 — 쓰고 나서 서버에서 되읽어 실제로 들어갔는지 확인한다.
+        //     "훈련 직후에 입력했는데 앱엔 없다"는 신고가 나온 건 이 확인이 없었기 때문.
+        //     확인이 안 되면 성공으로 치지 않고 재시도 → 대기열 → 빨간 배너로 넘어간다.
+        if(_wroteIds.length){
+          const _chk=_wroteIds[_wroteIds.length-1];
+          const _back=await _withTimeout(_getFromServer(ATHLETE_LOGS(athId).doc(String(_chk))),8000);
+          if(!_back.exists) throw new Error('Upload nicht bestätigt — Beleg fehlt');
+        }
+        // ③ 구조 호환용 배열 쓰기 — 아직 대시보드가 배열을 읽으므로 당분간 병행.
+        //    ⚠ 이 쓰기는 절대 줄어들 수 없다. 줄어든다면 그건 버그이므로 쓰지 말고 소리를 낸다.
+        //    (2026-07 유실 사고는 전부 "줄어든 배열을 그대로 써버린" 경우였다)
+        const _mergedLogs=_mergeLogsById(cloudLogs,athLogs,_delSet);
+        const _floor=cloudLogs.filter(l=>!_delSet.has(l.id)).length;
+        if(_mergedLogs.length<_floor){
+          console.error('[TrainLog] 축소 쓰기 차단 —',_mergedLogs.length,'<',_floor,'athId',athId);
+          _showSyncError('Sicherheitsstopp: Es wurde nichts überschrieben · 덮어쓰기 차단됨');
+        }else{
+          await _withTimeout(ATHLETE_DOC(athId).set({logs:_mergedLogs,
+                                                     deletedIds:[..._delSet],
+                                                     _lastUpdated:d._lastUpdated||Date.now()},{merge:true}),8000);
+        }
         _clearPendingSync(athId); _hideSyncError();
         if(ST.athlete) showToast('☁️ Log hochgeladen ✓');
         return true;
