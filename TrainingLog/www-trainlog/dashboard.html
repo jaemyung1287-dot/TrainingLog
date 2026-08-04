@@ -636,7 +636,50 @@ let _pushOpenSess={};
 function _pushTgSess(idx,d){
   const nm=_pushCardNames[idx]; if(!nm)return;
   const cur=_pushOpenSess[nm]||[];
-  _pushOpenSess[nm]=(cur.indexOf(d)>=0)?cur.filter(x=>x!==d):cur.concat([d]);
+  if(cur.indexOf(d)>=0){ _pushOpenSess[nm]=cur.filter(x=>x!==d); }
+  else{
+    // 새로 펼친 세션은 날짜 순서에 맞는 자리에 끼운다(드래그로 바꾼 순서는 그대로 둔다)
+    const a=cur.slice(); let i=a.findIndex(x=>x>d); if(i<0)i=a.length;
+    a.splice(i,0,d); _pushOpenSess[nm]=a;
+  }
+  _rerenderTrends();
+}
+// 펼친 세션 표를 끌어서 순서 바꾸기. 표는 차트 x좌표에 묶이지 않고 독립적으로 나열된다.
+let _pushTblDrag=null;
+function _pushTblGrab(ev,idx,date){
+  if(ev.button!==0)return;
+  const el=ev.currentTarget; if(!el)return;
+  const row=el.closest('[data-pushtblrow]'); if(!row)return;
+  const nm=_pushCardNames[idx]; if(!nm)return;
+  _pushTblDrag={nm,date,el,row,x0:ev.clientX,moved:false};
+  document.addEventListener('mousemove',_pushTblMove);
+  document.addEventListener('mouseup',_pushTblDrop);
+  ev.preventDefault(); ev.stopPropagation();
+}
+function _pushTblMove(ev){
+  const D=_pushTblDrag; if(!D)return;
+  if(!D.moved&&Math.abs(ev.clientX-D.x0)<4)return;
+  if(!D.moved){D.moved=true;D.el.style.opacity='.55';D.el.style.cursor='grabbing';}
+  // 삽입 위치 = 커서 왼쪽에 있는 형제 표 개수
+  const sibs=[...D.row.querySelectorAll('[data-pushtbl]')];
+  let ins=0; sibs.forEach(s=>{const r=s.getBoundingClientRect(); if(ev.clientX>r.left+r.width/2)ins++;});
+  D.ins=ins;
+  sibs.forEach((s,i)=>{s.style.boxShadow=(i===ins-1&&s!==D.el)?'inset -3px 0 0 -1px #3ecf8e':'';});
+}
+function _pushTblDrop(){
+  const D=_pushTblDrag; _pushTblDrag=null;
+  document.removeEventListener('mousemove',_pushTblMove);
+  document.removeEventListener('mouseup',_pushTblDrop);
+  if(!D)return;
+  D.el.style.opacity='';D.el.style.cursor='grab';
+  [...D.row.querySelectorAll('[data-pushtbl]')].forEach(s=>{s.style.boxShadow='';});
+  if(!D.moved||D.ins==null)return;
+  const cur=(_pushOpenSess[D.nm]||[]).slice();
+  const from=cur.indexOf(D.date); if(from<0)return;
+  cur.splice(from,1);
+  let to=D.ins; if(to>from)to--;
+  cur.splice(Math.max(0,Math.min(cur.length,to)),0,D.date);
+  _pushOpenSess[D.nm]=cur;
   _rerenderTrends();
 }
 const _PUSH_W=340, _PUSH_GAP=14;
@@ -903,13 +946,33 @@ function showTabLoading(){
   const w=document.getElementById('tab-'+curTab);
   if(w&&!w.innerHTML.trim())w.innerHTML='<div class="page-loading"><div class="spin"></div>Loading data…</div>';
 }
+// 선수 로그는 두 곳에 있다: 문서의 logs 배열(구버전 호환) + logs 하위컬렉션(현재 정본).
+// 선수 앱은 하위컬렉션을 먼저 쓰고 배열은 나중에 쓰는데, 그 배열 쓰기가 실패하면
+// 대시보드에서만 로그가 사라져 보였다(Sarah 2026-08-04 푸쉬). 그래서 둘 다 구독해 id 단위로 합친다.
+let _athRaw={};
+function _athMerge(id){
+  const r=_athRaw[id]||{};
+  const del=new Set(r.del||[]);
+  const m=new Map();
+  (r.arr||[]).forEach(l=>{if(l&&l.id!=null)m.set(l.id,l);});
+  if(Array.isArray(r.sub))r.sub.forEach(l=>{if(l&&l.id!=null)m.set(l.id,l);});   // 하위컬렉션이 정본
+  athLogs[id]=[...m.values()].filter(l=>!del.has(l.id));
+}
 function setupAthListeners(ids){
   athUnsubs.forEach(u=>u());athUnsubs=[];
   if(!ids.length){renderCurrent();return;}
   ids.forEach(id=>{
+    _athRaw[id]={arr:(athLogs[id]||[]),sub:null,del:[]};
     athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).onSnapshot(
-      snap=>{const _d=snap.exists?snap.data():{};athLogs[id]=_d.logs||[];athNotes[id]=_d.exNotes||[];renderCurrent();},
+      snap=>{const _d=snap.exists?snap.data():{};
+        _athRaw[id].arr=_d.logs||[];_athRaw[id].del=_d.deletedIds||[];
+        athNotes[id]=_d.exNotes||[];_athMerge(id);renderCurrent();},
       err=>{console.warn('[dash] snapshot err:',id,err);renderCurrent();}
+    ));
+    athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).collection('logs').onSnapshot(
+      qs=>{const a=[];qs.forEach(doc=>{const v=doc.data();if(v&&v.id!=null)a.push(v);});
+        _athRaw[id].sub=a;_athMerge(id);renderCurrent();},
+      err=>{console.warn('[dash] logs subcollection err:',id,err);}   // 실패해도 배열로 계속 동작
     ));
   });
 }
@@ -3148,11 +3211,19 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const mn=dates.map(d=>{const m=(typeof _mesoOf==='function')?_mesoOf(d):null;return (m&&m.l)||'';});
     const mc=mn.map(l=>l?_mesoColor(l):'#8b949e');
     const BASE=(TOP+PH).toFixed(1);
+    // 선과 채움은 **같은 자리에서** 색이 바뀌어야 한다 — 메소가 바뀌는 구간은 경계 점선(두 점의 중앙)에서
+    // 반으로 쪼개 왼쪽은 이전 메소색, 오른쪽은 새 메소색으로 선·채움을 함께 그린다.
+    // (예전엔 채움만 뒤 메소색, 선은 앞 메소색이라 Laura 30.7~4.8처럼 선=연두·배경=보라로 어긋났다)
+    const _seg=(x1,y1,x2,y2,col)=>
+      `<path d="M${x1} ${y1} L${x2} ${y2} L${x2} ${BASE} L${x1} ${BASE} Z" fill="${col}2b"/>`
+      +`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="1.8"/>`;
     let ln='';
     for(let i=1;i<dates.length;i++){ if(vs[i-1]==null||vs[i]==null)continue;
-      const x1=X(i-1).toFixed(1),y1=Y(vs[i-1]).toFixed(1),x2=X(i).toFixed(1),y2=Y(vs[i]).toFixed(1);
-      ln+=`<path d="M${x1} ${y1} L${x2} ${y2} L${x2} ${BASE} L${x1} ${BASE} Z" fill="${(mn[i]===mn[i-1]?mc[i-1]:mc[i])}2b"/>`
-        +`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${mc[i-1]}" stroke-width="1.8"/>`; }
+      const x1=X(i-1),y1=Y(vs[i-1]),x2=X(i),y2=Y(vs[i]);
+      const f=n=>n.toFixed(1);
+      if(mn[i]===mn[i-1]){ ln+=_seg(f(x1),f(y1),f(x2),f(y2),mc[i-1]); continue; }
+      const bx=(x1+x2)/2, by=(y1+y2)/2;   // 경계 점선과 같은 x
+      ln+=_seg(f(x1),f(y1),f(bx),f(by),mc[i-1])+_seg(f(bx),f(by),f(x2),f(y2),mc[i]); }
     // 메소 경계 점선 + 구간 중앙 라벨
     let bands='', span={};
     for(let i=1;i<dates.length;i++){ if(mn[i]===mn[i-1])continue;
@@ -3181,7 +3252,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     if(!dates||!dates.length)return '';
     const TR=_pushTrack();
     // ⚠ 옛날→최근 순. 점 차트 x축과 같은 방향이어야 진행 흐름이 읽힌다(최신 먼저로 되돌리지 말 것).
-    const open=(_pushOpenSess[nm]||[]).filter(d=>dates.indexOf(d)>=0).slice().sort();
+    // 정렬하지 않는다 — _pushTgSess가 날짜 자리에 끼워 넣고, 드래그로 바꾼 순서는 그대로 쓴다
+    const open=(_pushOpenSess[nm]||[]).filter(d=>dates.indexOf(d)>=0);
     // 표는 항상 가로 한 줄. 2개 이상이면 150px 고정 열로 나란히 두고, 넘치면 가로 스크롤
     // (줄바꿈을 쓰면 3개째부터 2+1로 어긋나 보인다).
     // wide(단일 카드)면 열을 넉넉히 잡아 부제·PB 날짜까지 보여준다. 줄바꿈은 절대 쓰지 않는다(3개째부터 2+1로 어긋남).
@@ -3204,6 +3276,9 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       const cfg=_ltLineCfg(sp,'#3ecf8e',true,false,null,true,'s');
       // 시간축은 0부터 그리면 전부 위쪽에 뭉친다 — 메소 분기가 넣는 y.min=0/beginAtZero 제거
       if(cfg.options&&cfg.options.scales&&cfg.options.scales.y){delete cfg.options.scales.y.beginAtZero;delete cfg.options.scales.y.min;}
+      // 시간축은 y가 뒤집혀 있어(위=빠름) fill:true(원점 0)면 선 '위'가 채워져 아래 메소 라벨과 떠 보인다.
+      // 'start'=축 아래 끝까지 → 볼륨·거리 차트처럼 선 아래가 같은 색으로 채워진다.
+      cfg.data.datasets[0].fill='start';
       _wkAttachCfg(cfg,sp,'s','min');   // 주간 요약 = 그 주 최고기록(작을수록 향상)
       cfg.data.datasets[0].pointRadius=sp.map(p=>p.v==null?0:(open.indexOf(p.d)>=0?6:3));
       // ⚠ els(nearest)를 쓰면 y까지 보고 고르는 탓에 위쪽(빠른 기록) 점이 잡힌다 — 세션 펼치기는 x만 본다
@@ -3218,17 +3293,12 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       chartDates=sp.map(p=>p.d);
       chartHtml=`<div style="position:relative;height:320px"><canvas id="${cid}"></canvas></div>`;
     } else chartHtml=_pushDots(nm,dates,idx,open);
-    // wide + 2개 이상이면 각 표를 자기 점 아래에 절대배치(_pushAlignRows가 차트 x스케일로 자리 잡음).
-    const aligned=_pushWide&&open.length>1;
-    const _di=d=>chartDates?chartDates.indexOf(d):-1;
+    // ⚠ 표를 차트 점 x좌표에 절대배치하던 방식(0948971)은 되돌렸다 — 표가 차트에 묶여 서로 붙고
+    //   끌어서 옮길 수도 없었다. 표는 차트와 독립적으로 아래에 가로로 나열되고, 끌어서 순서를 바꾼다.
     const body=!open.length
       ? `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`
-      : aligned
-        ? `<div data-pushrow="1" data-pushidx="${idx}" style="position:relative;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow:hidden">`
-          +open.map(d=>`<div data-pushtbl="1" data-di="${_di(d)}" data-cx="${_pushXFrac(dates,dates.indexOf(d)).toFixed(4)}" style="position:absolute;top:9px;left:0;width:250px">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')
-          +`<div data-pushspace="1" style="height:1px"></div></div>`
-        : `<div style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
-          +open.map(d=>`<div style="${open.length>1?colW:'flex:1 1 100%'};min-width:0">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`;
+      : `<div data-pushtblrow="${idx}" data-athnm="${_esc(nm)}" style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
+        +open.map(d=>`<div data-nodrag="1" data-pushtbl="1" data-date="${d}" onmousedown="_pushTblGrab(event,${idx},'${d}')" title="끌어서 순서 변경" style="${open.length>1?colW:'flex:1 1 100%'};min-width:0;cursor:grab">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`;
     const wcss=_pushWide?`width:100%;max-width:${_PUSH_WIDE_MAX}px;cursor:default`:`width:${_PUSH_W}px;cursor:grab`;
     return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;${wcss};user-select:none">`
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
@@ -5014,6 +5084,14 @@ async function delLog(logId,athId,event){
       deletedIds:firebase.firestore.FieldValue.arrayUnion(logId),
       _lastUpdated:Date.now()
     });
+    // 하위컬렉션 문서도 지운다 — 안 지우면 대시보드가 하위컬렉션에서 다시 읽어 부활한다
+    await ref.collection('logs').doc(String(logId)).delete().catch(e=>console.warn('[dash] sub delete',e));
+    if(_athRaw[athId]){
+      _athRaw[athId].del=[...(_athRaw[athId].del||[]),logId];
+      if(Array.isArray(_athRaw[athId].sub))_athRaw[athId].sub=_athRaw[athId].sub.filter(l=>l.id!==logId);
+      _athRaw[athId].arr=(_athRaw[athId].arr||[]).filter(l=>l.id!==logId);
+      _athMerge(athId);
+    }
     athLogs[athId]=(athLogs[athId]||[]).filter(l=>l.id!==logId);
     renderCurrent();
   }catch(e){alert('Error: '+e.message);}
@@ -5401,6 +5479,8 @@ async function saveLogEditor(){
     const snap=await ref.get();if(!snap.exists){alert('Athlete doc missing');return;}
     const logs=(snap.data().logs||[]).map(l=>l.id===_eLog.id?_eLog:l);
     await ref.update({logs,_lastUpdated:Date.now()});
+    // 하위컬렉션도 같이 — 대시보드/선수앱이 하위컬렉션을 정본으로 읽으므로 안 쓰면 수정이 되돌아온다
+    await ref.collection('logs').doc(String(_eLog.id)).set(_eLog).catch(e=>console.warn('[dash] sub set',e));
     athLogs[_eAthId]=logs;
     _rmModal();renderCurrent();
   }catch(e){alert('Save error: '+e.message);}
@@ -5899,12 +5979,14 @@ async function _schedPatchLog(athId,logId,mut){
   try{
     const ref=db.collection('trainlog').doc('athlete_'+athId);
     const snap=await ref.get();if(!snap.exists)return;
-    const logs=(snap.data().logs||[]).map(l=>{
-      if(l.id!==logId)return l;
-      const cp=JSON.parse(JSON.stringify(l));mut(cp);return cp;
-    });
+    // 정본은 하위컬렉션 — 배열에만 있는 옛 로그도 있으므로 현재 표시본(athLogs)을 원본으로 삼는다
+    const _src=(athLogs[athId]||[]).find(l=>l.id===logId)||(snap.data().logs||[]).find(l=>l.id===logId);
+    if(!_src)return;
+    const _new=JSON.parse(JSON.stringify(_src));mut(_new);
+    const logs=(snap.data().logs||[]).map(l=>l.id===logId?_new:l);
     await ref.update({logs,_lastUpdated:Date.now()});
-    athLogs[athId]=logs;
+    await ref.collection('logs').doc(String(logId)).set(_new).catch(e=>console.warn('[dash] sub set',e));
+    athLogs[athId]=(athLogs[athId]||[]).map(l=>l.id===logId?_new:l);
   }catch(e){alert('Save error: '+e.message);}
 }
 function _schedExCmt(athId,logId,i,val){_schedPatchLog(athId,logId,l=>{if(l.exercises&&l.exercises[i])l.exercises[i].coachComment=val;});}
