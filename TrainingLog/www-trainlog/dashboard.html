@@ -644,7 +644,12 @@ function _pushTgSess(idx,d){
   }
   _rerenderTrends();
 }
-// 펼친 세션 표를 끌어서 순서 바꾸기. 표는 차트 x좌표에 묶이지 않고 독립적으로 나열된다.
+// 세션 카드의 × — 그 세션만 닫는다(차트 점을 다시 누르는 것과 같다)
+function _pushCloseSess(nm,d){
+  _pushOpenSess[nm]=(_pushOpenSess[nm]||[]).filter(x=>x!==d);
+  _rerenderTrends();
+}
+// (구) 펼친 세션 표를 끌어서 순서 바꾸기 — 세션이 독립 카드가 된 뒤로는 쓰이지 않는다.
 let _pushTblDrag=null;
 function _pushTblGrab(ev,idx,date){
   if(ev.button!==0)return;
@@ -701,15 +706,18 @@ function _pushFixedOrder(){ return selScope==='all'&&!(typeof selNames!=='undefi
 function _pushLayout(){
   const par=document.getElementById('push-canvas');if(!par)return;
   const cards=[...par.querySelectorAll('[data-pushcard]')];if(!cards.length)return;
-  _pushAlignRows(par);
-  // wide(단일 카드): 폭이 캔버스 전체라 자유배치가 의미 없다 — 좌상단 고정
-  if(_pushWide&&cards.length===1){const el=cards[0];el.style.left='0px';el.style.top='0px';_pushFitH(par);return;}
+  // 폭 100% 차트 카드(단일 선수)는 항상 맨 위 한 줄을 차지하고, 나머지(세션 카드)는 그 아래에 배치
+  const full=cards.filter(el=>el.getAttribute('data-pushfull')==='1');
+  let yOff=0;
+  full.forEach(el=>{el.style.left='0px';el.style.top=yOff+'px';yOff+=el.offsetHeight+_PUSH_GAP;});
+  const rest=cards.filter(el=>el.getAttribute('data-pushfull')!=='1');
+  if(!rest.length){_pushFitH(par);return;}
   const W=par.clientWidth||900;
   const cols=Math.max(1,Math.floor((W+_PUSH_GAP)/(_PUSH_W+_PUSH_GAP)));
   // ── All Athletes: data-pushcard 인덱스(=이름 순서)대로 좌→우, 줄바꿈. 같은 줄은 윗변 정렬 ──
   if(_pushFixedOrder()){
-    const ordered=cards.slice().sort((a,b)=>(+a.getAttribute('data-pushcard'))-(+b.getAttribute('data-pushcard')));
-    let rowTop=0, rowMax=0;
+    const ordered=rest.slice().sort((a,b)=>(+a.getAttribute('data-pushcard'))-(+b.getAttribute('data-pushcard')));
+    let rowTop=yOff, rowMax=0;
     ordered.forEach((el,i)=>{
       const c=i%cols;
       if(c===0&&i>0){ rowTop+=rowMax+_PUSH_GAP; rowMax=0; }
@@ -720,13 +728,14 @@ function _pushLayout(){
     _pushFitH(par);
     return;
   }
-  const colH=new Array(cols).fill(0), free=[];
+  const colH=new Array(cols).fill(yOff), free=[];
+  const cardsRest=rest;
   // 1차: 저장된 위치 적용 + 그 카드가 걸치는 열의 높이를 선점시켜 자동배치와 겹치지 않게
-  cards.forEach(el=>{
+  cardsRest.forEach(el=>{
     const nm=_pushCardNames[+el.getAttribute('data-pushcard')];
     const sv=nm?_pushPos[nm]:null;
     if(!(sv&&isFinite(sv.x)&&isFinite(sv.y))){free.push(el);return;}
-    const x=Math.max(0,sv.x), y=Math.max(0,sv.y);
+    const x=Math.max(0,sv.x), y=Math.max(yOff,sv.y);
     el.style.left=x+'px';el.style.top=y+'px';
     const c0=Math.max(0,Math.min(cols-1,Math.floor(x/(_PUSH_W+_PUSH_GAP))));
     const c1=Math.max(0,Math.min(cols-1,Math.floor((x+_PUSH_W-1)/(_PUSH_W+_PUSH_GAP))));
@@ -866,9 +875,9 @@ function _ltDragEnd(){
 }
 function _pushGrab(ev,idx){
   if(ev.button!==0)return;
-  if(_pushWide)return;   // 폭 100% 카드는 끌 자리가 없다
   if(ev.target&&ev.target.closest&&ev.target.closest('[data-pushclose],[data-nodrag]'))return;
   const el=ev.currentTarget.closest?ev.currentTarget.closest('[data-pushcard]'):null;if(!el)return;
+  if(el.getAttribute('data-pushfull')==='1')return;   // 폭 100% 차트 카드는 끌 자리가 없다(세션 카드는 끌 수 있다)
   const r=el.getBoundingClientRect(), p=el.parentNode.getBoundingClientRect();
   _pushDrag={idx,el,dx:ev.clientX-r.left,dy:ev.clientY-r.top,x:r.left-p.left,y:r.top-p.top};
   el.style.zIndex='99';el.style.cursor='grabbing';el.style.boxShadow='0 8px 24px rgba(0,0,0,.55)';
@@ -3293,18 +3302,29 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       chartDates=sp.map(p=>p.d);
       chartHtml=`<div style="position:relative;height:320px"><canvas id="${cid}"></canvas></div>`;
     } else chartHtml=_pushDots(nm,dates,idx,open);
-    // ⚠ 표를 차트 점 x좌표에 절대배치하던 방식(0948971)은 되돌렸다 — 표가 차트에 묶여 서로 붙고
-    //   끌어서 옮길 수도 없었다. 표는 차트와 독립적으로 아래에 가로로 나열되고, 끌어서 순서를 바꾼다.
-    const body=!open.length
-      ? `<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">점을 눌러 세션을 펼치세요</div>`
-      : `<div data-pushtblrow="${idx}" data-athnm="${_esc(nm)}" style="display:flex;flex-wrap:nowrap;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #1c232d;overflow-x:auto;overflow-y:hidden">`
-        +open.map(d=>`<div data-nodrag="1" data-pushtbl="1" data-date="${d}" onmousedown="_pushTblGrab(event,${idx},'${d}')" title="끌어서 순서 변경" style="${open.length>1?colW:'flex:1 1 100%'};min-width:0;cursor:grab">${_pushSessTable(nm,d,TR,narrow)}</div>`).join('')+`</div>`;
+    // ⚠ 점을 누르면 표가 이 카드 안에 붙던 방식은 되돌렸다 — 이제 **세션마다 별도 카드**(_pushSessCard)가
+    //   차트 아래에 뜨고, 그 카드를 끌어서 자유롭게 배치한다. 여기엔 안내문만 남긴다.
+    const body=`<div style="margin-top:6px;padding:9px 0 5px;text-align:center;font-size:10.5px;color:var(--hint)">`
+      +(open.length?'세션 카드는 아래에 · 점을 다시 누르면 닫힙니다':'점을 눌러 세션 기록 카드를 여세요')+`</div>`;
     const wcss=_pushWide?`width:100%;max-width:${_PUSH_WIDE_MAX}px;cursor:default`:`width:${_PUSH_W}px;cursor:grab`;
-    return `<div class="card" data-pushcard="${idx}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;${wcss};user-select:none">`
+    return `<div class="card" data-pushcard="${idx}"${_pushWide?' data-pushfull="1"':''} onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;${wcss};user-select:none">`
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
       +`<span style="font-size:13.5px;font-weight:650;color:#fff">${_pushWide?'':`<span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>`}${_esc(nm)}</span>`
       +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
       +chartHtml+body+`</div>`;
+  };
+  // 점을 누르면 뜨는 **독립 세션 카드** — 차트 카드와 별개로 캔버스에 얹히고 끌어서 옮긴다.
+  // (예전 핀 카드 방식. 표를 차트 안에 붙이면 차트에 묶여 옮길 수가 없었다 — 재명 2026-08-04)
+  const _pushSessCard=(nm,date,idx)=>{
+    const tbl=_pushSessTable(nm,date,_pushTrack(),false);
+    if(!tbl)return '';
+    return `<div class="card" data-pushcard="${idx}" data-pushsess="${date}" onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 10px;position:absolute;left:0;top:0;width:${_PUSH_W}px;cursor:grab;user-select:none">`
+      +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
+      +`<span style="font-size:12.5px;font-weight:650;color:#fff">`
+      +`<span title="끌어서 이동" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>`
+      +`${_esc(nm)} <span style="color:var(--hint);font-weight:500">· ${_esc(_pushDM(date))}</span></span>`
+      +`<span data-pushclose="1" title="닫기" onclick="_pushCloseSess('${_esc(nm)}','${date}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
+      +tbl+`</div>`;
   };
   // 세션 하나의 시도 기록표 (기존 표 그대로 — 첫 열 머리 = 날짜)
   const _pushSessTable=(nm,date,TR,narrow)=>{
@@ -3363,8 +3383,18 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     _pushWide=(perAth.length===1);   // 선수 1명 → 카드를 폭 전체로
     _pushChartMap={};
     _pushCardNames=perAth.map(o=>o.nm);
-    const out=perAth.map((o,i)=>_pushCardOne(o.nm,o.ds,i)).filter(Boolean).join('');
+    let out=perAth.map((o,i)=>_pushCardOne(o.nm,o.ds,i)).filter(Boolean).join('');
     if(!out)return _pushEmpty('Push Start');
+    // 펼친 세션마다 독립 카드 — 차트 카드 뒤에 인덱스를 이어 붙인다(위치 저장 키 = "이름 · 4.8")
+    perAth.forEach(o=>{
+      (_pushOpenSess[o.nm]||[]).filter(d=>o.ds.indexOf(d)>=0).forEach(d=>{
+        const si=_pushCardNames.length;
+        const html=_pushSessCard(o.nm,d,si);
+        if(!html)return;
+        _pushCardNames.push(o.nm+' · '+_pushDM(d));
+        out+=html;
+      });
+    });
     // 자유 배치 캔버스 — 카드는 절대좌표, 삽입 직후 _pushLayout()으로 자리 잡음
     return `<div id="push-canvas" style="grid-column:1/-1;position:relative;width:100%;min-height:120px">${out}`
       +`<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onload="setTimeout(_pushLayout,0)">`
