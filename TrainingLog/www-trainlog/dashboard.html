@@ -728,24 +728,26 @@ function _pushLayout(){
     _pushFitH(par);
     return;
   }
-  const colH=new Array(cols).fill(yOff), free=[];
-  const cardsRest=rest;
-  // 1차: 저장된 위치 적용 + 그 카드가 걸치는 열의 높이를 선점시켜 자동배치와 겹치지 않게
-  cardsRest.forEach(el=>{
+  // ⚠ 예전엔 저장된 좌표를 그대로 찍어서 카드가 서로 겹쳐 보였다(2026-08-04 재명 지적).
+  //   이제 드래그는 **어느 열·어느 순서**인지만 정하고, 실제 배치는 열 안에서 위에서부터 차곡차곡 쌓는다.
+  //   → 자유 배치 느낌은 유지되면서 겹치는 일이 없다.
+  const COLW=_PUSH_W+_PUSH_GAP;
+  const items=rest.map(el=>{
     const nm=_pushCardNames[+el.getAttribute('data-pushcard')];
-    const sv=nm?_pushPos[nm]:null;
-    if(!(sv&&isFinite(sv.x)&&isFinite(sv.y))){free.push(el);return;}
-    const x=Math.max(0,sv.x), y=Math.max(yOff,sv.y);
-    el.style.left=x+'px';el.style.top=y+'px';
-    const c0=Math.max(0,Math.min(cols-1,Math.floor(x/(_PUSH_W+_PUSH_GAP))));
-    const c1=Math.max(0,Math.min(cols-1,Math.floor((x+_PUSH_W-1)/(_PUSH_W+_PUSH_GAP))));
-    for(let c=c0;c<=c1;c++)colH[c]=Math.max(colH[c],y+el.offsetHeight+_PUSH_GAP);
+    const sv=(nm&&_pushPos[nm]&&isFinite(_pushPos[nm].x)&&isFinite(_pushPos[nm].y))?_pushPos[nm]:null;
+    return {el,
+      col: sv?Math.max(0,Math.min(cols-1,Math.round(sv.x/COLW))):null,
+      y:   sv?sv.y:Infinity,
+      i:   +el.getAttribute('data-pushcard')};
   });
-  // 2차: 위치 없는 카드는 가장 짧은 열에
-  free.forEach(el=>{
-    let c=0;for(let i=1;i<cols;i++)if(colH[i]<colH[c])c=i;
-    el.style.left=(c*(_PUSH_W+_PUSH_GAP))+'px';el.style.top=colH[c]+'px';
-    colH[c]+=el.offsetHeight+_PUSH_GAP;
+  items.sort((a,b)=>(a.y-b.y)||(a.i-b.i));   // 저장된 세로 순서 → 없으면 카드 순서
+  const colH=new Array(cols).fill(yOff);
+  items.forEach(p=>{
+    let c=p.col;
+    if(c==null){ c=0; for(let i=1;i<cols;i++) if(colH[i]<colH[c]) c=i; }
+    p.el.style.left=(c*COLW)+'px';
+    p.el.style.top=colH[c]+'px';
+    colH[c]+=p.el.offsetHeight+_PUSH_GAP;
   });
   _pushFitH(par);
 }
@@ -902,7 +904,7 @@ function _pushRelease(){
   // All Athletes는 이름순 고정이 원칙 — 끌어서 잠깐 옮겨 보는 건 되지만 위치를 기억하지는 않는다
   // (기억하면 다음에 들어올 때 또 순서가 흐트러지고, 그룹/개별용 저장 배치까지 덮어쓴다)
   if(nm&&!_pushFixedOrder()){_pushPos[nm]={x:Math.round(d.x),y:Math.round(d.y)};_pushSavePos();}
-  _pushFitH(d.el.parentNode);
+  _pushLayout();   // 놓는 즉시 열에 맞춰 정돈(겹침 없음)
 }
 function _pushResetPos(){_pushPos={};_pushSavePos();_rerenderTrends();}
 
@@ -1148,6 +1150,7 @@ function setScope(v){
   else if(v==='A'||v==='B'){selScope=(selScope===v?'all':v);selNames.clear();}
   else { if(selNames.has(v))selNames.delete(v); else selNames.add(v); }   // 이름: 다중 토글
   _ltPins=[];ltBrkPins={};   // 선수(스코프) 전환 시 이전 뷰의 세션 핀 초기화 — 스테일 핀 방지
+  _pushOpenSess={};          // 푸쉬 세션 카드도 같이 닫는다 — 선수를 바꾸면 아래 카드는 사라지는 게 기본
   renderCurrent();
 }
 function _scopeIsGroup(v){ return v==='A'||v==='B'; }
