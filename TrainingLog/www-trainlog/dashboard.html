@@ -702,6 +702,34 @@ function _pushFitH(par){if(!par)return;let m=0;par.querySelectorAll('[data-pushc
 // 어긋나고(겹쳐서 아예 안 보이는 카드까지 생김) 순서가 매번 달라진다.
 // 그룹/개별 선택에서는 기존대로 드래그 위치를 기억한다.
 function _pushFixedOrder(){ return selScope==='all'&&!(typeof selNames!=='undefined'&&selNames.size); }
+// ── All Athletes 성별 줄 나누기 (2026-08-05 재명 요청) ────────────────────────
+// 여자 선수는 위 한 줄, 남자 선수는 그 아래 줄. 선수 문서(coachData.athletes)에 성별
+// 필드가 없어서 **이름(첫 단어)** 으로 매핑한다 — 선수가 들어오면 아래 두 목록에만 추가.
+// 어느 목록에도 없는 이름(Kim J. 등 테스트/코치 계정)은 맨 아랫줄로 밀어 둔다.
+const _ATH_F=['charlize','maria','marie','nele','laura','sarah'];
+const _ATH_M=['niklas','moritz'];
+const _athFirst=nm=>String(nm||'').trim().toLowerCase().split(/\s+/)[0];
+function _athSexBand(nm){const k=_athFirst(nm);return _ATH_F.indexOf(k)>=0?0:(_ATH_M.indexOf(k)>=0?1:2);}
+const _PUSH_MINW=240;   // 한 줄에 다 넣으려고 줄일 수 있는 카드 최소 폭
+// 한 성별 묶음을 **가로 한 줄**에 다 넣는다. 340px로 안 되면 _PUSH_MINW까지 폭을 줄이고,
+// 그래도 모자라면 그 묶음 안에서만 줄바꿈한다. 반환값 = 다음 묶음이 시작할 y좌표.
+function _pushRowBand(list,top,W){
+  if(!list.length)return top;
+  const n=list.length;
+  const fit=Math.floor((W-_PUSH_GAP*(n-1))/n);
+  const w=Math.max(_PUSH_MINW,Math.min(_PUSH_W,fit));
+  const cols=Math.max(1,Math.min(n,Math.floor((W+_PUSH_GAP)/(w+_PUSH_GAP))));
+  let rowTop=top,rowMax=0;
+  list.forEach((el,i)=>{
+    const c=i%cols;
+    if(c===0&&i>0){ rowTop+=rowMax+_PUSH_GAP; rowMax=0; }
+    el.style.width=w+'px';          // 폭을 바꾼 뒤에 높이를 읽어야 svg 축소분이 반영된다
+    el.style.left=(c*(w+_PUSH_GAP))+'px';
+    el.style.top=rowTop+'px';
+    rowMax=Math.max(rowMax,el.offsetHeight);
+  });
+  return rowTop+rowMax+_PUSH_GAP;
+}
 // 저장된 위치 적용 + 저장 안 된 카드는 빈 칸에 자동 배치(짧은 열 우선)
 function _pushLayout(){
   const par=document.getElementById('push-canvas');if(!par)return;
@@ -714,17 +742,12 @@ function _pushLayout(){
   if(!rest.length){_pushFitH(par);return;}
   const W=par.clientWidth||900;
   const cols=Math.max(1,Math.floor((W+_PUSH_GAP)/(_PUSH_W+_PUSH_GAP)));
-  // ── All Athletes: data-pushcard 인덱스(=이름 순서)대로 좌→우, 줄바꿈. 같은 줄은 윗변 정렬 ──
+  // ── All Athletes: 여자 선수 한 줄 → 그 아래 남자 선수 한 줄. 각 줄 안은 이름(카드 인덱스) 순 ──
   if(_pushFixedOrder()){
     const ordered=rest.slice().sort((a,b)=>(+a.getAttribute('data-pushcard'))-(+b.getAttribute('data-pushcard')));
-    let rowTop=yOff, rowMax=0;
-    ordered.forEach((el,i)=>{
-      const c=i%cols;
-      if(c===0&&i>0){ rowTop+=rowMax+_PUSH_GAP; rowMax=0; }
-      el.style.left=(c*(_PUSH_W+_PUSH_GAP))+'px';
-      el.style.top=rowTop+'px';
-      rowMax=Math.max(rowMax,el.offsetHeight);
-    });
+    const bandOf=el=>_athSexBand(_pushCardNames[+el.getAttribute('data-pushcard')]);
+    let top=yOff;
+    [0,1,2].forEach(b=>{ top=_pushRowBand(ordered.filter(el=>bandOf(el)===b),top,W); });
     _pushFitH(par);
     return;
   }
@@ -745,6 +768,7 @@ function _pushLayout(){
   items.forEach(p=>{
     let c=p.col;
     if(c==null){ c=0; for(let i=1;i<cols;i++) if(colH[i]<colH[c]) c=i; }
+    p.el.style.width=_PUSH_W+'px';   // 성별 줄 배치에서 줄여 놓은 폭을 원래대로 되돌린다
     p.el.style.left=(c*COLW)+'px';
     p.el.style.top=colH[c]+'px';
     colH[c]+=p.el.offsetHeight+_PUSH_GAP;
