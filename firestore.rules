@@ -1,0 +1,45 @@
+rules_version = '2';
+
+// Skeleton Team Bayern — Firestore 보안 규칙
+//
+// 목적: 기록이 사라지는 경로를 없앤다.
+//
+// 2026-08-08 이전에는 규칙 파일이 아예 없어서 데이터베이스가 완전히 열려 있었다.
+// API 키는 비밀이 아니라 주소에 가깝고(클라이언트 소스에 그대로 박혀 공개된다),
+// 실제 자물쇠 역할은 이 파일이 한다. 규칙이 없으면 주소를 아는 누구나 전부 지울 수 있다.
+//
+// 핵심 원칙: **delete는 어디서도 허용하지 않는다.**
+// 앱의 로그 삭제는 문서를 지우는 대신 `_deleted: true` 표시만 남기도록 바뀌었고
+// (TrainLog.html의 묘비 처리 · dashboard.html의 delLog), 읽는 쪽에서 걸러낸다.
+// 따라서 정상 동작에는 delete가 전혀 필요 없다.
+//
+// 인증은 아직 쓰지 않는다(앱 3종이 모두 익명 접근). 그래서 이 규칙은
+// "아무나 읽고 쓸 수 있지만, 아무도 지울 수는 없다"까지만 보장한다.
+// 인증 도입은 시즌 준비가 끝난 뒤 별도로 진행한다.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Bayern TrainLog (선수 앱 · 코치 대시보드 2종) ───────────────
+    // trainlog/{문서} · trainlog/athlete_*/logs/{로그} · trainlog/coach/plans/{날짜}
+    match /trainlog/{doc=**} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if false;
+    }
+
+    // ── Road to 2030 (별도 앱, 같은 프로젝트를 공유) ────────────────
+    match /road2030/{doc=**} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if false;
+    }
+
+    // ── 그 외 전부 차단 ────────────────────────────────────────────
+    // 새 컬렉션을 임의로 만들 수 없게 한다. 앱이 새 컬렉션을 쓰게 되면
+    // 위에 match 블록을 명시적으로 추가할 것.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

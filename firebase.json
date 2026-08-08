@@ -15,39 +15,74 @@
     {
       "target": "trainlog",
       "public": "TrainingLog/www-trainlog",
-      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
       "headers": [
         {
           "source": "**/*.html",
-          "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
         },
         {
           "source": "/",
-          "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
         }
       ]
     },
     {
       "target": "road2030",
       "public": "www-road2030",
-      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
       "headers": [
         {
           "source": "**/*.html",
-          "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
         }
       ]
     },
     {
       "target": "coach-dashboard",
       "public": "www-coach-dashboard",
-      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
       "headers": [
         {
           "source": "**/*.html",
-          "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
         }
       ]
     }
-  ]
+  ],
+  "firestore": {
+    "rules": "firestore.rules"
+  }
 }
