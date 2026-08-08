@@ -1005,7 +1005,7 @@ function setupAthListeners(ids){
       err=>{console.warn('[dash] snapshot err:',id,err);renderCurrent();}
     ));
     athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).collection('logs').onSnapshot(
-      qs=>{const a=[];qs.forEach(doc=>{const v=doc.data();if(v&&v.id!=null)a.push(v);});
+      qs=>{const a=[];qs.forEach(doc=>{const v=doc.data();if(v&&v.id!=null&&!v._deleted)a.push(v);});
         _athRaw[id].sub=a;_athMerge(id);renderCurrent();},
       err=>{console.warn('[dash] logs subcollection err:',id,err);}   // 실패해도 배열로 계속 동작
     ));
@@ -5141,8 +5141,9 @@ async function delLog(logId,athId,event){
       deletedIds:firebase.firestore.FieldValue.arrayUnion(logId),
       _lastUpdated:Date.now()
     });
-    // 하위컬렉션 문서도 지운다 — 안 지우면 대시보드가 하위컬렉션에서 다시 읽어 부활한다
-    await ref.collection('logs').doc(String(logId)).delete().catch(e=>console.warn('[dash] sub delete',e));
+    // 하위컬렉션 문서는 지우지 않고 '지워짐' 표시만 남긴다(soft-delete, 2026-08-08).
+    // 읽는 쪽에서 _deleted를 걸러내므로 부활하지 않는다. 규칙에서 delete를 전면 금지하기 위함.
+    await ref.collection('logs').doc(String(logId)).set({_deleted:true,_deletedAt:Date.now()},{merge:true}).catch(e=>console.warn('[dash] sub soft-delete',e));
     if(_athRaw[athId]){
       _athRaw[athId].del=[...(_athRaw[athId].del||[]),logId];
       if(Array.isArray(_athRaw[athId].sub))_athRaw[athId].sub=_athRaw[athId].sub.filter(l=>l.id!==logId);
