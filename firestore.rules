@@ -35,6 +35,15 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── 옛 내부 백업 (읽기 전용) ───────────────────────────────────
+    // trainlog_backups 에는 2026-08-02~04 스냅샷 3건이 남아 있다. 이걸 쓰던
+    // Cloud Function 이 2026-08-04 에 제거되면서 그 뒤로 갱신이 없다.
+    // 새로 쓸 일은 없지만 남은 백업은 꺼내볼 수 있어야 하므로 읽기만 허용한다.
+    match /trainlog_backups/{doc=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ── 그 외 전부 차단 ────────────────────────────────────────────
     // 새 컬렉션을 임의로 만들 수 없게 한다. 앱이 새 컬렉션을 쓰게 되면
     // 위에 match 블록을 명시적으로 추가할 것.
