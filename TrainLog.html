@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260802-7';
+const APP_VERSION = '20260808-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -955,6 +955,14 @@ const APP_VERSION = '20260802-7';
       <span id="today-nl-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s">▼</span>
     </div>
     <div id="today-not-logged" style="display:none"></div>
+    <div onclick="_toggleLogDetail('today-urlaub','today-ur-chev')" style="display:flex;align-items:center;gap:6px;margin-top:16px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+      <span style="font-size:13px">🌴</span>
+      <span style="font-size:10px;font-weight:700;color:#3ecf8e;letter-spacing:.7px;text-transform:uppercase">Urlaub / Abwesenheit</span>
+      <span id="today-ur-count" style="font-size:10px;font-weight:700;color:var(--muted)"></span>
+      <div style="flex:1;height:1px;background:#3ecf8e33;margin-left:4px"></div>
+      <span id="today-ur-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s">▼</span>
+    </div>
+    <div id="today-urlaub" style="display:none"></div>
   </div>
 
   <!-- ATHLETES -->
@@ -2095,6 +2103,34 @@ const PART_DE={'Neck':'Nacken','Shoulder':'Schulter','Chest':'Brust','Back':'Rü
 function _partDE(p){ return PART_DE[p]||p; }
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAYS_DE=['So','Mo','Di','Mi','Do','Fr','Sa'];
+
+// ── Urlaub / Abwesenheit (Referenz, 2026-08 Stand) ───────
+// 코치 참고용 정적 표. 일정 바뀌면 여기만 고치면 됨.
+const _URLAUB=[
+  {name:'Charlize Reimann', from:'2026-08-08', to:'2026-08-23'},
+  {name:'Maria Votz',       from:'2026-08-08', to:'2026-08-23'},
+  {name:'Marie Angerer',    from:'2026-08-08', to:'2026-08-23'},
+  {name:'Sarah Klose',      from:'2026-08-08', to:'2026-08-16'},
+  {name:'Laura Bründl',     from:'2026-08-08', to:'2026-08-12'},
+  {name:'Niklas Brandtner', from:'2026-08-17', to:'2026-08-30'},
+  {name:'Moritz Menning',   from:'2026-08-17', to:'2026-08-23'},
+  {name:'Nele Fröbus',      from:'2026-08-30', to:'2026-09-11'}
+];
+// 부분 가용 / 외부 일정 (휴가는 아니지만 팀 훈련에 온전히 못 오는 기간)
+const _URLAUB_TEIL=[
+  {name:'Laura Bründl',  from:'2026-08-17', to:'2026-08-23', note:'nur nachmittags · 오후만'},
+  {name:'Marie Angerer', from:'2026-08-29', to:'2026-08-31', note:'Momentum Kienbaum'}
+];
+function _urlaubState(name, ds){
+  for(const u of _URLAUB){ if(u.name===name && ds>=u.from && ds<=u.to) return {k:'out', to:u.to}; }
+  for(const u of _URLAUB_TEIL){ if(u.name===name && ds>=u.from && ds<=u.to) return {k:'part', to:u.to, note:u.note}; }
+  return {k:'in'};
+}
+function _urlaubBackStr(to){
+  const d=new Date(to+'T00:00:00'); d.setDate(d.getDate()+1);
+  while(d.getDay()===0||d.getDay()===6) d.setDate(d.getDate()+1);
+  return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${DAYS_DE[d.getDay()]})`;
+}
 
 // ── Training structure (3-tier hierarchy) ───────
 const TRAINING_STRUCTURE={
@@ -5689,6 +5725,46 @@ function switchTab(id,btn){
 }
 
 // ── TODAY ──
+function _renderUrlaub(){
+  const wrap=document.getElementById('today-urlaub'); if(!wrap) return;
+  const today=todayStr();
+  const d=getData();
+  const names=(d.athletes||[]).map(a=>a.name).filter(n=>n!=='Kim Jaemyung');
+  const out=[], part=[], upcoming=[];
+  names.forEach(n=>{
+    const st=_urlaubState(n,today);
+    if(st.k==='out') out.push({n,to:st.to});
+    else if(st.k==='part') part.push({n,to:st.to,note:st.note});
+  });
+  _URLAUB.forEach(u=>{ if(u.from>today) upcoming.push(u); });
+  upcoming.sort((a,b)=>a.from<b.from?-1:1);
+  const cnt=document.getElementById('today-ur-count');
+  if(cnt) cnt.textContent=`${out.length+part.length} heute`;
+  const chip=(bg,bd,c,t)=>`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:${bg};border:1px solid ${bd};color:${c};font-weight:700;white-space:nowrap">${t}</span>`;
+  let h='';
+  if(!out.length&&!part.length){
+    h+='<div class="empty" style="padding:12px 0">Heute sind alle da 🎉</div>';
+  } else {
+    out.forEach(o=>{ h+=`<div class="detail-card" style="display:flex;align-items:center;justify-content:space-between;padding:5px 12px;margin-bottom:5px">
+      <div style="font-size:13px;font-weight:700;color:var(--text)">${o.n}</div>
+      <div style="display:flex;align-items:center;gap:6px">${chip('rgba(255,255,255,.06)','rgba(255,255,255,.14)','var(--muted)','Urlaub')}<span style="font-size:11px;color:var(--muted)">zurück ${_urlaubBackStr(o.to)}</span></div>
+    </div>`; });
+    part.forEach(o=>{ h+=`<div class="detail-card" style="display:flex;align-items:center;justify-content:space-between;padding:5px 12px;margin-bottom:5px">
+      <div style="font-size:13px;font-weight:700;color:var(--text)">${o.n}</div>
+      <div style="display:flex;align-items:center;gap:6px">${chip('rgba(247,169,79,.12)','rgba(247,169,79,.3)','#f7a94f',o.note)}</div>
+    </div>`; });
+  }
+  if(upcoming.length){
+    h+=`<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.6px;text-transform:uppercase">Kommend</div>`;
+    upcoming.forEach(u=>{ h+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 12px">
+      <span style="font-size:12px;color:var(--muted)">${u.name}</span>
+      <span style="font-size:11px;color:var(--muted)">${u.from.slice(5).replace('-','.')} – ${u.to.slice(5).replace('-','.')}</span>
+    </div>`; });
+  }
+  h+=`<div style="margin-top:10px;font-size:10px;color:var(--muted);font-style:italic">Referenz · Stand 2026.08.08. Änderungen im Code (_URLAUB) pflegen.</div>`;
+  wrap.innerHTML=h;
+}
+
 function renderToday(){
   const d=getData(); const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
@@ -5848,6 +5924,8 @@ function renderToday(){
       }).join('');
     }
   }
+
+  _renderUrlaub();
 
   const clw=document.getElementById('today-cond-list');
   clw.innerHTML=cl.length?cl.map(l=>`<div class="detail-card">
