@@ -15,7 +15,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 배포 전 퇴행 검사. 오래된 로컬 사본을 밀어 원격 변경분을 덮는 사고를 막는다.
+  # 실패하면 deploy 잡이 아예 돌지 않으므로 잘못된 파일이 선수 링크에 올라가지 않는다.
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2          # HEAD~1 과 비교해야 하므로
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 퇴행 가드
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: node tools/guard-regression.mjs
+
   deploy:
+    needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
