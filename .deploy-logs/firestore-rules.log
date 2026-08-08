@@ -1,0 +1,70 @@
+run: 31272543065  |  2026-08-08T18:41:50Z  |  결과: failure
+── firebase 출력 ──
+[2026-08-08T18:41:48.609Z] ----------------------------------------------------------------------
+[2026-08-08T18:41:48.612Z] Command:       /opt/hostedtoolcache/node/20.20.2/x64/bin/node /opt/hostedtoolcache/node/20.20.2/x64/bin/firebase deploy --only firestore:rules --project traininglogskeleton --non-interactive --debug
+[2026-08-08T18:41:48.613Z] CLI Version:   15.26.0
+[2026-08-08T18:41:48.613Z] Platform:      linux
+[2026-08-08T18:41:48.613Z] Node Version:  v20.20.2
+[2026-08-08T18:41:48.613Z] Detected Agent: unknown
+[2026-08-08T18:41:48.614Z] Time:          Sat Aug 08 2026 18:41:48 GMT+0000 (Coordinated Universal Time)
+[2026-08-08T18:41:48.614Z] ----------------------------------------------------------------------
+
+[2026-08-08T18:41:48.627Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[2026-08-08T18:41:49.519Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[2026-08-08T18:41:49.592Z] Running auto auth
+[2026-08-08T18:41:49.593Z] [iam] checking project traininglogskeleton for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[2026-08-08T18:41:49.594Z] No OAuth tokens found
+[2026-08-08T18:41:49.594Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/traininglogskeleton:testIamPermissions [none]
+[2026-08-08T18:41:49.594Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/traininglogskeleton:testIamPermissions  x-goog-user-project=traininglogskeleton
+[2026-08-08T18:41:49.595Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/traininglogskeleton:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[2026-08-08T18:41:49.640Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[2026-08-08T18:41:49.640Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[2026-08-08T18:41:49.951Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/traininglogskeleton:testIamPermissions 200
+[2026-08-08T18:41:49.952Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/traininglogskeleton:testIamPermissions {"permissions":["firebase.projects.get"]}
+[2026-08-08T18:41:49.952Z] [iam] error while checking permissions, command may fail: Authorization failed. This account is missing the following required permissions on project traininglogskeleton:
+
+  datastore.indexes.create
+  datastore.indexes.delete
+  datastore.indexes.list
+  datastore.indexes.update
+
+=== Deploying to 'traininglogskeleton'...
+
+i  deploying firestore 
+i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[2026-08-08T18:41:49.955Z] No OAuth tokens found
+[2026-08-08T18:41:49.955Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/traininglogskeleton/services/firestore.googleapis.com [none]
+[2026-08-08T18:41:49.955Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/traininglogskeleton/services/firestore.googleapis.com  x-goog-user-project=traininglogskeleton
+[2026-08-08T18:41:50.342Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/traininglogskeleton/services/firestore.googleapis.com 403
+[2026-08-08T18:41:50.342Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/traininglogskeleton/services/firestore.googleapis.com [omitted]
+
+Error: Request to https://serviceusage.googleapis.com/v1/projects/traininglogskeleton/services/firestore.googleapis.com had HTTP Error: 403, Permission denied to get service [firestore.googleapis.com]
+Help Token: AdZh9GeWgXzKUR9tAexCFIgYOnGagbZqi6ArIUY-wcYy1a38uw1yaHLYvXv6ma4iAmu7BUN7v1oSu_GYOa0EfKqVUVYuLhCEaOH85WGS_B1oiJhA
+[2026-08-08T18:41:50.344Z] Error Context: {
+  "body": {
+    "error": {
+      "code": 403,
+      "message": "Permission denied to get service [firestore.googleapis.com]\nHelp Token: AdZh9GeWgXzKUR9tAexCFIgYOnGagbZqi6ArIUY-wcYy1a38uw1yaHLYvXv6ma4iAmu7BUN7v1oSu_GYOa0EfKqVUVYuLhCEaOH85WGS_B1oiJhA",
+      "status": "PERMISSION_DENIED",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.rpc.PreconditionFailure",
+          "violations": [
+            {
+              "type": "googleapis.com",
+              "subject": "110002"
+            }
+          ]
+        },
+        {
+          "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+          "reason": "AUTH_PERMISSION_DENIED",
+          "domain": "serviceusage.googleapis.com"
+        }
+      ]
+    }
+  },
+  "response": {
+    "statusCode": 403
+  }
+}
