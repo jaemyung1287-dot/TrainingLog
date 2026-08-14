@@ -3238,7 +3238,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   // 메소사이클 구분은 Total Volume·Sprint Distance 라인차트와 같은 규칙([[project_dashboard_trend_meso_band]]):
   // 선 아래만 메소 색 ~17%(2b) 채움, 메소 경계는 색 점선(88), 라벨은 배경 없이 색 글자만, 선·점도 메소 색으로 분절.
   const _pushDots=(nm,dates,idx,open)=>{
-    const W=(_pushWide?_PUSH_WIDE_VB:_PUSH_W-28), H=118, PL=(_pushWide?0:15), PR=(_pushWide?2:15), TOP=26, BOT=34, PH=H-TOP-BOT;
+    // H 118→128, BOT 34→44 (PH는 58 유지) — 값 라벨 아랫줄이 날짜축과 겹치지 않게 아래를 넓혔다(2026-08-14)
+    const W=(_pushWide?_PUSH_WIDE_VB:_PUSH_W-28), H=128, PL=(_pushWide?0:15), PR=(_pushWide?2:15), TOP=26, BOT=44, PH=H-TOP-BOT;
     const vs=dates.map(d=>{const s=_pushSessOf(nm,d),ok=s?_pushOK(s):[];return ok.length?Math.min(...ok.map(_pushFin)):null;});
     const fin=vs.filter(v=>v!=null); if(!fin.length)return '';
     const lo=Math.min(...fin), hi=Math.max(...fin), sp=(hi-lo)||1;
@@ -3264,12 +3265,15 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     let bands='', span={};
     for(let i=1;i<dates.length;i++){ if(mn[i]===mn[i-1])continue;
       const bx=((X(i-1)+X(i))/2).toFixed(1);
-      bands+=`<line x1="${bx}" y1="${TOP-9}" x2="${bx}" y2="${(TOP+PH+13).toFixed(1)}" stroke="${mc[i]}88" stroke-width="1" stroke-dasharray="3 3"/>`; }
+      bands+=`<line x1="${bx}" y1="${TOP-9}" x2="${bx}" y2="${(TOP+PH+24).toFixed(1)}" stroke="${mc[i]}88" stroke-width="1" stroke-dasharray="3 3"/>`; }
     mn.forEach((l,i)=>{ if(!l)return; (span[l]=span[l]||[]).push(i); });
     Object.keys(span).forEach(l=>{const ix=span[l], cx=((X(ix[0])+X(ix[ix.length-1]))/2).toFixed(1);
       bands+=`<text x="${cx}" y="${H-4}" text-anchor="middle" font-size="10" font-weight="600" fill="${_mesoColor(l)}">${_esc(l)}</text>`; });
     // 날짜축이라 점 간격이 제각각 — 라벨은 개수가 아니라 **실제 간격**으로 솎는다(펼친 세션은 무조건 표시)
-    const few=dates.length<=6, MINGAP=(_pushWide?52:34);
+    const MINGAP=(_pushWide?52:34);
+    // 값 라벨: 예전엔 세션 6회 이하일 때만 전부 그려서, 7회인 선수(Sarah)는 PB 하나만 남았다.
+    // 이제 추이 차트(_mkPtRpeVals)와 같은 방식 — 점 위/아래 두 줄을 번갈아 쓰고 두 줄 다 겹칠 때만 생략.
+    const _LBW=25; let _vlUp=-1e9, _vlDn=-1e9;
     const lbOK=[]; let _lx=-1e9;
     dates.forEach((d,i)=>{ if(vs[i]==null){lbOK.push(false);return;}
       const x=X(i), on=open.indexOf(d)>=0;
@@ -3279,8 +3283,14 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       let g=`<g data-nodrag="1" style="cursor:pointer" onclick="_pushTgSess(${idx},'${d}')">`
         +`<circle cx="${x}" cy="${y}" r="13" fill="transparent"/>`
         +`<circle cx="${x}" cy="${y}" r="${on?5.5:4}" fill="${on?c:'#161b22'}" stroke="${c}" stroke-width="1.6"/>`;
-      if(on||pbv||few) g+=`<text x="${x}" y="${(+y-11).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="${pbv?700:500}" fill="${pbv?'#e3b341':'#fff'}">${vs[i].toFixed(2)}</text>`;
-      if(lbOK[i]) g+=`<text x="${x}" y="${(TOP+PH+13).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${on?c:'#8b949e'}">${_esc(_pushDM(d))}</text>`;
+      const _xn=+x, _hw=_LBW/2;
+      let _row=(_xn-_hw>=_vlUp+4)?'up':(_xn-_hw>=_vlDn+4)?'dn':((on||pbv)?'up':null);
+      if(_row){
+        if(_row==='up')_vlUp=_xn+_hw; else _vlDn=_xn+_hw;
+        const _ly=(_row==='up')?(+y-11):(+y+16);
+        g+=`<text x="${x}" y="${_ly.toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="${pbv?700:500}" fill="${pbv?'#e3b341':'#fff'}">${vs[i].toFixed(2)}</text>`;
+      }
+      if(lbOK[i]) g+=`<text x="${x}" y="${(TOP+PH+24).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${on?c:'#8b949e'}">${_esc(_pushDM(d))}</text>`;
       return g+`</g>`; }).join('');
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;overflow:visible">${ln}${bands}${pts}</svg>`;
   };
