@@ -586,6 +586,10 @@ const ALLOWED='jaemyung1287@gmail.com';
 
 // ══ STATE ══
 let coachData=null, athLogs={}, athNotes={}, unsubs=[], athUnsubs=[], curTab='overview';
+// 주간 플랜 정본은 trainlog/coach/plans/<날짜> 하위컬렉션이다.
+// coach 문서의 sessionPlans는 옛 미러인데 2026-08-23에 1MB 상한에 걸려 더 못 쓴다.
+// 그래서 하위컬렉션을 따로 구독해 coachData.sessionPlans 위에 덮어쓴다(하위컬렉션이 이김).
+let _planDocs={};
 let pushData=null;   // trainlog/pushdata — Push Start 전용 문서(코치앱이 coach 문서를 통째로 덮어써서 분리)
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
 let selScope='all';   // 공통 선수 셀렉터: 'all' | 'A' | 'B' (그룹 컨텍스트)
@@ -969,13 +973,29 @@ function startListen(){
   ));
   unsubs.push(db.collection('trainlog').doc('coach').onSnapshot(snap=>{
     if(!snap.exists){renderCurrent();return;}
-    const prev=coachData; coachData=snap.data();
+    const prev=coachData; coachData=snap.data(); _mergePlans();
     if(!condAth&&coachData.athletes?.length){condAth=coachData.athletes[0].name;soreAth=condAth;} // loadAth는 클릭 시에만
     const ids=(coachData.athletes||[]).map(a=>a.id).filter(Boolean);
     const prevIds=(prev?.athletes||[]).map(a=>a.id).filter(Boolean);
     if(JSON.stringify(ids)!==JSON.stringify(prevIds)){setupAthListeners(ids);setTimeout(renderCurrent,1500);}
     else renderCurrent();
   }));
+  unsubs.push(db.collection('trainlog').doc('coach').collection('plans').onSnapshot(
+    s=>{const m={};s.forEach(d=>{m[d.id]=d.data();});_planDocs=m;_mergePlans();if(coachData)renderCurrent();},
+    err=>{console.warn('[dash] plans snapshot err:',err);}
+  ));
+}
+// 하위컬렉션 플랜을 coachData.sessionPlans 에 얹는다. 읽는 쪽 코드는 그대로 둔다.
+function _mergePlans(){
+  if(!coachData)return;
+  coachData.sessionPlans=Object.assign({},coachData.sessionPlans||{},_planDocs);
+}
+// 플랜 저장은 하위컬렉션 문서 통째 쓰기. coach 미러는 더 이상 쓰지 않는다(용량 초과로 실패).
+async function _savePlanDay(day,dayPlan){
+  await db.collection('trainlog').doc('coach').collection('plans').doc(day).set(dayPlan);
+  _planDocs[day]=dayPlan;
+  if(!coachData.sessionPlans)coachData.sessionPlans={};
+  coachData.sessionPlans[day]=dayPlan;
 }
 function showTabLoading(){
   const w=document.getElementById('tab-'+curTab);
@@ -6075,9 +6095,7 @@ async function _schedSaveNote(day,sess,keysCsv,val){
     });
     if(!changed)return;
     dayPlan._ts=Date.now();
-    await db.collection('trainlog').doc('coach').update({['sessionPlans.'+day]:dayPlan,_lastUpdated:Date.now()});
-    if(!coachData.sessionPlans)coachData.sessionPlans={};
-    coachData.sessionPlans[day]=dayPlan;
+    await _savePlanDay(day,dayPlan);
   }catch(e){alert('Note save error: '+e.message);}
 }
 
@@ -6482,9 +6500,7 @@ async function savePlanEditor(){
       dayPlan[key][_pe.sess]=copy;
     });
     dayPlan._ts=Date.now();
-    await db.collection('trainlog').doc('coach').update({['sessionPlans.'+_pe.day]:dayPlan,_lastUpdated:Date.now()});
-    if(!coachData.sessionPlans)coachData.sessionPlans={};
-    coachData.sessionPlans[_pe.day]=dayPlan;
+    await _savePlanDay(_pe.day,dayPlan);
     _rmModal();renderCurrent();
   }catch(e){alert('Save error: '+e.message);}
 }
@@ -6501,8 +6517,7 @@ async function clearPlanSess(){
       }
     });
     dayPlan._ts=Date.now();
-    await db.collection('trainlog').doc('coach').update({['sessionPlans.'+_pe.day]:dayPlan,_lastUpdated:Date.now()});
-    coachData.sessionPlans[_pe.day]=dayPlan;
+    await _savePlanDay(_pe.day,dayPlan);
     _rmModal();renderCurrent();
   }catch(e){alert('Error: '+e.message);}
 }
