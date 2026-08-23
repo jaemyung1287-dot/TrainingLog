@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260822-1';
+const APP_VERSION = '20260823-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1494,29 +1494,27 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 // Coach data → COACH_DOC | Athlete logs → ATHLETE_DOC(id)
 function syncToCloud(d){
   _hideSyncError();
-  // 1. Push coach-owned data — but first union sessionPlans with cloud so this
-  //    device can never wipe plan-days it doesn't know about.
+  // 1. Push coach-owned data.
+  //    ⚠️ sessionPlans는 여기 넣지 않는다. coach 문서 하나에 전 날짜 플랜을 담던 옛 미러가
+  //    2026-08-23에 Firestore 1MB 문서 상한에 걸려 저장이 통째로 거부됐다(KW35 입력 중 발견).
+  //    플랜 정본은 trainlog/coach/plans/<날짜> 하위컬렉션이고, 대시보드도 그쪽을 읽도록 바뀌었다.
   const coachData=_stripImages({
     athletes:d.athletes||[],
-    sessionPlans:d.sessionPlans||{},
     programs:d.programs||{},
     settings:d.settings||{},
     records:d.records||[],
     logArchive:d.logArchive||[],
     _lastUpdated:d._lastUpdated||Date.now()
   });
-  COACH_DOC.get().then(async snap=>{
-    if(snap.exists){
-      const cloudPlans=snap.data().sessionPlans||{};
-      coachData.sessionPlans=_unionPlans(coachData.sessionPlans,cloudPlans);
-    }
-    // 날짜별 문서와도 합친다 — 이 기기가 모르는 날짜를 지우지 않기 위해.
+  Promise.resolve().then(async ()=>{
+    // 날짜별 문서와 합친다 — 이 기기가 모르는 날짜를 지우지 않기 위해.
+    let plans=d.sessionPlans||{};
     const subPlans=await _fetchPlanDocs();
-    if(subPlans) coachData.sessionPlans=_unionPlans(coachData.sessionPlans,subPlans);
+    if(subPlans) plans=_unionPlans(plans,subPlans);
     // keep local in sync with the union (direct write, no recursion)
-    try{ const raw=localStorage.getItem(SK); if(raw){ const ld=JSON.parse(raw); ld.sessionPlans=coachData.sessionPlans; localStorage.setItem(SK,JSON.stringify(ld)); } }catch(e){}
-    await _syncPlanDocs(coachData.sessionPlans, subPlans);  // ① 날짜별 문서 — 바뀐 날짜만
-    return COACH_DOC.set(coachData);                         // ② 호환용 통짜 필드(대시보드가 아직 읽음)
+    try{ const raw=localStorage.getItem(SK); if(raw){ const ld=JSON.parse(raw); ld.sessionPlans=plans; localStorage.setItem(SK,JSON.stringify(ld)); } }catch(e){}
+    await _syncPlanDocs(plans, subPlans);   // 플랜은 날짜별 문서에만 쓴다
+    return COACH_DOC.set(coachData);        // coach 문서에는 플랜을 넣지 않는다
   }).then(()=>{
     try{ localStorage.setItem('trainlog_last_sync',Date.now().toString()); }catch(e){}
     showToast('☁️ Cloud synced ✓');
@@ -1524,7 +1522,7 @@ function syncToCloud(d){
     console.warn('[TrainLog] Coach sync error:',e);
     setTimeout(()=>{
       const latest=getData();
-      const retryData=_stripImages({athletes:latest.athletes||[],sessionPlans:latest.sessionPlans||{},programs:latest.programs||{},settings:latest.settings||{},records:latest.records||[],logArchive:latest.logArchive||[],_lastUpdated:latest._lastUpdated||Date.now()});
+      const retryData=_stripImages({athletes:latest.athletes||[],programs:latest.programs||{},settings:latest.settings||{},records:latest.records||[],logArchive:latest.logArchive||[],_lastUpdated:latest._lastUpdated||Date.now()});
       COACH_DOC.set(retryData).then(()=>{ showToast('☁️ Sync recovered ✓'); _hideSyncError(); })
         .catch(e2=>_showSyncError(e2?.message||'Unknown error'));
     },3000);
@@ -1865,7 +1863,8 @@ async function initFirebase(){
         if(!oldData.records) oldData.records=[];
         if(!oldData.sessionPlans) oldData.sessionPlans={};
         // Write coach doc
-        await COACH_DOC.set(_stripImages({athletes:oldData.athletes||[],sessionPlans:oldData.sessionPlans,programs:oldData.programs||{},settings:oldData.settings||{},records:oldData.records,_lastUpdated:oldData._lastUpdated||Date.now()}));
+        await COACH_DOC.set(_stripImages({athletes:oldData.athletes||[],programs:oldData.programs||{},settings:oldData.settings||{},records:oldData.records,_lastUpdated:oldData._lastUpdated||Date.now()}));
+        await _syncPlanDocs(oldData.sessionPlans||{},{});   // 플랜은 날짜별 문서로
         // Split logs by athlete and write to individual docs
         const logsByAthlete={};
         (oldData.logs||[]).forEach(log=>{
@@ -1916,15 +1915,15 @@ async function initFirebase(){
         if(_su||_sf){
           merged._lastUpdated=Date.now();
           _safeSetItem(SK,JSON.stringify(merged));
-          COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:merged._lastUpdated}))
+          COACH_DOC.set(_stripImages({athletes:merged.athletes||[],programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:merged._lastUpdated}))
             .then(()=>console.log('[TrainLog] Record seeds → cloud ✓ (uphill:'+_su+' flat:'+_sf+')'))
             .catch(e=>console.warn('[TrainLog] Seed push failed:',e));
         }
       }
       // ── Recovery: if this device holds plan-days the cloud lost, push them back ──
       if(Object.keys(merged.sessionPlans||{}).length>Object.keys(coachData.sessionPlans||{}).length){
-        COACH_DOC.set(_stripImages({athletes:merged.athletes||[],sessionPlans:merged.sessionPlans||{},programs:merged.programs||{},settings:merged.settings||{},records:merged.records||[],_lastUpdated:Date.now()}))
-          .then(()=>console.log('[TrainLog] Recovered local plan-days → cloud ✓'))
+        _syncPlanDocs(merged.sessionPlans||{},null)
+          .then(n=>console.log('[TrainLog] Recovered local plan-days → cloud ✓ ('+n+')'))
           .catch(e=>console.warn('[TrainLog] Plan recovery push failed:',e));
       }
     } else {
