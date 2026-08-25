@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260823-1';
+const APP_VERSION = '20260825-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3342,11 +3342,13 @@ function selectType(t){
       const _matchSprintLogs=_todaySprintLogs2.filter(l=>
         (l.sets||[]).some(e=>_sprintPlanExNames.has(e.name)));
       // Build lookup: exercise name → logged data
+      // ⚠️ 같은 이름이 여러 번 나오는 세션(예: Sprint 30/40/50/100m)에서 마지막 항목이
+      //    앞 항목을 전부 덮어쓰던 버그가 있었다(2026-08-24 1200m 사고). 이름별 큐로 순서대로 소비한다.
       const _loggedByName={};
-      _matchLogs.forEach(l=>(l.exercises||[]).forEach(e=>{if(e.name) _loggedByName[e.name]=e;}));
-      // Sprint lookup: name → logged set data
+      _matchLogs.forEach(l=>(l.exercises||[]).forEach(e=>{if(e.name)(_loggedByName[e.name]=_loggedByName[e.name]||[]).push(e);}));
+      // Sprint lookup: name → logged set data (queue)
       const _sprintLoggedByName={};
-      _matchSprintLogs.forEach(l=>(l.sets||[]).forEach(e=>{if(e.name) _sprintLoggedByName[e.name]=e;}));
+      _matchSprintLogs.forEach(l=>(l.sets||[]).forEach(e=>{if(e.name)(_sprintLoggedByName[e.name]=_sprintLoggedByName[e.name]||[]).push(e);}));
       const _hasExisting=_matchLogs.length>0||_matchSprintLogs.length>0;
 
       if(_hasExisting){
@@ -3367,7 +3369,8 @@ function selectType(t){
       // Pre-fill: use actual logged values where available, plan defaults for new/missing exercises
       ST.exercises=planExs.map(e=>{
         const _isSprint=TRAINING_STRUCTURE[e.trainingType]?.params==='sprint';
-        const lg=_isSprint?_sprintLoggedByName[e.name]:_loggedByName[e.name];
+        const _lgQ=_isSprint?_sprintLoggedByName[e.name]:_loggedByName[e.name];
+        const lg=(Array.isArray(_lgQ)&&_lgQ.length)?_lgQ.shift():null;
         if(lg){
           return {
             name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true, coachComment:e.coachComment||'',
@@ -3510,8 +3513,10 @@ function selectType(t){
         l.athleteName===ST.athlete.name&&l.date===today&&l.type==='sprint'&&
         (l.sess==null||l.sess===sess)&&
         (l.sets||[]).some(s=>_sprintPlanNames.has(s.name)));
+      // ⚠️ 이름별 큐 — 스프린트는 4행 모두 이름이 'Sprint'라 단일 키로 담으면
+      //    마지막 세트(100m×3)가 앞 세트를 전부 덮어쓴다(2026-08-24 1200m 사고).
       const _sprintLoggedByName={};
-      if(_existSprintLog) ((_existSprintLog.sets)||[]).forEach(s=>{if(s.name) _sprintLoggedByName[s.name]=s;});
+      if(_existSprintLog) ((_existSprintLog.sets)||[]).forEach(s=>{if(s.name)(_sprintLoggedByName[s.name]=_sprintLoggedByName[s.name]||[]).push(s);});
 
       if(_existSprintLog){
         ST.editingLogId=_existSprintLog.id;
@@ -3526,7 +3531,8 @@ function selectType(t){
       }
 
       ST.sprintSets=sprintExs.map(e=>{
-        const ls=_sprintLoggedByName[e.name];
+        const _lsQ=_sprintLoggedByName[e.name];
+        const ls=(Array.isArray(_lsQ)&&_lsQ.length)?_lsQ.shift():null;
         if(ls){
           return {
             name:e.name, subCategory:e.subCategory||ls.subCategory||null, fromPlan:true, coachComment:e.coachComment||'', ytUrl:e.ytUrl||'',
