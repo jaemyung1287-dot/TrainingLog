@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260825-1';
+const APP_VERSION = '20260825-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3261,8 +3261,10 @@ function goLogTraining(){
       </div>`;
     }
     // 플랜에 Push Start 종목이 있으면 그 세션 카드 안에서 입력하므로 바깥 진입 카드는 숨긴다
-    const _planHasPush=amExs.concat(pmExs).some(_exIsPush);
-    wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+(_planHasPush?'':_pushEntryCard())+_recentLogsSection();
+    // 2026-08-25: 푸쉬는 플랜에 있는 날만 기록한다. 플랜에 Push Start 종목이 있으면
+    //   그 세션 카드 안에서 입력하므로, 계획에 없는 날 뜨던 하단 진입 카드는 더 붙이지 않는다.
+    //   (플랜 자체가 없는 날의 종류 선택 화면에는 Push Start 카드가 그대로 남아 있다.)
+    wrap.innerHTML=_sessCard('am',amExs)+_condCard('am',amCond)+_sessCard('pm',pmExs)+_condCard('pm',pmCond)+_recentLogsSection();
   } else {
     title.textContent=`${ST.athlete.name}, was hast du gemacht?`;
     sub.textContent=isYesterday?`Eintrag für ${today} — Trainingsart selbst wählen`:'Kein Plan für heute — Trainingsart selbst wählen';
@@ -5205,7 +5207,7 @@ const _puRng=(a,b)=>PUSH_GATES[a]+'→'+PUSH_GATES[b]+'m';
 // 이 종목은 스프린트 입력 화면이 아니라 Push Start 입력(log type:'push')으로 보내야 한다.
 function _exIsPush(e){ return !!e && (e.subCategory==='Push Start'||e.subType==='Push Start'); }
 
-// 플랜이 있는 날에도 Push Start로 들어갈 수 있게 s-log-session 하단에 붙이는 진입 카드
+// (2026-08-25부터 미사용 — 푸쉬는 플랜에 있는 날만 기록한다. 되돌릴 때를 위해 함수는 남겨둔다.)
 function _pushEntryCard(){
   return `<div onclick="selectType('push')" style="margin:4px 0 2px;padding:13px 15px;border-radius:12px;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.25);display:flex;align-items:center;gap:11px;cursor:pointer">
       <span style="font-size:19px">🛷</span>
