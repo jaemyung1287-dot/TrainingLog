@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260825-2';
+const APP_VERSION = '20260825-3';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -5457,11 +5457,10 @@ function renderProgram(){
     const wuH=_warmupHtml(sd); const cd=sd?.cooldown||'';
     const ct=sd?.conditioningText||'';
     if(!exs.length&&!ct.trim()) return '';
-    // Group by trainingType
-    const byType={}; exs.forEach(e=>{ const t=e.trainingType||'Other'; (byType[t]=byType[t]||[]).push(e); });
-    const exHtml=Object.entries(byType).map(([type,es])=>{
-      return `<div style="margin-bottom:8px">${es.map(_exLine).join('')}</div>`;
-    }).join('');
+    // 2026-08-25: trainingType별로 묶어 그리던 것을 계획 순서 그대로로 바꿨다.
+    //   묶으면 Power Development 종목(예: 8/28 Wall Ball Shot 3번)이 목록 끝으로 밀려
+    //   훈련계획 시트 순서와 어긋난다. 선수는 시트에 적힌 순서대로 수행해야 한다.
+    const exHtml=`<div style="margin-bottom:8px">${exs.map(_exLine).join('')}</div>`;
     return `<div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.05)">
       <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:${color};margin-bottom:8px">${label}</div>
       ${wuH?`<div style="font-size:12px;color:rgba(247,169,79,.8);padding:5px 9px;background:rgba(247,169,79,.07);border-radius:7px;margin-bottom:8px;line-height:1.6">🔆 Aufwärmen<br>${wuH}</div>`:''}
