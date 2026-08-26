@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260826-1';
+const APP_VERSION = '20260826-3';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1203,6 +1203,19 @@ const FB_CONFIG={
 };
 firebase.initializeApp(FB_CONFIG);
 const db=firebase.firestore();
+// ── 오프라인 지속성 (2026-08-26) ────────────────────────────────────────────
+// 이게 없으면 신호가 약한 훈련장에서 누른 저장이 폰 메모리에만 떠 있다가 앱을 닫는 순간
+// 사라지고, 선수가 앱을 다시 열 때까지 클라우드에 안 올라간다(8/14~8/26 실측: 즉시 도착
+// 36%, 2시간 넘게 늦은 것 53%). 켜두면 쓰기가 IndexedDB에 쌓였다가 신호가 돌아오는 순간
+// 앱을 열지 않아도 알아서 올라간다.
+// 실패해도 앱은 그대로 돌아가야 한다 — 탭이 여러 개면 failed-precondition,
+// 사파리 시크릿 모드면 unimplemented가 나온다. 둘 다 치명적이지 않다.
+window._fbPersist='off';
+try{
+  db.enablePersistence({synchronizeTabs:true})
+    .then(()=>{ window._fbPersist='on'; console.log('[TrainLog] Offline-Persistenz aktiv ✓'); })
+    .catch(e=>{ window._fbPersist='off:'+(e&&e.code||'?'); console.warn('[TrainLog] Offline-Persistenz aus:',e&&e.code); });
+}catch(e){ console.warn('[TrainLog] enablePersistence nicht verfügbar:',e); }
 // ── Per-doc Firestore structure ──────────────────────────────────────────────
 // trainlog/coach  → athletes list, sessionPlans, programs, settings, records
 // trainlog/athlete_[id] → logs for each individual athlete
@@ -1400,7 +1413,7 @@ async function _syncOwnLogsNow(athId,d){
         const snap=await _withTimeout(_getFromServer(ATHLETE_DOC(athId)),6000);
         const subSnap=await _withTimeout(_getFromServer(ATHLETE_LOGS(athId)),8000);
         const subMap=new Map(); subSnap.forEach(doc=>{ const v=doc.data(); if(v&&v.id!=null) subMap.set(v.id,v); });
-        const cloudLogs=_mergeLogsById([...subMap.values()].filter(v=>!v._deleted),(snap.exists&&snap.data().logs)||[],null);
+        const cloudLogs=[...subMap.values()].filter(v=>!v._deleted);   // 정본은 하위컬렉션 하나
         _absorbCloudDeleted((snap.exists&&snap.data().deletedIds)||[],_delSet);
         _mergeCloudSprintTimes(athLogs,cloudLogs);   // 코치 입력 repTimes 보존(로그 내부 필드 단위)
         // ① 문서 단위 쓰기 — 새 로그와 이 기기에서 더 최근에 손댄 로그만 각자 문서에 쓴다.
@@ -1430,19 +1443,14 @@ async function _syncOwnLogsNow(athId,d){
           const _back=await _withTimeout(_getFromServer(ATHLETE_LOGS(athId).doc(String(_chk))),8000);
           if(!_back.exists) throw new Error('Upload nicht bestätigt — Beleg fehlt');
         }
-        // ③ 구조 호환용 배열 쓰기 — 아직 대시보드가 배열을 읽으므로 당분간 병행.
-        //    ⚠ 이 쓰기는 절대 줄어들 수 없다. 줄어든다면 그건 버그이므로 쓰지 말고 소리를 낸다.
-        //    (2026-07 유실 사고는 전부 "줄어든 배열을 그대로 써버린" 경우였다)
-        const _mergedLogs=_mergeLogsById(cloudLogs,athLogs,_delSet);
-        const _floor=cloudLogs.filter(l=>!_delSet.has(l.id)).length;
-        if(_mergedLogs.length<_floor){
-          console.error('[TrainLog] 축소 쓰기 차단 —',_mergedLogs.length,'<',_floor,'athId',athId);
-          _showSyncError('Sicherheitsstopp: Es wurde nichts überschrieben · 덮어쓰기 차단됨');
-        }else{
-          await _withTimeout(ATHLETE_DOC(athId).set({logs:_mergedLogs,
-                                                     deletedIds:[..._delSet],
-                                                     _lastUpdated:d._lastUpdated||Date.now()},{merge:true}),8000);
-        }
+        // ③ 로그 배열 쓰기는 2026-08-26에 없앴다.
+        //    로그는 위 ①에서 logs 하위컬렉션에 이미 문서 단위로 저장됐고, 그게 유일한 정본이다.
+        //    (배열은 대시보드 호환용으로 병행 유지했었는데, 둘 중 한쪽만 성공해도 아무 경고 없이
+        //     값이 어긋났다 — Sarah 2026-08-04 푸쉬가 대시보드에서만 사라진 사건. 대시보드가
+        //     하위컬렉션만 읽도록 바뀌면서 배열은 쓸 이유가 없어졌다.)
+        //    선수 문서에는 삭제 묘비(deletedIds)만 남긴다 — 다른 기기가 지운 로그를 되살리지 못하게.
+        await _withTimeout(ATHLETE_DOC(athId).set({deletedIds:[..._delSet],
+                                                   _lastUpdated:d._lastUpdated||Date.now()},{merge:true}),8000);
         _clearPendingSync(athId); _hideSyncError();
         if(ST.athlete) showToast('☁️ Log hochgeladen ✓');
         return true;
@@ -1490,21 +1498,15 @@ async function _recoverStrandedLogs(d){
       const snap=await _withTimeout(_getFromServer(ATHLETE_DOC(athId)),6000);
       const subSnap=await _withTimeout(_getFromServer(ATHLETE_LOGS(athId)),8000);
       _absorbCloudDeleted((snap.exists&&snap.data().deletedIds)||[],_delSet);
+      // 하위컬렉션에 있는지만 본다 — 배열에 있어도 하위컬렉션에 없으면 '없는 것'이다.
+      // (배열은 2026-08-26부터 아무도 쓰지 않는 얼어붙은 사본이라 기준이 될 수 없다.)
       const have=new Set();
       subSnap.forEach(doc=>{ const v=doc.data(); if(v&&v.id!=null) have.add(v.id); });
-      const arr=(snap.exists&&snap.data().logs)||[];
-      arr.forEach(l=>{ if(l&&l.id!=null) have.add(l.id); });
       const missing=logs.filter(l=>!have.has(l.id)&&!_delSet.has(l.id));
       if(!missing.length) continue;
-      // ① 문서 단위 — 없는 id만 새로 만든다
+      // 없는 id만 문서 단위로 새로 만든다 — 기존 문서는 손대지 않는다
       await _withTimeout(Promise.all(missing.map(l=>ATHLETE_LOGS(athId).doc(String(l.id)).set(l))),20000);
-      // ② 대시보드 호환용 배열 — 합쳐서 커질 때만 쓴다
-      const _merged=_mergeLogsById(arr,missing,_delSet);
-      if(_merged.length>=arr.length){
-        await _withTimeout(ATHLETE_DOC(athId).set({logs:_merged,_lastUpdated:Date.now()},{merge:true}),10000);
-      }else{
-        console.error('[TrainLog] 복구 배열 축소 차단 —',_merged.length,'<',arr.length,'athId',athId);
-      }
+      await _withTimeout(ATHLETE_DOC(athId).set({_lastUpdated:Date.now()},{merge:true}),10000);
       total+=missing.length;
       console.log('[TrainLog] Stranded logs recovered → cloud ✓',athId,missing.length);
     }catch(e){
@@ -1691,16 +1693,15 @@ async function _fetchAllAthleteLogs(coachData){
   perAth.forEach(logs=>logs.forEach(l=>{ if(!_deletedIds.has(l.id)) allLogs.push(l); }));
   return allLogs;
 }
-// 서브컬렉션(문서 단위) 로그를 읽는다. 마이그레이션 기간에는 구조(배열)와 공존하므로
-// 두 소스를 id 단위로 합친다. 서브컬렉션 읽기가 실패하면 배열만으로 돌아간다(폴백).
+// 로그를 읽는 유일한 경로 — logs 하위컬렉션이 정본이다(2026-08-26 단일화).
+// 예전에는 문서의 logs 배열도 함께 읽어 합쳤지만, 배열은 이제 아무도 쓰지 않는 얼어붙은
+// 사본이라 합칠수록 옛 값을 되살릴 위험만 있다. 읽기가 실패하면 조용히 배열로 내려가지 않고
+// 그대로 던진다 — 호출부가 로컬 데이터를 지키도록(잘못된 목록보다 "못 읽었다"가 낫다).
 async function _fetchLogsMerged(athId, docData){
-  let subLogs=[];
-  try{
-    const qs=await ATHLETE_LOGS(athId).get();
-    qs.forEach(doc=>{ const v=doc.data(); if(v&&!v._deleted) subLogs.push(v); });
-  }catch(e){ console.warn('[TrainLog] logs 서브컬렉션 읽기 실패 — 배열로 폴백:',e); }
-  const arrLogs=(docData&&docData.logs)||[];
-  return _mergeLogsById(subLogs, arrLogs, null);
+  const subLogs=[];
+  const qs=await ATHLETE_LOGS(athId).get();
+  qs.forEach(doc=>{ const v=doc.data(); if(v&&v.id!=null&&!v._deleted) subLogs.push(v); });
+  return subLogs;
 }
 // One athlete's own logs (athlete mode — keeps their phone tiny).
 async function _fetchAthleteLogs(athId){
@@ -1877,13 +1878,10 @@ async function diagUploadMissing(){
     try{ await _withTimeout(ATHLETE_LOGS(athId).doc(String(x.log.id)).set(x.log),10000); ok++; }
     catch(e){ fail++; console.warn('[TrainLog] Diag-Upload fehlgeschlagen',x.log.id,e); }
   }
-  // 대시보드가 아직 배열을 읽으므로 배열에도 반영 — 서버 값을 먼저 읽어 합치기만 하니 축소될 수 없다.
+  // 위의 문서 단위 쓰기가 전부다 — 대시보드도 하위컬렉션만 읽으므로 배열 미러는 없앴다(2026-08-26).
   try{
-    const snap=await _withTimeout(_getFromServer(ATHLETE_DOC(athId)),8000);
-    const cur=(snap.exists&&snap.data().logs)||[];
-    const merged=_mergeLogsById(cur,missing.map(x=>x.log),null);
-    await _withTimeout(ATHLETE_DOC(athId).set({logs:merged,_lastUpdated:Date.now()},{merge:true}),12000);
-  }catch(e){ console.warn('[TrainLog] Diag-Array-Spiegel fehlgeschlagen:',e); }
+    await _withTimeout(ATHLETE_DOC(athId).set({_lastUpdated:Date.now()},{merge:true}),12000);
+  }catch(e){ console.warn('[TrainLog] _lastUpdated 갱신 실패:',e); }
   showToast(fail?('☁️ '+ok+' hochgeladen, '+fail+' fehlgeschlagen'):('☁️ '+ok+' Logs wiederhergestellt ✓'));
   goDiag();
 }
@@ -1927,8 +1925,14 @@ async function initFirebase(){
           const ath=(oldData.athletes||[]).find(a=>a.name===log.athleteName);
           if(ath){ if(!logsByAthlete[ath.id]) logsByAthlete[ath.id]=[]; logsByAthlete[ath.id].push(log); }
         });
-        await Promise.all(Object.entries(logsByAthlete).map(([athId,logs])=>ATHLETE_DOC(athId).set({logs,_lastUpdated:oldData._lastUpdated||Date.now()})));
-        localStorage.setItem(SK,JSON.stringify(oldData));
+        // 로그는 하위컬렉션에 문서 단위로 쓴다 — 배열은 더 이상 정본이 아니다(2026-08-26).
+        // (이 마이그레이션은 coach 문서가 없을 때만 도는 옛 경로라 실제로는 이미 안 돌지만,
+        //  돌게 되는 날 배열만 채워놓으면 대시보드에 아무것도 안 보이므로 함께 고쳐둔다.)
+        for(const [athId,logs] of Object.entries(logsByAthlete)){
+          await Promise.all(logs.map(l=>ATHLETE_LOGS(athId).doc(String(l.id)).set(l)));
+          await ATHLETE_DOC(athId).set({_lastUpdated:oldData._lastUpdated||Date.now()},{merge:true});
+        }
+        _safeSetItem(SK,JSON.stringify(oldData));
         console.log('[TrainLog] Migration complete ✓');
         return;
       }
@@ -2014,20 +2018,24 @@ async function _fullSyncToCloud(d){
     if(ath){ if(!logsByAthlete[ath.id]) logsByAthlete[ath.id]=[]; logsByAthlete[ath.id].push(log); }
   });
   await Promise.all(Object.entries(logsByAthlete).map(async ([athId,logs])=>{
-    // 코치 기기가 팀 전체를 밀어넣는 경로 — 여기가 가장 위험하다(선수 8명분을 한꺼번에
-    // 덮어쓰므로). 선수 저장 경로와 같은 규칙으로 읽고 합친 뒤 쓴다.
-    let merged=logs, dels=_delSet;
+    // 코치 기기가 팀 전체를 밀어넣는 경로 — 여기가 가장 위험했다(선수 8명분을 한꺼번에
+    // 덮어쓰므로). 이제는 '없는 것만 새로 만든다'. 이미 클라우드에 있는 로그 문서는
+    // 손대지 않으므로, 코치 기기의 낡은 사본이 선수의 최신 기록을 덮을 수가 없다.
+    let missing=[], dels=_delSet;
     try{
       const snap=await _withTimeout(_getFromServer(ATHLETE_DOC(athId)),6000);
-      const cloudLogs=(snap.exists&&snap.data().logs)||[];
+      const subSnap=await _withTimeout(_getFromServer(ATHLETE_LOGS(athId)),8000);
+      const cloudLogs=[]; const have=new Set();
+      subSnap.forEach(doc=>{ const v=doc.data(); if(v&&v.id!=null){ have.add(v.id); if(!v._deleted) cloudLogs.push(v); } });
       dels=_absorbCloudDeleted((snap.exists&&snap.data().deletedIds)||[],new Set([..._delSet]));
-      _mergeCloudSprintTimes(logs,cloudLogs);
-      merged=_mergeLogsById(cloudLogs,logs,dels);
+      _mergeCloudSprintTimes(logs,cloudLogs);   // 코치 입력 repTimes 보존
+      missing=logs.filter(l=>l&&l.id!=null&&!have.has(l.id)&&!dels.has(l.id));
     }catch(e){
       console.warn('[TrainLog] full-sync pre-read failed for',athId,'— 덮어쓰기 방지를 위해 건너뜀:',e);
       return;   // 못 읽었으면 쓰지 않는다
     }
-    await ATHLETE_DOC(athId).set({logs:merged,deletedIds:[...dels],_lastUpdated:d._lastUpdated||Date.now()},{merge:true});
+    if(missing.length) await Promise.all(missing.map(l=>ATHLETE_LOGS(athId).doc(String(l.id)).set(l)));
+    await ATHLETE_DOC(athId).set({deletedIds:[...dels],_lastUpdated:d._lastUpdated||Date.now()},{merge:true});
   }));
 }
 
@@ -2066,9 +2074,12 @@ function startCloudSync(){
 
   // Listen to coach doc
   unsubs.push(COACH_DOC.onSnapshot(()=>_onAnyChange(),e=>console.warn('[TrainLog] Coach listener error:',e)));
-  // Listen to each athlete's doc
+  // Listen to each athlete's doc (묘비·코멘트 등 문서 필드 변화)
+  // + 로그 하위컬렉션도 직접 구독한다. 로그는 이제 하위컬렉션 문서로만 저장되므로,
+  //   문서의 _lastUpdated 갱신을 기다리면 새 로그가 늦게 뜨거나 아예 안 뜬다(2026-08-26).
   (getData().athletes||[]).forEach(ath=>{
     unsubs.push(ATHLETE_DOC(ath.id).onSnapshot(()=>_onAnyChange(),e=>console.warn('[TrainLog] Athlete listener error:',e)));
+    unsubs.push(ATHLETE_LOGS(ath.id).onSnapshot(()=>_onAnyChange(),e=>console.warn('[TrainLog] Athlete logs listener error:',e)));
   });
 
   _unsubscribe=()=>unsubs.forEach(u=>u());
@@ -2490,9 +2501,52 @@ function _safeSetItem(key,val){
     }
   }
 }
+// 직전 저장본과 비교해 이번에 새로 생기거나 내용이 바뀐 로그를 찾아 _ts를 찍는다.
+// _ts가 지금까지 아무 데서도 안 찍혔던 탓에 _logStamp()가 늘 id 생성시각으로 떨어졌고,
+// 그래서 "서버 쪽이 더 최신이면 건드리지 않음" 판정이 같은 로그에 대해 항상 참이 되어
+// 선수 기기에서 고친 내용이 영영 안 올라갔다. 이제 손댄 로그에만 지금 시각을 찍는다.
+function _stampChangedLogs(d){
+  const changed=[];
+  let prev={};
+  try{
+    const raw=localStorage.getItem(SK);
+    if(raw) (JSON.parse(raw).logs||[]).forEach(l=>{ if(l&&l.id!=null) prev[l.id]=_logFingerprint(l); });
+  }catch(e){ prev={}; }
+  const now=Date.now();
+  (d.logs||[]).forEach(l=>{
+    if(!l||l.id==null) return;
+    const fp=_logFingerprint(l);
+    if(prev[l.id]===fp) return;   // 안 바뀐 로그는 건드리지 않는다
+    l._ts=now;
+    changed.push(l);
+  });
+  return changed;
+}
+function _logFingerprint(l){
+  try{ const {_ts,...rest}=l; return JSON.stringify(rest); }catch(e){ return String(Math.random()); }
+}
+// 방금 손댄 로그를 서버 읽기 없이 곧바로 발사한다.
+// 로그 1건 = 문서 1건이고 id가 고유하므로 이 쓰기가 남의 기록을 지울 수단이 없다 —
+// 그래서 예전처럼 "먼저 서버를 읽어 확인될 때까지 기다리는" 관문이 필요 없다.
+// 신호가 없으면 Firestore가 IndexedDB에 쌓아뒀다가 알아서 올려보낸다(오프라인 지속성).
+// await 하지 않는다 — 저장 버튼 반응이 네트워크에 묶이면 안 된다.
+function _pushLogsNow(logs,d){
+  if(!logs||!logs.length) return;
+  const byName={}; (d.athletes||[]).forEach(a=>{ byName[a.name]=a.id; });
+  logs.forEach(l=>{
+    const athId=byName[l.athleteName];
+    if(!athId) return;
+    try{
+      ATHLETE_LOGS(athId).doc(String(l.id)).set(l)
+        .catch(e=>console.warn('[TrainLog] Sofort-Upload später erneut:',l.id,e&&e.code));
+    }catch(e){ console.warn('[TrainLog] Sofort-Upload fehlgeschlagen:',l.id,e); }
+  });
+}
 function saveData(d){
   d._lastUpdated=Date.now(); // timestamp so initFirebase knows which is newer
+  const changed=_stampChangedLogs(d);   // ⚠️ SK를 덮어쓰기 전에 — 직전 저장본과 비교해야 한다
   const localOK=_safeSetItem(SK,JSON.stringify(d));
+  _pushLogsNow(changed,d);   // 바뀐 로그만 즉시 발사(오프라인이면 큐에 쌓임)
   // Always push to Firebase — even if the local write failed, the cloud is the
   // source of truth (coach dashboard + reload restore read from it).
   syncToCloud(d);

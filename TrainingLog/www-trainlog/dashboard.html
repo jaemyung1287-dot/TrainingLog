@@ -1001,33 +1001,49 @@ function showTabLoading(){
   const w=document.getElementById('tab-'+curTab);
   if(w&&!w.innerHTML.trim())w.innerHTML='<div class="page-loading"><div class="spin"></div>Loading data…</div>';
 }
-// 선수 로그는 두 곳에 있다: 문서의 logs 배열(구버전 호환) + logs 하위컬렉션(현재 정본).
-// 선수 앱은 하위컬렉션을 먼저 쓰고 배열은 나중에 쓰는데, 그 배열 쓰기가 실패하면
-// 대시보드에서만 로그가 사라져 보였다(Sarah 2026-08-04 푸쉬). 그래서 둘 다 구독해 id 단위로 합친다.
+// 선수 로그의 정본은 logs 하위컬렉션 하나뿐이다(2026-08-26 단일화).
+// 그 전에는 문서의 logs 배열도 함께 읽어 합쳤는데, 두 경로 중 한쪽 쓰기만 실패해도
+// 아무도 모르게 값이 어긋났다(Sarah 2026-08-04 푸쉬가 대시보드에서만 사라진 사건).
+// 이제 배열은 읽지 않는다. 하위컬렉션 구독이 실패하면 조용히 다른 값을 보여주는 대신
+// 화면에 경고를 띄운다 — 잘못된 숫자보다 "지금 못 읽고 있다"가 낫다.
+// 삭제 묘비(deletedIds)와 운동 코멘트(exNotes)는 여전히 선수 문서에 있어 문서 구독은 유지한다.
 let _athRaw={};
+let _athSubErr={};
 function _athMerge(id){
   const r=_athRaw[id]||{};
+  if(!Array.isArray(r.sub)) return;   // 하위컬렉션이 아직 안 왔으면 화면을 비우지 않는다
   const del=new Set(r.del||[]);
   const m=new Map();
-  (r.arr||[]).forEach(l=>{if(l&&l.id!=null)m.set(l.id,l);});
-  if(Array.isArray(r.sub))r.sub.forEach(l=>{if(l&&l.id!=null)m.set(l.id,l);});   // 하위컬렉션이 정본
+  r.sub.forEach(l=>{if(l&&l.id!=null)m.set(l.id,l);});
   athLogs[id]=[...m.values()].filter(l=>!del.has(l.id));
+}
+function _renderSubErrBanner(){
+  const bad=Object.keys(_athSubErr).filter(k=>_athSubErr[k]);
+  let el=document.getElementById('sub-err-banner');
+  if(!bad.length){if(el)el.remove();return;}
+  if(!el){
+    el=document.createElement('div');el.id='sub-err-banner';
+    el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#e94560;color:#fff;padding:8px 14px;font-size:13px;font-weight:600;text-align:center';
+    document.body.appendChild(el);
+  }
+  el.textContent='⚠ Could not read training logs for: '+bad.join(', ')+' — numbers on this page may be incomplete. Reload the page.';
 }
 function setupAthListeners(ids){
   athUnsubs.forEach(u=>u());athUnsubs=[];
+  _athSubErr={};_renderSubErrBanner();
   if(!ids.length){renderCurrent();return;}
   ids.forEach(id=>{
-    _athRaw[id]={arr:(athLogs[id]||[]),sub:null,del:[]};
+    _athRaw[id]={sub:null,del:[]};
     athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).onSnapshot(
       snap=>{const _d=snap.exists?snap.data():{};
-        _athRaw[id].arr=_d.logs||[];_athRaw[id].del=_d.deletedIds||[];
+        _athRaw[id].del=_d.deletedIds||[];
         athNotes[id]=_d.exNotes||[];_athMerge(id);renderCurrent();},
       err=>{console.warn('[dash] snapshot err:',id,err);renderCurrent();}
     ));
     athUnsubs.push(db.collection('trainlog').doc('athlete_'+id).collection('logs').onSnapshot(
       qs=>{const a=[];qs.forEach(doc=>{const v=doc.data();if(v&&v.id!=null&&!v._deleted)a.push(v);});
-        _athRaw[id].sub=a;_athMerge(id);renderCurrent();},
-      err=>{console.warn('[dash] logs subcollection err:',id,err);}   // 실패해도 배열로 계속 동작
+        _athRaw[id].sub=a;_athSubErr[id]=false;_renderSubErrBanner();_athMerge(id);renderCurrent();},
+      err=>{console.warn('[dash] logs subcollection err:',id,err);_athSubErr[id]=true;_renderSubErrBanner();}
     ));
   });
 }
@@ -5166,18 +5182,18 @@ async function delLog(logId,athId,event){
   try{
     const ref=db.collection('trainlog').doc('athlete_'+athId);
     const snap=await ref.get();if(!snap.exists)return;
+    // 하위컬렉션 문서는 지우지 않고 '지워짐' 표시만 남긴다(soft-delete, 2026-08-08).
+    // 읽는 쪽에서 _deleted를 걸러내므로 부활하지 않는다. 규칙에서 delete를 전면 금지하기 위함.
+    // 이 쓰기가 정본이다 — 실패하면 삼키지 말고 catch로 올려 사용자에게 알린다.
+    await ref.collection('logs').doc(String(logId)).set({_deleted:true,_deletedAt:Date.now()},{merge:true});
+    // deletedIds 묘비는 선수 문서에 남는다 — 선수 휴대폰이 로컬 사본에서 되살리는 걸 막는 용도.
     await ref.update({
-      logs:(snap.data().logs||[]).filter(l=>l.id!==logId),
       deletedIds:firebase.firestore.FieldValue.arrayUnion(logId),
       _lastUpdated:Date.now()
     });
-    // 하위컬렉션 문서는 지우지 않고 '지워짐' 표시만 남긴다(soft-delete, 2026-08-08).
-    // 읽는 쪽에서 _deleted를 걸러내므로 부활하지 않는다. 규칙에서 delete를 전면 금지하기 위함.
-    await ref.collection('logs').doc(String(logId)).set({_deleted:true,_deletedAt:Date.now()},{merge:true}).catch(e=>console.warn('[dash] sub soft-delete',e));
     if(_athRaw[athId]){
       _athRaw[athId].del=[...(_athRaw[athId].del||[]),logId];
       if(Array.isArray(_athRaw[athId].sub))_athRaw[athId].sub=_athRaw[athId].sub.filter(l=>l.id!==logId);
-      _athRaw[athId].arr=(_athRaw[athId].arr||[]).filter(l=>l.id!==logId);
       _athMerge(athId);
     }
     athLogs[athId]=(athLogs[athId]||[]).filter(l=>l.id!==logId);
@@ -5565,11 +5581,10 @@ async function saveLogEditor(){
   try{
     const ref=db.collection('trainlog').doc('athlete_'+_eAthId);
     const snap=await ref.get();if(!snap.exists){alert('Athlete doc missing');return;}
-    const logs=(snap.data().logs||[]).map(l=>l.id===_eLog.id?_eLog:l);
-    await ref.update({logs,_lastUpdated:Date.now()});
-    // 하위컬렉션도 같이 — 대시보드/선수앱이 하위컬렉션을 정본으로 읽으므로 안 쓰면 수정이 되돌아온다
-    await ref.collection('logs').doc(String(_eLog.id)).set(_eLog).catch(e=>console.warn('[dash] sub set',e));
-    athLogs[_eAthId]=logs;
+    // 정본은 하위컬렉션 하나. 실패하면 삼키지 말고 catch로 올린다.
+    await ref.collection('logs').doc(String(_eLog.id)).set(_eLog);
+    await ref.update({_lastUpdated:Date.now()});
+    athLogs[_eAthId]=(athLogs[_eAthId]||[]).map(l=>l.id===_eLog.id?_eLog:l);
     _rmModal();renderCurrent();
   }catch(e){alert('Save error: '+e.message);}
 }
@@ -6066,14 +6081,12 @@ function _schedLogBlock(a,l){
 async function _schedPatchLog(athId,logId,mut){
   try{
     const ref=db.collection('trainlog').doc('athlete_'+athId);
-    const snap=await ref.get();if(!snap.exists)return;
-    // 정본은 하위컬렉션 — 배열에만 있는 옛 로그도 있으므로 현재 표시본(athLogs)을 원본으로 삼는다
-    const _src=(athLogs[athId]||[]).find(l=>l.id===logId)||(snap.data().logs||[]).find(l=>l.id===logId);
+    // 정본은 하위컬렉션 하나 — 현재 표시본(athLogs)이 곧 하위컬렉션 내용이다
+    const _src=(athLogs[athId]||[]).find(l=>l.id===logId);
     if(!_src)return;
     const _new=JSON.parse(JSON.stringify(_src));mut(_new);
-    const logs=(snap.data().logs||[]).map(l=>l.id===logId?_new:l);
-    await ref.update({logs,_lastUpdated:Date.now()});
-    await ref.collection('logs').doc(String(logId)).set(_new).catch(e=>console.warn('[dash] sub set',e));
+    await ref.collection('logs').doc(String(logId)).set(_new);
+    await ref.set({_lastUpdated:Date.now()},{merge:true});   // update()와 달리 문서가 없어도 안전
     athLogs[athId]=(athLogs[athId]||[]).map(l=>l.id===logId?_new:l);
   }catch(e){alert('Save error: '+e.message);}
 }
