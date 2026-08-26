@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260825-3';
+const APP_VERSION = '20260826-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -1459,6 +1459,62 @@ async function _syncOwnLogsNow(athId,d){
     if(_syncOwnQueued){ const q=_syncOwnQueued; _syncOwnQueued=null; _syncOwnLogsNow(q,getData()); }
   }
 }
+// ── 유실 복구: 이 기기에 남아 있지만 클라우드엔 없는 로그를 되돌려 보낸다 ──────────
+//    옛 앱은 기기마다 팀 전체 로그를 localStorage에 캐시했고, 로드할 때 그 사본을
+//    지우지 않는다(아래 merged.logs=local.logs). 그래서 7월 이전부터 쓰던 기기에는
+//    다른 선수의 옛 로그가 아직 남아 있을 수 있다 — Moritz(a8) 6/1~7/5분이 그렇다.
+//    Laura(a10)는 자기 기기가 8/13에 이 방식으로 82건을 되돌려 보내 복구됐지만,
+//    자기 로그만 올리는 경로(_syncOwnLogsNow)뿐이라 남의 로그는 갇혀 있었다.
+//
+//    원칙 — 오직 추가만 한다:
+//      · 클라우드에 없는 id만 쓴다(있으면 손대지 않음 → 서버 최신본을 덮지 않는다)
+//      · 로컬·클라우드 양쪽 묘비를 모두 존중한다(지운 로그가 되살아나지 않게)
+//      · 배열은 줄어들면 쓰지 않는다(2026-07 유실 사고의 재발 방지 규칙)
+//    기기당 한 번만 돈다. 되돌릴 게 없으면 아무 일도 일어나지 않는다.
+const _LOGREC_KEY='trainlog_logrecovery_v1';
+async function _recoverStrandedLogs(d){
+  if(localStorage.getItem(_LOGREC_KEY)) return 0;
+  const _delSet=_getDeletedIds();
+  const byAth=new Map();
+  (d.logs||[]).forEach(l=>{
+    if(!l||l.id==null||_delSet.has(l.id)) return;
+    const a=(d.athletes||[]).find(x=>x.name===l.athleteName);
+    if(!a) return;
+    if(!byAth.has(a.id)) byAth.set(a.id,[]);
+    byAth.get(a.id).push(l);
+  });
+  if(!byAth.size) return 0;
+  let total=0;
+  for(const [athId,logs] of byAth){
+    try{
+      const snap=await _withTimeout(_getFromServer(ATHLETE_DOC(athId)),6000);
+      const subSnap=await _withTimeout(_getFromServer(ATHLETE_LOGS(athId)),8000);
+      _absorbCloudDeleted((snap.exists&&snap.data().deletedIds)||[],_delSet);
+      const have=new Set();
+      subSnap.forEach(doc=>{ const v=doc.data(); if(v&&v.id!=null) have.add(v.id); });
+      const arr=(snap.exists&&snap.data().logs)||[];
+      arr.forEach(l=>{ if(l&&l.id!=null) have.add(l.id); });
+      const missing=logs.filter(l=>!have.has(l.id)&&!_delSet.has(l.id));
+      if(!missing.length) continue;
+      // ① 문서 단위 — 없는 id만 새로 만든다
+      await _withTimeout(Promise.all(missing.map(l=>ATHLETE_LOGS(athId).doc(String(l.id)).set(l))),20000);
+      // ② 대시보드 호환용 배열 — 합쳐서 커질 때만 쓴다
+      const _merged=_mergeLogsById(arr,missing,_delSet);
+      if(_merged.length>=arr.length){
+        await _withTimeout(ATHLETE_DOC(athId).set({logs:_merged,_lastUpdated:Date.now()},{merge:true}),10000);
+      }else{
+        console.error('[TrainLog] 복구 배열 축소 차단 —',_merged.length,'<',arr.length,'athId',athId);
+      }
+      total+=missing.length;
+      console.log('[TrainLog] Stranded logs recovered → cloud ✓',athId,missing.length);
+    }catch(e){
+      console.warn('[TrainLog] stranded-log recovery failed for',athId,e);
+      return total;   // 한 번이라도 실패하면 완료 표시를 남기지 않는다 → 다음 실행에서 재시도
+    }
+  }
+  try{ localStorage.setItem(_LOGREC_KEY,String(Date.now())); }catch(e){}
+  return total;
+}
 // Flush pending athlete logs the moment we plausibly CAN upload again: network
 // back (online) or app returned to foreground (visibilitychange). Without this,
 // a backlog only uploaded when the athlete re-entered their profile.
@@ -1569,7 +1625,7 @@ const SK_BACKUP='trainlog_v5_backup';
 // orphaned junk that piles up and blows past iOS Safari's ~5MB localStorage cap,
 // which makes saves throw QuotaExceededError and fail silently. Backups are kept
 // here so the global purge never touches them (their creation is coach-gated).
-const _KEEP_KEYS=new Set(['trainlog_v5','trainlog_v5_deleted','trainlog_app_version','trainlog_last_sync','trainlog_chart_collapsed_v1','trainlog_role','trainlog_v5_backup','trainlog_v5_backup2','trainlog_pending_sync']);
+const _KEEP_KEYS=new Set(['trainlog_v5','trainlog_v5_deleted','trainlog_app_version','trainlog_last_sync','trainlog_chart_collapsed_v1','trainlog_role','trainlog_v5_backup','trainlog_v5_backup2','trainlog_pending_sync','trainlog_logrecovery_v1']);
 function _purgeLegacyStorage(){
   try{
     const kill=[];
@@ -1926,6 +1982,11 @@ async function initFirebase(){
           .then(n=>console.log('[TrainLog] Recovered local plan-days → cloud ✓ ('+n+')'))
           .catch(e=>console.warn('[TrainLog] Plan recovery push failed:',e));
       }
+      // ── 같은 원리를 로그에도 — 이 기기에만 남은 로그를 되돌려 보낸다(기기당 1회) ──
+      //    화면을 막지 않도록 백그라운드로 던진다. 실패해도 조용히 다음 실행에서 재시도.
+      _recoverStrandedLogs(merged)
+        .then(n=>{ if(n) console.log('[TrainLog] Stranded-log recovery total ✓ ('+n+')'); })
+        .catch(e=>console.warn('[TrainLog] Stranded-log recovery failed:',e));
     } else {
       // No cloud data yet — push local data to new structure
       const localData=getData();
