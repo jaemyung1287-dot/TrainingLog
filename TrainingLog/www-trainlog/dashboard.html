@@ -1127,8 +1127,22 @@ function iCol(v,hg){
   if(hg)return v>=7?'var(--green)':v>=4?'var(--gold)':'var(--red)';
   return v>=7?'var(--red)':v>=4?'var(--gold)':'var(--green)';
 }
-function tc(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#bc8cff',tabata:'#f85149',mobility:'#E07B39'}[t]||'var(--muted)';}
-function tcBg(t){return{weight:'rgba(247,169,79,.1)',sprint:'rgba(62,207,142,.1)',plyo:'rgba(247,169,79,.1)',tabata:'rgba(248,81,73,.1)',mobility:'rgba(224,123,57,.1)'}[t]||'rgba(255,255,255,.04)';}
+function tc(t){return{weight:'#f7a94f',sprint:'#3ecf8e',plyo:'#f7a94f',condition:'#bc8cff',tabata:'#f85149',mobility:'#E07B39',push:'#58a6ff',icestart:'#4f8ef7'}[t]||'var(--muted)';}
+function tcBg(t){return{weight:'rgba(247,169,79,.1)',sprint:'rgba(62,207,142,.1)',plyo:'rgba(247,169,79,.1)',tabata:'rgba(248,81,73,.1)',mobility:'rgba(224,123,57,.1)',push:'rgba(88,166,255,.1)',icestart:'rgba(79,142,247,.1)'}[t]||'rgba(255,255,255,.04)';}
+// ── 시도-기록 로그(Push Start / Ice Start) 공용 헬퍼 ──────────────
+// 열 수는 log.gates 로 정해진다. gates 없는 옛 로그는 푸쉬(5·15·55m)로 본다.
+//   Push  [5,15,55]        → t=[s1,fin]           → Finish 열 1
+//   Ice   [5,15,25,35,45]  → t=[t15,t25,t35,t45]  → Finish 열 3  (Königssee)
+const _DPUSH_GATES=[5,15,55], _DICE_GATES=[5,15,25,35,45];
+function _dIsAttemptLog(l){return !!l&&(l.type==='push'||l.type==='icestart');}
+function _dAtGates(l){return (l&&Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:_DPUSH_GATES;}
+function _dAtFinIdx(l){return _dAtGates(l).length-2;}
+function _dAtOK(l){const fi=_dAtFinIdx(l);return (Array.isArray(l&&l.attempts)?l.attempts:[]).filter(a=>a&&a.valid!==false&&Array.isArray(a.t)&&a.t[fi]!=null);}
+function _dAtBest(l){const ok=_dAtOK(l),fi=_dAtFinIdx(l);return ok.length?Math.min(...ok.map(a=>a.t[fi])):null;}
+// 시도 한 건의 구간 소요시간 — seg[0]=gates0→gates1(=t[0]), seg[k]=t[k]-t[k-1]
+function _dAtSegs(l,a){const gt=_dAtGates(l),fi=gt.length-2;
+  return gt.slice(0,fi+1).map((_,k)=>{const cur=a.t[k],prv=(k===0?0:a.t[k-1]);
+    return (cur==null||prv==null)?null:+(cur-prv).toFixed(2);});}
 function condVal(l){const e=l.exercises||[];const dv=e.map(x=>_dEffNum(x.difficulty)).filter(v=>v!=null);const a=dv.length?(dv.reduce((s,v)=>s+v,0)/dv.length):null;return `${e.filter(x=>x.done).length}/${e.length} ✓${a!=null?' · Ø D'+a.toFixed(1):''}`;}
 function condBrief(l){return (l.exercises||[]).slice(0,4).map(e=>{const d=_dEffNum(e.difficulty);return `${e.done?'✓':'○'} ${e.name}${d!=null?' <b style="color:#E07B39">D'+d+'</b>':''}`;}).join(' · ');}
 // Matches the app's _planGrpData resolution: individual athlete key → group → all (legacy .groups last)
@@ -1282,16 +1296,29 @@ function _ovEx(l){
       const dv=_dEffNum(e.difficulty);
       lines.push({t:(e.done?'✓ ':'○ ')+e.name+(dv!=null?' · D'+dv:''), eff:dv!=null?dv:''});
     });
+  } else if(_dIsAttemptLog(l)){
+    // 시도별 한 줄: "1. 5.62 s" + 아래 구간 소요시간. 그날 best 는 ★ 로 표시.
+    const gt=_dAtGates(l), fi=gt.length-2, best=_dAtBest(l);
+    _dAtOK(l).forEach((a,i)=>{
+      const fin=a.t[fi];
+      const segs=_dAtSegs(l,a).map((v,k)=>`${gt[k]}→${gt[k+1]}m ${v==null?'—':v.toFixed(2)}`);
+      lines.push({t:`${i+1}. ${fin.toFixed(2)} s (${gt[0]}→${gt[fi+1]}m)${fin===best?' ★':''}`, eff:'',
+        sub:segs.length?[segs.join(' · ')]:[]});
+    });
   }
   return lines;
 }
 function _ovBlock(l,athId){
   const c=tc(l.type), bg=tcBg(l.type);
-  const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type==='mobility'?'Conditioning':l.type;
+  const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type==='mobility'?'Conditioning':l.type==='push'?'Push Start':l.type==='icestart'?'Ice Start':l.type;
   let val=l.type==='weight'?`${_fmtKg(vol([l]))}`
     :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
     :l.type==='plyo'?`${l.totalReps||0} reps`
     :l.type==='tabata'?'8 rounds':'—';
+  if(_dIsAttemptLog(l)){
+    const _bf=_dAtBest(l), _n=_dAtOK(l).length;
+    val=_bf!=null?`${_bf.toFixed(2)} s · ${_n}×`:'—';
+  }
   if(l.type==='mobility'){
     const _mexs=l.exercises||[];
     const _mdvs=_mexs.map(e=>_dEffNum(e.difficulty)).filter(v=>v!=null);

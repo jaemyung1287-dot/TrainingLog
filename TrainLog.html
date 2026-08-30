@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260826-3';
+const APP_VERSION = '20260830-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -471,13 +471,22 @@ const APP_VERSION = '20260826-3';
       <div id="team-acc-body-sprint" style="display:none;padding:0 14px 10px"></div>
     </div>
     <!-- Push Start accordion -->
-    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);overflow:hidden">
+    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);margin-bottom:12px;overflow:hidden">
       <div onclick="toggleTeamAcc('push')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
         <span style="font-size:22px;line-height:1">🛷</span>
         <div style="flex:1;font-size:16px;font-weight:800;color:#58a6ff">Push Start</div>
         <span id="team-acc-arrow-push" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
       </div>
       <div id="team-acc-body-push" style="display:none;padding:0 14px 10px"></div>
+    </div>
+    <!-- Ice Start accordion -->
+    <div style="border-radius:14px;background:var(--card);border:1px solid var(--border);overflow:hidden">
+      <div onclick="toggleTeamAcc('ice')" style="display:flex;align-items:center;gap:11px;padding:18px 16px;cursor:pointer">
+        <span style="font-size:22px;line-height:1">🧊</span>
+        <div style="flex:1;font-size:16px;font-weight:800;color:#4f8ef7">Ice Start</div>
+        <span id="team-acc-arrow-ice" style="font-size:13px;color:var(--muted);transition:transform .2s ease">▼</span>
+      </div>
+      <div id="team-acc-body-ice" style="display:none;padding:0 14px 10px"></div>
     </div>
   </div>
 </div>
@@ -747,6 +756,25 @@ const APP_VERSION = '20260826-3';
   <div id="push-rows"></div>
   <button class="btn btn-s" onclick="addPushAttempt()" style="border-style:dashed;margin-bottom:16px">+ Versuch</button>
   <button class="btn btn-g" onclick="savePush()">Speichern →</button>
+</div>
+
+<!-- ICE START FORM -->
+<div id="s-icestart" class="screen">
+  <div class="hdr">
+    <button class="back" onclick="backFromLogForm()">← Zurück</button>
+    <span class="logo">🧊 Ice Start</span>
+  </div>
+  <div class="ttl">Ice Start</div>
+  <div id="ic-edit-banner" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);font-size:13px;color:#e94560;font-weight:700">
+    ✏️ Bearbeitung — beim Speichern wird dieser Eintrag aktualisiert
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+      <label style="font-size:12px;color:#e94560;font-weight:600;white-space:nowrap">📅 Datum</label>
+      <input type="date" id="ic-edit-date" style="flex:1;background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.3);border-radius:8px;padding:5px 10px;color:#f0f0ff;font-size:13px;font-family:inherit;outline:none">
+    </div>
+  </div>
+  <div id="ice-rows"></div>
+  <button class="btn btn-s" onclick="addIceAttempt()" style="border-style:dashed;margin-bottom:16px">+ Versuch</button>
+  <button class="btn btn-g" onclick="saveIce()">Speichern →</button>
 </div>
 
 <!-- RECORD FORM (Coach enters for athlete) -->
@@ -2225,7 +2253,7 @@ const TRAINING_STRUCTURE={
   },
   'Sprint Training':{
     icon:'⚡',
-    subs:['Acceleration','Maximum Velocity','Speed Endurance','Special Endurance 1','Special Endurance 2','Resistance Sprinting','Push Start'],
+    subs:['Acceleration','Maximum Velocity','Speed Endurance','Special Endurance 1','Special Endurance 2','Resistance Sprinting','Push Start','Ice Start'],
     color:'#3A7A5A',
     params:'sprint'
   },
@@ -2253,7 +2281,7 @@ const SUB_COLOR={
   'Weightlifting':'#B8944A','Medicine Ball':'#9A7A48','Velocity-Based Training':'#7A6038',
   // Sprint
   'Acceleration':'#3A7A5A','Maximum Velocity':'#2A6A4A','Speed Endurance':'#1A5A3A',
-  'Special Endurance 1':'#3A8A5A','Special Endurance 2':'#2A7A4A','Resistance Sprinting':'#7A5A2A','Push Start':'#58a6ff',
+  'Special Endurance 1':'#3A8A5A','Special Endurance 2':'#2A7A4A','Resistance Sprinting':'#7A5A2A','Push Start':'#58a6ff','Ice Start':'#4f8ef7',
   // Plyometric
   'Vertical Power':'#6A4A8A','Horizontal Power':'#5A3A7A','Reactive / Elastic':'#7A5A9A'
 };
@@ -2359,6 +2387,8 @@ const EXERCISE_LIBRARY={
   ],
   // subCategory 'Push Start' 종목은 선수 앱에서 Push Start 입력(log type:'push')으로 라우팅된다 — _exIsPush()
   'Push Start':['Push Training'],
+  // subCategory 'Ice Start' 종목은 선수 앱에서 Ice Start 입력(log type:'icestart')으로 라우팅된다 — _exIsIce()
+  'Ice Start':['Ice Start Training'],
   // Plyometric — Vertical Power (easy → hard)
   'Vertical Power':[
     'Kneeling Pop Up','Box Step Up Jump','Squat Jump (BW)',
@@ -2680,7 +2710,7 @@ function backFromLogForm(){
   const back=ST._editReturn, wasEditing=!!ST.editingLogId;
   ST.editingLogId=null; ST._extraEditLogIds=[]; ST._logDate=null;
   ST._editReturn=null; ST._editFromCoach=false;
-  ['w-edit-banner','sp-edit-banner','pu-edit-banner'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  ['w-edit-banner','sp-edit-banner','pu-edit-banner','ic-edit-banner'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
   const wt=document.getElementById('w-screen-title'); if(wt) wt.textContent='Krafttraining';
   const wl=document.getElementById('w-screen-logo'); if(wl) wl.textContent='🏋️ Kraft';
   if(wasEditing&&back&&_LOG_FORM_RETURN.has(back)&&document.getElementById(back)){
@@ -2713,7 +2743,8 @@ async function goTeamData(){
   // Team data is fetched on demand (not kept in local storage). Show a loading hint.
   const wWrap=document.getElementById('team-acc-body-weight'), sWrap=document.getElementById('team-acc-body-sprint'), pWrap=document.getElementById('team-acc-body-push');
   const loadHtml='<div style="font-size:12px;color:var(--muted);padding:14px 2px;text-align:center">⏳ Lade Teamdaten…</div>';
-  if(wWrap) wWrap.innerHTML=loadHtml; if(sWrap) sWrap.innerHTML=loadHtml; if(pWrap) pWrap.innerHTML=loadHtml;
+  const iWrap=document.getElementById('team-acc-body-ice');
+  if(wWrap) wWrap.innerHTML=loadHtml; if(sWrap) sWrap.innerHTML=loadHtml; if(pWrap) pWrap.innerHTML=loadHtml; if(iWrap) iWrap.innerHTML=loadHtml;
   try{ _teamLogsCache=await _fetchAllAthleteLogs(); }
   catch(e){ _teamLogsCache=null; showToast('⚠️ Internet nötig für Teamdaten'); }
   renderTeamTrainingData();
@@ -2852,40 +2883,50 @@ function renderTeamTrainingData(){
   }).join('') : emptyWeek);
 
   // ===== PUSH START (week → name → dates → attempts) =====
-  if(pWrap){
-    const pGroups=groupByAthlete(teamLogs.filter(l=>l.type==='push'&&inWeek(l)));
-    pWrap.innerHTML = nav + (pGroups.length ? pGroups.map((g,ai)=>{
+  // Push Start 와 Ice Start 는 같은 시도-기록 구조라 렌더러를 공유한다.
+  // 열 수는 log.gates 로 정해진다 — 푸쉬 3열(5→15/15→55/5→55), 아이스 5열(5→15…35→45/5→45).
+  const _attemptAcc=(wrap,type,color,pfx)=>{
+    if(!wrap) return;
+    const groups=groupByAthlete(teamLogs.filter(l=>l.type===type&&inWeek(l)));
+    wrap.innerHTML = nav + (groups.length ? groups.map((g,ai)=>{
       const mine=g.name===me;
       const sess=g.ls.map((l,si)=>{
         const ok=_puOK(l), best=_puBest(l);
         const gt=(Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES;
+        const fi=gt.length-2;
         const c=v=>v==null?'—':v.toFixed(2);
         let n=0;
-        // 구간별 3열 표 — 숫자는 전부 흰색·tabular-nums 로 자리수 정렬, 그날 최고 Finish 만 금색
+        // 구간별 표 — 숫자는 전부 흰색·tabular-nums 로 자리수 정렬, 그날 최고 Finish 만 금색
         const _pcell=(v,extra)=>`<span style="flex:1;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.2px;${extra||'color:var(--text);font-weight:600'}">${v}</span>`;
         const det=ok.map(a=>{
           n++;
-          const s1=a.t[0], fin=a.t[1], z2=(s1!=null)?+(fin-s1).toFixed(2):null;
+          const fin=a.t[fi];
           const gold=(fin===best);
+          const segs=gt.slice(0,fi+1).map((_,k)=>{
+            const cur=a.t[k], prv=(k===0?0:a.t[k-1]);
+            return (cur==null||prv==null)?null:+(cur-prv).toFixed(2);
+          });
           return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
             <span style="width:24px;font-size:12px;font-weight:600;color:var(--text)">${n}.</span>
-            ${_pcell(c(s1))}${_pcell(c(z2))}${_pcell(c(fin),gold?'color:var(--gold);font-weight:800':'color:var(--text);font-weight:700')}
+            ${segs.map(v=>_pcell(c(v))).join('')}${_pcell(c(fin),gold?'color:var(--gold);font-weight:800':'color:var(--text);font-weight:700')}
           </div>`;
         }).join('')||'<div style="font-size:11px;color:var(--text);padding:6px 0">Keine Zeiten</div>';
         const _pchd=t=>`<span style="flex:1;text-align:right;font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--text);opacity:.75">${t}</span>`;
         const colHd=`<div style="display:flex;align-items:center;gap:8px;padding:2px 0 6px;border-bottom:1px solid rgba(255,255,255,.08)">
             <span style="width:24px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text);opacity:.75">Nr</span>
-            ${_pchd(`${gt[0]}→${gt[1]}m`)}${_pchd(`${gt[1]}→${gt[2]}m`)}${_pchd(`${gt[0]}→${gt[2]}m`)}
+            ${gt.slice(0,fi+1).map((g0,k)=>_pchd(`${g0}→${gt[k+1]}m`)).join('')}${_pchd(`${gt[0]}→${gt[fi+1]}m`)}
           </div>`;
         const right=best!=null
-          ? `<span style="color:#58a6ff;font-weight:700">${best.toFixed(2)} s</span><span style="color:var(--text)"> · ${ok.length}×</span>`
+          ? `<span style="color:${color};font-weight:700">${best.toFixed(2)} s</span><span style="color:var(--text)"> · ${ok.length}×</span>`
           : `<span style="color:var(--text)">kein Eintrag</span>`;
-        return row('pA'+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,colHd+det,false,16);
+        return row(pfx+ai+'S'+si,`<span style="font-size:13px;color:var(--text)">${fmtDate(l.date)}</span>`,right,colHd+det,false,16);
       }).join('');
       const left=`<span style="font-size:14px;font-weight:700;color:${mine?'#f7a94f':'var(--text)'}">${g.name}</span>`;
-      return row('pA'+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
+      return row(pfx+ai,left,`zuletzt ${fmtDate(g.latest)}`,sess,mine,8);
     }).join('') : emptyWeek);
-  }
+  };
+  _attemptAcc(pWrap,'push','#58a6ff','pA');
+  _attemptAcc(document.getElementById('team-acc-body-ice'),'icestart','#4f8ef7','iA');
 }
 function goAthleteMenu(){
   if(!ST.athlete){ showToast('Bitte wähle deinen Namen'); return; }
@@ -2935,7 +2976,8 @@ function _enterAthleteMenu(){
   // Match planned exercise names against BOTH weight/plyo logs (exercises[]) and sprint logs (sets[])
   // Push Start 로그는 종목 이름이 없으므로 플랜에 Push 종목이 있으면 그 세션이 기록된 것으로 본다
   const _logHasName=(l,nameSet,exsArr,sess)=>((l.exercises||[]).some(e=>nameSet.has(e.name)))||((l.sets||[]).some(e=>nameSet.has(e.name)))
-    ||(l.type==='push'&&(exsArr||[]).some(_exIsPush)&&(l.sess==null||sess==null||l.sess===sess));
+    ||(l.type==='push'&&(exsArr||[]).some(_exIsPush)&&(l.sess==null||sess==null||l.sess===sess))
+    ||(l.type==='icestart'&&(exsArr||[]).some(_exIsIce)&&(l.sess==null||sess==null||l.sess===sess));
   const amNames=new Set(amExs.map(e=>e.name));
   const pmNames=new Set(pmExs.map(e=>e.name));
   const amLogged=amExs.length===0||todayLogs.some(l=>_logHasName(l,amNames,amExs,'am'));
@@ -3265,22 +3307,26 @@ function goLogTraining(){
       const label=sess==='am'?'🌅 Vormittag':'🌇 Nachmittag';
       // Push Start(subCategory) 종목은 스프린트 입력이 아니라 Push Start 입력(type:'push')으로 보낸다
       const pushExs=exs.filter(_exIsPush);
-      const otherExs=exs.filter(e=>!_exIsPush(e));
+      // Ice Start(subCategory) 종목도 스프린트 입력이 아니라 전용 Ice Start 입력(type:'icestart')으로 보낸다
+      const iceExs=exs.filter(_exIsIce);
+      const otherExs=exs.filter(e=>!_exIsPush(e)&&!_exIsIce(e));
       const isSprintOnly=otherExs.length>0&&otherExs.every(e=>TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
       const _logBtns=[
         otherExs.length?`<button onclick="_selectLogSession('${sess}','${isSprintOnly?'sprint':'weight'}')" style="width:100%;padding:11px;border-radius:10px;background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:#3ecf8e;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Einheit eintragen →</button>`:'',
-        pushExs.length?`<button onclick="_selectLogSession('${sess}','push')" style="width:100%;padding:11px;border-radius:10px;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:#58a6ff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;${otherExs.length?'margin-top:8px':''}">🛷 Push Start eintragen →</button>`:''
+        pushExs.length?`<button onclick="_selectLogSession('${sess}','push')" style="width:100%;padding:11px;border-radius:10px;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:#58a6ff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;${otherExs.length?'margin-top:8px':''}">🛷 Push Start eintragen →</button>`:'',
+        iceExs.length?`<button onclick="_selectLogSession('${sess}','icestart')" style="width:100%;padding:11px;border-radius:10px;background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.3);color:#4f8ef7;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;${(otherExs.length||pushExs.length)?'margin-top:8px':''}">🧊 Ice Start eintragen →</button>`:''
       ].join('');
       const isOpen=ST._sessExpanded.has(sess);
 
       // ── Actual logged status for today ──
       const _todayLogs=getData().logs.filter(l=>
         l.athleteName===ST.athlete.name&&l.date===today&&
-        (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility'||l.type==='push'));
+        (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility'||l.type==='push'||l.type==='icestart'));
       // Which types does this session require?
       const _sessTypes=new Set();
       exs.forEach(e=>{
         if(_exIsPush(e)){ _sessTypes.add('push'); return; }
+        if(_exIsIce(e)){ _sessTypes.add('icestart'); return; }
         const p=TRAINING_STRUCTURE[e.trainingType]?.params;
         if(p==='sprint') _sessTypes.add('sprint');
         else if(p==='plyo') _sessTypes.add('plyo');
@@ -3293,8 +3339,9 @@ function goLogTraining(){
       const _skippedExNames=new Set(_todayLogs.flatMap(l=>l.skippedExercises||[]));
       // Actually logged exercise names (excluding skipped)
       const _actualLogNames=new Set(_todayLogs.flatMap(l=>{
-        // Push Start 로그에는 종목 이름이 없다 → 이 세션의 Push 종목을 처리된 것으로 본다
+        // Push/Ice Start 로그에는 종목 이름이 없다 → 이 세션의 해당 종목을 처리된 것으로 본다
         if(l.type==='push') return (l.sess==null||l.sess===sess)?pushExs.map(e=>e.name||'').filter(Boolean):[];
+        if(l.type==='icestart') return (l.sess==null||l.sess===sess)?iceExs.map(e=>e.name||'').filter(Boolean):[];
         const arr=(l.type==='weight'||l.type==='plyo'||l.type==='mobility')?(l.exercises||[]):(l.sets||[]);
         return arr.map(e=>e.name||'').filter(Boolean);
       }));
@@ -3417,6 +3464,7 @@ function _selectLogSession(sess,type){
 }
 function selectType(t){
   if(t==='push'){ goPushStart(); return; }
+  if(t==='icestart'){ goIceStart(); return; }
   const d=getData(); const prog=d.programs[ST.athlete.group];
   if(t==='weight'){
     // Load session plan for the target date (yesterday or today)
@@ -3429,10 +3477,11 @@ function selectType(t){
     ST._activeSess=sess; // remember which session (am/pm) this log belongs to
     ST._todayPlanSession=null; // clear after use
     function _sessExs(gd,s){
-      // Push Start 종목은 이 폼에서 제외 — 전용 Push Start 화면에서 입력한다
+      // Push/Ice Start 종목은 이 폼에서 제외 — 각각 전용 화면에서 입력한다
       if(!gd) return [];
-      if(gd[s]&&Array.isArray(gd[s].exercises)) return gd[s].exercises.filter(e=>!_exIsPush(e));
-      if(s==='am'&&Array.isArray(gd.exercises)) return gd.exercises.filter(e=>!_exIsPush(e));
+      const _ex=e=>!_exIsPush(e)&&!_exIsIce(e);
+      if(gd[s]&&Array.isArray(gd[s].exercises)) return gd[s].exercises.filter(_ex);
+      if(s==='am'&&Array.isArray(gd.exercises)) return gd.exercises.filter(_ex);
       return [];
     }
     let planExs=_sessExs(grpData,sess);
@@ -3615,9 +3664,9 @@ function selectType(t){
     function _sprintSessExs(gd,s){
       if(!gd) return [];
       const exs=(gd[s]?.exercises)||[];
-      if(exs.length) return exs.filter(e=>!_exIsPush(e)&&TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
+      if(exs.length) return exs.filter(e=>!_exIsPush(e)&&!_exIsIce(e)&&TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
       // backward compat: flat exercises array
-      if(s==='am'&&Array.isArray(gd.exercises)) return gd.exercises.filter(e=>!_exIsPush(e)&&TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
+      if(s==='am'&&Array.isArray(gd.exercises)) return gd.exercises.filter(e=>!_exIsPush(e)&&!_exIsIce(e)&&TRAINING_STRUCTURE[e.trainingType]?.params==='sprint');
       return [];
     }
     let sprintExs=_sprintSessExs(grpData,sess);
@@ -3710,9 +3759,9 @@ function goAthleteStats(){ document.getElementById('astats-name').textContent=ST
 function _renderAthRecentLogs(targetId){
   const wrap=document.getElementById(targetId); if(!wrap||!ST.athlete) return;
   const d=getData();
-  const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s',push:'b-s'};
-  const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡',push:'🛷'};
-  const typeLabel={weight:'Krafttraining',plyo:'Plyometrie',sprint:'Sprinttraining',push:'Push Start'};
+  const typeBadge={weight:'b-w',plyo:'b-c',sprint:'b-s',push:'b-s',icestart:'b-s'};
+  const typeEmoji={weight:'🏋️',plyo:'🦘',sprint:'⚡',push:'🛷',icestart:'🧊'};
+  const typeLabel={weight:'Krafttraining',plyo:'Plyometrie',sprint:'Sprinttraining',push:'Push Start',icestart:'Ice Start'};
   const grp=ST.athlete.group;
   const today=todayStr();
   const last14=getLast(14);
@@ -3786,7 +3835,7 @@ function _renderAthRecentLogs(targetId){
         if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} Kontakte`);
         stat=pts.join(' · ')||'—';
       }
-      else if(l.type==='push'){
+      else if(l.type==='push'||l.type==='icestart'){
         const _pb=_puBest(l);
         stat=_pb!=null?`${_pb.toFixed(2)} s · ${_puOK(l).length}×`:'—';
       }
@@ -3802,12 +3851,12 @@ function _renderAthRecentLogs(targetId){
       const sprintChips=l.type==='sprint'&&Array.isArray(l.sets)&&l.sets.length
         ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${l.sets.map(s=>`<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--muted);border:1px solid rgba(255,255,255,.1)">${s.name||s.distance+'m'||'?'}</span>`).join('')}</div>`
         :'';
-      // Push Start 시도 칩 — 그날 best는 금색
-      const pushChips=l.type==='push'&&_puOK(l).length
-        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${_puOK(l).map((a,ai)=>{
-            const _b=_puBest(l), _g=(a.t[1]===_b);
-            return `<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:${_g?'var(--gold)':'var(--muted)'};font-weight:${_g?700:400}">${ai+1}. ${a.t[1].toFixed(2)}s</span>`;
-          }).join('')}</div>`
+      // Push/Ice Start 시도 칩 — 그날 best는 금색
+      const pushChips=_isAttemptLog(l)&&_puOK(l).length
+        ?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${(()=>{const _fi=_puFinIdx(l),_b=_puBest(l);return _puOK(l).map((a,ai)=>{
+            const _g=(a.t[_fi]===_b);
+            return `<span style="font-size:10px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:${_g?'var(--gold)':'var(--muted)'};font-weight:${_g?700:400}">${ai+1}. ${a.t[_fi].toFixed(2)}s</span>`;
+          }).join('')})()}</div>`
         :'';
       html+=`<div class="detail-card" style="margin-bottom:8px;border-left:3px solid rgba(62,207,142,.5)">
         <div class="detail-row">
@@ -5318,9 +5367,18 @@ function saveSprint(dupMode){
 // ⚠️ 대시보드 _pushTrack()/Firestore trainlog/pushdata 의 track.gates 와 반드시 같은 값을 쓸 것.
 const PUSH_GATES=[5,15,55];
 const _puRng=(a,b)=>PUSH_GATES[a]+'→'+PUSH_GATES[b]+'m';
+// 아이스 스타트(Königssee) 게이트 — 5m 첫 트리거 후 10m 간격으로 45m까지.
+//   시간은 전부 5m 트리거 기준 누적. 구간 소요시간은 파생값(저장하지 않는다).
+//   ⚠️ 육상 Push Start 게이트(5·15·55m)와 다른 체계다 — 섞지 말 것.
+const ICE_GATES=[5,15,25,35,45];
 // 플랜 종목이 Push Start인지 — 코치가 subCategory='Push Start'로 넣는다(trainingType은 Sprint Training).
 // 이 종목은 스프린트 입력 화면이 아니라 Push Start 입력(log type:'push')으로 보내야 한다.
 function _exIsPush(e){ return !!e && (e.subCategory==='Push Start'||e.subType==='Push Start'); }
+// 플랜 종목이 Ice Start인지 — 코치가 subCategory='Ice Start'로 넣는다(trainingType은 Sprint Training).
+// 이 종목은 스프린트 입력 화면이 아니라 Ice Start 입력(log type:'icestart')으로 보내야 한다.
+function _exIsIce(e){ return !!e && (e.subCategory==='Ice Start'||e.subType==='Ice Start'); }
+// 시도 기록을 쓰는 로그 타입(푸쉬·아이스) — 표시 로직 공용
+function _isAttemptLog(l){ return !!l && (l.type==='push'||l.type==='icestart'); }
 
 // (2026-08-25부터 미사용 — 푸쉬는 플랜에 있는 날만 기록한다. 되돌릴 때를 위해 함수는 남겨둔다.)
 function _pushEntryCard(){
@@ -5389,8 +5447,13 @@ function delPushAttempt(i){
   if(!ST.pushAttempts.length) ST.pushAttempts.push({s1:'',fin:''});
   renderPushRows();
 }
+// 시도 배열 t[] 안에서 Finish 가 있는 열 — 입력 열 수 = gates.length-1, Finish = 마지막 입력 열.
+//   Push  gates[5,15,55]       → t=[s1,fin]           → finIdx 1
+//   Ice   gates[5,15,25,35,45] → t=[t15,t25,t35,t45]  → finIdx 3
+//   gates 없는 옛 로그는 푸쉬로 본다(푸쉬만 있던 시절 로그).
+function _puFinIdx(l){ const g=(l&&Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES; return g.length-2; }
 // 로그 한 건의 유효 시도(Finish 있는 것) — 대시보드 _pushOK 와 같은 규칙
-function _puOK(l){ return (Array.isArray(l&&l.attempts)?l.attempts:[]).filter(a=>a&&a.valid!==false&&Array.isArray(a.t)&&a.t[1]!=null); }
+function _puOK(l){ const fi=_puFinIdx(l); return (Array.isArray(l&&l.attempts)?l.attempts:[]).filter(a=>a&&a.valid!==false&&Array.isArray(a.t)&&a.t[fi]!=null); }
 // Push Start PB 풀 — records 의 {type:'push', distance:종점게이트}. 스프린트 PB 풀과 완전히 분리.
 function _pushPB(name,recs){
   if(!name) return null;
@@ -5400,26 +5463,30 @@ function _pushPB(name,recs){
       &&Math.abs((parseFloat(r.distance)||0)-fin)<0.5).map(r=>parseFloat(r.time)).filter(t=>!isNaN(t)&&t>0);
   return m.length?Math.min(...m):null;
 }
-function _puBest(l){ const ok=_puOK(l); return ok.length?Math.min(...ok.map(a=>a.t[1])):null; }
+function _puBest(l){ const ok=_puOK(l), fi=_puFinIdx(l); return ok.length?Math.min(...ok.map(a=>a.t[fi])):null; }
 // 로그 상세용 시도 표 (코치 Today / 세션 상세 공용). 그날 best만 금색 — 나머지는 흰색.
 function _puRowsHtml(l){
   const ok=_puOK(l); if(!ok.length) return '';
   const gt=(Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES;
+  const fi=gt.length-2;
   const best=_puBest(l);
   const c=v=>v==null?'—':v.toFixed(2);
+  // 구간 열 = gates[k]→gates[k+1] (k=0..fi), 마지막 열은 총합 gates[0]→종점
   const hd=`<div style="display:flex;gap:8px;padding:0 0 5px;font-size:10px;color:var(--muted)">
       <span style="width:26px">Nr</span>
-      <span style="flex:1;text-align:right">${gt[0]}→${gt[1]}</span>
-      <span style="flex:1;text-align:right">${gt[1]}→${gt[2]}</span>
-      <span style="flex:1;text-align:right">${gt[0]}→${gt[2]}m</span>
+      ${gt.slice(0,fi+1).map((g0,k)=>`<span style="flex:1;text-align:right">${g0}→${gt[k+1]}</span>`).join('')}
+      <span style="flex:1;text-align:right">${gt[0]}→${gt[fi+1]}m</span>
     </div>`;
   return hd+ok.map((a,i)=>{
-    const s1=a.t[0], fin=a.t[1], z2=(s1!=null)?+(fin-s1).toFixed(2):null;
+    const fin=a.t[fi];
     const g=(fin===best);
+    const segs=gt.slice(0,fi+1).map((_,k)=>{
+      const cur=a.t[k], prv=(k===0?0:a.t[k-1]);
+      return (cur==null||prv==null)?null:+(cur-prv).toFixed(2);
+    });
     return `<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12.5px;font-variant-numeric:tabular-nums">
       <span style="width:26px;color:var(--muted)">${i+1}.</span>
-      <span style="flex:1;text-align:right;color:var(--text)">${c(s1)}</span>
-      <span style="flex:1;text-align:right;color:var(--text)">${c(z2)}</span>
+      ${segs.map(v=>`<span style="flex:1;text-align:right;color:var(--text)">${c(v)}</span>`).join('')}
       <span style="flex:1;text-align:right;color:${g?'var(--gold)':'var(--text)'};font-weight:${g?800:600}">${c(fin)}</span>
     </div>`;
   }).join('');
@@ -5492,6 +5559,165 @@ function savePush(dupMode){
     if(_sm) _sm.innerHTML=`<span style="color:#ffc400;font-weight:900">🏆 NEUER PB!</span> ${log.bestFinish.toFixed(2)}s (bisher ${_pbPrev.toFixed(2)}s)<br><span style="font-size:13px">Push Start gespeichert 🛷</span>`;
   } else if(_sm){
     _sm.textContent=`Push Start gespeichert! Best: ${log.bestFinish.toFixed(2)}s 🛷`;
+  }
+  _renderAthRecentLogs('success-recent-logs');
+  showScreen('s-success');
+}
+
+// ════════════════════════════════════════════════
+//  ICE START FORM  (log type:'icestart')
+// ════════════════════════════════════════════════
+// Königssee 아이스 스타트 — 게이트 5·15·25·35·45m. 5m 에서 첫 트리거, 이후 10m 간격.
+//   입력값은 전부 5m 기준 누적 시간(15/25/35/45), 구간 소요시간은 파생값이라 저장하지 않는다.
+//   Finish = 5→45m = t[3].  ⚠️ 푸쉬(5·15·55m)와 게이트 체계가 다르다.
+// 표시 로직(_puOK/_puBest/_puRowsHtml)은 log.gates 길이로 열 수를 잡으므로 푸쉬와 공용이다.
+
+function goIceStart(){
+  if(!ST.athlete){ showToast('Bitte wähle deinen Namen'); return; }
+  ST.editingLogId=null; ST._extraEditLogIds=[];
+  ST.iceAttempts=[_icBlank(),_icBlank(),_icBlank()];
+  ST._activeSess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
+  ST._todayPlanSession=null;
+  const b=document.getElementById('ic-edit-banner'); if(b) b.style.display='none';
+  renderIceRows();
+  showScreen('s-icestart');
+}
+function _icBlank(){ return {t:ICE_GATES.slice(1).map(()=>'')}; }
+
+// 구간 소요시간 — seg[0]=5→15(=t0), seg[k]=t[k]-t[k-1]. 값이 비었거나 역행이면 null.
+function _icSeg(a){
+  const t=(a&&a.t)||[];
+  return ICE_GATES.slice(1).map((_,k)=>{
+    const cur=parseFloat(t[k]);
+    const prv=(k===0)?0:parseFloat(t[k-1]);
+    return (isNaN(cur)||isNaN(prv)||cur<=prv)?null:+(cur-prv).toFixed(2);
+  });
+}
+function _icSegHtml(a){
+  return _icSeg(a).map(v=>`<span style="flex:1;text-align:center">${v==null?'·':v.toFixed(2)}</span>`).join('')
+    +'<span style="width:22px;flex:none"></span>';
+}
+function renderIceRows(){
+  const wrap=document.getElementById('ice-rows'); if(!wrap) return;
+  const A=ST.iceAttempts||[];
+  const hd=`<div style="display:flex;align-items:flex-end;gap:6px;padding:0 2px 9px">
+      <span style="width:26px;flex:none;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)">Nr</span>
+      ${ICE_GATES.slice(1).map(g=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3">${g}m</span>`).join('')}
+      <span style="width:22px;flex:none"></span>
+    </div>
+    <div style="font-size:10.5px;color:var(--muted);padding:0 2px 10px;line-height:1.5">
+      Alle Zeiten kumulativ ab dem 5&nbsp;m-Tor. Die blaue Zeile darunter zeigt die Abschnittszeiten.
+    </div>`;
+  const rows=A.map((a,i)=>`<div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="width:26px;flex:none;font-size:13px;font-weight:700;color:var(--text)">${i+1}.</span>
+        ${a.t.map((v,k)=>`<input class="fi" style="flex:1;min-width:0;width:100%;text-align:center;margin:0;padding-left:2px;padding-right:2px" type="number" step="0.01" inputmode="decimal" placeholder="—" value="${v==null?'':v}" oninput="_icUpd(${i},${k},this.value)">`).join('')}
+        <span onclick="delIceAttempt(${i})" style="width:22px;flex:none;text-align:center;cursor:pointer;color:var(--muted);font-size:16px;line-height:1">×</span>
+      </div>
+      <div id="ice-seg-${i}" style="display:flex;gap:6px;padding:5px 0 0 32px;font-size:10px;color:#4f8ef7;font-variant-numeric:tabular-nums">${_icSegHtml(a)}</div>
+    </div>`).join('');
+  wrap.innerHTML=hd+rows;
+}
+function _icUpd(i,k,v){
+  const A=ST.iceAttempts;
+  if(!A||!A[i]||!Array.isArray(A[i].t)) return;
+  A[i].t[k]=v;
+  const el=document.getElementById('ice-seg-'+i);
+  if(el) el.innerHTML=_icSegHtml(A[i]);
+}
+function addIceAttempt(){ ST.iceAttempts=(ST.iceAttempts||[]); ST.iceAttempts.push(_icBlank()); renderIceRows(); }
+function delIceAttempt(i){
+  if(!ST.iceAttempts) return;
+  ST.iceAttempts.splice(i,1);
+  if(!ST.iceAttempts.length) ST.iceAttempts.push(_icBlank());
+  renderIceRows();
+}
+// Ice Start PB 풀 — records 의 {type:'icestart', distance:45}. 푸쉬·스프린트 PB 풀과 완전히 분리.
+function _icePB(name,recs){
+  if(!name) return null;
+  recs=recs||((getData().records)||[]);
+  const fin=ICE_GATES[ICE_GATES.length-1];
+  const m=recs.filter(r=>r&&r.type==='icestart'&&_normName(r.athleteName)===_normName(name)
+      &&Math.abs((parseFloat(r.distance)||0)-fin)<0.5).map(r=>parseFloat(r.time)).filter(t=>!isNaN(t)&&t>0);
+  return m.length?Math.min(...m):null;
+}
+
+function saveIce(dupMode){
+  if(!ST.athlete){ showToast('Bitte wähle deinen Namen'); return; }
+  const FI=ICE_GATES.length-2; // Finish 열 = 45m
+  const num=v=>{ if(v===''||v==null) return null; const n=parseFloat(v); return (isNaN(n)||n<=0)?null:+n.toFixed(3); };
+  // 45m 없는 줄 = 무효/미기록 시도 → 저장하지 않고 번호를 다시 매긴다(표시 규칙과 동일)
+  const attempts=(ST.iceAttempts||[])
+    .map(a=>({t:(a.t||[]).map(num)}))
+    .filter(a=>a.t[FI]!=null)
+    .map(a=>({t:a.t.slice(0,ICE_GATES.length-1)}));
+  if(!attempts.length){ showToast('⚠️ Mindestens eine 45 m-Zeit eingeben'); return; }
+  // 누적값이므로 뒤 게이트가 항상 커야 한다
+  const bad=attempts.some(a=>{
+    let prev=0;
+    for(let k=0;k<a.t.length;k++){ const v=a.t[k]; if(v==null) continue; if(v<=prev) return true; prev=v; }
+    return false;
+  });
+  if(bad){ showToast('⚠️ Zeiten sind kumulativ — jedes Tor muss größer sein als das vorherige'); return; }
+
+  // Pre-save confirmation (first call only, not in edit mode)
+  if(!dupMode && !ST.editingLogId){ _showSaveConfirmModal(()=>saveIce('confirmed')); return; }
+
+  const _curSess=ST._activeSess||null;
+  const _isThisSession=(l)=> (l.sess!=null&&_curSess!=null) ? (l.sess===_curSess) : true;
+
+  if(!ST.editingLogId && dupMode==='confirmed'){
+    const d0=getData(); const today0=ST._logDate||todayStr(); const athName0=ST.athlete.name;
+    if(d0.logs.some(l=>l.athleteName===athName0&&l.date===today0&&l.type==='icestart'&&_isThisSession(l))){
+      _showDupModal('Ice Start', ()=>saveIce('replace'), ()=>saveIce('add'));
+      return;
+    }
+  }
+
+  const d=getData();
+
+  // ── Edit mode: remove original log ──
+  if(ST.editingLogId){
+    const _icDateEl=document.getElementById('ic-edit-date');
+    if(_icDateEl&&_icDateEl.value) ST._logDate=_icDateEl.value;
+    const _eid=ST.editingLogId;
+    _archiveLogs(d, d.logs.filter(l=>l.id===_eid), 'edit');
+    d.logs=d.logs.filter(l=>l.id!==_eid);
+    ST.editingLogId=null; ST._extraEditLogIds=[];
+    const b=document.getElementById('ic-edit-banner'); if(b) b.style.display='none';
+  }
+
+  const today=ST._logDate||todayStr(); const athName=ST.athlete.name;
+  if(dupMode==='replace'){
+    const _dupes=d.logs.filter(l=>l.athleteName===athName&&l.date===today&&l.type==='icestart'&&_isThisSession(l));
+    _archiveLogs(d, _dupes, 'replace');
+    d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='icestart'&&_isThisSession(l)));
+  }
+
+  const log={
+    id:genId(), date:today, athleteName:athName, group:ST.athlete.group, type:'icestart',
+    sess:_curSess,
+    gates:ICE_GATES.slice(), mode:'cumulative',
+    attempts:attempts,
+    bestFinish:Math.min(...attempts.map(a=>a.t[FI]))
+  };
+  // PB 자동 갱신 — Finish(5→45m) 기준, records type:'icestart'
+  if(!d.records) d.records=[];
+  const _pbPrev=_icePB(athName,d.records);
+  const _isPB=(_pbPrev==null||log.bestFinish<_pbPrev-1e-9);
+  if(_isPB){
+    log.pbAchieved=true; log.pbTime=log.bestFinish;
+    d.records.push({id:genId(),date:log.date,athleteName:athName,group:log.group,
+      type:'icestart',distance:ICE_GATES[ICE_GATES.length-1],time:log.bestFinish,notes:'[Auto PB · Training]'});
+  }
+  d.logs.push(log); saveData(d);
+  ST._logDate=null; ST.iceAttempts=null;
+  const _sm=document.getElementById('success-msg');
+  if(_isPB&&_pbPrev!=null){
+    showToast(`🏆 NEUER PB! ${athName}: ${log.bestFinish.toFixed(2)}s 🎉`);
+    if(_sm) _sm.innerHTML=`<span style="color:#ffc400;font-weight:900">🏆 NEUER PB!</span> ${log.bestFinish.toFixed(2)}s (bisher ${_pbPrev.toFixed(2)}s)<br><span style="font-size:13px">Ice Start gespeichert 🧊</span>`;
+  } else if(_sm){
+    _sm.textContent=`Ice Start gespeichert! Best: ${log.bestFinish.toFixed(2)}s 🧊`;
   }
   _renderAthRecentLogs('success-recent-logs');
   showScreen('s-success');
@@ -5953,19 +6179,20 @@ function renderToday(){
         const _dBadge=_dv==null?'':`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_EFFCOL(_dv)}22;border:1px solid ${_EFFCOL(_dv)}55;color:${_EFFCOL(_dv)};font-weight:700;flex-shrink:0">D${_dv}</span>`;
         return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--text)"><span>${e.done?'✓':'○'} ${e.name||'—'}</span>${_dBadge}</div>`;
       }).join('');
-    } else if(l.type==='push'){
+    } else if(_isAttemptLog(l)){
       rows=_puRowsHtml(l);
     }
     const sessNote=l.notes&&l.notes.trim()?`<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(247,169,79,.08);border-left:3px solid #f7a94f;font-size:12px;color:var(--text);line-height:1.5;font-style:italic">💬 ${l.notes}</div>`:'';
     return rows+sessNote;
   };
   const _logCard=(l)=>{
-    const badgeClass=l.type==='sprint'?'b-s':l.type==='push'?'b-s':l.type==='plyo'?'b-c':l.type==='mobility'?'b-c':'b-w';
-    const badgeText=l.type==='sprint'?'sprint':l.type==='push'?'push start':l.type==='plyo'?'plyo':l.type==='mobility'?'conditioning':'weight';
+    const badgeClass=l.type==='sprint'?'b-s':_isAttemptLog(l)?'b-s':l.type==='plyo'?'b-c':l.type==='mobility'?'b-c':'b-w';
+    const badgeText=l.type==='sprint'?'sprint':l.type==='push'?'push start':l.type==='icestart'?'ice start':l.type==='plyo'?'plyo':l.type==='mobility'?'conditioning':'weight';
     let statsHtml='';
-    if(l.type==='push'){
+    if(_isAttemptLog(l)){
       const _pb=_puBest(l);
-      statsHtml=`<div class="detail-row"><span class="detail-key">Best Finish</span><span class="detail-val">${_pb!=null?_pb.toFixed(2)+' s':'—'}</span></div>`
+      const _gt=(Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES;
+      statsHtml=`<div class="detail-row"><span class="detail-key">Best Finish (${_gt[0]}→${_gt[_gt.length-1]}m)</span><span class="detail-val">${_pb!=null?_pb.toFixed(2)+' s':'—'}</span></div>`
         +`<div class="detail-row"><span class="detail-key">Versuche</span><span class="detail-val">${_puOK(l).length}</span></div>`;
     } else if(l.type==='mobility'){
       const _md=(l.exercises||[]).filter(e=>e.done).length;
@@ -5996,7 +6223,7 @@ function renderToday(){
     const hasDetail=((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length)
                   ||(l.type==='sprint'&&(l.sets||[]).length)
                   ||(l.type==='mobility'&&(l.exercises||[]).length)
-                  ||(l.type==='push'&&_puOK(l).length)
+                  ||(_isAttemptLog(l)&&_puOK(l).length)
                   ||(l.notes&&l.notes.trim());
     const detailId=`tlog-${l.id}`,chevId=`tlogc-${l.id}`;
     const detailToggle=hasDetail?`<span onclick="event.stopPropagation();_toggleLogDetail('${detailId}','${chevId}')" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#4f8ef7;font-weight:700;cursor:pointer">상세 <span id="${chevId}" style="display:inline-block;transition:transform .15s">▼</span></span>`:'';
@@ -6331,10 +6558,10 @@ function _renderLoadRecent(logs, wrapId, opts){
   const sorted = logs.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
   if(!sorted.length){ wrap.innerHTML='<div class="empty" style="padding:20px 0;font-size:13px">No sessions in this period</div>'; return; }
 
-  const _typeIcon = {weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀',push:'🛷'};
+  const _typeIcon = {weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀',push:'🛷',icestart:'🧊'};
 
   // Type → left-border accent color
-  const _typeBorder = {weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39',push:'#58a6ff'};
+  const _typeBorder = {weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39',push:'#58a6ff',icestart:'#4f8ef7'};
 
   // Effort color helpers (for exercise rows)
   const _effColor = _EFF_PROXY;
@@ -6365,9 +6592,10 @@ function _renderLoadRecent(logs, wrapId, opts){
       const avg=dvs.length?(dvs.reduce((s,v)=>s+v,0)/dvs.length):null;
       return `<span style="color:#E07B39;font-weight:700">Conditioning</span> · <span style="color:var(--text);font-weight:600">${done}/${exs.length} ✓</span>${avg!=null?` · <span style="color:var(--muted)">Ø D${avg.toFixed(1)}</span>`:''}`;
     }
-    if(l.type==='push'){
+    if(_isAttemptLog(l)){
       const _pb=_puBest(l);
-      return `<span style="color:#58a6ff;font-weight:700">Push Start</span> · <span style="color:var(--text);font-weight:600">${_pb!=null?_pb.toFixed(2)+' s':'—'}</span> · <span style="color:var(--muted)">${_puOK(l).length} Versuche</span>`;
+      const _ic=l.type==='icestart';
+      return `<span style="color:${_ic?'#4f8ef7':'#58a6ff'};font-weight:700">${_ic?'Ice Start':'Push Start'}</span> · <span style="color:var(--text);font-weight:600">${_pb!=null?_pb.toFixed(2)+' s':'—'}</span> · <span style="color:var(--muted)">${_puOK(l).length} Versuche</span>`;
     }
     return l.type;
   };
@@ -6430,7 +6658,7 @@ function _renderLoadRecent(logs, wrapId, opts){
     const hasDetail = ((l.type==='weight'||l.type==='plyo') && (l.exercises||[]).length>0)
                     || (l.type==='sprint' && (l.sets||[]).length>0)
                     || (l.type==='mobility' && (l.exercises||[]).length>0)
-                    || (l.type==='push' && _puOK(l).length>0)
+                    || (_isAttemptLog(l) && _puOK(l).length>0)
                     || (l.type==='condition');
     const detailId = `lr-${l.id}`;
     const chevId   = `lrc-${l.id}`;
@@ -6450,7 +6678,7 @@ function _renderLoadRecent(logs, wrapId, opts){
           <span style="font-size:12px;color:${e.done?'var(--text)':'var(--muted)'};flex:1;padding-right:8px;font-weight:500">${e.done?'✓':'○'} ${e.name||'—'}</span>${dChip}
         </div>`;
       }).join('');
-    } else if(l.type==='push' && _puOK(l).length){
+    } else if(_isAttemptLog(l) && _puOK(l).length){
       detailHtml = _puRowsHtml(l);
     } else if(l.type==='condition'){
       detailHtml = _conditionDetail(l);
@@ -6506,7 +6734,8 @@ function _renderLoadRecent(logs, wrapId, opts){
       {types:['weight','plyo'],        icon:'🏋️', label:'Krafttraining', color:'#f7a94f'},
       {types:['sprint','tabata'],      icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
       {types:['mobility'],             icon:'🌀', label:'Conditioning',            color:'#E07B39'},
-      {types:['push'],                 icon:'🛷', label:'Push Start',              color:'#58a6ff'}
+      {types:['push'],                 icon:'🛷', label:'Push Start',              color:'#58a6ff'},
+      {types:['icestart'],             icon:'🧊', label:'Ice Start',               color:'#4f8ef7'}
     ];
     let shtml = '';
     _sections.forEach((sec,si)=>{
@@ -6560,6 +6789,15 @@ function _renderLoadRecent(logs, wrapId, opts){
     if(pushHid.length){
       html += `<div id="lr-push-extra" style="display:none">${pushHid.map(_renderCard).join('')}</div>`;
       html += _moreBtn('lr-push-extra');
+    }
+  }
+  const { visible: iceVis, hidden: iceHid } = _splitByDays(sorted.filter(l => l.type === 'icestart'));
+  if(iceVis.length || iceHid.length){
+    html += _sectionHdr('🧊', 'Ice Start', '#4f8ef7', (trainVis.length||trainHid.length||mobVis.length||mobHid.length||pushVis.length||pushHid.length) ? 16 : 4);
+    html += iceVis.map(_renderCard).join('');
+    if(iceHid.length){
+      html += `<div id="lr-ice-extra" style="display:none">${iceHid.map(_renderCard).join('')}</div>`;
+      html += _moreBtn('lr-ice-extra');
     }
   }
   if(condVis.length || condHid.length){
@@ -6753,9 +6991,9 @@ function _renderDetailLogs(logs, opts){
     <span style="font-size:11px;color:var(--muted)">${s.sets||1}×${s.reps||1} &nbsp; ${s.intensity?s.intensity+'%':''} ${s.actualTime?'· '+s.actualTime+'s':''}</span>
   </div>`).join('');
 
-  const _typeBorder={weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39',push:'#58a6ff'};
-  const _typeColor={weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c',mobility:'b-c',push:'b-s'};
-  const _typeIcon={weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀',push:'🛷'};
+  const _typeBorder={weight:'#f7a94f',plyo:'#f7a94f',sprint:'#3ecf8e',tabata:'#e94560',condition:'#a78bfa',mobility:'#E07B39',push:'#58a6ff',icestart:'#4f8ef7'};
+  const _typeColor={weight:'b-w',sprint:'b-s',plyo:'b-w',condition:'b-c',tabata:'b-c',mobility:'b-c',push:'b-s',icestart:'b-s'};
+  const _typeIcon={weight:'🏋️',sprint:'⚡',plyo:'🦘',condition:'🌡️',tabata:'🔥',mobility:'🌀',push:'🛷',icestart:'🧊'};
 
   // Soreness chip colors by intensity (mild / moderate / severe)
   const _intensityCol = n => n>=7?{color:'#e94560',bg:'rgba(233,69,96,.15)',border:'rgba(233,69,96,.35)'}
@@ -6767,7 +7005,7 @@ function _renderDetailLogs(logs, opts){
     const hasDetail=((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length>0)
                   ||(l.type==='sprint'&&(l.sets||[]).length>0)
                   ||(l.type==='mobility'&&(l.exercises||[]).length>0)
-                  ||(l.type==='push'&&_puOK(l).length>0)
+                  ||(_isAttemptLog(l)&&_puOK(l).length>0)
                   || hasSore;
     const detailId=`ld-${l.id}`, chevId=`lc-${l.id}`;
     const borderColor=_typeBorder[l.type]||'rgba(255,255,255,.1)';
@@ -6798,10 +7036,11 @@ function _renderDetailLogs(logs, opts){
         <span style="font-size:12px;color:var(--muted)">Completed${_mavg!=null?` · Ø Schwierigkeit D${_mavg.toFixed(1)}`:''}</span>
         <span style="font-size:13px;font-weight:700;color:var(--text)">${_me.filter(e=>e.done).length}/${_me.length} ✓</span>
       </div>`;
-    } else if(l.type==='push'){
+    } else if(_isAttemptLog(l)){
       const _pb=_puBest(l), _ok=_puOK(l);
+      const _gt=(Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES;
       summaryHtml=`<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:12px;color:var(--muted)">Best Finish · ${_ok.length} Versuche</span>
+        <span style="font-size:12px;color:var(--muted)">Best ${_gt[0]}→${_gt[_gt.length-1]}m · ${_ok.length} Versuche</span>
         <span style="font-size:13px;font-weight:700;color:var(--text)">${_pb!=null?_pb.toFixed(2)+' s':'—'}</span>
       </div>`;
     }
@@ -6820,7 +7059,7 @@ function _renderDetailLogs(logs, opts){
           <span style="font-size:12px;color:${e.done?'var(--text)':'var(--muted)'};flex:1;padding-right:8px;font-weight:500">${e.done?'✓':'○'} ${e.name}</span>${dChip}
         </div>`;
       }).join('')}</div>`;
-    } else if(l.type==='push'&&_puOK(l).length){
+    } else if(_isAttemptLog(l)&&_puOK(l).length){
       detailHtml=`<div style="margin-top:4px;padding-top:4px">${_puRowsHtml(l)}</div>`;
     } else if(hasSore){
       const chips=l.soreness.map(s=>{const c=_intensityCol(s.intensity);return `<span style="display:inline-block;padding:3px 9px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};font-size:11px;color:${c.color};font-weight:700;margin:3px 4px 0 0">${_partDE(s.part)} ${s.intensity}</span>`;}).join('');
@@ -6855,7 +7094,8 @@ function _renderDetailLogs(logs, opts){
     {types:['weight','plyo'],   icon:'🏋️', label:'Weight · Krafttraining', color:'#f7a94f'},
     {types:['sprint','tabata'], icon:'⚡', label:'Sprint',                  color:'#3ecf8e'},
     {types:['mobility'],        icon:'🌀', label:'Conditioning',            color:'#E07B39'},
-    {types:['push'],            icon:'🛷', label:'Push Start',              color:'#58a6ff'}
+    {types:['push'],            icon:'🛷', label:'Push Start',              color:'#58a6ff'},
+    {types:['icestart'],        icon:'🧊', label:'Ice Start',               color:'#4f8ef7'}
   ];
   let html='';
   _sections.forEach((sec,si)=>{
@@ -8034,6 +8274,16 @@ function _editLog(logId){
     const puDateEl=document.getElementById('pu-edit-date'); if(puDateEl) puDateEl.value=log.date||todayStr();
     renderPushRows();
     showScreen('s-push');
+  } else if(log.type==='icestart'){
+    const _n=ICE_GATES.length-1;
+    ST.iceAttempts=(log.attempts||[]).map(a=>({
+      t:Array.from({length:_n},(_,k)=>(a.t&&a.t[k]!=null)?String(a.t[k]):'')
+    }));
+    if(!ST.iceAttempts.length) ST.iceAttempts=[_icBlank()];
+    const icBan=document.getElementById('ic-edit-banner'); if(icBan) icBan.style.display='block';
+    const icDateEl=document.getElementById('ic-edit-date'); if(icDateEl) icDateEl.value=log.date||todayStr();
+    renderIceRows();
+    showScreen('s-icestart');
   }
 }
 
@@ -8220,6 +8470,7 @@ function selectRecType(t){
   if(t!=='strength') document.getElementById('rec-distance').value='';
   if(t==='uphill') document.getElementById('rec-distance').value='50';
   if(t==='push') document.getElementById('rec-distance').value=String(PUSH_GATES[2]);
+  if(t==='icestart') document.getElementById('rec-distance').value=String(ICE_GATES[ICE_GATES.length-1]);
 }
 
 function selectExercise(ex,el){
