@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260830-1';
+const APP_VERSION = '20260831-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -5367,10 +5367,11 @@ function saveSprint(dupMode){
 // ⚠️ 대시보드 _pushTrack()/Firestore trainlog/pushdata 의 track.gates 와 반드시 같은 값을 쓸 것.
 const PUSH_GATES=[5,15,55];
 const _puRng=(a,b)=>PUSH_GATES[a]+'→'+PUSH_GATES[b]+'m';
-// 아이스 스타트(Königssee) 게이트 — 5m 첫 트리거 후 10m 간격으로 45m까지.
-//   시간은 전부 5m 트리거 기준 누적. 구간 소요시간은 파생값(저장하지 않는다).
-//   ⚠️ 육상 Push Start 게이트(5·15·55m)와 다른 체계다 — 섞지 말 것.
-const ICE_GATES=[5,15,25,35,45];
+// 아이스 스타트(Königssee) 게이트 — 5m 첫 트리거, 15m 스플릿, 45m 피니시.
+//   퀘닉세 실제 계측은 5·15·25·35·45m 5구간이지만, 선수 입력은 15m·45m 두 칸만 받는다(2026-08-31 재명).
+//   시간은 전부 5m 트리거 기준 누적. 구간 소요시간(5→15, 15→45)은 파생값(저장하지 않는다).
+//   ⚠️ 육상 Push Start 게이트(5·15·55m)와 종점이 다르다 — 섞지 말 것.
+const ICE_GATES=[5,15,45];
 // 플랜 종목이 Push Start인지 — 코치가 subCategory='Push Start'로 넣는다(trainingType은 Sprint Training).
 // 이 종목은 스프린트 입력 화면이 아니라 Push Start 입력(log type:'push')으로 보내야 한다.
 function _exIsPush(e){ return !!e && (e.subCategory==='Push Start'||e.subType==='Push Start'); }
@@ -5449,7 +5450,8 @@ function delPushAttempt(i){
 }
 // 시도 배열 t[] 안에서 Finish 가 있는 열 — 입력 열 수 = gates.length-1, Finish = 마지막 입력 열.
 //   Push  gates[5,15,55]       → t=[s1,fin]           → finIdx 1
-//   Ice   gates[5,15,25,35,45] → t=[t15,t25,t35,t45]  → finIdx 3
+//   Ice   gates[5,15,45]       → t=[t15,fin]          → finIdx 1
+//   (옛 5게이트 아이스 로그 gates[5,15,25,35,45] → finIdx 3 도 그대로 그려진다)
 //   gates 없는 옛 로그는 푸쉬로 본다(푸쉬만 있던 시절 로그).
 function _puFinIdx(l){ const g=(l&&Array.isArray(l.gates)&&l.gates.length>=3)?l.gates:PUSH_GATES; return g.length-2; }
 // 로그 한 건의 유효 시도(Finish 있는 것) — 대시보드 _pushOK 와 같은 규칙
@@ -5567,9 +5569,9 @@ function savePush(dupMode){
 // ════════════════════════════════════════════════
 //  ICE START FORM  (log type:'icestart')
 // ════════════════════════════════════════════════
-// Königssee 아이스 스타트 — 게이트 5·15·25·35·45m. 5m 에서 첫 트리거, 이후 10m 간격.
-//   입력값은 전부 5m 기준 누적 시간(15/25/35/45), 구간 소요시간은 파생값이라 저장하지 않는다.
-//   Finish = 5→45m = t[3].  ⚠️ 푸쉬(5·15·55m)와 게이트 체계가 다르다.
+// Königssee 아이스 스타트 — 입력 게이트 5·15·45m. 5m 에서 첫 트리거.
+//   입력값은 전부 5m 기준 누적 시간(15 / 45), 구간 소요시간(5→15, 15→45)은 파생값이라 저장하지 않는다.
+//   Finish = 5→45m = t[1].  ⚠️ 푸쉬(5·15·55m)와 종점이 다르다.
 // 표시 로직(_puOK/_puBest/_puRowsHtml)은 log.gates 길이로 열 수를 잡으므로 푸쉬와 공용이다.
 
 function goIceStart(){
@@ -5584,37 +5586,33 @@ function goIceStart(){
 }
 function _icBlank(){ return {t:ICE_GATES.slice(1).map(()=>'')}; }
 
-// 구간 소요시간 — seg[0]=5→15(=t0), seg[k]=t[k]-t[k-1]. 값이 비었거나 역행이면 null.
-function _icSeg(a){
+const _icRng=(a,b)=>ICE_GATES[a]+'→'+ICE_GATES[b]+'m';
+// Split 2 = 15→45m 구간 = Finish − Split 1. 입력값이 아니라 파생값이라 저장하지 않는다
+// (푸쉬 _puMid 와 같은 규칙 — 화면도 Push Start 폼과 동일하게 3열로 그린다).
+function _icMid(a){
   const t=(a&&a.t)||[];
-  return ICE_GATES.slice(1).map((_,k)=>{
-    const cur=parseFloat(t[k]);
-    const prv=(k===0)?0:parseFloat(t[k-1]);
-    return (isNaN(cur)||isNaN(prv)||cur<=prv)?null:+(cur-prv).toFixed(2);
-  });
+  const s=parseFloat(t[0]), f=parseFloat(t[1]);
+  if(isNaN(s)||isNaN(f)||s<=0||f<=s) return null;
+  return +(f-s).toFixed(2);
 }
-function _icSegHtml(a){
-  return _icSeg(a).map(v=>`<span style="flex:1;text-align:center">${v==null?'·':v.toFixed(2)}</span>`).join('')
-    +'<span style="width:22px;flex:none"></span>';
-}
+function _icMidTxt(a){ const m=_icMid(a); return m==null?'—':m.toFixed(2); }
 function renderIceRows(){
   const wrap=document.getElementById('ice-rows'); if(!wrap) return;
   const A=ST.iceAttempts||[];
-  const hd=`<div style="display:flex;align-items:flex-end;gap:6px;padding:0 2px 9px">
-      <span style="width:26px;flex:none;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)">Nr</span>
-      ${ICE_GATES.slice(1).map(g=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3">${g}m</span>`).join('')}
-      <span style="width:22px;flex:none"></span>
-    </div>
-    <div style="font-size:10.5px;color:var(--muted);padding:0 2px 10px;line-height:1.5">
-      Alle Zeiten kumulativ ab dem 5&nbsp;m-Tor. Die blaue Zeile darunter zeigt die Abschnittszeiten.
+  // ⚠️ 아이스는 게이트 실거리 표기를 일부러 뺀다 — 구간 거리 확정 전까지 오독 방지(2026-08-31 재명).
+  const th=(l)=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3">${l}</span>`;
+  const thMid=(l)=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:#4f8ef7;line-height:1.3">${l}</span>`;
+  const hd=`<div style="display:flex;align-items:flex-end;gap:8px;padding:0 2px 9px">
+      <span style="width:34px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)">Nr</span>
+      ${th('Split 1')}${thMid('Split 2')}${th('Finish')}
+      <span style="width:24px"></span>
     </div>`;
-  const rows=A.map((a,i)=>`<div style="margin-bottom:12px">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="width:26px;flex:none;font-size:13px;font-weight:700;color:var(--text)">${i+1}.</span>
-        ${a.t.map((v,k)=>`<input class="fi" style="flex:1;min-width:0;width:100%;text-align:center;margin:0;padding-left:2px;padding-right:2px" type="number" step="0.01" inputmode="decimal" placeholder="—" value="${v==null?'':v}" oninput="_icUpd(${i},${k},this.value)">`).join('')}
-        <span onclick="delIceAttempt(${i})" style="width:22px;flex:none;text-align:center;cursor:pointer;color:var(--muted);font-size:16px;line-height:1">×</span>
-      </div>
-      <div id="ice-seg-${i}" style="display:flex;gap:6px;padding:5px 0 0 32px;font-size:10px;color:#4f8ef7;font-variant-numeric:tabular-nums">${_icSegHtml(a)}</div>
+  const rows=A.map((a,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <span style="width:34px;font-size:13px;font-weight:700;color:var(--text)">${i+1}.</span>
+      <input class="fi" style="flex:1;min-width:0;text-align:center;margin:0" type="number" step="0.01" inputmode="decimal" placeholder="—" value="${(a.t&&a.t[0]!=null)?a.t[0]:''}" oninput="_icUpd(${i},0,this.value)">
+      <span id="ice-mid-${i}" style="flex:1;min-width:0;text-align:center;font-size:14px;font-weight:700;color:${_icMid(a)==null?'var(--muted)':'#4f8ef7'}">${_icMidTxt(a)}</span>
+      <input class="fi" style="flex:1;min-width:0;text-align:center;margin:0" type="number" step="0.01" inputmode="decimal" placeholder="—" value="${(a.t&&a.t[1]!=null)?a.t[1]:''}" oninput="_icUpd(${i},1,this.value)">
+      <span onclick="delIceAttempt(${i})" style="width:24px;text-align:center;cursor:pointer;color:var(--muted);font-size:16px;line-height:1">×</span>
     </div>`).join('');
   wrap.innerHTML=hd+rows;
 }
@@ -5622,8 +5620,12 @@ function _icUpd(i,k,v){
   const A=ST.iceAttempts;
   if(!A||!A[i]||!Array.isArray(A[i].t)) return;
   A[i].t[k]=v;
-  const el=document.getElementById('ice-seg-'+i);
-  if(el) el.innerHTML=_icSegHtml(A[i]);
+  const el=document.getElementById('ice-mid-'+i);
+  if(el){
+    const m=_icMid(A[i]);
+    el.textContent=m==null?'—':m.toFixed(2);
+    el.style.color=m==null?'var(--muted)':'#4f8ef7';
+  }
 }
 function addIceAttempt(){ ST.iceAttempts=(ST.iceAttempts||[]); ST.iceAttempts.push(_icBlank()); renderIceRows(); }
 function delIceAttempt(i){
