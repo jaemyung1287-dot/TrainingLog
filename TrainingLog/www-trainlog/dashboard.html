@@ -282,6 +282,8 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .cmt-line[data-ln]{cursor:pointer}
 .cmt-line[data-ln]:hover{color:#fff}
 .cmt-line[data-ln]:hover .cmt-ex{color:var(--blue)}
+.cmt-line.on{color:#fff}
+.cmt-line.on .cmt-ex{color:var(--blue)}
 .sd-hl{background:rgba(79,142,247,.22);border-radius:3px;color:#e6edf3!important}
 .sess-note{font-size:9px;color:#8b949e;font-style:italic;margin-top:4px;line-height:1.35;white-space:normal}
 .cmt-wrap{margin:4px 0 2px;cursor:pointer}
@@ -1316,20 +1318,27 @@ function _ovEx(l){
   }
   return lines;
 }
-// 코멘트 줄 클릭 → 바로 위 세션 카드를 펼치고 그 운동 줄로 스크롤 + 잠깐 강조
+// 코멘트 줄 클릭 → 바로 위 세션 카드를 펼치고 그 운동 줄로 스크롤 + 강조.
+// 같은 줄을 다시 누르면 접는다(토글). 다른 줄을 누르면 펼친 채로 강조만 옮긴다.
 function _ovCmtGo(ev,el){
   ev.stopPropagation();
   const wrap=el.closest('.cmt-wrap'); if(!wrap) return;
-  wrap.classList.add('show');
   const blk=wrap.previousElementSibling;
   if(!blk||!blk.classList.contains('session-block')) return;
+  const ln=el.dataset.ln;
+  const clear=()=>{ blk.querySelectorAll('.sd-hl').forEach(n=>n.classList.remove('sd-hl')); wrap.querySelectorAll('.cmt-line.on').forEach(n=>n.classList.remove('on')); };
+  if(wrap.dataset.openLn===ln&&blk.classList.contains('open')){
+    blk.classList.remove('open'); clear(); delete wrap.dataset.openLn; return;
+  }
+  clear();
+  wrap.classList.add('show');
   blk.classList.add('open');
-  const row=blk.querySelector(`.sd-row[data-ln="${el.dataset.ln}"]`);
+  wrap.dataset.openLn=ln;
+  el.classList.add('on');
+  const row=blk.querySelector(`.sd-row[data-ln="${ln}"]`);
   if(!row) return;
-  blk.querySelectorAll('.sd-hl').forEach(n=>n.classList.remove('sd-hl'));
   row.classList.add('sd-hl');
   try{ row.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(_){ row.scrollIntoView(); }
-  setTimeout(()=>row.classList.remove('sd-hl'),2200);
 }
 function _ovBlock(l,athId){
   const c=tc(l.type), bg=tcBg(l.type);
