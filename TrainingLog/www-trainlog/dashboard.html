@@ -601,6 +601,15 @@ let coachData=null, athLogs={}, athNotes={}, unsubs=[], athUnsubs=[], curTab='ov
 // 그래서 하위컬렉션을 따로 구독해 coachData.sessionPlans 위에 덮어쓴다(하위컬렉션이 이김).
 let _planDocs={};
 let pushData=null;   // trainlog/pushdata — Push Start 전용 문서(코치앱이 coach 문서를 통째로 덮어써서 분리)
+let maxData=null;    // trainlog/maxes — 코치가 정한 1RM 기준값(별도 문서. coach 문서에 필드 추가 금지 규칙)
+// 저장된 1RM 조회. 없으면 null → 기존처럼 로그에서 계산한 e1RM 을 기준으로 쓴다.
+function _maxOf(athName,exName){
+  if(!maxData||!athName||!exName) return null;
+  const a=(coachData?.athletes||[]).find(x=>x.name===athName);
+  const rec=a&&maxData[a.id]&&maxData[a.id][exName];
+  const kg=rec&&parseFloat(rec.kg);
+  return (kg&&kg>0)?kg:null;
+}
 let weekOffset=0, loadPeriod=7, loadAth=null, condAth=null, soreAth=null;
 let selScope='all';   // 공통 선수 셀렉터: 'all' | 'A' | 'B' (그룹 컨텍스트)
 let selNames=new Set(); // 개별 선수 다중선택 (탭 간 공유, 비면 그룹/전체)
@@ -980,6 +989,10 @@ function startListen(){
   unsubs.push(db.collection('trainlog').doc('pushdata').onSnapshot(
     snap=>{pushData=snap.exists?snap.data():null;if(coachData)renderCurrent();},
     err=>{console.warn('[dash] pushdata snapshot err:',err);}
+  ));
+  unsubs.push(db.collection('trainlog').doc('maxes').onSnapshot(
+    snap=>{maxData=snap.exists?snap.data():null;if(coachData)renderCurrent();},
+    err=>{console.warn('[dash] maxes snapshot err:',err);}
   ));
   unsubs.push(db.collection('trainlog').doc('coach').onSnapshot(snap=>{
     if(!snap.exists){renderCurrent();return;}
@@ -2224,7 +2237,9 @@ function _ltPinWRow(e,d,ath){
     if(!isBW&&w>0&&rp>0)e1s=_epley(w,rp);
     for(let i=0;i<sets;i++){ const ld=isBW?0:w*rp*slM; sdata.push({kgTxt:isBW?'BW':w+'kg',rp,ldTxt:isBW?'–':_fmtKg(ld),kg:isBW?0:w}); }
   }
-  const basis=e1||(e1s>0?e1s:null); // 과거 기록 없으면(첫 세션) 그 날 자체 e1RM 기준
+  // 기준 우선순위: 코치가 정한 1RM(trainlog/maxes) → 직전 e1RM → 그 날 자체 e1RM(첫 세션)
+  const mx=isBW?null:_maxOf(ath,e.name||'');
+  const basis=mx||e1||(e1s>0?e1s:null);
   const srows=sdata.map((o,i)=>`<tr><td class="l">${i+1}.</td>${intTd}<td class="act">${o.kgTxt}${o.video?_vidBtn(o.video):''}</td><td>${o.rp}</td><td>${o.ldTxt}</td><td>${(basis&&o.kg>0)?Math.round(o.kg/basis*100)+'%':'–'}</td></tr>`);
   const sets=(e.setRows&&e.setRows.length)||parseInt(e.sets)||0;
   const reps=(e.setRows&&e.setRows[0]&&e.setRows[0].reps)||e.reps||0;
@@ -2234,7 +2249,7 @@ function _ltPinWRow(e,d,ath){
   const noteRow=note?`<tr><td colspan="6" class="l" style="color:#9db8ec;font-style:italic;white-space:normal;text-align:left">💬 ${_esc(note)}</td></tr>`:'';
   const html=`<div${clk} style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 6px;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:2px;font-size:12px;color:var(--text)${d?';cursor:pointer':''}">`
     +`<span><span class="lt-pin-dot" style="background:#f7a94f;margin-right:6px"></span><b>${_esc(sl+e.name)}</b> <span class="lt-pin-meta" style="color:var(--text)">${_esc(head)}</span></span>${rpeHtml}</div>`
-    +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Intensity</th><th>Weight</th><th>Reps</th><th>Load</th><th title="직전 e1RM 대비 실제 강도">%e1RM</th></tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
+    +`<table class="lt-pin-tbl" style="margin:0 0 4px"><thead><tr><th class="l">Set</th><th>Intensity</th><th>Weight</th><th>Reps</th><th>Load</th>${mx?`<th title="Coach 1RM ${Math.round(mx)}kg 기준">%1RM</th>`:`<th title="직전 e1RM 대비 실제 강도">%e1RM</th>`}</tr></thead><tbody>${srows.join('')}${noteRow}</tbody></table>`;
   return {vol,html};
 }
 // ── 세션 내 웨이트 운동을 상체/하체/코어로 그룹핑 + 얇은 밸런스 바(옵션 C 컴팩트) ──
