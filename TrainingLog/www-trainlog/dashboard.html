@@ -275,6 +275,8 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .sess-detail{display:none;margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.08)}
 .session-block.open .sess-detail{display:block}
 .sd-row{font-size:9px;color:#8b949e;line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sd-note{padding-left:11px;color:#9db8ec;font-style:italic;white-space:normal;overflow:visible;text-overflow:clip}
+.sb-note{font-size:9px;margin-left:4px;opacity:.9}
 .sess-note{font-size:9px;color:#8b949e;font-style:italic;margin-top:4px;line-height:1.35;white-space:normal}
 .cmt-wrap{margin:4px 0 2px;cursor:pointer}
 .cmt-chip{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;white-space:nowrap}
@@ -1273,7 +1275,7 @@ function _ovEx(l){
       const sub=(e.setRows&&e.setRows.length)
         ? [e.setRows.map((x,i)=>'S'+(i+1)+' '+(x.kg?x.kg+'kg':(x.extraKg?'BW+'+x.extraKg+'kg':'BW'))+'×'+(x.reps||'—')).join(' · ')]
         : [];
-      lines.push({t, eff:e.effort||'', sub});
+      lines.push({t, eff:e.effort||'', sub, note:(e.athleteNote||'').trim()});
     });
   } else if(l.type==='sprint'){
     (l.sets||[]).forEach(s=>{
@@ -1284,7 +1286,7 @@ function _ovEx(l){
       const en=_dEffNum(s.effort);
       const splits=(s.repTimes||[]).map(x=>{const tv=parseFloat(x);return(x==null||isNaN(tv))?null:tv.toFixed(2);}).filter(Boolean);
       lines.push({t:(s.distance||'?')+'m x'+reps+inten+t+(en!=null?' · E'+en:''), eff:s.effort||'',
-        sub:splits.length?[splits.join(' · ')+' s']:[]});
+        sub:splits.length?[splits.join(' · ')+' s']:[], note:(s.athleteNote||'').trim()});
     });
   } else if(l.type==='plyo'){
     lines.push({t:(l.totalReps||0)+' reps', eff:''});
@@ -1294,7 +1296,7 @@ function _ovEx(l){
     (l.exercises||[]).forEach(e=>{
       if(!e||!e.name) return;
       const dv=_dEffNum(e.difficulty);
-      lines.push({t:(e.done?'✓ ':'○ ')+e.name+(dv!=null?' · D'+dv:''), eff:dv!=null?dv:''});
+      lines.push({t:(e.done?'✓ ':'○ ')+e.name+(dv!=null?' · D'+dv:''), eff:dv!=null?dv:'', note:(e.athleteNote||'').trim()});
     });
   } else if(_dIsAttemptLog(l)){
     // 시도별 한 줄: "1. 5.62 s" + 아래 구간 소요시간. 그날 best 는 ★ 로 표시.
@@ -1326,13 +1328,16 @@ function _ovBlock(l,athId){
     val=`${_mexs.filter(e=>e.done).length}/${_mexs.length} ✓${_mavg!=null?` · Ø D${_mavg.toFixed(1)}`:''}`;
   }
   const lines=_ovEx(l);
-  const tip=_esc(lines.map(x=>x.t).join('\n'));
-  const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_effDot(x.eff)}${_esc(x.t)}</div>`+(x.sub||[]).map(s=>`<div class="sd-row" style="padding-left:11px;color:#6e7681">${_esc(s)}</div>`).join('')).join('')}</div>`:'';
+  const tip=_esc(lines.map(x=>x.t+(x.note?'\n  💬 '+x.note:'')).join('\n'));
+  // 종목별 선수 코멘트(athleteNote)는 세션 메모(l.notes)와 별개 — 해당 운동 줄 아래에 붙인다
+  const _exNoteN=lines.filter(x=>x.note).length;
+  const _exNoteChip=_exNoteN?`<span class="sb-note" title="${_exNoteN} Kommentar(e) zu Übungen">💬</span>`:'';
+  const detail=lines.length?`<div class="sess-detail">${lines.map(x=>`<div class="sd-row">${_effDot(x.eff)}${_esc(x.t)}</div>`+(x.sub||[]).map(s=>`<div class="sd-row" style="padding-left:11px;color:#6e7681">${_esc(s)}</div>`).join('')+(x.note?`<div class="sd-row sd-note">💬 ${_esc(x.note)}</div>`:'')).join('')}</div>`:'';
   const note=l.notes?`<div class="cmt-wrap" onclick="event.stopPropagation();this.classList.toggle('show')"><span class="cmt-chip">💬 Comment</span><div class="cmt-text">${_esc(l.notes)}</div></div>`:'';
   const caret=lines.length?`<span class="sb-caret">&#9662;</span>`:'';
   const editBtn=athId?`<button class="lg-edit" onclick="event.stopPropagation();openLogEditor('${l.id}','${athId}')" title="Edit / Delete">✎</button>`:'';
   return `<div class="session-block" style="background:${bg};border-left-color:${c}" title="${tip}" onclick="this.classList.toggle('open')">
-    <div class="session-type" style="color:${c}">${typeLabel}${caret}${editBtn}</div>
+    <div class="session-type" style="color:${c}">${typeLabel}${_exNoteChip}${caret}${editBtn}</div>
     <div class="session-val">${val}</div>
     ${l.rpe?`<div class="session-rpe">RPE ${l.rpe}</div>`:''}
     ${detail}

@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260831-1';
+const APP_VERSION = '20260906-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -6158,7 +6158,8 @@ function renderToday(){
   const _todayLogDetail=(l)=>{
     let rows='';
     const _effBadge=(ef)=>{const n=_EFFNUM(ef);return n==null?'':`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:${_EFFCOL(n)}22;border:1px solid ${_EFFCOL(n)}55;color:${_EFFCOL(n)};font-weight:700;margin-left:6px;white-space:nowrap">체감 ${n}/10</span>`;};
-    const _exNote=(e)=>e.notes&&e.notes.trim()?`<div style="margin-top:4px;font-size:11px;color:var(--muted);font-style:italic">📝 ${e.notes}</div>`:'';
+    // 선수가 종목 칸에 직접 쓴 코멘트는 athleteNote 다. e.notes 만 보면 영영 안 뜬다.
+    const _exNote=(e)=>{const _n=((e&&(e.athleteNote||e.notes))||'').trim();return _n?`<div style="margin-top:4px;font-size:11px;color:#9db8ec;font-style:italic">💬 ${_n}</div>`:'';};
     if(l.type==='weight'||l.type==='plyo'){
       rows=(l.exercises||[]).map(e=>{
         const sets=(e.setRows&&e.setRows.length)
@@ -6174,12 +6175,13 @@ function renderToday(){
       rows=(l.sets||[]).map(s=>`<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
         <div style="font-size:12.5px;font-weight:600;color:var(--text)">${s.distance}m${_effBadge(s.effort)}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">${s.sets||1} × ${s.reps||1}${s.intensity?' · '+s.intensity+'%':''}${s.actualTime?' · '+s.actualTime+'s':''}</div>
+        ${_exNote(s)}
       </div>`).join('');
     } else if(l.type==='mobility'){
       rows=(l.exercises||[]).map(e=>{
         const _dv=_EFFNUM(e.difficulty);
         const _dBadge=_dv==null?'':`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${_EFFCOL(_dv)}22;border:1px solid ${_EFFCOL(_dv)}55;color:${_EFFCOL(_dv)};font-weight:700;flex-shrink:0">D${_dv}</span>`;
-        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--text)"><span>${e.done?'✓':'○'} ${e.name||'—'}</span>${_dBadge}</div>`;
+        return `<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text)"><span>${e.done?'✓':'○'} ${e.name||'—'}</span>${_dBadge}</div>${_exNote(e)}</div>`;
       }).join('');
     } else if(_isAttemptLog(l)){
       rows=_puRowsHtml(l);
