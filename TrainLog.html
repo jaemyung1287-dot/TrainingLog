@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260906-1';
+const APP_VERSION = '20260907-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -5599,12 +5599,12 @@ function _icMidTxt(a){ const m=_icMid(a); return m==null?'—':m.toFixed(2); }
 function renderIceRows(){
   const wrap=document.getElementById('ice-rows'); if(!wrap) return;
   const A=ST.iceAttempts||[];
-  // ⚠️ 아이스는 게이트 실거리 표기를 일부러 뺀다 — 구간 거리 확정 전까지 오독 방지(2026-08-31 재명).
-  const th=(l)=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3">${l}</span>`;
-  const thMid=(l)=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:#4f8ef7;line-height:1.3">${l}</span>`;
+  // 게이트 실거리 표기 — 2026-09-07 재명 지시로 복원(푸쉬 폼과 동일 형식, 부제로 5→15m / 15→45m / 5→45m).
+  const th=(l,sub)=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3">${l}<i style="display:block;font-style:normal;font-size:9.5px;font-weight:400;color:var(--muted)">${sub}</i></span>`;
+  const thMid=(l,sub)=>`<span style="flex:1;text-align:center;font-size:11.5px;font-weight:700;color:#4f8ef7;line-height:1.3">${l}<i style="display:block;font-style:normal;font-size:9.5px;font-weight:400;color:var(--muted)">${sub}</i></span>`;
   const hd=`<div style="display:flex;align-items:flex-end;gap:8px;padding:0 2px 9px">
       <span style="width:34px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)">Nr</span>
-      ${th('Split 1')}${thMid('Split 2')}${th('Finish')}
+      ${th('Split 1',_icRng(0,1))}${thMid('Split 2',_icRng(1,2))}${th('Finish',_icRng(0,2))}
       <span style="width:24px"></span>
     </div>`;
   const rows=A.map((a,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
