@@ -646,9 +646,15 @@ let ltDistBreak='none';       // none|sub|disc — Sprint Distance 분해 보기
 let ltRdyMode='avg';          // avg|per — Readiness: 선택 선수 평균 한 줄 | 선수별 한 줄씩
 let ltBrkBars='group';        // group|stack — 분해 비교(주/월/연) 막대 모양
 let _ltPins=[];               // 추이 차트 점 클릭 → 아래 고정 비교할 세션 날짜들(YYYY-MM-DD)
-let ltProg=null;              // Progression 선택: null|'strength'|'push' ('sprint' 예정)
+let ltProg=null;              // Progression 선택: null|'strength'|'push'|'ice' ('sprint' 예정)
 let ltProgLift='Squat';       // Strength Progression 선택 리프트(raw 운동명)
-let ltPushView='finish';      // Push Start 지표: finish|split1|zone2|speed
+let ltPushView='finish';      // Push Start / Ice Start 지표: finish|split1|zone2|speed
+// ── Push Start(육상 55m 트랙) vs Ice Start(퀘닉세 얼음 45m)는 완전히 다른 트랙이다. 절대 섞지 말 것.
+//    같은 카드 코드를 쓰되 소스 로그 타입과 게이트만 갈아끼운다 — 아래 두 함수가 그 스위치다.
+function _atkType(){return ltProg==='ice'?'icestart':'push';}          // 현재 보고 있는 시도-로그 타입
+function _atkKey(){return ltProg==='ice'?'ice':'push';}                // ltProgTg() 인자
+function _atkLbl(){return ltProg==='ice'?'Ice Start':'Push Start';}    // 카드 제목
+function _atkOn(){return ltProg==='push'||ltProg==='ice';}
 
 // Push Start 카드 자유 배치 — 카드를 아무 데나 끌어다 놓고 위치는 localStorage에 보존
 let _pushPos={};try{const _p=localStorage.getItem('lt_push_pos');if(_p)_pushPos=JSON.parse(_p)||{};}catch(e){_pushPos={};}
@@ -2019,6 +2025,14 @@ function _ltPinKey(p){return p.d+'|'+(p.ex||'')+'|'+(p.cat||'')+'|'+(p.grp||'')+
 //                                  mode:'cumulative',downhill,confirmed,note}
 // 게이트: 2026-07-29 실측 확정 5·15·55m (그 전 잠정값 45m는 오류). 거리·라벨은 전부 pushTrack에서 파생시킬 것(하드코딩 금지).
 function _pushTrack(){
+  // Ice Start(퀘닉세) — 게이트 5·15·45m 실측 확정. 육상 pushTrack 문서와 무관하게 로그 gates 를 따른다.
+  if(_atkType()==='icestart'){
+    const g=_iceGates();
+    return {gates:g,labels:['Split 1','Finish'],mode:'cumulative',confirmed:true,note:'Königssee Eiskanal',
+      d1:g[1]-g[0], d2:g[2]-g[1],
+      z1Lbl:'Split 1', z2Lbl:'Split 2',
+      z1Rng:g[0]+'→'+g[1]+'m', z2Rng:g[1]+'→'+g[2]+'m', finLbl:'Finish'};
+  }
   const t=(typeof pushData!=='undefined'&&pushData&&pushData.track)||{};
   const g=(Array.isArray(t.gates)&&t.gates.length>=3)?t.gates.map(Number):[5,15,55];
   const lb=(Array.isArray(t.labels)&&t.labels.length>=2)?t.labels:['Split 1','Finish'];
@@ -2032,15 +2046,26 @@ function _pushTrack(){
 //   1) trainlog/pushdata 문서의 tests[]  — 코치가 광전자 기록을 REST로 직접 넣은 세션(7/23·7/28 등)
 //   2) 선수 앱 로그 type:'push'          — 2026-07-29부터 선수가 앱에서 직접 입력(TrainLog.html savePush)
 // 같은 선수·같은 날짜가 양쪽에 있으면 선수 로그를 우선한다(선수가 나중에 고칠 수 있으므로).
+// Ice Start 게이트 — 실제 로그의 gates 를 그대로 쓴다(현재 [5,15,45]). 로그가 없으면 45m 기본.
+function _iceGates(){
+  try{
+    const l=(typeof getAllLogs==='function'?getAllLogs():[])
+      .find(x=>x&&x.type==='icestart'&&Array.isArray(x.gates)&&x.gates.length>=3);
+    if(l)return l.gates.map(Number);
+  }catch(_){}
+  return [5,15,45];
+}
 function _pushAll(){
-  const a=(typeof pushData!=='undefined'&&pushData&&pushData.tests);
+  const TY=_atkType();
+  // 코치 REST 입력 문서(trainlog/pushdata)는 육상 푸쉬 전용 — 아이스에는 쓰지 않는다.
+  const a=(TY==='push')&&(typeof pushData!=='undefined'&&pushData&&pushData.tests);
   const docTests=Array.isArray(a)?a:[];
   let logTests=[];
   try{
     logTests=(typeof getAllLogs==='function'?getAllLogs():[])
-      .filter(l=>l&&l.type==='push'&&Array.isArray(l.attempts)&&l.attempts.length)
+      .filter(l=>l&&l.type===TY&&Array.isArray(l.attempts)&&l.attempts.length)
       .map(l=>({id:l.id,date:l.date,athleteName:l.athleteName,athleteId:l.athleteId||null,
-                group:l.group,type:'push',sess:l.sess||null,attempts:l.attempts,notes:l.notes||'',_src:'log'}));
+                group:l.group,type:TY,sess:l.sess||null,attempts:l.attempts,notes:l.notes||'',_src:'log'}));
   }catch(_){ logTests=[]; }
   if(!logTests.length) return docTests;
   const key=t=>(t&&t.athleteName||'')+'|'+(t&&t.date||'');
@@ -2086,7 +2111,7 @@ function _pushPinCards(scopeNames){
     const x=`<span class="lt-pin-x" onclick="_ltUnpin(${pi})">×</span>`;
     const ts=_pushAll().filter(t=>t.date===p.d&&(!scopeNames||!scopeNames.length||scopeNames.indexOf(t.athleteName)>=0))
       .sort((a,b)=>(_pushBestFin(a)==null?99:_pushBestFin(a))-(_pushBestFin(b)==null?99:_pushBestFin(b)));
-    if(!ts.length)return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(p.d)}</span>${x}</div><div class="lt-hint" style="padding:8px 2px">이 날짜에 Push Start 기록이 없습니다</div></div>`;
+    if(!ts.length)return `<div class="lt-pin"><div class="lt-pin-h"><span>📌 ${fmt(p.d)}</span>${x}</div><div class="lt-hint" style="padding:8px 2px">이 날짜에 ${_esc(_atkLbl())} 기록이 없습니다</div></div>`;
     const blocks=ts.map((t,ti)=>{
       const att=_pushAtt(t), ok=_pushOK(t), bf=_pushBestFin(t);
       const avg=ok.length?ok.reduce((s,a)=>s+a.t[1],0)/ok.length:null;
@@ -2113,7 +2138,11 @@ function _pushPinCards(scopeNames){
 // ── Strength Progression: e1RM(Epley) 시리즈 ──
 const _PROG_LIFTS=[{n:'Squat',l:'Squat'},{n:'Deadlift',l:'Deadlift'},{n:'Romanian Deadlift',l:'RDL'},{n:'Bench Press',l:'Bench'},{n:'Power Clean',l:'Power Clean',top:true},{n:'Real Leg Elevated Squat w/DB',l:'Real Leg Squat'}];
 function _epley(kg,reps){const r=Math.min(parseFloat(reps)||0,12);return kg*(1+r/30);}
-function ltProgTg(v){ltProg=ltProg===v?null:v;_ltPins=[];ltBrkPins={};_rerenderTrends();} // Metrics 선택은 유지 — Progression과 동시 표시(2026-07-31)
+// Metrics 선택은 유지 — Progression과 동시 표시(2026-07-31)
+// Push ↔ Ice 를 오갈 땐 펼쳐 둔 세션 카드도 닫는다(날짜가 서로 다른 트랙이라 그대로 두면 빈 카드가 남는다)
+function ltProgTg(v){const prev=ltProg;ltProg=ltProg===v?null:v;_ltPins=[];ltBrkPins={};
+  if(prev!==ltProg&&(prev==='push'||prev==='ice'||ltProg==='push'||ltProg==='ice'))_pushOpenSess={};
+  _rerenderTrends();}
 function ltProgLiftTg(n){if(ltProgLift!==n)_ltPins=[];ltProgLift=n;_rerenderTrends();}
 function ltPushViewTg(v){if(ltPushView!==v){ltPushView=v;_ltPins=[];}_rerenderTrends();}
 function _e1rmSeries(nm,ex,topOnly){
@@ -3262,7 +3291,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
   // ── Push Start 카드들 (Progression / Attempt Profile / Split 분해 / 재현성) ──
   const _pushNames=()=>(selAth?[selAth.name]:(fAthletes||[]).map(a=>a.name));
   const _pushCol=(names,i)=>names.length===1?'#f7a94f':_ATH_PAL[i%_ATH_PAL.length];
-  const _pushEmpty=title=>`<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">${_esc(title)}</span><span title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">선택한 기간에 Push Start 기록이 없습니다</div></div>`;
+  const _pushEmpty=title=>`<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">${_esc(title)}</span><span title="닫기" onclick="ltProgTg('${_atkKey()}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">선택한 기간에 ${_esc(_atkLbl())} 기록이 없습니다</div></div>`;
 
   const _progPushCard=()=>{
     const TR=_pushTrack();
@@ -3272,7 +3301,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const cur=V[ltPushView]||V.finish;
     const names=_pushNames();
     const perA=names.map((nm,i)=>({nm,col:_pushCol(names,i),s:_flt(_pushSeries(nm,ltPushView))})).filter(o=>o.s.length);
-    if(!perA.length)return _pushEmpty('Push Start Progression · '+cur.l);
+    if(!perA.length)return _pushEmpty(_atkLbl()+' Progression · '+cur.l);
     const dates=[...new Set(perA.flatMap(o=>o.s.map(p=>p.d)))].sort();
     const labels=dates.map(d=>fmt(d));
     const single=perA.length===1;
@@ -3283,8 +3312,8 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     const opt=_ltTip(true,!single);          // sprint=true → y축 reverse(위가 빠름)
     _ltAttachInteract(opt,dates,{pk:'push'});
     const badge=single?_ltBadge(perA[0].s,'s',true):'';
-    return _ltCard('Push Start Progression · '+cur.l,cur.sub+' · ↑ 빠름 · 점 클릭=세션 핀',
-      {type:'line',data:{labels,datasets:dss},options:opt},single?240:300,"ltProgTg('push')",badge);
+    return _ltCard(_atkLbl()+' Progression · '+cur.l,cur.sub+' · ↑ 빠름 · 점 클릭=세션 핀',
+      {type:'line',data:{labels,datasets:dss},options:opt},single?240:300,"ltProgTg('"+_atkKey()+"')",badge);
   };
 
   // 세션 내 시도별 페이드: y = 본인 best 대비 +초
@@ -3377,7 +3406,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       if(!bySess[k]||_pushLogTs(t)>=_pushLogTs(bySess[k]))bySess[k]=t;});
     const keep=Object.keys(bySess).sort().map(k=>bySess[k]);
     if(keep.length===1)return keep[0];
-    return {date,athleteName:nm,type:'push',
+    return {date,athleteName:nm,type:_atkType(),
       attempts:keep.reduce((a,t)=>a.concat(Array.isArray(t.attempts)?t.attempts:[]),[])};
   };
   // 세션 점 차트 — x=세션 순서, y=그날 best Finish(빠를수록 위). 점 클릭 → 아래 표 펼침/접힘
@@ -3493,7 +3522,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     return `<div class="card" data-pushcard="${idx}"${_pushWide?' data-pushfull="1"':''} onmousedown="_pushGrab(event,${idx})" style="padding:12px 14px 8px;position:absolute;left:0;top:0;${wcss};user-select:none">`
       +`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #1c232d">`
       +`<span style="font-size:13.5px;font-weight:650;color:#fff">${_pushWide?'':`<span title="${_pushFixedOrder()?'끌어서 이동 (All Athletes에서는 다시 그리면 이름순으로 돌아감)':'끌어서 이동'}" style="color:var(--hint);font-size:12px;margin-right:7px">⠿</span>`}${_esc(nm)}</span>`
-      +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
+      +`<span data-pushclose="1" title="닫기" onclick="ltProgTg('${_atkKey()}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div>`
       +chartHtml+body+`</div>`;
   };
   // 점을 누르면 뜨는 **독립 세션 카드** — 차트 카드와 별개로 캔버스에 얹히고 끌어서 옮긴다.
@@ -3554,20 +3583,20 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       +`<tbody>${rows}${pbRow}</tbody></table>`;
   };
   const _pushAllCards=()=>{try{return _pushAllCards0();}catch(err){
-    console.error('[PushStart] 렌더 실패',err);
-    return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">Push Start</span><span onclick="ltProgTg('push')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">표를 그리지 못했습니다 — ${_esc(String(err&&err.message||err))}</div></div>`;}};
+    console.error('['+_atkLbl()+'] 렌더 실패',err);
+    return `<div class="card" style="padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">${_esc(_atkLbl())}</span><span onclick="ltProgTg('${_atkKey()}')" style="cursor:pointer;color:var(--hint);font-size:15px;line-height:1">×</span></div><div class="lt-hint">표를 그리지 못했습니다 — ${_esc(String(err&&err.message||err))}</div></div>`;}};
   const _pushAllCards0=()=>{
     // 기간 내 푸쉬 세션이 하나라도 있으면 카드를 띄운다(예전엔 "기간 내 최신 날짜"에 기록이 있는 선수만 나와서
     // 그날 입력 안 한 선수는 카드 자체가 사라졌다). 세션 선택은 카드 안 점 차트에서.
     const perAth=_pushNames().map(nm=>({nm,
       ds:[...new Set(_pushTests(nm).filter(t=>_ltInPeriod(t.date)&&_pushOK(t).length).map(t=>t.date))].sort()}))
       .filter(o=>o.ds.length);
-    if(!perAth.length)return _pushEmpty('Push Start');
+    if(!perAth.length)return _pushEmpty(_atkLbl());
     _pushWide=(perAth.length===1);   // 선수 1명 → 카드를 폭 전체로
     _pushChartMap={};
     _pushCardNames=perAth.map(o=>o.nm);
     let out=perAth.map((o,i)=>_pushCardOne(o.nm,o.ds,i)).filter(Boolean).join('');
-    if(!out)return _pushEmpty('Push Start');
+    if(!out)return _pushEmpty(_atkLbl());
     // 펼친 세션마다 독립 카드 — 차트 카드 뒤에 인덱스를 이어 붙인다(위치 저장 키 = "이름 · 4.8")
     perAth.forEach(o=>{
       (_pushOpenSess[o.nm]||[]).filter(d=>o.ds.indexOf(d)>=0).forEach(d=>{
@@ -3840,10 +3869,13 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       +`<button class="lt-chip ${ltProg==='strength'?'on':''}" style="${ltProg==='strength'?'border-color:rgba(247,169,79,.5);background:rgba(247,169,79,.10);color:#f7a94f;font-weight:700':''}" onclick="ltProgTg('strength')">Strength</button>`
       +`<button class="lt-chip" style="opacity:.4;cursor:default" title="곧 추가">Sprint</button>`
       +`<button class="lt-chip ${ltProg==='push'?'on':''}" style="${ltProg==='push'?'border-color:rgba(247,169,79,.5);background:rgba(247,169,79,.10);color:#f7a94f;font-weight:700':''}" onclick="ltProgTg('push')">Push Start</button>`
+      // Ice Start는 퀘닉세 얼음 트랙(45m) — 육상 푸쉬(55m)와 별개 버튼. 절대 한 차트에 섞지 않는다.
+      +`<button class="lt-chip ${ltProg==='ice'?'on':''}" style="${ltProg==='ice'?'border-color:rgba(79,142,247,.55);background:rgba(79,142,247,.12);color:#4f8ef7;font-weight:700':''}" onclick="ltProgTg('ice')">🧊 Ice Start</button>`
       +`</div>`;
-    if(ltProg==='push'){
+    if(_atkOn()){
       const _pTR=_pushTrack();
       if(!_pTR.confirmed)progRow+=`<div class="lt-row" style="margin-left:0"><span class="lt-hint" style="padding:0 6px">⚠ 게이트 거리 미확정 · gates ${_pTR.gates.join('·')}m 가정</span></div>`;
+      else if(ltProg==='ice')progRow+=`<div class="lt-row" style="margin-left:0"><span class="lt-hint" style="padding:0 6px">🧊 Königssee Eiskanal · gates ${_pTR.gates.join('·')}m — 육상 Push Start(${_DPUSH_GATES.join('·')}m)와 다른 트랙</span></div>`;
     }
     if(ltProg==='strength'){
       const _plCur=_PROG_LIFTS.find(x=>x.n===ltProgLift)||_PROG_LIFTS[0];
@@ -4055,17 +4087,17 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
       LT+=`<div class="lt-row"><span class="lt-lbl">Bars</span><div class="lt-seg">${_bb('group','Group')}${_bb('stack','Stacked')}</div><span class="lt-hint" style="padding:0 2px">Group = compare categories · Stacked = composition</span></div>`;
     }
     if(teamMode){
-    LT+=`<div class="lt-grid" style="grid-template-columns:1fr">`+(ltProg==='strength'?_progStrengthCard():'')+(ltProg==='push'?_pushAllCards():'')+_teamCharts()+`</div>`;
+    LT+=`<div class="lt-grid" style="grid-template-columns:1fr">`+(ltProg==='strength'?_progStrengthCard():'')+(_atkOn()?_pushAllCards():'')+_teamCharts()+`</div>`;
     } else if(_stack){
-    LT+=(ltProg==='strength'?`<div class="lt-grid">${_progStrengthCard()}</div>`:'')+(ltProg==='push'?`<div class="lt-grid">${_pushAllCards()}</div>`:'')+_ltStackedAligned();
+    LT+=(ltProg==='strength'?`<div class="lt-grid">${_progStrengthCard()}</div>`:'')+(_atkOn()?`<div class="lt-grid">${_pushAllCards()}</div>`:'')+_ltStackedAligned();
     } else {
     const _jobs0=_ltJobs.length;
     LT+=`<div class="lt-grid"${(hasRdy||hasCond)?' style="grid-template-columns:1fr"':''}>`;
     if(ltProg==='strength')LT+=_progStrengthCard();
-    if(ltProg==='push')LT+=_pushAllCards();
+    if(_atkOn())LT+=_pushAllCards();
     if(hasRdy)LT+=_ltRdyCard();   // 단독 선택 시 스택을 안 타므로 여기서 그려야 함(_stackN>1 게이트)
     if(hasCond)LT+=_ltCondCard();
-    if(!selKeys.length&&ltProg!=='strength'&&ltProg!=='push'){
+    if(!selKeys.length&&ltProg!=='strength'&&!_atkOn()){
       if(!ltProg)LT+=`<div class="lt-hint" style="grid-column:1/-1">Add exercises above to see trends (also select Total Volume / Sprint Distance)</div>`;
     } else if(ltWeeks.length){
       // ── 주차 비교 스택: 선택한 주차마다 차트 추가 (Split=세로 스택 · Overlay=한 차트에 겹침) ──
@@ -4382,7 +4414,7 @@ function _renderTrends(fAthletes, selAth, selLogs, teamMode){
     LT+=`</div>`;
   }
   LT+=_ltPinCards(selLogs);
-  if(ltProg==='push')LT+=_pushPinCards(_pushNames());
+  if(_atkOn())LT+=_pushPinCards(_pushNames());
   LT+=`</div>`;
   return {html:LT, jobs:_ltJobs};
 }
