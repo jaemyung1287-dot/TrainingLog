@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260907-1';
+const APP_VERSION = '20260908-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3781,6 +3781,10 @@ function _renderAthRecentLogs(targetId){
     const exs=[..._sessExs(grpData,'am'),..._sessExs(grpData,'pm')];
     const types=new Set();
     exs.forEach(e=>{
+      // Push Start · Ice Start 는 trainingType 이 Sprint Training 이지만 로그 타입이 따로 있다.
+      // 여기서 'sprint' 로 뭉치면 아이스 스타트를 기록해도 미기록으로 잡힌다.
+      if(_exIsIce(e)){ types.add('icestart'); return; }
+      if(e.subCategory==='Push Start'||e.subType==='Push Start'){ types.add('push'); return; }
       const p=TRAINING_STRUCTURE[e.trainingType]?.params;
       if(p==='sprint') types.add('sprint');
       else if(p==='plyo') types.add('plyo');
@@ -3793,7 +3797,7 @@ function _renderAthRecentLogs(targetId){
   // Get recent logs (last 14 days)
   const myLogs=d.logs.filter(l=>
     l.athleteName===ST.athlete.name&&
-    (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility'||l.type==='push')&&
+    (l.type==='weight'||l.type==='plyo'||l.type==='sprint'||l.type==='mobility'||l.type==='push'||l.type==='icestart')&&
     l.date>=cutoff
   );
   const logsByDate={};
