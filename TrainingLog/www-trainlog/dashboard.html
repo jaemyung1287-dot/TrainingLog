@@ -547,6 +547,8 @@ td.plan-cell.is-sel{box-shadow:inset 0 0 0 2px rgba(247,169,79,.55)}
 .plsec-nm{font-size:12px;font-weight:600;flex:1;min-width:0}
 .plsec-load{font-size:11px;font-weight:700;color:rgba(198,168,90,.9);white-space:nowrap}
 .plsec-load.dim{color:var(--hint);font-weight:400}
+button.pi-yt{cursor:pointer;font-family:inherit;line-height:1.3}
+.pi-yt:hover{background:rgba(255,0,0,.28)}
 .pi-yt-gap{display:inline-block;width:30px;flex-shrink:0}
 .plsec-cmt{font-size:10px;color:var(--hint);padding:0 0 3px 24px;line-height:1.45}
 /* 세트별 처방 표 */
@@ -2295,6 +2297,32 @@ function _ltExSetLines(e){
 // ── Form-video helpers (YouTube/Shorts) ──
 function _ytId(u){ if(!u) return ''; const m=String(u).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/|live\/))([\w-]{11})/); return m?m[1]:''; }
 function _vidBtn(url){ const id=_ytId(url); if(!id) return ''; return `<span onclick="event.stopPropagation();_playFormVideo('${id}')" title="폼 영상 · Form video" style="cursor:pointer;color:#ff5a5a;font-weight:900;margin-left:5px">▶</span>`; }
+// onclick 속성 안에 안전하게 넣기 위한 이스케이프 (JS 따옴표 + HTML 속성)
+function _jsq(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+// 플랜 상세·플랜 편집기의 ▶ — 새 탭을 열지 않고 그 자리에서 재생한다 (2026-09-14)
+function _playExVideo(url,name){
+  const id=_ytId(url);
+  if(!id){ if(url) window.open(url,'_blank'); return; }
+  const portrait=/\/shorts\//.test(String(url));
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  el.innerHTML=`<div style="width:100%;max-width:${portrait?'380px':'880px'}">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:14px;font-weight:800;color:#fff;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(name||'Video')}</span>
+      <a href="${_esc(url)}" target="_blank" style="font-size:11px;color:rgba(255,255,255,.5);text-decoration:none">YouTube ↗</a>
+    </div>
+    <div style="position:relative;width:100%;padding-top:${portrait?'177%':'56.25%'};border-radius:14px;overflow:hidden;background:#000">
+      <iframe src="https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&autoplay=1&playsinline=1" allow="autoplay;encrypted-media;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"></iframe>
+    </div>
+    <button style="margin-top:12px;width:100%;padding:12px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Schließen · 닫기</button>
+  </div>`;
+  const esc=(ev)=>{ if(ev.key==='Escape') rm(); };
+  const rm=()=>{ if(el.parentNode) document.body.removeChild(el); document.removeEventListener('keydown',esc); };
+  el.querySelector('button').onclick=rm;
+  el.onclick=(ev)=>{ if(ev.target===el) rm(); };
+  document.addEventListener('keydown',esc);
+  document.body.appendChild(el);
+}
 function _playFormVideo(id){
   if(!id) return;
   const el=document.createElement('div');
@@ -6282,7 +6310,7 @@ function _dayDetailHTML(ds){
           <span class="pi-grp">${_ie(i,'planIntensity',e.planIntensity,32,'–','Intensity %')}<span class="pi-u">%</span></span>
           <span class="pi-grp">${_ie(i,'planDistance',e.planDistance,38,'–','Distance m')}<span class="pi-u">m</span></span>`}
           ${e.planRestTime?`<span style="font-size:10px;color:var(--hint)">rest ${_esc(e.planRestTime)}${_esc(_ru)}</span>`:''}
-          ${e.ytUrl?`<a href="${_esc(e.ytUrl)}" target="_blank" class="pi-yt">▶</a>`:''}
+          ${e.ytUrl?`<button class="pi-yt" title="영상 보기" onclick="_playExVideo('${_jsq(e.ytUrl)}','${_jsq(e.name)}')">▶</button>`:''}
           <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_eo?'background:rgba(247,169,79,.2);border-color:rgba(247,169,79,.45)':''}" title="rest · 영상링크 · 종목 코멘트" onclick="_planExToggle('${_ek}')">⋯</button>
           <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_isOpen?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${_pkey}')">💬</button>
         </div>
@@ -6305,7 +6333,7 @@ function _dayDetailHTML(ds){
           <span class="plsec-n">${wi+1}.</span>
           <span class="plsec-nm">${_esc(it.name||'')}</span>
           ${sr?`<span class="plsec-load">${_esc(sr)}</span>`:'<span class="plsec-load dim">–</span>'}
-          ${it.ytUrl?`<a href="${_esc(it.ytUrl)}" target="_blank" class="pi-yt">▶</a>`:'<span class="pi-yt-gap"></span>'}
+          ${it.ytUrl?`<button class="pi-yt" title="영상 보기" onclick="_playExVideo('${_jsq(it.ytUrl)}','${_jsq(it.name)}')">▶</button>`:'<span class="pi-yt-gap"></span>'}
         </div>${it.comment?`<div class="plsec-cmt">💬 ${_esc(it.comment)}</div>`:''}`;
       }).join('');
     } else if(_wuText){
@@ -6821,7 +6849,7 @@ function _renderPlanEditor(){
         <input type="url" class="m-in" placeholder="영상 링크" value="${_esc(e.yt)}"
           style="flex:1;min-width:0;padding:5px 9px;font-size:11px;border-color:rgba(255,60,60,.2)"
           onchange="_pe.exs[${i}].yt=this.value;_renderPlanEditor()">
-        ${e.yt?`<a href="${_esc(e.yt)}" target="_blank" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:11px;font-weight:800;text-decoration:none">▶</a>`:''}
+        ${e.yt?`<button title="영상 보기" onclick="_playExVideo('${_jsq(e.yt)}','${_jsq(e.name)}')" style="flex-shrink:0;padding:4px 10px;border-radius:8px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit">▶</button>`:''}
         <span style="font-size:9px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.3px;flex-shrink:0;margin-left:4px">💬</span>
         <input class="m-in" placeholder="코치 코멘트 (선수 화면에 표시)" value="${_esc(e.cmt)}"
           style="flex:1;min-width:0;padding:5px 9px;font-size:11px;border-color:rgba(198,168,90,.25)"
