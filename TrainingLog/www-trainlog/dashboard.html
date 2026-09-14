@@ -522,6 +522,12 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .pi-lbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;
         letter-spacing:.5px;min-width:58px;flex-shrink:0}
 td.plan-cell.is-sel{box-shadow:inset 0 0 0 2px rgba(247,169,79,.55)}
+.pi-tgrow{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:4px;margin-left:24px;
+          font-size:10px;font-weight:700;color:var(--muted);text-transform:none}
+.pi-tg{font-size:11px;font-weight:600;color:#3ecf8e;background:rgba(62,207,142,.10);
+       border:1px solid rgba(62,207,142,.25);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.pi-tg b{font-weight:800}
+.pi-tg.off{color:var(--hint);background:transparent;border-color:var(--border)}
 .plan-toast{position:fixed;right:20px;bottom:20px;z-index:9999;padding:8px 14px;border-radius:8px;
   background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.4);color:#3ecf8e;
   font-size:12px;font-weight:700;opacity:0;transform:translateY(6px);
@@ -5896,6 +5902,45 @@ function renderPlan(){
 //  값(세트×렙·%·거리·rest·영상·코멘트)은 그 자리에서 바로 고친다(_planExEdit).
 //  종목 추가/삭제·순서·웜업·대상선수 변경은 기존 ✎ 모달(openPlanEditorKeys).
 // ══════════════════════════════════════════════════════════════════════════
+// ── 선수별 목표 페이스: 선수 앱과 같은 식(PB ÷ %). PB는 coach 문서 records 에서 ──
+const _DISC_REC={flat:'sprint',uphill:'uphill',sled:'sled'};
+const _DISC_IC={flat:'',uphill:'⛰️',sled:'🛷'};
+function _nrmName(s){return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' ');}
+function _planDiscOf(e){
+  if(e&&typeof e.discipline==='string'&&_DISC_REC[e.discipline])return e.discipline;
+  const t=(((e&&e.name)||'')+' '+((e&&e.subCategory)||'')).toLowerCase();
+  if(/towing\s*sled|sled|schlitten/.test(t))return 'sled';
+  if(/uphill|bergauf|berg\b/.test(t))return 'uphill';
+  if(/resistance\s*sprint/.test(t))return 'uphill';
+  return 'flat';
+}
+function _pbForAth(name,dist,disc){
+  const D=parseFloat(dist); if(!name||!(D>0))return null;
+  const rt=_DISC_REC[disc]||'sprint', nn=_nrmName(name);
+  const m=(coachData?.records||[]).filter(r=>r&&_nrmName(r.athleteName)===nn&&r.type===rt
+      &&Math.abs((parseFloat(r.distance)||0)-D)<0.5).map(r=>parseFloat(r.time)).filter(v=>v>0);
+  return m.length?Math.min(...m):null;
+}
+// 거리+강도가 둘 다 있는 종목만 대상 (웨이트는 planDistance 가 없어 자동 제외)
+function _planTargets(e,athIds){
+  const pct=parseFloat(e&&e.planIntensity), dist=parseFloat(e&&e.planDistance);
+  if(!(pct>0)||!(dist>0))return null;
+  const disc=_planDiscOf(e);
+  const rows=(athIds||[]).map(id=>{
+    const a=(coachData?.athletes||[]).find(x=>x.id===id); if(!a)return null;
+    const pb=_pbForAth(a.name,dist,disc);
+    return {short:a.name.split(' ')[0],full:a.name,pb,t:pb?(pb/(pct/100)).toFixed(2):null};
+  }).filter(Boolean);
+  return rows.length?{disc,pct,dist,rows}:null;
+}
+function _planTargetHTML(e,athIds){
+  const g=_planTargets(e,athIds); if(!g)return '';
+  if(!g.rows.some(r=>r.t))return '';
+  const chips=g.rows.map(r=>r.t
+    ? `<span class="pi-tg" title="${_esc(r.full)} · PB ${r.pb}s @ ${g.dist}m">${_esc(r.short)} <b>${r.t}</b>s</span>`
+    : `<span class="pi-tg off" title="${_esc(r.full)} · ${g.dist}m ${_DISC_REC[g.disc]} PB 없음">${_esc(r.short)} –</span>`).join('');
+  return `<div class="pi-tgrow">🎯 ${_DISC_IC[g.disc]||''}${g.pct}% 목표${chips}</div>`;
+}
 function _dayHasAny(ds){
   const plan=coachData?.sessionPlans?.[ds];
   if(plan&&Object.keys(plan).some(k=>k!=='phase'&&k!=='week'&&k!=='_ts'&&(_planSessOf(ds,k,'am')||_planSessOf(ds,k,'pm'))))return true;
@@ -6082,6 +6127,7 @@ function _dayDetailHTML(ds){
           <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_eo?'background:rgba(247,169,79,.2);border-color:rgba(247,169,79,.45)':''}" title="rest · 영상링크 · 종목 코멘트" onclick="_planExToggle('${_ek}')">⋯</button>
           <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_isOpen?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${_pkey}')">💬</button>
         </div>
+        ${_planTargetHTML(e,_blockAthIds)}
         ${(e.coachComment&&!_eo)?`<div style="font-size:11px;color:var(--text);margin-top:3px;padding-left:24px">💬 ${_esc(e.coachComment)}</div>`:''}
         ${_extra}${_notes}${_exPanel}
       </div>`;
