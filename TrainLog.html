@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260914-5';
+const APP_VERSION = '20260914-6';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -4402,7 +4402,8 @@ function renderExList(){
       }
       // 세트별 처방이 있으면 위의 'Plan: 70-80% · 3×5' 요약줄은 중복이라 뺀다.
       // 지난기록 줄은 칩으로 옮겼으므로 칩이 있는 카드에선 뺀다.
-      paramsHtml=`${_prevPanel}${liftPlanSummary}${contractionBadge}${ytEmbed}${_liftDesc?'':coachBadge}${_hdrPrev?'':prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
+      // 설명줄은 영상 바로 아래, 첫 세트 바로 위
+      paramsHtml=`${_prevPanel}${contractionBadge}${ytEmbed}${liftPlanSummary}${_liftDesc?'':coachBadge}${_hdrPrev?'':prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -4432,7 +4433,7 @@ function renderExList(){
         if(ex.done) ST.exercises[i].setRows.forEach(r=>r.done=true);
       }
       ST.exercises[i].sets=String(ST.exercises[i].setRows.length);
-      paramsHtml=`${_prevPanel}${plyoPlanSummary}${ytEmbed}${legMode&&legMode!=='DL'?`<div style="margin-top:6px;font-size:11px;color:var(--muted)">${repLbl} ${legTag}</div>`:''}<div style="margin-top:10px">${_plyoSetRowsHtml(ST.exercises[i],i)}</div>`;
+      paramsHtml=`${_prevPanel}${ytEmbed}${plyoPlanSummary}${legMode&&legMode!=='DL'?`<div style="margin-top:6px;font-size:11px;color:var(--muted)">${repLbl} ${legTag}</div>`:''}<div style="margin-top:10px">${_plyoSetRowsHtml(ST.exercises[i],i)}</div>`;
     } else if(params==='mobility'){
       // Mobility & Conditioning — completion check only (no load/intensity)
       const _mobParts=[];
@@ -5307,8 +5308,8 @@ function renderSprintSets(){
           <div class="mini-lbl">Wdh.${repsEdited?' ✎':''}</div>
         </div>
       </div>
-      ${spPlanSummary}
       ${_ytEmbedHtml(s.ytUrl)}
+      ${spPlanSummary}
       ${spCoachBadge}
       ${spPrevHtml}
       ${_spLapInputsHtml(s,i)}
