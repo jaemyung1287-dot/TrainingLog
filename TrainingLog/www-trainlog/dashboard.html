@@ -528,6 +528,27 @@ td.plan-cell.is-sel{box-shadow:inset 0 0 0 2px rgba(247,169,79,.55)}
        border:1px solid rgba(62,207,142,.25);border-radius:999px;padding:1px 8px;white-space:nowrap}
 .pi-tg b{font-weight:800}
 .pi-tg.off{color:var(--hint);background:transparent;border-color:var(--border)}
+/* 세션 블록 안의 두 칸: 웜업 / 본훈련 */
+.plsec{border:1px solid var(--border);border-radius:9px;margin-bottom:8px;overflow:hidden}
+.plsec-wu{background:rgba(247,169,79,.045);border-color:rgba(247,169,79,.22)}
+.plsec-mn{background:rgba(255,255,255,.015)}
+.plsec-hd{display:flex;align-items:center;gap:8px;padding:6px 11px;cursor:pointer;
+        border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+.plsec-wu .plsec-hd{border-bottom-color:rgba(247,169,79,.18)}
+.plsec-ttl{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
+.plsec-wu .plsec-ttl{color:var(--gold)}
+.plsec-mn .plsec-ttl{color:var(--blue)}
+.plsec-cnt{font-size:10px;color:var(--hint);font-weight:600}
+.plsec-chv{margin-left:auto;font-size:10px;color:var(--hint)}
+.plsec-bd{padding:4px 11px 7px}
+.plsec-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px solid rgba(255,255,255,.04)}
+.plsec-bd .plsec-row:first-child{border-top:none}
+.plsec-n{font-size:10px;color:var(--hint);min-width:16px}
+.plsec-nm{font-size:12px;font-weight:600;flex:1;min-width:0}
+.plsec-load{font-size:11px;font-weight:700;color:rgba(198,168,90,.9);white-space:nowrap}
+.plsec-load.dim{color:var(--hint);font-weight:400}
+.pi-yt-gap{display:inline-block;width:30px;flex-shrink:0}
+.plsec-cmt{font-size:10px;color:var(--hint);padding:0 0 3px 24px;line-height:1.45}
 .plan-toast{position:fixed;right:20px;bottom:20px;z-index:9999;padding:8px 14px;border-radius:8px;
   background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.4);color:#3ecf8e;
   font-size:12px;font-weight:700;opacity:0;transform:translateY(6px);
@@ -6132,16 +6153,32 @@ function _dayDetailHTML(ds){
         ${_extra}${_notes}${_exPanel}
       </div>`;
     }).join('');
-    // ── 웜업: 한 줄 요약 → 클릭하면 항목·영상까지 펼침 ──
+    // ── 웜업: 본훈련과 같은 형태의 독립 칸(종목·부하·영상). 접기 가능, 기본 펼침 ──
     const _wk='W|'+ds+'|'+b.sess+'|'+keysCsv;
-    const _wo=planExOpen===_wk;
+    const _wcl=planExOpen===_wk; // 토글로 접는다
     const _wuItems=_wuDashItems(b.s);
-    const _wuHtml=_wuDashHasContent(b.s)?`<div style="margin-bottom:7px">
-        <div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="_planExToggle('${_wk}')">🔆 ${_esc(_wuDashSummary(b.s))} <span style="color:var(--hint)">${_wo?'▲':'▼'}</span></div>
-        ${(_wo&&_wuItems.length)?`<div class="pi-more">${_wuItems.map((it,wi)=>`<div class="pi-more-row">
-            <span style="font-size:11px;flex:1">${wi+1}. ${_esc(it.name||'')}${(it.sets||it.reps)?` <span style="color:var(--gold);font-weight:700">${_esc(it.sets||'')}${it.reps?'×'+_esc(it.reps):''}</span>`:''}${it.comment?` <span style="font-size:10px;color:var(--hint)">${_esc(it.comment)}</span>`:''}</span>
-            ${it.ytUrl?`<a href="${_esc(it.ytUrl)}" target="_blank" class="pi-yt">▶</a>`:''}
-          </div>`).join('')}</div>`:''}
+    const _wuText=(b.s.warmup||'').trim();
+    let _wuBody='';
+    if(_wuItems.length){
+      _wuBody=_wuItems.map((it,wi)=>{
+        const sr=[String(it.sets||'').trim(),String(it.reps||'').trim()].filter(Boolean).join('×');
+        return `<div class="plsec-row">
+          <span class="plsec-n">${wi+1}.</span>
+          <span class="plsec-nm">${_esc(it.name||'')}</span>
+          ${sr?`<span class="plsec-load">${_esc(sr)}</span>`:'<span class="plsec-load dim">–</span>'}
+          ${it.ytUrl?`<a href="${_esc(it.ytUrl)}" target="_blank" class="pi-yt">▶</a>`:'<span class="pi-yt-gap"></span>'}
+        </div>${it.comment?`<div class="plsec-cmt">💬 ${_esc(it.comment)}</div>`:''}`;
+      }).join('');
+    } else if(_wuText){
+      _wuBody=`<div class="plsec-row"><span class="plsec-nm" style="white-space:normal">${_esc(_wuText)}</span></div>`;
+    }
+    const _wuHtml=_wuBody?`<div class="plsec plsec-wu">
+        <div class="plsec-hd" onclick="_planExToggle('${_wk}')">
+          <span class="plsec-ttl">🔆 Warm-up · 웜업</span>
+          <span class="plsec-cnt">${_wuItems.length?_wuItems.length+'종목':'서술형'}</span>
+          <span class="plsec-chv">${_wcl?'▸':'▾'}</span>
+        </div>
+        ${_wcl?'':`<div class="plsec-bd">${_wuBody}</div>`}
       </div>`:'';
     const note=b.s.coachNote||'';
     html+=`<div style="border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:9px">
@@ -6150,7 +6187,13 @@ function _dayDetailHTML(ds){
         <button class="m-btn ghost" style="font-size:10px;padding:3px 7px" title="종목 추가/삭제 · 순서 · 웜업 · 대상선수" onclick="openPlanEditorKeys('${ds}','${keysCsv}','${b.sess}')">✎ Edit</button>
       </div>
       ${_wuHtml}
-      ${exRows}
+      <div class="plsec plsec-mn">
+        <div class="plsec-hd" style="cursor:default">
+          <span class="plsec-ttl">🏋️ Main · 본훈련</span>
+          <span class="plsec-cnt">${(b.s.exercises||[]).length}종목</span>
+        </div>
+        <div class="plsec-bd">${exRows}</div>
+      </div>
       <div style="margin-top:9px">
         <span class="m-lbl">📝 Coach note · 데이터/정리</span>
         <textarea class="m-in" style="width:100%;min-height:40px;resize:vertical;font-size:12px"
