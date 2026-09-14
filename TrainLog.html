@@ -226,6 +226,9 @@ tr:last-child td{border-bottom:none}
 .plan-rest-wrap{display:flex;align-items:center;background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.35);border-radius:8px;overflow:hidden;margin-left:8px;flex-shrink:0;height:22px}
 .plan-rest-num{width:30px;background:none;border:none;outline:none;color:#4f8ef7;font-size:13px;font-weight:700;text-align:center;padding:0 2px;font-family:inherit;height:100%}
 .plan-rest-num::placeholder{color:rgba(79,142,247,.35)}
+/* 코치가 명확히 처방한 값(세트별 무게·횟수/시간)은 흰색으로 — 지난기록 힌트(회색)와 구분 */
+.plan-ph::placeholder{color:rgba(236,232,221,.92);opacity:1}
+.plan-ph::-webkit-input-placeholder{color:rgba(236,232,221,.92);opacity:1}
 .plan-rest-utb{padding:0 5px;border:none;border-left:1px solid rgba(79,142,247,.15);background:none;color:rgba(79,142,247,.4);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;height:100%}
 .plan-rest-utb.on{background:rgba(79,142,247,.25);color:#4f8ef7}
 .plan-rest-chips{display:flex;align-items:center;gap:6px;margin-bottom:8px}
@@ -292,7 +295,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260914-6';
+const APP_VERSION = '20260914-7';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3766,8 +3769,9 @@ function _renderAthRecentLogs(targetId){
   const typeLabel={weight:'Krafttraining',plyo:'Plyometrie',sprint:'Sprinttraining',push:'Push Start',icestart:'Ice Start'};
   const grp=ST.athlete.group;
   const today=todayStr();
-  const last14=getLast(14);
-  const cutoff=last14[0];
+  // Letzte Einträge 는 최근 일주일만 (2026-09-14, 그 전엔 14일)
+  const last7=getLast(7);
+  const cutoff=last7[0];
 
   // Helper: get exercises from a session plan group block
   function _sessExs(gd,s){
@@ -3808,14 +3812,14 @@ function _renderAthRecentLogs(targetId){
 
   // Build planned days map: date → Set<type>
   const plannedTypesMap={};
-  last14.forEach(ds=>{
+  last7.forEach(ds=>{
     const types=_plannedTypesFor(ds);
     if(types.size>0) plannedTypesMap[ds]=types;
   });
 
   // Collect all relevant dates and sort descending
   const allDates=new Set([...loggedDates,...Object.keys(plannedTypesMap)]);
-  const sortedDates=[...allDates].sort((a,b)=>b.localeCompare(a)).slice(0,14);
+  const sortedDates=[...allDates].sort((a,b)=>b.localeCompare(a)).slice(0,7);
 
   if(!sortedDates.length){
     wrap.innerHTML='<div class="empty" style="padding:10px 0">No logs yet · Noch keine Einträge</div>';
@@ -4344,15 +4348,15 @@ function renderExList(){
         const rowStyle=`display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:7px 10px;border-radius:10px;background:${rd?'rgba(62,207,142,.07)':'rgba(255,255,255,.03)'};border:1px solid ${rd?'rgba(62,207,142,.3)':'rgba(255,255,255,.07)'}`;
         const inStyle='padding:6px 8px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-weight:600;text-align:center;width:64px';
         const kgField=isBW
-          ?`<span style="font-size:12px;font-weight:700;color:#3ecf8e;min-width:36px;text-align:center">${ex.weight||'BW'}</span>
+          ?`<span title="${ex.weight?'Körpergewicht '+ex.weight+' kg':'Körpergewicht'}" style="font-size:10px;font-weight:700;color:#3ecf8e;white-space:nowrap;flex-shrink:0">Körpergew.</span>
              <input type="number" placeholder="${_pKg?'+'+_pKg:'+kg'}" value="${sr.extraKg||''}" oninput="updateSetRowField(${i},${j},'extraKg',this.value)" style="${inStyle};width:56px;color:#f7a94f">`
-          :`<input type="number" placeholder="${_psKg||_pKg||'kg'}" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
+          :`<input type="number" class="${_psKg?'plan-ph':''}" placeholder="${_psKg||_pKg||'kg'}" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
         return `<div style="${rowStyle}">
           <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Satz ${j+1}</span>
           ${_pctTag}
           ${kgField}
           <span style="font-size:11px;color:var(--muted)">×</span>
-          <input type="number" placeholder="${_repNum||_pReps||'reps'}" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">${_unitTag}
+          <input type="number" class="${_repNum?'plan-ph':''}" placeholder="${_repNum||_pReps||'reps'}" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">${_unitTag}
           <button onclick="toggleSetRowDone(${i},${j})" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1.5px solid ${rd?'#3ecf8e':'rgba(255,255,255,.15)'};background:${rd?'rgba(62,207,142,.12)':'transparent'};color:${rd?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${rd?'✓':'○'}</button>
           ${ST.exercises[i].setRows.length>1?`<button onclick="removeSetRow(${i},${j})" style="padding:4px 8px;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.07);color:rgba(255,100,100,.8);font-size:13px;font-weight:700;cursor:pointer;line-height:1" title="Delete set">×</button>`:''}
         </div>`;
@@ -5143,14 +5147,14 @@ function _plyoSetRowsHtml(ex,i){
     const pct=(ps&&ps.int)?`<span style="font-size:11px;font-weight:800;color:#c9a84c;min-width:34px;text-align:center;flex-shrink:0">${ps.int}%</span>`:'';
     const pkg=(ps&&ps.kg)?String(ps.kg):'';
     const kgField=isBW
-      ? `<span style="font-size:12px;font-weight:700;color:#3ecf8e;min-width:36px;text-align:center">BW</span>
+      ? `<span title="Körpergewicht" style="font-size:10px;font-weight:700;color:#3ecf8e;white-space:nowrap;flex-shrink:0">Körpergew.</span>
          <input type="number" placeholder="+kg" value="${sr.extraKg||''}" oninput="updateSetRowField(${i},${j},'extraKg',this.value)" style="${inStyle};width:56px;color:#f7a94f">`
-      : `<input type="number" placeholder="${pkg||'kg'}" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
+      : `<input type="number" class="${pkg?'plan-ph':''}" placeholder="${pkg||'kg'}" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:7px 10px;border-radius:10px;background:${rd?'rgba(62,207,142,.07)':'rgba(255,255,255,.03)'};border:1px solid ${rd?'rgba(62,207,142,.3)':'rgba(255,255,255,.07)'}">
       <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Satz ${j+1}</span>
       ${pct}${kgField}
       <span style="font-size:11px;color:var(--muted)">×</span>
-      <input type="number" placeholder="${String((ps&&ps.reps)||ex.planReps||'').replace(/[^\d.]/g,'')||'reps'}" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">${(String((ps&&ps.reps)||ex.planReps||'').match(/[a-zA-Z]+$/)||[''])[0]?`<span style="font-size:11px;font-weight:700;color:#c9a84c;flex-shrink:0">${(String((ps&&ps.reps)||ex.planReps||'').match(/[a-zA-Z]+$/)||[''])[0]}</span>`:''}
+      <input type="number" class="${String((ps&&ps.reps)||ex.planReps||'').replace(/[^\d.]/g,'')?'plan-ph':''}" placeholder="${String((ps&&ps.reps)||ex.planReps||'').replace(/[^\d.]/g,'')||'reps'}" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">${(String((ps&&ps.reps)||ex.planReps||'').match(/[a-zA-Z]+$/)||[''])[0]?`<span style="font-size:11px;font-weight:700;color:#c9a84c;flex-shrink:0">${(String((ps&&ps.reps)||ex.planReps||'').match(/[a-zA-Z]+$/)||[''])[0]}</span>`:''}
       <button onclick="toggleSetRowDone(${i},${j})" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1.5px solid ${rd?'#3ecf8e':'rgba(255,255,255,.15)'};background:${rd?'rgba(62,207,142,.12)':'transparent'};color:${rd?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${rd?'✓':'○'}</button>
       ${rows.length>1?`<button onclick="removeSetRow(${i},${j})" style="padding:4px 8px;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.07);color:rgba(255,100,100,.8);font-size:13px;font-weight:700;cursor:pointer;line-height:1" title="Satz löschen">×</button>`:''}
     </div>`;
