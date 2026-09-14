@@ -549,6 +549,23 @@ td.plan-cell.is-sel{box-shadow:inset 0 0 0 2px rgba(247,169,79,.55)}
 .plsec-load.dim{color:var(--hint);font-weight:400}
 .pi-yt-gap{display:inline-block;width:30px;flex-shrink:0}
 .plsec-cmt{font-size:10px;color:var(--hint);padding:0 0 3px 24px;line-height:1.45}
+/* 세트별 처방 표 */
+.pset-cnt{font-size:11px;font-weight:700;color:rgba(198,168,90,.9);white-space:nowrap}
+.pset{margin:5px 0 2px 24px;padding:6px 9px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02)}
+.pset-r{display:flex;align-items:center;gap:7px;padding:3px 0;flex-wrap:wrap}
+.pset-lb{font-size:10px;font-weight:700;color:var(--muted);min-width:42px}
+.pset-kgs{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0}
+.pset-kg{font-size:10px;font-weight:600;color:#3ecf8e;background:rgba(62,207,142,.10);
+         border:1px solid rgba(62,207,142,.22);border-radius:999px;padding:1px 7px;white-space:nowrap}
+.pset-kg b{font-weight:800}
+.pset-x{flex-shrink:0;padding:1px 6px;border-radius:5px;border:1px solid rgba(248,81,73,.3);
+        background:transparent;color:rgba(248,81,73,.75);font-size:11px;cursor:pointer;font-family:inherit}
+.pset-foot{padding:3px 0 0}
+.pset-last{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:5px;padding-top:5px;
+           border-top:1px solid rgba(255,255,255,.05);font-size:10px;color:var(--hint)}
+.pset-last-lb{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.pset-lp{font-size:10px;color:var(--muted);white-space:nowrap}
+.pset-lp b{color:var(--text);font-weight:700}
 .plan-toast{position:fixed;right:20px;bottom:20px;z-index:9999;padding:8px 14px;border-radius:8px;
   background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.4);color:#3ecf8e;
   font-size:12px;font-weight:700;opacity:0;transform:translateY(6px);
@@ -5962,6 +5979,97 @@ function _planTargetHTML(e,athIds){
     : `<span class="pi-tg off" title="${_esc(r.full)} · ${g.dist}m ${_DISC_REC[g.disc]} PB 없음">${_esc(r.short)} –</span>`).join('');
   return `<div class="pi-tgrow">🎯 ${_DISC_IC[g.disc]||''}${g.pct}% 목표${chips}</div>`;
 }
+// ── 세트별 처방: 줄마다 %·횟수, 무게는 선수 1RM에서 자동계산(2.5kg 반올림) ──
+const _KG_STEP=2.5;
+function _roundKg(v){ return Math.round(v/_KG_STEP)*_KG_STEP; }
+// 코치 추정치(src 에 estimate)는 처방 기준으로 쓰지 않는다 — 실측만.
+// Niklas 105kg(2026-09-06 추정)이 여기 걸린다. 실측을 넣으면 자동으로 잡힌다.
+function _maxRecOf(athId,exName){
+  const r=maxData&&maxData[athId]&&maxData[athId][exName];
+  const kg=r&&parseFloat(r.kg);
+  if(!(kg>0))return null;
+  if(/estimate/i.test(r.src||''))return null;
+  return {kg,date:r.date||'',src:r.src||''};
+}
+// planSetRows 우선. 없으면 옛 planSets/planIntensity/planReps 로 만들어 준다(하위호환).
+function _setRowsOf(e){
+  if(e&&Array.isArray(e.planSetRows)&&e.planSetRows.length)
+    return e.planSetRows.map(r=>({int:(r&&r.int)||'',reps:(r&&r.reps)||'',kg:(r&&r.kg)||''}));
+  const n=Math.max(0,parseInt(e&&e.planSets)||0);
+  if(!n)return [];
+  return Array.from({length:n},()=>({int:(e.planIntensity||''),reps:(e.planReps||''),kg:''}));
+}
+// 웨이트성 종목 — 거리가 없고 세트가 있는 것
+function _isLiftEx(e){
+  if(!e||e.planDistance)return false;
+  return !!((parseInt(e.planSets)||0)||(Array.isArray(e.planSetRows)&&e.planSetRows.length));
+}
+// 선수별 계산 무게를 그 선수 플랜에 박아 넣는다 (선수 앱은 1RM 문서를 안 읽으므로)
+function _fillSetKg(e,key){
+  if(!key||key.indexOf('ath_')!==0)return;   // 그룹 키엔 선수별 무게를 넣을 수 없다
+  const rec=_maxRecOf(key.slice(4),e.name||'');
+  (e.planSetRows||[]).forEach(r=>{
+    const p=parseFloat(r.int);
+    r.kg=(rec&&p>0)?String(_roundKg(rec.kg*p/100)):'';
+  });
+}
+// 1RM 이 없는 선수용 — 그 선수의 같은 종목 직전 기록
+function _lastPerfOf(athId,exName,beforeDs){
+  if(!exName)return null;
+  const logs=(athLogs[athId]||[])
+    .filter(l=>l&&(l.type==='weight'||l.type==='plyo')&&(l.date||'')<beforeDs&&(l.exercises||[]).some(x=>(x.name||'')===exName))
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!logs.length)return null;
+  const e=logs[0].exercises.find(x=>(x.name||'')===exName);
+  const rows=(e.setRows&&e.setRows.length)
+    ? e.setRows.map(r=>({kg:e.isBodyweight?(r.extraKg?'+'+r.extraKg:'BW'):(r.kg||''),reps:r.reps||''}))
+    : [{kg:e.isBodyweight?'BW':(e.weight||''),reps:e.reps||''}];
+  return {date:logs[0].date,rows};
+}
+async function _planSetWrite(day,sess,keysCsv,exIdx,mut){
+  try{
+    const dayPlan=JSON.parse(JSON.stringify(coachData?.sessionPlans?.[day]||{}));
+    let changed=false;
+    keysCsv.split(',').filter(Boolean).forEach(k=>{
+      const sx=_planSessRefIn(dayPlan,k,sess);
+      const e=sx&&Array.isArray(sx.exercises)&&sx.exercises[exIdx];
+      if(!e)return;
+      const rows=_setRowsOf(e);
+      if(!mut(rows))return;
+      e.planSetRows=rows;
+      e.planSets=String(rows.length);
+      const ints=[...new Set(rows.map(r=>String(r.int||'')))];
+      const reps=[...new Set(rows.map(r=>String(r.reps||'')))];
+      e.planIntensity=ints.length===1?ints[0]:rows.map(r=>r.int||'–').join('/');
+      e.planReps=reps.length===1?reps[0]:rows.map(r=>r.reps||'–').join('/');
+      _fillSetKg(e,k);
+      changed=true;
+    });
+    if(!changed)return;
+    dayPlan._ts=Date.now();
+    await _savePlanDay(day,dayPlan);
+    _planSaved();
+  }catch(e){alert('Save error: '+e.message);}
+}
+function _planSetEdit(day,sess,keysCsv,exIdx,setIdx,field,val){
+  return _planSetWrite(day,sess,keysCsv,exIdx,rows=>{
+    while(rows.length<=setIdx)rows.push({int:'',reps:'',kg:''});
+    if(String(rows[setIdx][field]||'')===String(val))return false;
+    rows[setIdx][field]=val;return true;
+  });
+}
+function _planSetAdd(day,sess,keysCsv,exIdx){
+  return _planSetWrite(day,sess,keysCsv,exIdx,rows=>{
+    const last=rows[rows.length-1]||{int:'',reps:'',kg:''};
+    rows.push({int:last.int||'',reps:last.reps||'',kg:''});return true;
+  });
+}
+function _planSetDel(day,sess,keysCsv,exIdx,setIdx){
+  return _planSetWrite(day,sess,keysCsv,exIdx,rows=>{
+    if(rows.length<=1)return false;
+    rows.splice(setIdx,1);return true;
+  });
+}
 function _dayHasAny(ds){
   const plan=coachData?.sessionPlans?.[ds];
   if(plan&&Object.keys(plan).some(k=>k!=='phase'&&k!=='week'&&k!=='_ts'&&(_planSessOf(ds,k,'am')||_planSessOf(ds,k,'pm'))))return true;
@@ -6113,6 +6221,7 @@ function _dayDetailHTML(ds){
     const keysCsv=b.keys.join(',');
     // ── 인라인 입력 헬퍼 (blur 시 저장, Enter 로 확정) ──
     const _ie=(i,f,v,w,ph,ttl)=>`<input class="pi" style="width:${w}px" value="${_esc(v==null?'':v)}" placeholder="${ph}" title="${ttl}" onblur="_planExEdit('${ds}','${b.sess}','${keysCsv}',${i},'${f}',this.value.trim())" onkeydown="if(event.key==='Enter')this.blur()">`;
+    const _ies=(ei,si,f,v,w,ph,ttl)=>`<input class="pi" style="width:${w}px" value="${_esc(v==null?'':v)}" placeholder="${ph}" title="${ttl}" onblur="_planSetEdit('${ds}','${b.sess}','${keysCsv}',${ei},${si},'${f}',this.value.trim())" onkeydown="if(event.key==='Enter')this.blur()">`;
     const _ieF=(i,f,v,ph)=>`<input class="pi pi-full" value="${_esc(v==null?'':v)}" placeholder="${ph}" onblur="_planExEdit('${ds}','${b.sess}','${keysCsv}',${i},'${f}',this.value.trim())" onkeydown="if(event.key==='Enter')this.blur()">`;
     const exRows=(b.s.exercises||[]).map((e,i)=>{
       const icon=TRAINING_STRUCTURE[e.trainingType]?.icon||'';
@@ -6126,6 +6235,33 @@ function _dayDetailHTML(ds){
       const _exPanel=_isOpen?_exNotePanelHTML(ds,e.name||'',_blockAthIds,{}):'';
       const _ek='X|'+ds+'|'+b.sess+'|'+keysCsv+'|'+i;
       const _eo=planExOpen===_ek;
+      const _lift=_isLiftEx(e);
+      const _sr=_lift?_setRowsOf(e):[];
+      // 세트 줄마다 선수별 무게(1RM×%) 칩. 1RM 없는 선수는 아래 지난기록 줄로 뺀다.
+      const _kgChips=(pct)=>_blockAthIds.map(aid=>{
+        const a=allAths.find(x=>x.id===aid); if(!a)return '';
+        const rec=_maxRecOf(aid,e.name||''); const p=parseFloat(pct);
+        if(!rec||!(p>0))return '';
+        return `<span class="pset-kg" title="${_esc(a.name)} · 1RM ${rec.kg}kg · ${_esc(rec.date)}">${_esc(a.name.split(' ')[0])} <b>${_roundKg(rec.kg*p/100)}</b></span>`;
+      }).join('');
+      const _noMax=_lift?_blockAthIds.filter(aid=>!_maxRecOf(aid,e.name||'')):[];
+      const _lastLine=_noMax.length?`<div class="pset-last"><span class="pset-last-lb">1RM 없음 · 지난기록</span>${_noMax.map(aid=>{
+        const a=allAths.find(x=>x.id===aid); if(!a)return '';
+        const lp=_lastPerfOf(aid,e.name||'',ds);
+        const txt=lp?_esc(lp.rows.map(r=>`${r.kg||'—'}×${r.reps||'—'}`).join(' · '))+` <span style="opacity:.55">${_noteDateShort(lp.date)}</span>`:'—';
+        return `<span class="pset-lp"><b>${_esc(a.name.split(' ')[0])}</b> ${txt}</span>`;
+      }).join('')}</div>`:'';
+      const _setTbl=_lift?`<div class="pset">
+        ${_sr.map((r,si)=>`<div class="pset-r">
+          <span class="pset-lb">Satz ${si+1}</span>
+          <span class="pi-grp">${_ies(i,si,'int',r.int,34,'–','강도 %')}<span class="pi-u">%</span></span>
+          <span class="pi-grp">${_ies(i,si,'reps',r.reps,34,'–','횟수')}<span class="pi-u">회</span></span>
+          <span class="pset-kgs">${_kgChips(r.int)}</span>
+          ${_sr.length>1?`<button class="pset-x" title="이 세트 삭제" onclick="_planSetDel('${ds}','${b.sess}','${keysCsv}',${i},${si})">×</button>`:''}
+        </div>`).join('')}
+        <div class="pset-foot"><button class="m-btn ghost" style="font-size:10px;padding:2px 9px" onclick="_planSetAdd('${ds}','${b.sess}','${keysCsv}',${i})">＋ Satz</button></div>
+        ${_lastLine}
+      </div>`:'';
       const _ru=e.planRestUnit||'m';
       const _extra=_eo?`<div class="pi-more">
           <div class="pi-more-row"><span class="pi-lbl">⏱ Rest</span>${_ie(i,'planRestTime',e.planRestTime,44,'0','Rest')}
@@ -6140,14 +6276,17 @@ function _dayDetailHTML(ds){
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
           <span style="font-size:12px;font-weight:600;flex:1;min-width:130px">${icon} ${_esc(e.name)}${e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':''}${e.isSA?' <span style="font-size:9px;font-weight:700;color:#a78bfa">SA</span>':''}</span>
-          <span class="pi-grp">${_ie(i,'planSets',e.planSets,28,'s','Sets')}<span class="pi-x">×</span>${_ie(i,'planReps',e.planReps,28,'r','Reps')}</span>
+          ${_lift
+            ? `<span class="pset-cnt">${_sr.length} Sätze</span>`
+            : `<span class="pi-grp">${_ie(i,'planSets',e.planSets,28,'s','Sets')}<span class="pi-x">×</span>${_ie(i,'planReps',e.planReps,28,'r','Reps')}</span>
           <span class="pi-grp">${_ie(i,'planIntensity',e.planIntensity,32,'–','Intensity %')}<span class="pi-u">%</span></span>
-          <span class="pi-grp">${_ie(i,'planDistance',e.planDistance,38,'–','Distance m')}<span class="pi-u">m</span></span>
+          <span class="pi-grp">${_ie(i,'planDistance',e.planDistance,38,'–','Distance m')}<span class="pi-u">m</span></span>`}
           ${e.planRestTime?`<span style="font-size:10px;color:var(--hint)">rest ${_esc(e.planRestTime)}${_esc(_ru)}</span>`:''}
           ${e.ytUrl?`<a href="${_esc(e.ytUrl)}" target="_blank" class="pi-yt">▶</a>`:''}
           <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_eo?'background:rgba(247,169,79,.2);border-color:rgba(247,169,79,.45)':''}" title="rest · 영상링크 · 종목 코멘트" onclick="_planExToggle('${_ek}')">⋯</button>
           <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_isOpen?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${_pkey}')">💬</button>
         </div>
+        ${_setTbl}
         ${_planTargetHTML(e,_blockAthIds)}
         ${(e.coachComment&&!_eo)?`<div style="font-size:11px;color:var(--text);margin-top:3px;padding-left:24px">💬 ${_esc(e.coachComment)}</div>`:''}
         ${_extra}${_notes}${_exPanel}

@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260908-1';
+const APP_VERSION = '20260914-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3541,6 +3541,7 @@ function selectType(t){
           return {
             name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true, coachComment:e.coachComment||'',
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
+            planSetRows:Array.isArray(e.planSetRows)?JSON.parse(JSON.stringify(e.planSetRows)):null,
             planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
@@ -3563,6 +3564,7 @@ function selectType(t){
           return {
             name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true, coachComment:e.coachComment||'',
             planIntensity:e.planIntensity||'', planSets:e.planSets||'', planReps:e.planReps||'',
+            planSetRows:Array.isArray(e.planSetRows)?JSON.parse(JSON.stringify(e.planSetRows)):null,
             planDistance:e.planDistance||'',
             planRestTime:e.planRestTime||'', planRestUnit:e.planRestUnit||'s', planRestType:e.planRestType||[],
             planRestTimeReps:e.planRestTimeReps||'', planRestUnitReps:e.planRestUnitReps||'s',
@@ -4191,12 +4193,35 @@ function renderExList(){
     if(ex.done){ div.style.border='1.5px solid rgba(62,207,142,.4)'; div.style.background='rgba(62,207,142,.04)'; }
     else if(ex.skipped){ div.style.border='1.5px solid rgba(255,255,255,.12)'; div.style.background='rgba(255,255,255,.03)'; div.style.opacity='0.6'; }
 
+    // 지난 수행기록: 칩은 라벨만, 누르면 날짜와 세트별 무게가 펼쳐진다
+    const _hdrPrev=(fromPlan&&params==='lifting')?_prevWeightPerf(ex.name):null;
+    const _prevKey=String(ex.name||('ex'+i)).replace(/'/g,'');
+    const _prevOpen=!!(ST._prevOpen&&ST._prevOpen[_prevKey]);
+    const _prevChip=_hdrPrev
+      ?`<span onclick="event.stopPropagation();_togglePrevPanel('${_prevKey}')" style="flex-shrink:0;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;border:1px solid ${_prevOpen?'transparent':'rgba(201,168,76,.35)'};background:${_prevOpen?'#c9a84c':'transparent'};color:${_prevOpen?'#10121a':'#c9a84c'}">📈 Letzte Leistung ${_prevOpen?'▴':'▾'}</span>`
+      :'';
+    const _prevPanel=(_hdrPrev&&_prevOpen)
+      ?`<div style="margin-top:8px;padding:9px 11px;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.22);border-radius:10px">
+          <div style="font-size:11px;font-weight:700;color:#c9a84c;margin-bottom:5px">${_deDate(_hdrPrev.date)}</div>
+          ${_hdrPrev.rows.map((r,k)=>{
+            const _kg=String(r.kg==null?'':r.kg);
+            const _unit=(_kg&&_kg!=='BW'&&_kg[0]!=='+')?' kg':'';
+            return `<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11px;padding:3px 0;border-top:1px solid rgba(255,255,255,.05)">
+              <span style="color:var(--muted)">Satz ${k+1}</span>
+              <span style="color:var(--text);font-weight:600">${_kg||'—'}${_unit} × ${r.reps||'—'}</span>
+            </div>`;
+          }).join('')}
+          ${_hdrPrev.coachComment?`<div style="font-size:11px;color:var(--muted);margin-top:6px">💬 Coach: <span style="color:var(--text)">${_hdrPrev.coachComment}</span></div>`:''}
+        </div>`
+      :'';
+
     // Header row
     const donePrefix=ex.done?`<span style="color:#3ecf8e;font-size:12px;font-weight:700;margin-right:6px">✓</span>`:'';
     const headerHtml=fromPlan
       ? `<div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;flex-wrap:wrap">
            <span class="_ex-name-done" style="font-size:16px;font-weight:700;color:#D4D0E8;${ex.done?'text-decoration:line-through;opacity:.5':''}">${donePrefix}${ex.name}</span>
            ${planModeChips}
+           ${_prevChip}
          </div>
          ${ytLink}
          <span style="font-size:10px;color:var(--muted);flex-shrink:0">📋</span>`
@@ -4285,16 +4310,26 @@ function renderExList(){
 
       // ── Per-set rows: initialize if missing ──────────────────────────
       if(!ex.setRows || !ex.setRows.length){
-        const n=Math.max(1, parseInt(ex.planSets||ex.sets)||1);
+        // 세트별 처방(planSetRows)이 있으면 세트 수·횟수를 줄마다 따로 가져온다
+        const _pRows=(ex.fromPlan&&Array.isArray(ex.planSetRows)&&ex.planSetRows.length)?ex.planSetRows:null;
+        const n=_pRows?_pRows.length:Math.max(1, parseInt(ex.planSets||ex.sets)||1);
         const r=ex.planReps||ex.reps||'';
         const kg=isBW?'':(ex.weight||'');
-        ST.exercises[i].setRows=Array.from({length:n},()=>({kg, reps:r, extraKg:ex.extraKg||'', done:false}));
+        ST.exercises[i].setRows=Array.from({length:n},(_,k)=>({
+          kg, reps:(_pRows&&_pRows[k]&&_pRows[k].reps)?String(_pRows[k].reps):r,
+          extraKg:ex.extraKg||'', done:false
+        }));
         if(ex.done) ST.exercises[i].setRows.forEach(s=>s.done=true);
       }
       // Previous performance — placeholders + hint (다음 사이클 참고용)
       const _prev=_prevWeightPerf(ex.name);
+      const _psr=(fromPlan&&Array.isArray(ex.planSetRows)&&ex.planSetRows.length)?ex.planSetRows:null;
       const setRowsHtml=ST.exercises[i].setRows.map((sr,j)=>{
         const rd=sr.done;
+        const _ps=_psr?(_psr[j]||null):null;
+        const _psPct=(_ps&&_ps.int)?String(_ps.int):'';
+        const _psKg=(_ps&&_ps.kg)?String(_ps.kg):'';
+        const _pctTag=_psPct?`<span style="font-size:11px;font-weight:800;color:#c9a84c;min-width:34px;text-align:center;flex-shrink:0">${_psPct}%</span>`:'';
         const _pr=_prev?(_prev.rows[j]||_prev.rows[_prev.rows.length-1]):null;
         const _pKg=_pr&&_pr.kg&&_pr.kg!=='BW'?String(_pr.kg).replace(/^\+/,''):'';
         const _pReps=_pr&&_pr.reps?String(_pr.reps):'';
@@ -4303,9 +4338,10 @@ function renderExList(){
         const kgField=isBW
           ?`<span style="font-size:12px;font-weight:700;color:#3ecf8e;min-width:36px;text-align:center">${ex.weight||'BW'}</span>
              <input type="number" placeholder="${_pKg?'+'+_pKg:'+kg'}" value="${sr.extraKg||''}" oninput="updateSetRowField(${i},${j},'extraKg',this.value)" style="${inStyle};width:56px;color:#f7a94f">`
-          :`<input type="number" placeholder="${_pKg||'kg'}" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
+          :`<input type="number" placeholder="${_psKg||_pKg||'kg'}" value="${sr.kg||''}" oninput="updateSetRowField(${i},${j},'kg',this.value)" style="${inStyle}">`;
         return `<div style="${rowStyle}">
           <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Satz ${j+1}</span>
+          ${_pctTag}
           ${kgField}
           <span style="font-size:11px;color:var(--muted)">×</span>
           <input type="number" placeholder="${_pReps||'reps'}" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">
@@ -4356,7 +4392,9 @@ function renderExList(){
           <span style="font-size:12px;color:var(--text);line-height:1.4">${ex.coachComment}</span>
         </div>`;
       }
-      paramsHtml=`${liftPlanSummary}${contractionBadge}${ytEmbed}${coachBadge}${prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
+      // 세트별 처방이 있으면 위의 'Plan: 70-80% · 3×5' 요약줄은 중복이라 뺀다.
+      // 지난기록 줄은 칩으로 옮겼으므로 칩이 있는 카드에선 뺀다.
+      paramsHtml=`${_prevPanel}${_psr?'':liftPlanSummary}${contractionBadge}${ytEmbed}${coachBadge}${_hdrPrev?'':prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -5058,6 +5096,20 @@ function _playFormVideo(url){
   el.querySelector('button').onclick=rm;
   el.onclick=(ev)=>{ if(ev.target===el) rm(); };
   document.body.appendChild(el);
+}
+// 지난 수행기록 패널 — 종목 제목 옆 칩으로 열고 닫는다 (2026-09-14)
+function _deDate(ds){
+  if(!ds)return '';
+  const W=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  const p=String(ds).split('-');
+  if(p.length!==3)return ds;
+  const d=new Date(ds+'T12:00:00');
+  return `${W[d.getDay()]} ${p[2]}.${p[1]}.${p[0]}`;
+}
+function _togglePrevPanel(k){
+  ST._prevOpen=ST._prevOpen||{};
+  ST._prevOpen[k]=!ST._prevOpen[k];
+  renderExList();
 }
 function _prevHintHtml(txt,comment){
   return `<div style="display:flex;flex-direction:column;gap:2px;margin-top:8px;padding:7px 11px;background:rgba(198,168,90,.07);border:1px solid rgba(198,168,90,.18);border-radius:9px">
