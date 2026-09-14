@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260914-3';
+const APP_VERSION = '20260914-4';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -4419,28 +4419,18 @@ function renderExList(){
       const _psrP=(fromPlan&&Array.isArray(ex.planSetRows)&&ex.planSetRows.length)?ex.planSetRows:null;
       const plyoPlanSummary=_plyoDesc
         ? `<div class="plan-summary-row">📋 ${_plyoDesc}${plyoRestStr}</div>`
-        : ((_plyoPlanParts.length&&!_psrP)?`<div class="plan-summary-row">📋 Plan: ${_plyoPlanParts.join(' · ')}${plyoRestStr}</div>`:'');
-      if(_psrP){
-        if(!ex.setRows||!ex.setRows.length){
-          ST.exercises[i].setRows=_psrP.map(r=>({kg:'',reps:String(r.reps||ex.planReps||''),extraKg:'',done:false}));
-          if(ex.done) ST.exercises[i].setRows.forEach(r=>r.done=true);
-        }
-        ST.exercises[i].sets=String(ST.exercises[i].setRows.length);
-        paramsHtml=`${_prevPanel}${plyoPlanSummary}${ytEmbed}<div style="margin-top:10px">${_plyoSetRowsHtml(ST.exercises[i],i)}</div>`;
-      } else {
-      paramsHtml=`
-        <div class="ex-nums" style="grid-template-columns:1fr 1fr">
-          <div class="mini-wrap">
-            <input class="mini-in${setsEdited?' plan-edited':''}" type="number" placeholder="0" value="${ex.sets||''}" oninput="ST.exercises[${i}].sets=this.value" onblur="renderExList()">
-            <div class="mini-lbl">Sätze${setsEdited?' ✎':''}</div>
-          </div>
-          <div class="mini-wrap">
-            <input class="mini-in${repsEdited?' plan-edited':''}" type="number" placeholder="0" value="${ex.reps||''}" oninput="ST.exercises[${i}].reps=this.value" onblur="renderExList()">
-            <div class="mini-lbl">${repLbl}${repsEdited?' ✎':''}${legTag}</div>
-          </div>
-        </div>
-        ${plyoPlanSummary}${ytEmbed}`;
+        : (plyoRestStr?`<div class="plan-summary-row">📋${plyoRestStr}</div>`:'');
+      // 세트 줄은 기본 구조다 — 3세트면 Satz 1·2·3 이 생긴다(처방 %가 없어도).
+      if(!ex.setRows||!ex.setRows.length){
+        const _n=_psrP?_psrP.length:Math.max(1,parseInt(ex.planSets||ex.sets)||1);
+        ST.exercises[i].setRows=Array.from({length:_n},(_,k)=>({
+          kg:'', reps:String((_psrP&&_psrP[k]&&_psrP[k].reps)||ex.planReps||ex.reps||''),
+          extraKg:'', done:false
+        }));
+        if(ex.done) ST.exercises[i].setRows.forEach(r=>r.done=true);
       }
+      ST.exercises[i].sets=String(ST.exercises[i].setRows.length);
+      paramsHtml=`${_prevPanel}${plyoPlanSummary}${ytEmbed}${legMode&&legMode!=='DL'?`<div style="margin-top:6px;font-size:11px;color:var(--muted)">${repLbl} ${legTag}</div>`:''}<div style="margin-top:10px">${_plyoSetRowsHtml(ST.exercises[i],i)}</div>`;
     } else if(params==='mobility'){
       // Mobility & Conditioning — completion check only (no load/intensity)
       const _mobParts=[];
@@ -5156,7 +5146,7 @@ function _plyoSetRowsHtml(ex,i){
       <span style="font-size:11px;font-weight:800;color:var(--muted);min-width:38px">Satz ${j+1}</span>
       ${pct}${kgField}
       <span style="font-size:11px;color:var(--muted)">×</span>
-      <input type="number" placeholder="${(ps&&ps.reps)||ex.planReps||'reps'}" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">
+      <input type="number" placeholder="${String((ps&&ps.reps)||ex.planReps||'').replace(/[^\d.]/g,'')||'reps'}" value="${sr.reps||''}" oninput="updateSetRowField(${i},${j},'reps',this.value)" style="${inStyle}">${(String((ps&&ps.reps)||ex.planReps||'').match(/[a-zA-Z]+$/)||[''])[0]?`<span style="font-size:11px;font-weight:700;color:#c9a84c;flex-shrink:0">${(String((ps&&ps.reps)||ex.planReps||'').match(/[a-zA-Z]+$/)||[''])[0]}</span>`:''}
       <button onclick="toggleSetRowDone(${i},${j})" style="margin-left:auto;padding:5px 12px;border-radius:8px;border:1.5px solid ${rd?'#3ecf8e':'rgba(255,255,255,.15)'};background:${rd?'rgba(62,207,142,.12)':'transparent'};color:${rd?'#3ecf8e':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${rd?'✓':'○'}</button>
       ${rows.length>1?`<button onclick="removeSetRow(${i},${j})" style="padding:4px 8px;border-radius:8px;border:1px solid rgba(255,80,80,.3);background:rgba(255,80,80,.07);color:rgba(255,100,100,.8);font-size:13px;font-weight:700;cursor:pointer;line-height:1" title="Satz löschen">×</button>`:''}
     </div>`;
