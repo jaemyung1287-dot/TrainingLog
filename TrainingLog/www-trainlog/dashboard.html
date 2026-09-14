@@ -560,6 +560,7 @@ button.pi-yt{cursor:pointer;font-family:inherit;line-height:1.3}
 .pset-kg{font-size:10px;font-weight:600;color:#3ecf8e;background:rgba(62,207,142,.10);
          border:1px solid rgba(62,207,142,.22);border-radius:999px;padding:1px 7px;white-space:nowrap}
 .pset-kg b{font-weight:800}
+.pset-kg.est{color:#e0b45f;background:rgba(224,180,95,.10);border-color:rgba(224,180,95,.28)}
 .pset-x{flex-shrink:0;padding:1px 6px;border-radius:5px;border:1px solid rgba(248,81,73,.3);
         background:transparent;color:rgba(248,81,73,.75);font-size:11px;cursor:pointer;font-family:inherit}
 .pset-foot{padding:3px 0 0}
@@ -6016,8 +6017,9 @@ function _maxRecOf(athId,exName){
   const r=maxData&&maxData[athId]&&maxData[athId][exName];
   const kg=r&&parseFloat(r.kg);
   if(!(kg>0))return null;
-  if(/estimate/i.test(r.src||''))return null;
-  return {kg,date:r.date||'',src:r.src||''};
+  // 추정치는 기본 제외. 다만 코치가 use:true 로 명시 승인하면 쓴다(출처는 그대로 남는다).
+  if(/estimate/i.test(r.src||'')&&r.use!==true)return null;
+  return {kg,date:r.date||'',src:r.src||'',est:/estimate/i.test(r.src||'')};
 }
 // planSetRows 우선. 없으면 옛 planSets/planIntensity/planReps 로 만들어 준다(하위호환).
 function _setRowsOf(e){
@@ -6270,7 +6272,7 @@ function _dayDetailHTML(ds){
         const a=allAths.find(x=>x.id===aid); if(!a)return '';
         const rec=_maxRecOf(aid,e.name||''); const p=parseFloat(pct);
         if(!rec||!(p>0))return '';
-        return `<span class="pset-kg" title="${_esc(a.name)} · 1RM ${rec.kg}kg · ${_esc(rec.date)}">${_esc(a.name.split(' ')[0])} <b>${_roundKg(rec.kg*p/100)}</b></span>`;
+        return `<span class="pset-kg${rec.est?' est':''}" title="${_esc(a.name)} · 1RM ${rec.kg}kg · ${_esc(rec.date)}${rec.est?' · 코치 추정치(승인됨)':''}">${_esc(a.name.split(' ')[0])} <b>${_roundKg(rec.kg*p/100)}</b>${rec.est?' <span style="opacity:.7">≈</span>':''}</span>`;
       }).join('');
       const _noMax=_lift?_blockAthIds.filter(aid=>!_maxRecOf(aid,e.name||'')):[];
       const _lastLine=_noMax.length?`<div class="pset-last"><span class="pset-last-lb">1RM 없음 · 지난기록</span>${_noMax.map(aid=>{
