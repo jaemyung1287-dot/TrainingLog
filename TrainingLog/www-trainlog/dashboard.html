@@ -504,6 +504,29 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
 .lt-pin-setn{font-size:12px;color:var(--muted);padding:2px 0;line-height:1.5}
 .lt-pin-exname{font-size:11px;font-weight:700;color:var(--gold);margin:2px 0 4px}
 .lt-pin-note{font-size:11px;color:#8b949e;font-style:italic;padding-left:13px;margin-top:2px;line-height:1.5}
+/* ── Plan 상세 패널: 인라인 수정 필드 ── */
+.pi{background:transparent;border:1px solid transparent;border-radius:5px;color:rgba(198,168,90,.95);
+    font-size:11px;font-weight:600;padding:2px 3px;text-align:center;font-family:inherit;min-width:0}
+.pi:hover{border-color:var(--border);background:rgba(255,255,255,.04)}
+.pi:focus{outline:none;border-color:rgba(88,166,255,.65);background:rgba(88,166,255,.10);color:var(--text)}
+.pi::placeholder{color:var(--hint);font-weight:400}
+.pi-full{width:100%;text-align:left;color:var(--text);flex:1}
+.pi-grp{display:inline-flex;align-items:center;gap:1px;flex-shrink:0}
+.pi-x,.pi-u{font-size:10px;color:var(--hint);font-weight:600}
+.pi-yt{flex-shrink:0;padding:2px 8px;border-radius:6px;background:rgba(255,0,0,.15);
+       border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:10px;font-weight:800;text-decoration:none}
+.pi-more{margin:6px 0 2px 24px;padding:8px 10px;border:1px solid var(--border);
+         border-radius:8px;background:rgba(255,255,255,.02)}
+.pi-more-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.pi-more-row:last-child{margin-bottom:0}
+.pi-lbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;
+        letter-spacing:.5px;min-width:58px;flex-shrink:0}
+td.plan-cell.is-sel{box-shadow:inset 0 0 0 2px rgba(247,169,79,.55)}
+.plan-toast{position:fixed;right:20px;bottom:20px;z-index:9999;padding:8px 14px;border-radius:8px;
+  background:rgba(62,207,142,.15);border:1px solid rgba(62,207,142,.4);color:#3ecf8e;
+  font-size:12px;font-weight:700;opacity:0;transform:translateY(6px);
+  transition:opacity .18s,transform .18s;pointer-events:none}
+.plan-toast.on{opacity:1;transform:translateY(0)}
 </style>
 </head>
 <body>
@@ -535,7 +558,6 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
       <button class="nb on" onclick="switchTab('overview',this)"><span class="ni">📋</span>Overview</button>
       <button class="nb" onclick="switchTab('load',this)"><span class="ni">📊</span>Load</button>
       <button class="nb" onclick="switchTab('plan',this)"><span class="ni">📝</span>Plan</button>
-      <button class="nb" onclick="switchTab('schedule',this)"><span class="ni">📅</span>Schedule</button>
       <button class="nb" onclick="switchTab('soreness',this)"><span class="ni">🔴</span>Soreness</button>
       <button class="nb" onclick="switchTab('condition',this)"><span class="ni">😴</span>Condition</button>
       <button class="nb" onclick="switchTab('perf',this)"><span class="ni">🏃</span>Performance</button>
@@ -577,7 +599,6 @@ nav{padding:8px 8px;flex:1;display:flex;flex-direction:column;gap:1px}
       <div class="tab on" id="tab-overview"></div>
       <div class="tab" id="tab-load"></div>
       <div class="tab" id="tab-plan"></div>
-      <div class="tab" id="tab-schedule"></div>
       <div class="tab" id="tab-soreness"></div>
       <div class="tab" id="tab-condition"></div>
       <div class="tab" id="tab-perf"></div>
@@ -616,7 +637,9 @@ let selNames=new Set(); // 개별 선수 다중선택 (탭 간 공유, 비면 �
 let overviewFilter='all';
 let athletesFilter=null; // Athletes tab: 기본 미선택 — 선택해야 카드 표시
 let planGrpFilter=null; // Plan tab: which group's athletes are shown (null = groups only)
-let schedFilter='all'; // Schedule tab: 'all' | 'A' | 'B' | athlete name
+let schedFilter='all'; // Plan 탭 하단 상세: 'all' | 'A' | 'B' | athlete name
+let planSelDay=null;   // Plan 탭: 하단에 펼쳐 볼 날짜 (null = 오늘/첫 세션 자동)
+let planExOpen=null;   // Plan 탭 상세: 열려 있는 종목/웜업의 확장 패널 키
 let schedDayIdx=null;  // Schedule tab: null = whole week, 0–6 = Mon..Sun
 let loadGrpFilter=null; // Load tab: null(미선택) | 'all' | 'A' | 'B' — 재클릭 시 해제
 let loadRegSel=null;    // Load tab: region chart 세부 카테고리 선택 (null = 전체 스택)
@@ -1192,7 +1215,7 @@ function updateWeekLabel(){
 }
 
 // ══ NAV ══
-const TITLES={plan:'Session Plan',schedule:'Weekly Schedule',overview:'Overview',load:'Training Load',soreness:'Soreness',condition:'Condition',perf:'Performance',athletes:'Athletes',export:'Export'};
+const TITLES={plan:'Weekly Plan',overview:'Overview',load:'Training Load',soreness:'Soreness',condition:'Condition',perf:'Performance',athletes:'Athletes',export:'Export'};
 function switchTab(id,btn){
   curTab=id;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -1207,7 +1230,7 @@ function _rerenderTrends(){ if(typeof renderCurrent==='function') renderCurrent(
 function renderCurrent(){
   if(!coachData)return;
   updateWeekLabel();
-  ({plan:renderPlan,schedule:renderSchedule,overview:renderOverview,load:renderLoad,soreness:renderSoreness,condition:renderCondition,perf:renderPerf,athletes:renderAthletes,export:renderExport})[curTab]?.();
+  ({plan:renderPlan,overview:renderOverview,load:renderLoad,soreness:renderSoreness,condition:renderCondition,perf:renderPerf,athletes:renderAthletes,export:renderExport})[curTab]?.();
 }
 
 // ══════════════════════════════════════
@@ -5786,9 +5809,14 @@ function _planSessOf(day,key,sess){
 }
 function renderPlan(){
   const wrap=document.getElementById('tab-plan');
+  // 인라인 필드에 타이핑하는 중에는 다시 그리지 않는다 (라이브 동기화가 입력을 지워버린다)
+  const ae=document.activeElement;
+  if(ae&&ae.closest&&ae.closest('#tab-plan')&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT'))return;
+  const _content=document.getElementById('content');
+  const _sc=_content?_content.scrollTop:0;
   const wk=getWeekDates(weekOffset);
   const today=todayStr();
-  document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)} · click a cell to edit`;
+  document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)} · 셀 클릭 → 아래에 상세`;
   const DN_DE=['Mo','Di','Mi','Do','Fr','Sa','So'];const DN_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const keys=_planKeys();
   // Group rows in fixed order (All → A → B); athlete rows only when a group filter is selected
@@ -5848,68 +5876,115 @@ function renderPlan(){
         if(amAths.length)cell+=`<span class="pc-chip" style="background:rgba(247,169,79,.12);color:#f7a94f" title="${_esc(amAths.map(a=>a.name).join(', '))}">AM 👤${amAths.length}</span>`;
         if(pmAths.length)cell+=`<span class="pc-chip" style="background:rgba(167,139,250,.12);color:#a78bfa" title="${_esc(pmAths.map(a=>a.name).join(', '))}">PM 👤${pmAths.length}</span>`;
       }
-      if(!cell)cell=`<div class="pc-add">+ plan</div>`;
-      html+=`<td class="td-day plan-cell${ds===today?' is-today':''}" onclick="openPlanEditor('${ds}','${k.key}','${am?'am':pm?'pm':'am'}')">${cell}</td>`;
+      const _empty=!cell;
+      if(_empty)cell=`<div class="pc-add">+ plan</div>`;
+      html+=`<td class="td-day plan-cell${ds===today?' is-today':''}${planSelDay===ds?' is-sel':''}" onclick="_planPickDay('${ds}','${k.key}','${am?'am':pm?'pm':'am'}',${_empty})">${cell}</td>`;
     });
     html+=`</tr>`;
   });
   html+=`</tbody></table></div>
-  <div style="margin-top:12px;font-size:11px;color:var(--muted)">셀 클릭 → 플랜 작성/수정 · 저장하면 선수 폰 앱에 자동 반영 (선수는 앱을 열 때 최신 플랜을 받습니다)</div>`;
+  <div style="margin-top:10px;font-size:11px;color:var(--muted)">셀 클릭 → 아래에 그 날 상세 · 빈 칸(+ plan) 클릭 → 새 세션 작성 · 저장하면 선수 폰 앱에 자동 반영</div>`;
+  html+=_planDetailPanelHTML(wk,today);
   wrap.innerHTML=html;
+  if(_content)_content.scrollTop=_sc; // 라이브 동기화 재렌더에도 스크롤 유지
 }
 
-// ══ WEEKLY SCHEDULE — completed plans, readable sheet + coach notes ══
-function renderSchedule(){
-  const wrap=document.getElementById('tab-schedule');
-  // Don't re-render while the coach is typing in a comment/lap field (live-sync would wipe it)
-  const ae=document.activeElement;
-  if(ae&&ae.closest&&ae.closest('#tab-schedule')&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
-  const _content=document.getElementById('content');
-  const _sc=_content?_content.scrollTop:0;
-  const wk=getWeekDates(weekOffset);
-  const today=todayStr();
-  document.getElementById('tb-sub').textContent=`${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}`;
-  const DN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const keys=_planKeys();
-  const labelOf=k=>keys.find(x=>x.key===k)?.label||k;
-  const colorOf=k=>keys.find(x=>x.key===k)?.color||'#a78bfa';
-
-  const wkTag=weekOffset===0?' · This week':weekOffset===1?' · Next week':weekOffset===-1?' · Last week':'';
-  let html=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-    <button class="m-btn" style="width:42px;font-size:16px" onclick="shiftWeek(-1)">‹</button>
-    <div style="font-size:15px;font-weight:800;min-width:240px;text-align:center">${fmtShort(wk[0].d)} – ${fmtShort(wk[6].d)}, ${wk[6].d.getFullYear()}<span style="color:var(--gold)">${wkTag}</span></div>
-    <button class="m-btn" style="width:42px;font-size:16px" onclick="shiftWeek(1)">›</button>
-    ${weekOffset!==0?`<button class="m-btn" onclick="shiftWeek(0,true)">← This week</button>`:''}
-  </div>`;
-
-  // ── 1st priority: DAY strip (Mon–Sun) — pick a day to see only that day's sessions ──
-  const DN2=['Mo · Mon','Di · Tue','Mi · Wed','Do · Thu','Fr · Fri','Sa · Sat','So · Sun'];
-  html+=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-    <button class="flt-btn ${schedDayIdx===null?'on':''}" onclick="schedDayIdx=null;renderSchedule()">Week 전체</button>`;
-  wk.forEach(({ds,d},i)=>{
-    const on=schedDayIdx===i;
-    const isT=ds===today;
-    html+=`<button class="flt-btn ${on?'on':''}" style="${isT&&!on?'border-color:rgba(88,166,255,.45)':''}"
-      onclick="schedDayIdx=${on?'null':i};renderSchedule()">${DN2[i]}<span style="margin-left:4px;opacity:.6">${d.getDate()}.</span>${isT?' <span style="font-size:8px;color:var(--blue);font-weight:800">●</span>':''}</button>`;
-  });
-  html+=`</div>`;
-
-  // ── 2nd/3rd priority: Group / athlete filter (same pattern as Overview) ──
+// ══════════════════════════════════════════════════════════════════════════
+//  DAY DETAIL — Plan 탭 하단 상세 패널
+//  2026-09-14: Schedule 탭을 Plan 탭 아래로 합쳤다. 위 그리드에서 날짜를 고르면
+//  그 날 AM·PM 전 세션의 상세(종목·강도·영상·코멘트·기록된 세션)가 여기 펼쳐지고,
+//  값(세트×렙·%·거리·rest·영상·코멘트)은 그 자리에서 바로 고친다(_planExEdit).
+//  종목 추가/삭제·순서·웜업·대상선수 변경은 기존 ✎ 모달(openPlanEditorKeys).
+// ══════════════════════════════════════════════════════════════════════════
+function _dayHasAny(ds){
+  const plan=coachData?.sessionPlans?.[ds];
+  if(plan&&Object.keys(plan).some(k=>k!=='phase'&&k!=='week'&&k!=='_ts'&&(_planSessOf(ds,k,'am')||_planSessOf(ds,k,'pm'))))return true;
+  return (coachData?.athletes||[]).some(a=>(athLogs[a.id]||[]).some(l=>l.date===ds&&l.type!=='condition'));
+}
+function _planPickDay(ds,key,sess,empty){
+  planSelDay=ds; planExOpen=null;
+  renderPlan();
+  if(empty){openPlanEditor(ds,key,sess);return;}
+  const el=document.getElementById('plan-detail');
+  if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function _planExToggle(k){planExOpen=(planExOpen===k)?null:k;renderPlan();}
+// 인라인 저장: 한 블록에 묶인 모든 타깃(keysCsv)에 같은 값을 쓴다.
+// 레거시 평면 플랜(plan[key].exercises, am 전용)도 _planSessRefIn 이 흡수한다.
+function _planSessRefIn(dayPlan,key,sess){
+  if(!dayPlan||!dayPlan[key])return null;
+  let s=dayPlan[key][sess];
+  if(!s&&sess==='am'&&Array.isArray(dayPlan[key].exercises))s=dayPlan[key];
+  return s||null;
+}
+async function _planExEdit(day,sess,keysCsv,idx,field,val){
+  try{
+    const dayPlan=JSON.parse(JSON.stringify(coachData?.sessionPlans?.[day]||{}));
+    let changed=false;
+    keysCsv.split(',').filter(Boolean).forEach(k=>{
+      const s=_planSessRefIn(dayPlan,k,sess);
+      if(!s||!Array.isArray(s.exercises)||!s.exercises[idx])return;
+      const cur=s.exercises[idx][field];
+      if((cur==null?'':String(cur))===String(val))return;
+      if(val==='')delete s.exercises[idx][field]; else s.exercises[idx][field]=val;
+      changed=true;
+    });
+    if(!changed)return;
+    dayPlan._ts=Date.now();
+    await _savePlanDay(day,dayPlan);
+    _planSaved();
+  }catch(e){alert('Save error: '+e.message);}
+}
+let _planSaveTmr=null;
+function _planSaved(){
+  let t=document.getElementById('plan-saved');
+  if(!t){t=document.createElement('div');t.id='plan-saved';t.className='plan-toast';document.body.appendChild(t);}
+  t.textContent='💾 저장됨 · 선수 앱 반영';
+  t.classList.add('on');
+  clearTimeout(_planSaveTmr);_planSaveTmr=setTimeout(()=>t.classList.remove('on'),1500);
+}
+// 그리드 아래 상세 패널 (날짜 헤더 + 선수 필터 + 하루치 상세)
+function _planDetailPanelHTML(wk,today){
+  if(!planSelDay||!wk.some(x=>x.ds===planSelDay)){
+    const t=wk.find(x=>x.ds===today);
+    planSelDay=t?t.ds:((wk.find(x=>_dayHasAny(x.ds))||wk[0]).ds);
+  }
+  const ds=planSelDay;
+  const d=new Date(ds+'T12:00:00');
+  const DNE=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const DND=['So','Mo','Di','Mi','Do','Fr','Sa'];
   const allAths=coachData?.athletes||[];
   const sBtn=(val,label,dot)=>{
     const on=schedFilter===val;
-    return `<button class="flt-btn ${on?'on':''}" onclick="schedFilter='${val.replace(/'/g,"\\'")}';renderSchedule()">${dot?`<span class="flt-dot" style="background:${dot}"></span>`:''}${label}</button>`;
+    return `<button class="flt-btn ${on?'on':''}" onclick="schedFilter='${val.replace(/'/g,"\\'")}';renderPlan()">${dot?`<span class="flt-dot" style="background:${dot}"></span>`:''}${label}</button>`;
   };
-  html+=`<div class="filter-bar"><div class="filter-group">
+  let bar=`<div class="filter-bar"><div class="filter-group">
     ${sBtn('all','All Athletes')}${sBtn('A','Group A')}${sBtn('B','Group B')}
   </div><div class="flt-sep"></div><div class="filter-group">`;
   allAths.forEach(a=>{
     const short=a.name.split(' ').map((p,i)=>i===0?p:p[0]+'.').join(' ');
-    html+=sBtn(a.name,short,a.group==='A'?'#58a6ff':'#3ecf8e');
+    bar+=sBtn(a.name,short,a.group==='A'?'#58a6ff':'#3ecf8e');
   });
-  html+=`</div></div>`;
-
-  // Relevance helpers for the current filter
+  bar+=`</div></div>`;
+  const body=_dayDetailHTML(ds);
+  return `<div class="card" id="plan-detail" style="margin-top:18px;${ds===today?'border-color:rgba(88,166,255,.45)':''}">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:14px;font-weight:800">📋 ${DND[d.getDay()]} · ${DNE[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.</span>
+      ${ds===today?'<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:var(--blue-dim);color:var(--blue);font-weight:800">TODAY</span>':''}
+      <span style="font-size:10px;color:var(--hint)">값은 클릭해서 바로 수정 · 종목 추가/삭제는 ✎ Edit</span>
+      <span style="flex:1"></span>
+      <button class="m-btn" style="font-size:11px;padding:4px 10px" onclick="openPlanEditor('${ds}','all','am')">＋ 세션 추가</button>
+    </div>
+    ${bar}
+    ${body||`<div class="empty">이 날은 계획된 세션이 없습니다 — 위 표의 <b>+ plan</b> 칸을 클릭해 작성하세요</div>`}
+  </div>`;
+}
+// 하루치 상세 HTML (기록된 세션 + 계획된 세션). 내용이 없으면 '' 반환.
+function _dayDetailHTML(ds){
+  const keys=_planKeys();
+  const labelOf=k=>keys.find(x=>x.key===k)?.label||k;
+  const colorOf=k=>keys.find(x=>x.key===k)?.color||'#a78bfa';
+  const allAths=coachData?.athletes||[];
   const _athRel=(a)=>schedFilter==='all'||a.group===schedFilter||a.name===schedFilter;
   const _keyRel=(key)=>{
     if(key==='all')return true;
@@ -5917,115 +5992,131 @@ function renderSchedule(){
     if(key.startsWith('ath_')){const a=allAths.find(x=>'ath_'+x.id===key);return a?_athRel(a):false;}
     return true;
   };
-
-  let anyBlock=false;
-  wk.forEach(({ds,d},di)=>{
-    if(schedDayIdx!==null&&di!==schedDayIdx)return; // day filter
-    const plan=coachData?.sessionPlans?.[ds];
-    // ── 1. Logged sessions (detailed, per athlete; respects filter) ──
-    const loggedBlocks=[];
-    (coachData?.athletes||[]).forEach(a=>{
-      if(!_athRel(a))return;
-      const dayLogs=(athLogs[a.id]||[]).filter(l=>l.date===ds&&l.type!=='condition');
-      if(dayLogs.length)loggedBlocks.push({a,logs:dayLogs});
-    });
-    const loggedIds=new Set(loggedBlocks.map(b=>'ath_'+b.a.id));
-    // ── 2. Planned blocks (merged); skip athlete keys that already logged ──
-    const blocks=[];const seen={};
-    const _fAth=allAths.find(a=>a.name===schedFilter)||null; // individual-athlete filter?
-    if(plan)Object.keys(plan).forEach(key=>{
-      if(key==='phase'||key==='week'||key==='_ts')return;
-      if(loggedIds.has(key))return;
-      if(!_keyRel(key))return;
-      ['am','pm'].forEach(sess=>{
-        // Individual filter: show ONLY the plan that actually applies to this athlete
-        // (same resolution as the phone app: individual > group > all)
-        if(_fAth){
-          const athKey='ath_'+_fAth.id;
-          const applicable=_planSessOf(ds,athKey,sess)?athKey:_planSessOf(ds,_fAth.group,sess)?_fAth.group:'all';
-          if(key!==applicable)return;
-        }
-        const s=_planSessOf(ds,key,sess);
-        if(!s||!(s.exercises||[]).length)return;
-        const sig=sess+'|'+JSON.stringify((s.exercises||[]).map(e=>[e.name,e.planIntensity,e.planDistance,e.planSets,e.planReps,e.planRestTime,e.isSL]));
-        if(seen[sig]){seen[sig].keys.push(key);return;}
-        const b={sess,keys:[key],s};seen[sig]=b;blocks.push(b);
-      });
-    });
-    if(!blocks.length&&!loggedBlocks.length)return;
-    anyBlock=true;
-    blocks.sort((a,b)=>a.sess.localeCompare(b.sess));
-    const isToday=ds===today;
-    html+=`<div class="card" style="margin-bottom:14px;${isToday?'border-color:rgba(88,166,255,.45)':''}">
-      <div style="font-size:13px;font-weight:800;margin-bottom:10px">${DN[di]} · ${d.getDate()}.${d.getMonth()+1}.${isToday?' <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:var(--blue-dim);color:var(--blue);font-weight:800">TODAY</span>':''}</div>`;
-    // ── Logged sessions (detail + per-exercise coach comments + sprint lap times) ──
-    if(loggedBlocks.length){
-      html+=`<div style="font-size:9px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">✅ Logged</div>`;
-      loggedBlocks.forEach(({a,logs})=>{
-        logs.sort((x,y)=>(x.session||'zz').localeCompare(y.session||'zz'));
-        logs.forEach(l=>html+=_schedLogBlock(a,l));
-      });
-    }
-    if(blocks.length&&loggedBlocks.length)
-      html+=`<div style="font-size:9px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin:4px 0 6px">📋 Planned (not logged yet)</div>`;
-    blocks.forEach(b=>{
-      const tgtChips=b.keys.map(k=>`<span class="pc-chip" style="background:${colorOf(k)}22;color:${colorOf(k)}">${_esc(labelOf(k))}</span>`).join('');
-      const sessChip=`<span class="pc-chip" style="background:${b.sess==='am'?'rgba(247,169,79,.12)':'rgba(167,139,250,.12)'};color:${b.sess==='am'?'#f7a94f':'#a78bfa'}">${b.sess.toUpperCase()}</span>`;
-      // 이 블록이 적용되는 선수 ID들 (그룹/전체 키는 멤버로 해석)
-      const _blockAthIds=[...new Set(b.keys.flatMap(k=>{
-        if(k.startsWith('ath_')){const id=k.slice(4);return allAths.some(a=>a.id===id)?[id]:[];}
-        if(k==='A'||k==='B')return allAths.filter(a=>a.group===k&&_athRel(a)).map(a=>a.id);
-        if(k==='all')return allAths.filter(a=>_athRel(a)).map(a=>a.id);
-        return [];
-      }))];
-      const keysCsv=b.keys.join(',');
-      const exRows=(b.s.exercises||[]).map((e,i)=>{
-        const det=[];
-        if(e.planIntensity)det.push(e.planIntensity+'%');
-        if(e.planDistance)det.push(e.planDistance+'m');
-        if(e.planSets||e.planReps)det.push((e.planSets||'—')+'×'+(e.planReps||'—'));
-        if(e.planRestTime)det.push('rest '+e.planRestTime+(e.planRestUnit||'s'));
-        const icon=TRAINING_STRUCTURE[e.trainingType]?.icon||'';
-        const _notes=_blockAthIds.map(aid=>{
-          const ath=allAths.find(x=>x.id===aid);
-          const tag=_blockAthIds.length>1&&ath?ath.name.split(' ')[0]:'';
-          return _prevExNoteHtml(aid,e.name,ds,tag);
-        }).join('');
-        const _pkey='P|'+ds+'|'+b.sess+'|'+keysCsv+'|'+i;
-        const _isOpen=openExCmt===_pkey;
-        const _exPanel=_isOpen?_exNotePanelHTML(ds,e.name||'',_blockAthIds,{}):'';
-        return `<div style="padding:5px 0;border-top:${i===0?'none':'1px solid rgba(255,255,255,.04)'}">
-          <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
-          <span style="font-size:12px;font-weight:600;flex:1">${icon} ${_esc(e.name)}${e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':''}</span>
-          <span style="font-size:11px;color:rgba(198,168,90,.85);font-weight:600">${det.join(' · ')}</span>
-          ${e.ytUrl?`<a href="${_esc(e.ytUrl)}" target="_blank" style="flex-shrink:0;padding:2px 8px;border-radius:6px;background:rgba(255,0,0,.15);border:1px solid rgba(255,0,0,.3);color:#ff4444;font-size:10px;font-weight:800;text-decoration:none">▶</a>`:''}
-          <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_isOpen?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${_pkey}')">💬</button>
-          </div>${_notes}${_exPanel}
-        </div>`;
-      }).join('');
-      const note=b.s.coachNote||'';
-      html+=`<div style="border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:9px">
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:7px">${sessChip}${tgtChips}
-          <span style="flex:1"></span>
-          <button class="m-btn ghost" style="font-size:10px;padding:3px 7px" onclick="openPlanEditorKeys('${ds}','${keysCsv}','${b.sess}')">✎ Edit</button>
-        </div>
-        ${_wuDashHasContent(b.s)?`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">🔆 ${_esc(_wuDashSummary(b.s))}</div>`:''}
-        ${exRows}
-        <div style="margin-top:9px">
-          <span class="m-lbl">📝 Coach note · 데이터/정리</span>
-          <textarea class="m-in" style="width:100%;min-height:40px;resize:vertical;font-size:12px"
-            placeholder="훈련 관련 데이터, 메모, 정리 내용을 입력하세요… (자동 저장)"
-            onblur="_schedSaveNote('${ds}','${b.sess}','${keysCsv}',this.value)">${_esc(note)}</textarea>
-        </div>
-      </div>`;
-    });
-    html+=`</div>`;
+  const plan=coachData?.sessionPlans?.[ds];
+  // ── 1. 기록된 세션 (선수별 상세; 필터 적용) ──
+  const loggedBlocks=[];
+  allAths.forEach(a=>{
+    if(!_athRel(a))return;
+    const dayLogs=(athLogs[a.id]||[]).filter(l=>l.date===ds&&l.type!=='condition');
+    if(dayLogs.length)loggedBlocks.push({a,logs:dayLogs});
   });
-  if(!anyBlock)html+=`<div class="empty">No planned sessions this week — Plan 탭에서 작성하세요</div>`;
-  wrap.innerHTML=html;
-  if(_content)_content.scrollTop=_sc; // keep scroll position across live-sync re-renders
+  const loggedIds=new Set(loggedBlocks.map(b=>'ath_'+b.a.id));
+  // ── 2. 계획된 세션 (같은 내용은 하나로 합침); 이미 기록한 선수 키는 건너뜀 ──
+  const blocks=[];const seen={};
+  const _fAth=allAths.find(a=>a.name===schedFilter)||null;
+  if(plan)Object.keys(plan).forEach(key=>{
+    if(key==='phase'||key==='week'||key==='_ts')return;
+    if(loggedIds.has(key))return;
+    if(!_keyRel(key))return;
+    ['am','pm'].forEach(sess=>{
+      // 개인 필터: 그 선수에게 실제로 적용되는 플랜만 (앱과 동일한 해석: 개인 > 그룹 > 전체)
+      if(_fAth){
+        const athKey='ath_'+_fAth.id;
+        const applicable=_planSessOf(ds,athKey,sess)?athKey:_planSessOf(ds,_fAth.group,sess)?_fAth.group:'all';
+        if(key!==applicable)return;
+      }
+      const s=_planSessOf(ds,key,sess);
+      if(!s||!(s.exercises||[]).length)return;
+      const sig=sess+'|'+JSON.stringify((s.exercises||[]).map(e=>[e.name,e.planIntensity,e.planDistance,e.planSets,e.planReps,e.planRestTime,e.isSL]));
+      if(seen[sig]){seen[sig].keys.push(key);return;}
+      const b={sess,keys:[key],s};seen[sig]=b;blocks.push(b);
+    });
+  });
+  if(!blocks.length&&!loggedBlocks.length)return '';
+  blocks.sort((a,b)=>a.sess.localeCompare(b.sess));
+  let html='';
+  if(loggedBlocks.length){
+    html+=`<div style="font-size:9px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">✅ Logged</div>`;
+    loggedBlocks.forEach(({a,logs})=>{
+      logs.sort((x,y)=>(x.session||'zz').localeCompare(y.session||'zz'));
+      logs.forEach(l=>html+=_schedLogBlock(a,l));
+    });
+  }
+  if(blocks.length&&loggedBlocks.length)
+    html+=`<div style="font-size:9px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin:4px 0 6px">📋 Planned (not logged yet)</div>`;
+  blocks.forEach(b=>{
+    const tgtChips=b.keys.map(k=>`<span class="pc-chip" style="background:${colorOf(k)}22;color:${colorOf(k)}">${_esc(labelOf(k))}</span>`).join('');
+    const sessChip=`<span class="pc-chip" style="background:${b.sess==='am'?'rgba(247,169,79,.12)':'rgba(167,139,250,.12)'};color:${b.sess==='am'?'#f7a94f':'#a78bfa'}">${b.sess.toUpperCase()}</span>`;
+    // 이 블록이 적용되는 선수 ID들 (그룹/전체 키는 멤버로 해석)
+    const _blockAthIds=[...new Set(b.keys.flatMap(k=>{
+      if(k.startsWith('ath_')){const id=k.slice(4);return allAths.some(a=>a.id===id)?[id]:[];}
+      if(k==='A'||k==='B')return allAths.filter(a=>a.group===k&&_athRel(a)).map(a=>a.id);
+      if(k==='all')return allAths.filter(a=>_athRel(a)).map(a=>a.id);
+      return [];
+    }))];
+    const keysCsv=b.keys.join(',');
+    // ── 인라인 입력 헬퍼 (blur 시 저장, Enter 로 확정) ──
+    const _ie=(i,f,v,w,ph,ttl)=>`<input class="pi" style="width:${w}px" value="${_esc(v==null?'':v)}" placeholder="${ph}" title="${ttl}" onblur="_planExEdit('${ds}','${b.sess}','${keysCsv}',${i},'${f}',this.value.trim())" onkeydown="if(event.key==='Enter')this.blur()">`;
+    const _ieF=(i,f,v,ph)=>`<input class="pi pi-full" value="${_esc(v==null?'':v)}" placeholder="${ph}" onblur="_planExEdit('${ds}','${b.sess}','${keysCsv}',${i},'${f}',this.value.trim())" onkeydown="if(event.key==='Enter')this.blur()">`;
+    const exRows=(b.s.exercises||[]).map((e,i)=>{
+      const icon=TRAINING_STRUCTURE[e.trainingType]?.icon||'';
+      const _notes=_blockAthIds.map(aid=>{
+        const ath=allAths.find(x=>x.id===aid);
+        const tag=_blockAthIds.length>1&&ath?ath.name.split(' ')[0]:'';
+        return _prevExNoteHtml(aid,e.name,ds,tag);
+      }).join('');
+      const _pkey='P|'+ds+'|'+b.sess+'|'+keysCsv+'|'+i;
+      const _isOpen=openExCmt===_pkey;
+      const _exPanel=_isOpen?_exNotePanelHTML(ds,e.name||'',_blockAthIds,{}):'';
+      const _ek='X|'+ds+'|'+b.sess+'|'+keysCsv+'|'+i;
+      const _eo=planExOpen===_ek;
+      const _ru=e.planRestUnit||'m';
+      const _extra=_eo?`<div class="pi-more">
+          <div class="pi-more-row"><span class="pi-lbl">⏱ Rest</span>${_ie(i,'planRestTime',e.planRestTime,44,'0','Rest')}
+            <select class="pi" style="width:56px" onchange="_planExEdit('${ds}','${b.sess}','${keysCsv}',${i},'planRestUnit',this.value)">
+              <option value="m"${_ru==='m'?' selected':''}>min</option>
+              <option value="s"${_ru==='s'?' selected':''}>sec</option>
+            </select></div>
+          <div class="pi-more-row"><span class="pi-lbl">🎬 Video</span>${_ieF(i,'ytUrl',e.ytUrl,'https://youtube.com/… (붙여넣기)')}</div>
+          <div class="pi-more-row"><span class="pi-lbl">💬 Note</span>${_ieF(i,'coachComment',e.coachComment,'이 종목 지시사항 — 선수 앱에 표시됩니다')}</div>
+        </div>`:'';
+      return `<div style="padding:5px 0;border-top:${i===0?'none':'1px solid rgba(255,255,255,.04)'}">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:10px;color:var(--hint);min-width:16px">${i+1}.</span>
+          <span style="font-size:12px;font-weight:600;flex:1;min-width:130px">${icon} ${_esc(e.name)}${e.isSL?' <span style="font-size:9px;font-weight:700;color:#4f8ef7">SL</span>':''}${e.isSA?' <span style="font-size:9px;font-weight:700;color:#a78bfa">SA</span>':''}</span>
+          <span class="pi-grp">${_ie(i,'planSets',e.planSets,28,'s','Sets')}<span class="pi-x">×</span>${_ie(i,'planReps',e.planReps,28,'r','Reps')}</span>
+          <span class="pi-grp">${_ie(i,'planIntensity',e.planIntensity,32,'–','Intensity %')}<span class="pi-u">%</span></span>
+          <span class="pi-grp">${_ie(i,'planDistance',e.planDistance,38,'–','Distance m')}<span class="pi-u">m</span></span>
+          ${e.planRestTime?`<span style="font-size:10px;color:var(--hint)">rest ${_esc(e.planRestTime)}${_esc(_ru)}</span>`:''}
+          ${e.ytUrl?`<a href="${_esc(e.ytUrl)}" target="_blank" class="pi-yt">▶</a>`:''}
+          <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_eo?'background:rgba(247,169,79,.2);border-color:rgba(247,169,79,.45)':''}" title="rest · 영상링크 · 종목 코멘트" onclick="_planExToggle('${_ek}')">⋯</button>
+          <button class="m-btn ghost" style="flex-shrink:0;padding:2px 7px;font-size:11px;${_isOpen?'background:rgba(88,166,255,.2);border-color:rgba(88,166,255,.4)':''}" title="대상 선택 코멘트" onclick="_openExCmt('${_pkey}')">💬</button>
+        </div>
+        ${(e.coachComment&&!_eo)?`<div style="font-size:11px;color:var(--text);margin-top:3px;padding-left:24px">💬 ${_esc(e.coachComment)}</div>`:''}
+        ${_extra}${_notes}${_exPanel}
+      </div>`;
+    }).join('');
+    // ── 웜업: 한 줄 요약 → 클릭하면 항목·영상까지 펼침 ──
+    const _wk='W|'+ds+'|'+b.sess+'|'+keysCsv;
+    const _wo=planExOpen===_wk;
+    const _wuItems=_wuDashItems(b.s);
+    const _wuHtml=_wuDashHasContent(b.s)?`<div style="margin-bottom:7px">
+        <div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="_planExToggle('${_wk}')">🔆 ${_esc(_wuDashSummary(b.s))} <span style="color:var(--hint)">${_wo?'▲':'▼'}</span></div>
+        ${(_wo&&_wuItems.length)?`<div class="pi-more">${_wuItems.map((it,wi)=>`<div class="pi-more-row">
+            <span style="font-size:11px;flex:1">${wi+1}. ${_esc(it.name||'')}${(it.sets||it.reps)?` <span style="color:var(--gold);font-weight:700">${_esc(it.sets||'')}${it.reps?'×'+_esc(it.reps):''}</span>`:''}${it.comment?` <span style="font-size:10px;color:var(--hint)">${_esc(it.comment)}</span>`:''}</span>
+            ${it.ytUrl?`<a href="${_esc(it.ytUrl)}" target="_blank" class="pi-yt">▶</a>`:''}
+          </div>`).join('')}</div>`:''}
+      </div>`:'';
+    const note=b.s.coachNote||'';
+    html+=`<div style="border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:9px">
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:7px">${sessChip}${tgtChips}
+        <span style="flex:1"></span>
+        <button class="m-btn ghost" style="font-size:10px;padding:3px 7px" title="종목 추가/삭제 · 순서 · 웜업 · 대상선수" onclick="openPlanEditorKeys('${ds}','${keysCsv}','${b.sess}')">✎ Edit</button>
+      </div>
+      ${_wuHtml}
+      ${exRows}
+      <div style="margin-top:9px">
+        <span class="m-lbl">📝 Coach note · 데이터/정리</span>
+        <textarea class="m-in" style="width:100%;min-height:40px;resize:vertical;font-size:12px"
+          placeholder="훈련 관련 데이터, 메모, 정리 내용을 입력하세요… (자동 저장)"
+          onblur="_schedSaveNote('${ds}','${b.sess}','${keysCsv}',this.value)">${_esc(note)}</textarea>
+      </div>
+    </div>`;
+  });
+  return html;
 }
+// Schedule 탭은 Plan 탭으로 흡수됐다(2026-09-14) — 옛 호출부는 그대로 Plan 을 다시 그린다.
+function renderSchedule(){renderPlan();}
 // ── 지난 메모: 같은 선수·같은 운동의 가장 최근 coachComment 1개 찾기 ──
 function _noteDateShort(ds){const p=(ds||'').split('-');return p.length===3?(+p[1])+'/'+(+p[2]):ds;}
 function _prevExNote(athId,exName,beforeDate){
