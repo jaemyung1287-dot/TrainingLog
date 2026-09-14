@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260914-1';
+const APP_VERSION = '20260914-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -4254,9 +4254,10 @@ function renderExList(){
         liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       // 이전 기록은 아래 📈 Last 줄에서 세트별로 더 자세히 보여주므로, 플랜 줄의 "Letzt." 중복 제거
-      const liftPlanSummary=_liftPlanParts.length
-        ?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`
-        :'';
+      const _liftDesc=(ex.coachComment||'').trim();
+      const liftPlanSummary=_liftDesc
+        ? `<div class="plan-summary-row">📋 ${_liftDesc}${liftRestStr}</div>`
+        : (_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`:'');
       // Contraction info (read-only for athlete)
       let contractionBadge='';
       if(fromPlan&&ex.planContractionType){
@@ -4394,7 +4395,7 @@ function renderExList(){
       }
       // 세트별 처방이 있으면 위의 'Plan: 70-80% · 3×5' 요약줄은 중복이라 뺀다.
       // 지난기록 줄은 칩으로 옮겼으므로 칩이 있는 카드에선 뺀다.
-      paramsHtml=`${_prevPanel}${_psr?'':liftPlanSummary}${contractionBadge}${ytEmbed}${coachBadge}${_hdrPrev?'':prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
+      paramsHtml=`${_prevPanel}${(_psr&&!_liftDesc)?'':liftPlanSummary}${contractionBadge}${ytEmbed}${_liftDesc?'':coachBadge}${_hdrPrev?'':prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -5194,12 +5195,15 @@ function renderSprintSets(){
       if(s.planRestTimeReps) _rp.push(`${s.planRestTimeReps}${s.planRestUnitReps||'s'} · reps`);
       _spRestStr=` <span style="color:#4f8ef7">/ Rest: ${_rp.join(' · ')}</span>`;
     }
-    const spPlanSummary=_spPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_spPlanParts.join(' · ')}${_spRestStr}</div>`:'';
-    // Coach comment from the plan (entered on the web dashboard)
-    const spCoachBadge=s.coachComment?`<div style="margin-top:6px;display:flex;align-items:flex-start;gap:7px;padding:6px 10px;background:rgba(198,168,90,.08);border:1px solid rgba(198,168,90,.25);border-radius:8px">
-      <span style="font-size:10px;font-weight:700;color:rgba(198,168,90,.8);letter-spacing:.05em;flex-shrink:0;margin-top:1px">💬 COACH</span>
-      <span style="font-size:12px;color:var(--text);line-height:1.4">${s.coachComment}</span>
-    </div>`:'';
+    // Plan 줄은 위 칸에 이미 있는 숫자를 되풀이하지 않는다 — 코치가 쓴 설명이 있으면 그걸 보여준다.
+    const _spDesc=(s.coachComment||'').trim();
+    const spPlanSummary=_spDesc
+      ? `<div class="plan-summary-row">📋 ${_spDesc}${_spRestStr}</div>`
+      : (_spPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_spPlanParts.join(' · ')}${_spRestStr}</div>`:'');
+    // 설명을 Plan 줄로 올렸으므로 아래 COACH 박스는 중복이라 뺀다
+    const spCoachBadge='';
+    // 보조 드릴(플랜에 거리도 강도도 없음)은 거리·PB·강도·목표 칸을 숨긴다 — 채울 게 없는 칸이다
+    const _spDrill=fromPlan&&!(s.planDistance||'').toString().trim()&&!(s.planIntensity||'').toString().trim();
     // Previous performance hint — last time same sprint (name/distance): best time + coach lap records
     let spPrevHtml='';
     const _spPrev=_prevSprintPerf(s.name,s.distance||s.planDistance);
@@ -5228,8 +5232,8 @@ function renderSprintSets(){
     if(s.done){ div.style.border='1.5px solid rgba(62,207,142,.4)'; div.style.background='rgba(62,207,142,.04)'; }
     div.innerHTML=`
       <div class="ex-top">${headerHtml}</div>
-      ${_discToggle}
-      <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
+      ${_spDrill?'':_discToggle}
+      ${_spDrill?'':`<div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${s.distance||''}"
             oninput="ST.sprintSets[${i}].distance=this.value;ST.sprintSets[${i}].pb='';ST.sprintSets[${i}]._pbAuto=false;renderSprintSets()">
@@ -5249,7 +5253,7 @@ function renderSprintSets(){
           <div class="mini-lbl">Intensität %${intEdited?' ✎':''}</div>
         </div>
         ${targetDisplay}
-      </div>
+      </div>`}
       <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-top:8px">
         <div class="mini-wrap">
           <input class="mini-in${setsEdited?' plan-edited':''}" type="number" placeholder="0" value="${s.sets||''}" oninput="ST.sprintSets[${i}].sets=this.value">
