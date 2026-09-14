@@ -292,7 +292,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260914-4';
+const APP_VERSION = '20260914-5';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -4254,10 +4254,12 @@ function renderExList(){
         liftRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
       // 이전 기록은 아래 📈 Last 줄에서 세트별로 더 자세히 보여주므로, 플랜 줄의 "Letzt." 중복 제거
+      // 세트 줄이 세트·횟수·강도를 이미 보여준다 — 숫자 요약은 중복이라 안 그린다.
+      // 이 자리는 코치 설명 칸이다. 설명이나 Rest 가 있을 때만 나온다.
       const _liftDesc=(ex.coachComment||'').trim();
-      const liftPlanSummary=_liftDesc
+      const liftPlanSummary=(_liftDesc||liftRestStr)
         ? `<div class="plan-summary-row">📋 ${_liftDesc}${liftRestStr}</div>`
-        : (_liftPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_liftPlanParts.join(' · ')}${liftRestStr}</div>`:'');
+        : '';
       // Contraction info (read-only for athlete)
       let contractionBadge='';
       if(fromPlan&&ex.planContractionType){
@@ -4400,7 +4402,7 @@ function renderExList(){
       }
       // 세트별 처방이 있으면 위의 'Plan: 70-80% · 3×5' 요약줄은 중복이라 뺀다.
       // 지난기록 줄은 칩으로 옮겼으므로 칩이 있는 카드에선 뺀다.
-      paramsHtml=`${_prevPanel}${(_psr&&!_liftDesc)?'':liftPlanSummary}${contractionBadge}${ytEmbed}${_liftDesc?'':coachBadge}${_hdrPrev?'':prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
+      paramsHtml=`${_prevPanel}${liftPlanSummary}${contractionBadge}${ytEmbed}${_liftDesc?'':coachBadge}${_hdrPrev?'':prevHintHtml}<div style="margin-top:10px">${setRowsHtml}</div>${freeRestHtml}${freeContrHtml}`;
     } else if(params==='plyo'){
       const repType=ex.planRepType||'reps';
       const legMode=ex.planLegMode||'DL';
@@ -4468,7 +4470,8 @@ function renderExList(){
         if(ex.planRestTimeReps) parts.push(`${ex.planRestTimeReps}${ex.planRestUnitReps||'s'} · Wdh.`);
         sprintRestStr=` <span style="color:#4f8ef7">/ Rest: ${parts.join(' · ')}</span>`;
       }
-      const sprintFallbackPlanSummary=_sprintPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_sprintPlanParts.join(' · ')}${sprintRestStr}</div>`:'';
+      const _sprFbDesc=(ex.coachComment||'').trim();
+      const sprintFallbackPlanSummary=(_sprFbDesc||sprintRestStr)?`<div class="plan-summary-row">📋 ${_sprFbDesc}${sprintRestStr}</div>`:'';
       paramsHtml=`
         <div class="ex-nums" style="grid-template-columns:1fr 1fr;margin-bottom:6px">
           <div class="mini-wrap"><input class="mini-in${distEdited?' plan-edited':''}" type="number" placeholder="m" value="${ex.distance||''}" oninput="ST.exercises[${i}].distance=this.value" onblur="renderExList()"><div class="mini-lbl">Distanz (m)${distEdited?' ✎':''}</div></div>
@@ -5237,9 +5240,9 @@ function renderSprintSets(){
     }
     // Plan 줄은 위 칸에 이미 있는 숫자를 되풀이하지 않는다 — 코치가 쓴 설명이 있으면 그걸 보여준다.
     const _spDesc=(s.coachComment||'').trim();
-    const spPlanSummary=_spDesc
+    const spPlanSummary=(_spDesc||_spRestStr)
       ? `<div class="plan-summary-row">📋 ${_spDesc}${_spRestStr}</div>`
-      : (_spPlanParts.length?`<div class="plan-summary-row">📋 Plan: ${_spPlanParts.join(' · ')}${_spRestStr}</div>`:'');
+      : '';
     // 설명을 Plan 줄로 올렸으므로 아래 COACH 박스는 중복이라 뺀다
     const spCoachBadge='';
     // 보조 드릴(플랜에 거리도 강도도 없음)은 거리·PB·강도·목표 칸을 숨긴다 — 채울 게 없는 칸이다
