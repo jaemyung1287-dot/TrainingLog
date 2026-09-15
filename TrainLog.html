@@ -295,7 +295,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260915-3';
+const APP_VERSION = '20260915-4';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3525,8 +3525,9 @@ function selectType(t){
       const _loggedByName={};
       _matchLogs.forEach(l=>(l.exercises||[]).forEach(e=>{if(e.name)(_loggedByName[e.name]=_loggedByName[e.name]||[]).push(e);}));
       // Sprint lookup: name → logged set data (queue)
-      const _sprintLoggedByName={};
-      _matchSprintLogs.forEach(l=>(l.sets||[]).forEach(e=>{if(e.name)(_sprintLoggedByName[e.name]=_sprintLoggedByName[e.name]||[]).push(e);}));
+      const _sprintLoggedFlat=[];
+      _matchSprintLogs.forEach(l=>(l.sets||[]).forEach(e=>{if(e.name)_sprintLoggedFlat.push(e);}));
+      const _spPairs=_pairSprintSets(planExs,_sprintLoggedFlat);
       const _hasExisting=_matchLogs.length>0||_matchSprintLogs.length>0;
 
       if(_hasExisting){
@@ -3545,10 +3546,10 @@ function selectType(t){
       }
 
       // Pre-fill: use actual logged values where available, plan defaults for new/missing exercises
-      ST.exercises=planExs.map(e=>{
+      ST.exercises=planExs.map((e,_pi)=>{
         const _isSprint=TRAINING_STRUCTURE[e.trainingType]?.params==='sprint';
-        const _lgQ=_isSprint?_sprintLoggedByName[e.name]:_loggedByName[e.name];
-        const lg=(Array.isArray(_lgQ)&&_lgQ.length)?_lgQ.shift():null;
+        const _lgQ=_isSprint?null:_loggedByName[e.name];
+        const lg=_isSprint?(_spPairs[_pi]||null):((Array.isArray(_lgQ)&&_lgQ.length)?_lgQ.shift():null);
         if(lg){
           return {
             name:e.name, trainingType:e.trainingType, subCategory:e.subCategory, fromPlan:true, coachComment:e.coachComment||'',
@@ -3695,8 +3696,9 @@ function selectType(t){
         (l.sets||[]).some(s=>_sprintPlanNames.has(s.name)));
       // ⚠️ 이름별 큐 — 스프린트는 4행 모두 이름이 'Sprint'라 단일 키로 담으면
       //    마지막 세트(100m×3)가 앞 세트를 전부 덮어쓴다(2026-08-24 1200m 사고).
-      const _sprintLoggedByName={};
-      if(_existSprintLog) ((_existSprintLog.sets)||[]).forEach(s=>{if(s.name)(_sprintLoggedByName[s.name]=_sprintLoggedByName[s.name]||[]).push(s);});
+      const _spLoggedFlat=[];
+      if(_existSprintLog) ((_existSprintLog.sets)||[]).forEach(s=>{if(s.name)_spLoggedFlat.push(s);});
+      const _spPairs2=_pairSprintSets(sprintExs,_spLoggedFlat);
 
       if(_existSprintLog){
         ST.editingLogId=_existSprintLog.id;
@@ -3710,9 +3712,8 @@ function selectType(t){
         sprintBanner.textContent=`📋 ${sessLabel2} · ${sprintExs.length} Sprint-Übung${sprintExs.length>1?'en':''} aus dem Tagesplan`;
       }
 
-      ST.sprintSets=sprintExs.map(e=>{
-        const _lsQ=_sprintLoggedByName[e.name];
-        const ls=(Array.isArray(_lsQ)&&_lsQ.length)?_lsQ.shift():null;
+      ST.sprintSets=sprintExs.map((e,_si)=>{
+        const ls=_spPairs2[_si]||null;
         if(ls){
           return {
             name:e.name, subCategory:e.subCategory||ls.subCategory||null, fromPlan:true, coachComment:e.coachComment||'', ytUrl:e.ytUrl||'',
@@ -5353,6 +5354,41 @@ function setSprintEffort(i,val){
 }
 function addSprintSet(){ ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
 function removeSprintSet(i){ ST.sprintSets.splice(i,1); if(!ST.sprintSets.length) ST.sprintSets.push({intensity:'',distance:'',sets:'',reps:'',effort:'',pb:'',actualTime:''}); renderSprintSets(); }
+function _pairSprintSets(planExs, loggedSets){
+  // 플랜 종목 ↔ 이미 저장된 스프린트 세트 짝짓기 (2-pass)
+  // ⚠️ 이름만으로 큐를 shift하면, 선수가 한 종목을 Überspringen 하고 저장한 뒤
+  //    세션을 다시 열 때 거리가 한 칸씩 밀린다(2026-09-14 Sarah 40/50/50 사고).
+  //    1) 이름+거리 정확 일치 먼저, 2) 남은 것끼리만 순서대로.
+  const _n=x=>String((x&&x.name)||'');
+  const _d=x=>parseFloat(x)||0;
+  const used=new Array(loggedSets.length).fill(false);
+  const out=new Array(planExs.length).fill(null);
+  planExs.forEach((e,i)=>{
+    const pd=_d(e.planDistance); if(!pd) return;
+    for(let j=0;j<loggedSets.length;j++){
+      if(used[j]) continue;
+      const ls=loggedSets[j];
+      if(_n(ls)!==_n(e)) continue;
+      const sd=_d(ls.planDistance)||_d(ls.distance);
+      if(sd===pd){ used[j]=true; out[i]=ls; return; }
+    }
+  });
+  const _planDists=planExs.map(x=>_d(x.planDistance));
+  planExs.forEach((e,i)=>{
+    if(out[i]) return;
+    const pd=_d(e.planDistance);
+    for(let j=0;j<loggedSets.length;j++){
+      if(used[j]) continue;
+      const ls=loggedSets[j];
+      if(_n(ls)!==_n(e)) continue;
+      // 남은 세트의 거리가 '다른 칸'의 계획거리와 똑같으면 그 칸 것이다 — 끌어오지 않는다
+      const sd=_d(ls.planDistance)||_d(ls.distance);
+      if(sd&&sd!==pd&&_planDists.indexOf(sd)>=0) continue;
+      used[j]=true; out[i]=ls; return;
+    }
+  });
+  return out;
+}
 function _spLapInputsHtml(s,i){
   if(!ST._editFromCoach) return '';
   const ns=Math.max(0,parseInt(s.sets)||0), nr=Math.max(0,parseInt(s.reps)||0);
@@ -5441,7 +5477,7 @@ function saveSprint(dupMode){
       const _rtVals=_rtRaw.filter(t=>t!=null);
       const _rt=_rtVals.length?_rtRaw:[];
       const _best=_rtVals.length?Math.min(..._rtVals):(parseFloat(s.actualTime)||null);
-      return {name:s.name||null,subCategory:s.subCategory||null,discipline:_setDisc(s),planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:_best,repTimes:_rt,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort??null,fromPlan:s.fromPlan||false,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[],athleteNote:s.athleteNote||null};
+      return {name:s.name||null,subCategory:s.subCategory||null,discipline:_setDisc(s),planIntensity:s.planIntensity?parseFloat(s.planIntensity):null,intensity:parseFloat(s.intensity)||0,actualTime:_best,repTimes:_rt,pb:parseFloat(s.pb)||null,distance:parseFloat(s.distance)||0,sets:parseInt(s.sets)||1,reps:parseInt(s.reps)||1,effort:s.effort??null,fromPlan:s.fromPlan||false,planDistance:s.planDistance?parseFloat(s.planDistance):null,planRestTime:s.planRestTime||null,planRestUnit:s.planRestUnit||null,planRestType:s.planRestType||[],athleteNote:s.athleteNote||null};
     }),
     totalDistance:Math.round(totalDist),
     rpe:parseInt(document.getElementById('sl-srpe').value),
