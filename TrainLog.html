@@ -295,7 +295,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260915-1';
+const APP_VERSION = '20260915-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3852,7 +3852,6 @@ function _renderAthRecentLogs(targetId){
         const pts=[];
         if((l.totalReps||0)>0) pts.push(`${l.totalReps} Wdh.`);
         if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} Kontakte`);
-        const _pkg=_exVolSplit([l]).total; if(_pkg>0) pts.push(`${_pkg.toLocaleString()} kg`);
         stat=pts.join(' · ')||'—';
       }
       else if(l.type==='push'||l.type==='icestart'){
@@ -6285,15 +6284,16 @@ function renderToday(){
       const _exRow=(e,isPlyo,tag)=>{
         const rs=e.setRows||[];
         const bw=e.isBodyweight||(isPlyo&&!_plyoWeighted(e));
-        const cell=sr=>(sr.kg!=null&&sr.kg!=='')?`${sr.kg}kg×${sr.reps}`:(sr.extraKg?`BW+${sr.extraKg}kg×${sr.reps}`:(bw?(isPlyo?`×${sr.reps}`:`BW×${sr.reps}`):`—kg×${sr.reps}`));
+        const repsOnly=isPlyo&&!tag; // 플라이오 카드는 횟수만, 무게는 웨이트 카드(PLYO 태그)에서만
+        const cell=sr=>repsOnly?`×${sr.reps}`:(sr.kg!=null&&sr.kg!=='')?`${sr.kg}kg×${sr.reps}`:(sr.extraKg?`BW+${sr.extraKg}kg×${sr.reps}`:(bw?(isPlyo?`×${sr.reps}`:`BW×${sr.reps}`):`—kg×${sr.reps}`));
         const sets=rs.length
           ? rs.map((sr,i)=>`S${i+1} ${cell(sr)}`).join(' · ')
-          : `${bw?'BW':((e.weight||0)+'kg')} × ${e.sets||'—'} × ${e.reps||'—'}`;
+          : (repsOnly?`${e.sets||'—'} × ${e.reps||'—'}`:`${bw?'BW':((e.weight||0)+'kg')} × ${e.sets||'—'} × ${e.reps||'—'}`);
         const isSL=e.isSL||(isPlyo&&e.planLegMode==='SL');
         let tot=0;
-        if(isPlyo){ tot=rs.length?rs.reduce((a,x)=>a+(parseFloat(x.reps)||0),0):(parseInt(e.sets)||0)*(parseInt(e.reps)||0); if(isSL) tot*=2; }
+        if(repsOnly){ tot=rs.length?rs.reduce((a,x)=>a+(parseFloat(x.reps)||0),0):(parseInt(e.sets)||0)*(parseInt(e.reps)||0); if(isSL) tot*=2; }
         const n=rs.length||e.sets||0, r=(rs[0]&&rs[0].reps)||e.reps||'';
-        const head=`${tag?`<span style="font-size:10px;color:#f7a94f;font-weight:700;margin-right:4px">${tag}</span>`:''}${isSL?'SL ':e.isSA?'SA ':''}${e.name||'—'}<span style="font-weight:400;color:var(--muted)"> ${n&&r?n+'×'+r:''}${bw?' (BW)':''}${isPlyo&&tot?' · '+tot+' Wdh.':''}</span>`;
+        const head=`${tag?`<span style="font-size:10px;color:#f7a94f;font-weight:700;margin-right:4px">${tag}</span>`:''}${isSL?'SL ':e.isSA?'SA ':''}${e.name||'—'}<span style="font-weight:400;color:var(--muted)"> ${n&&r?n+'×'+r:''}${bw&&!repsOnly?' (BW)':''}${tot?' · '+tot+' Wdh.':''}</span>`;
         return `<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
           <div style="font-size:12.5px;font-weight:600;color:var(--text)">${head}${_effBadge(e.effort)}</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">${sets}</div>
@@ -6358,8 +6358,6 @@ function renderToday(){
       }
       if(_dispReps>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${_dispReps.toLocaleString()}</span></div>`;
       if(_dispContacts>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${_dispContacts.toLocaleString()}</span></div>`;
-      const _pkg=_exVolSplit([l]).total;
-      if(_pkg>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${_pkg.toLocaleString()} kg</span></div>`;
       if(!statsHtml) statsHtml=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">—</span></div>`;
     } else {
       const _wv=_exVolSplit([l]).total+_sessPlyoW(l).reduce((a,e)=>a+_exVolSplit([{type:'plyo',exercises:[e]}]).total,0);

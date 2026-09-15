@@ -1361,15 +1361,18 @@ function _ovExLine(e,isPlyo,tag){
   const reps=(rows[0]&&rows[0].reps)||e.reps||0;
   const isSL=e.isSL||(isPlyo&&e.planLegMode==='SL');
   const sl=isSL?'SL ':e.isSA?'SA ':'';
-  const kg=maxKg>0?' '+maxKg+'kg':'';
+  // 플라이오 카드(tag 없음)는 횟수만 — 무게는 웨이트 카드(tag 'Plyo')에서만 보인다
+  const repsOnly=isPlyo&&!tag;
+  const kg=(!repsOnly&&maxKg>0)?' '+maxKg+'kg':'';
   const sr=(sets&&reps)?' '+sets+'x'+reps:'';
-  const exVol=_exVolOne(e);
+  const exVol=repsOnly?0:_exVolOne(e);
   const en=_dEffNum(e.effort);
   let totR=0;
-  if(isPlyo){ totR=rows.length?rows.reduce((a,x)=>a+(parseFloat(x.reps)||0),0):(parseInt(e.sets)||0)*(parseInt(e.reps)||0); if(isSL) totR*=2; }
+  if(repsOnly){ totR=rows.length?rows.reduce((a,x)=>a+(parseFloat(x.reps)||0),0):(parseInt(e.sets)||0)*(parseInt(e.reps)||0); if(isSL) totR*=2; }
   const bw=e.isBodyweight||(isPlyo&&!_ovPlyoWeighted(e));
-  const t=(tag?tag+' · ':'')+sl+e.name+kg+sr+(bw?' (BW)':'')+(exVol>0?' · '+_fmtKg(exVol):'')+(isPlyo&&totR?' · '+totR+' reps':'')+(en!=null?' · E'+en:'');
+  const t=(tag?tag+' · ':'')+sl+e.name+kg+sr+(bw&&!repsOnly?' (BW)':'')+(exVol>0?' · '+_fmtKg(exVol):'')+(totR?' · '+totR+' reps':'')+(en!=null?' · E'+en:'');
   const cell=x=>{
+    if(repsOnly) return '×'+(x.reps||'—');
     if(x.kg) return x.kg+'kg×'+(x.reps||'—');
     if(x.extraKg) return 'BW+'+x.extraKg+'kg×'+(x.reps||'—');
     if(bw) return isPlyo?'×'+(x.reps||'—'):'BW×'+(x.reps||'—');
@@ -1444,10 +1447,9 @@ function _ovBlock(l,athId,wPlyo){
   const typeLabel=l.type==='weight'?'Weight':l.type==='sprint'?'Sprint':l.type==='plyo'?'Plyo':l.type==='tabata'?'Tabata':l.type==='mobility'?'Conditioning':l.type==='push'?'Push Start':l.type==='icestart'?'Ice Start':l.type;
   const _wpx=(wPlyo||[]);
   const _wpVol=_wpx.reduce((a,e)=>a+_exVolOne(e),0);
-  const _plVol=l.type==='plyo'?vol([l]):0;
   let val=l.type==='weight'?`${_fmtKg(vol([l])+_wpVol)}`
     :l.type==='sprint'?`${(l.totalDistance||0).toLocaleString()} m`
-    :l.type==='plyo'?`${l.totalReps||0} reps${_plVol>0?' · '+_fmtKg(_plVol):''}`
+    :l.type==='plyo'?`${l.totalReps||0} reps`
     :l.type==='tabata'?'8 rounds':'—';
   if(_dIsAttemptLog(l)){
     const _bf=_dAtBest(l), _n=_dAtOK(l).length;
