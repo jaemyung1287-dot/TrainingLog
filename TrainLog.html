@@ -295,7 +295,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260915-2';
+const APP_VERSION = '20260915-3';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -6300,8 +6300,20 @@ function renderToday(){
           ${_exNote(e)}
         </div>`;
       };
-      rows=(l.exercises||[]).map(e=>_exRow(e,l.type==='plyo')).join('')
-        +(l.type==='weight'?_sessPlyoW(l).map(e=>_exRow(e,true,'PLYO')).join(''):'');
+      // 그날 플랜 순서대로 — 웨이트 카드에 붙인 중량 플라이오가 원래 자리로. 플랜에 없는 종목은 앞 종목 뒤에 남는다
+      let items=(l.exercises||[]).map(e=>({e,p:l.type==='plyo',tag:null}))
+        .concat(l.type==='weight'?_sessPlyoW(l).map(e=>({e,p:true,tag:'PLYO'})):[]);
+      const _d=getData(), _a=(_d.athletes||[]).find(a=>a.name===l.athleteName);
+      const _pd=(_d.sessionPlans||{})[l.date]||null;
+      const _g=_pd&&_a?(_pd['ath_'+_a.id]||_pd[_a.group]||_pd['all']):null;
+      const _pl=_g?((l.sess==='am'||l.sess==='pm')?(_g[l.sess]?.exercises||[]):[...(_g.am?.exercises||[]),...(_g.pm?.exercises||[])]):[];
+      if(_pl.length){
+        const _n=x=>String(x||'').trim().toLowerCase(); const _u=new Set(); let _last=-1;
+        items=items.map((it,i)=>{ const pi=_pl.findIndex((q,j)=>!_u.has(j)&&_n(q.name)===_n(it.e.name));
+          if(pi>=0){_u.add(pi);_last=pi;return {...it,s:pi,i};} return {...it,s:_last+0.5,i}; })
+          .sort((a,b)=>a.s-b.s||a.i-b.i);
+      }
+      rows=items.map(it=>_exRow(it.e,it.p,it.tag)).join('');
     } else if(l.type==='sprint'){
       rows=(l.sets||[]).map(s=>`<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
         <div style="font-size:12.5px;font-weight:600;color:var(--text)">${s.distance}m${_effBadge(s.effort)}</div>
