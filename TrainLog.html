@@ -295,7 +295,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260915-4';
+const APP_VERSION = '20260915-5';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3570,6 +3570,11 @@ function selectType(t){
             bwBase:lg.bwBase!=null?String(lg.bwBase):'',
             distance:lg.distance?String(lg.distance):'',
             effort:lg.effort??null, done:true,
+            // ⚠️ 코치가 넣은 랩타임은 선수 화면에 안 보이지만 반드시 들고 와야 한다.
+            //    안 들고 오면 선수가 그 세션을 한 번 더 저장할 때 빈 값으로 덮인다(2026-09-14 Niklas 사고).
+            repTimes:Array.isArray(lg.repTimes)?lg.repTimes.slice():[],
+            actualTime:lg.actualTime!=null?String(lg.actualTime):'',
+            athleteNote:lg.athleteNote||'',
             meanV:lg.meanV!=null?String(lg.meanV):'', peakV:lg.peakV!=null?String(lg.peakV):'', velLoss:lg.velLoss!=null?String(lg.velLoss):'',
             ytUrl:e.ytUrl||''
           };
@@ -3723,6 +3728,10 @@ function selectType(t){
             intensity:ls.intensity?String(ls.intensity):'',
             distance:ls.distance?String(ls.distance):'',
             sets:ls.sets?String(ls.sets):'', reps:ls.reps?String(ls.reps):'',
+            // ⚠️ 위와 같은 이유 — 코치 입력 랩타임 보존
+            repTimes:Array.isArray(ls.repTimes)?ls.repTimes.slice():[],
+            actualTime:ls.actualTime!=null?String(ls.actualTime):'',
+            athleteNote:ls.athleteNote||'',
             effort:ls.effort??null, done:true
           };
         } else {
@@ -4950,18 +4959,24 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
       sess:_curSess,
       phase,week,
       sprintType:sprintExs[0]?.subCategory||'Sprint Training',
-      sets:sprintExs.map(e=>({
+      sets:sprintExs.map(e=>{
+        const _rtRaw=(Array.isArray(e.repTimes)?e.repTimes:[]).map(t=>(t===''||t==null)?null:(isNaN(parseFloat(t))?null:parseFloat(t)));
+        const _rtVals=_rtRaw.filter(t=>t!=null);
+        const _rt=_rtVals.length?_rtRaw:[];
+        const _best=_rtVals.length?Math.min(..._rtVals):(parseFloat(e.actualTime)||null);
+        return {
         name:e.name, subCategory:e.subCategory||null,
         planIntensity:e.planIntensity?parseFloat(e.planIntensity):null,
         intensity:parseFloat(e.intensity)||0,
         distance:parseFloat(e.distance)||0,
         sets:parseInt(e.sets)||1, reps:parseInt(e.reps)||1,
+        repTimes:_rt, actualTime:_best, pb:parseFloat(e.pb)||null,
         effort:e.effort??null, fromPlan:e.fromPlan||false,
         planSets:e.planSets||null, planReps:e.planReps||null,
         planDistance:e.planDistance?parseFloat(e.planDistance):null,
         planRestTime:e.planRestTime||null, planRestUnit:e.planRestUnit||null,
         athleteNote:e.athleteNote||null
-      })),
+      };}),
       totalDistance:totalDist, rpe, notes,
       skippedExercises:_skippedSprint
     });
