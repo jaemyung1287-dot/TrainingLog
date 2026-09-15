@@ -295,7 +295,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260914-8';
+const APP_VERSION = '20260915-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -3179,9 +3179,18 @@ function updateSetRowField(i,j,field,val){
   if(!ST.exercises[i].setRows) return;
   ST.exercises[i].setRows[j][field]=val;
 }
+// 처방 kg(planSetRows[j].kg)는 입력칸에 회색 placeholder로만 보인다 → 그대로 ✓만 누르면 kg가 빈칸으로 저장됐다
+// (2026-09-14 Marie Squat Jump 3세트 전부, Maria 2세트). 체크하는 순간 빈 kg칸을 처방 kg로 채운다. 실제 다르면 선수가 고치면 됨.
+function _fillPlanKg(ex,j){
+  if(!ex||ex.isBodyweight||!ex.setRows||!ex.setRows[j]) return;
+  const r=ex.setRows[j]; if(parseFloat(r.kg)>0) return;
+  const ps=Array.isArray(ex.planSetRows)?ex.planSetRows[j]:null;
+  if(ps&&parseFloat(ps.kg)>0) r.kg=String(ps.kg);
+}
 function toggleSetRowDone(i,j){
   if(!ST.exercises[i].setRows) return;
   ST.exercises[i].setRows[j].done=!ST.exercises[i].setRows[j].done;
+  if(ST.exercises[i].setRows[j].done) _fillPlanKg(ST.exercises[i],j);
   // Exercise done = all sets done
   const allDone=ST.exercises[i].setRows.every(s=>s.done);
   ST.exercises[i].done=allDone;
@@ -3212,7 +3221,7 @@ function _toggleExDone(i){
   // Toggle all set rows together
   const newDone=!ST.exercises[i].done;
   ST.exercises[i].done=newDone;
-  if(ST.exercises[i].setRows) ST.exercises[i].setRows.forEach(s=>s.done=newDone);
+  if(ST.exercises[i].setRows) ST.exercises[i].setRows.forEach((s,j)=>{ s.done=newDone; if(newDone) _fillPlanKg(ST.exercises[i],j); });
   const card=document.querySelectorAll('#exercise-list .ex-row')[i];
   if(card) _applyDoneStyle(card, newDone);
   renderExList();
@@ -3843,6 +3852,7 @@ function _renderAthRecentLogs(targetId){
         const pts=[];
         if((l.totalReps||0)>0) pts.push(`${l.totalReps} Wdh.`);
         if((l.totalContacts||0)>0) pts.push(`${l.totalContacts} Kontakte`);
+        const _pkg=_exVolSplit([l]).total; if(_pkg>0) pts.push(`${_pkg.toLocaleString()} kg`);
         stat=pts.join(' · ')||'—';
       }
       else if(l.type==='push'||l.type==='icestart'){
@@ -4729,14 +4739,16 @@ function _kgMissingLoaded(allExs){
   const out=[];
   (allExs||[]).forEach(e=>{
     if(!e.name||e.skipped||e.isBodyweight) return;
-    if((TRAINING_STRUCTURE[e.trainingType]?.params||'lifting')!=='lifting') return;
+    // 처방 kg가 있으면(바벨 Squat Jump 같은 플라이오 포함) 타입과 상관없이 검사
+    const planKg=Array.isArray(e.planSetRows)&&e.planSetRows.some(r=>parseFloat(r&&r.kg)>0);
+    if(!planKg&&(TRAINING_STRUCTURE[e.trainingType]?.params||'lifting')!=='lifting') return;
     const rows=e.setRows||[];
     const miss=[];
     rows.forEach((r,j)=>{ if(r.done && !(parseFloat(r.kg)>0)) miss.push(j+1); });
     if(!miss.length) return;
     const prev=_prevWeightPerf(e.name);
     const hadLoad=prev&&(prev.rows||[]).some(r=>parseFloat(r.kg)>0);
-    if(hadLoad) out.push({name:e.name,sets:miss});
+    if(hadLoad||planKg) out.push({name:e.name,sets:miss});
   });
   return out;
 }
@@ -4750,7 +4762,7 @@ function saveWeight(dupMode){ // dupMode: undefined=check | 'replace' | 'add' | 
     const _kgMiss=_kgMissingLoaded(allExs);
     if(_kgMiss.length){
       const _l=_kgMiss.map(m=>`• ${m.name} (Satz ${m.sets.join(', ')})`).join('\n');
-      if(!confirm(`⚠️ Bei einigen Sätzen fehlt das Gewicht (kg):\n\n${_l}\n\nFür diese Übung wurde zuvor ein Gewicht eingetragen. Mit „Abbrechen“ zurückgehen und eintragen.\nTrotzdem speichern?`)) return;
+      if(!confirm(`⚠️ Bei einigen Sätzen fehlt das Gewicht (kg):\n\n${_l}\n\nFür diese Übung wurde zuvor ein Gewicht eingetragen bzw. vorgegeben. Mit „Abbrechen“ zurückgehen und eintragen.\nTrotzdem speichern?`)) return;
     }
   }
 
@@ -5971,7 +5983,8 @@ function _exVolSplit(logs){
   // Returns volume by trainingType+subCategory (bodyweight exercises excluded — no external load)
   const byType={}; // { 'Power Lifting·Power': 1200, ... }
   let total=0;
-  logs.filter(l=>l.type==='weight').forEach(log=>{
+  // 플라이오 로그도 포함 — 바벨 Squat Jump처럼 kg 적힌 종목만 볼륨이 생긴다(맨몸 점프는 kg 없음 → 0). 대시보드 vol()과 동일
+  logs.filter(l=>l.type==='weight'||l.type==='plyo').forEach(log=>{
     (log.exercises||[]).forEach(ex=>{
       if(ex.isBodyweight) return; // bodyweight exercises excluded from volume charts
       const slMult=(ex.isSL||ex.isSA)?2:1;
@@ -6117,7 +6130,7 @@ function renderTeamRanking(d,period){
   const athVol={}; const athSpr={};
   d.athletes.forEach(a=>{ athVol[a.name]=0; athSpr[a.name]=0; });
   d.logs.filter(l=>dates.includes(l.date)).forEach(l=>{
-    if(l.type==='weight') athVol[l.athleteName]=(athVol[l.athleteName]||0)+_exVolSplit([l]).total;
+    if(l.type==='weight'||l.type==='plyo') athVol[l.athleteName]=(athVol[l.athleteName]||0)+_exVolSplit([l]).total;
     if(l.type==='sprint') athSpr[l.athleteName]=(athSpr[l.athleteName]||0)+l.totalDistance;
   });
   const volRank=Object.entries(athVol).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
@@ -6235,7 +6248,7 @@ function renderToday(){
   const tr=tl.filter(l=>l.type==='weight'||l.type==='sprint'||l.type==='plyo'||l.type==='mobility'||l.type==='push');
   const dw=new Date();
   document.getElementById('coach-date-ttl').textContent=`${DAYS[dw.getDay()]}, ${dw.toLocaleString('en',{month:'long'})} ${dw.getDate()}`;
-  const tvol=_exVolSplit(tr.filter(l=>l.type==='weight')).total;
+  const tvol=_exVolSplit(tr).total;
   document.getElementById('today-stats-grid').innerHTML=`
     <div class="stat"><div class="stat-lbl">Athletes</div><div class="stat-val c-blue">${d.athletes.length}</div></div>
     <div class="stat"><div class="stat-lbl">Checked In</div><div class="stat-val c-green">${new Set(cl.map(l=>l.athleteName)).size}</div></div>
@@ -6269,16 +6282,26 @@ function renderToday(){
     // 선수가 종목 칸에 직접 쓴 코멘트는 athleteNote 다. e.notes 만 보면 영영 안 뜬다.
     const _exNote=(e)=>{const _n=((e&&(e.athleteNote||e.notes))||'').trim();return _n?`<div style="margin-top:4px;font-size:11px;color:#9db8ec;font-style:italic">💬 ${_n}</div>`:'';};
     if(l.type==='weight'||l.type==='plyo'){
-      rows=(l.exercises||[]).map(e=>{
-        const sets=(e.setRows&&e.setRows.length)
-          ? e.setRows.map(sr=>`${(sr.kg!=null&&sr.kg!=='')?sr.kg:(e.isBodyweight?'BW':'0')}kg×${sr.reps}`).join(' · ')
-          : `${e.isBodyweight?'BW':((e.weight||0)+'kg')} × ${e.sets||'—'} × ${e.reps||'—'}`;
+      const _exRow=(e,isPlyo,tag)=>{
+        const rs=e.setRows||[];
+        const bw=e.isBodyweight||(isPlyo&&!_plyoWeighted(e));
+        const cell=sr=>(sr.kg!=null&&sr.kg!=='')?`${sr.kg}kg×${sr.reps}`:(sr.extraKg?`BW+${sr.extraKg}kg×${sr.reps}`:(bw?(isPlyo?`×${sr.reps}`:`BW×${sr.reps}`):`—kg×${sr.reps}`));
+        const sets=rs.length
+          ? rs.map((sr,i)=>`S${i+1} ${cell(sr)}`).join(' · ')
+          : `${bw?'BW':((e.weight||0)+'kg')} × ${e.sets||'—'} × ${e.reps||'—'}`;
+        const isSL=e.isSL||(isPlyo&&e.planLegMode==='SL');
+        let tot=0;
+        if(isPlyo){ tot=rs.length?rs.reduce((a,x)=>a+(parseFloat(x.reps)||0),0):(parseInt(e.sets)||0)*(parseInt(e.reps)||0); if(isSL) tot*=2; }
+        const n=rs.length||e.sets||0, r=(rs[0]&&rs[0].reps)||e.reps||'';
+        const head=`${tag?`<span style="font-size:10px;color:#f7a94f;font-weight:700;margin-right:4px">${tag}</span>`:''}${isSL?'SL ':e.isSA?'SA ':''}${e.name||'—'}<span style="font-weight:400;color:var(--muted)"> ${n&&r?n+'×'+r:''}${bw?' (BW)':''}${isPlyo&&tot?' · '+tot+' Wdh.':''}</span>`;
         return `<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-          <div style="font-size:12.5px;font-weight:600;color:var(--text)">${e.name||'—'}${_effBadge(e.effort)}</div>
+          <div style="font-size:12.5px;font-weight:600;color:var(--text)">${head}${_effBadge(e.effort)}</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">${sets}</div>
           ${_exNote(e)}
         </div>`;
-      }).join('');
+      };
+      rows=(l.exercises||[]).map(e=>_exRow(e,l.type==='plyo')).join('')
+        +(l.type==='weight'?_sessPlyoW(l).map(e=>_exRow(e,true,'PLYO')).join(''):'');
     } else if(l.type==='sprint'){
       rows=(l.sets||[]).map(s=>`<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">
         <div style="font-size:12.5px;font-weight:600;color:var(--text)">${s.distance}m${_effBadge(s.effort)}</div>
@@ -6296,6 +6319,13 @@ function renderToday(){
     }
     const sessNote=l.notes&&l.notes.trim()?`<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(247,169,79,.08);border-left:3px solid #f7a94f;font-size:12px;color:var(--text);line-height:1.5;font-style:italic">💬 ${l.notes}</div>`:'';
     return rows+sessNote;
+  };
+  // 같은 날·같은 세션(am/pm) 플라이오 로그의 중량 종목 → 첫 웨이트 카드에 함께 표시(기록은 플라이오 로그 하나, 합계 중복 없음)
+  const _plyoWeighted=e=>!!e&&!e.isBodyweight&&(e.setRows||[]).some(r=>(parseFloat(r.kg)||0)>0);
+  const _sessPlyoW=(wl)=>{
+    const same=tr.filter(x=>x.athleteName===wl.athleteName&&(x.sess||'')===(wl.sess||''));
+    if(same.find(x=>x.type==='weight')!==wl) return [];
+    return same.filter(x=>x.type==='plyo').flatMap(x=>(x.exercises||[]).filter(_plyoWeighted));
   };
   const _logCard=(l)=>{
     const badgeClass=l.type==='sprint'?'b-s':_isAttemptLog(l)?'b-s':l.type==='plyo'?'b-c':l.type==='mobility'?'b-c':'b-w';
@@ -6328,9 +6358,12 @@ function renderToday(){
       }
       if(_dispReps>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">${_dispReps.toLocaleString()}</span></div>`;
       if(_dispContacts>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Total Contacts</span><span class="detail-val">${_dispContacts.toLocaleString()}</span></div>`;
+      const _pkg=_exVolSplit([l]).total;
+      if(_pkg>0) statsHtml+=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${_pkg.toLocaleString()} kg</span></div>`;
       if(!statsHtml) statsHtml=`<div class="detail-row"><span class="detail-key">Total Reps</span><span class="detail-val">—</span></div>`;
     } else {
-      statsHtml=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${_exVolSplit([l]).total.toLocaleString()} kg</span></div>`;
+      const _wv=_exVolSplit([l]).total+_sessPlyoW(l).reduce((a,e)=>a+_exVolSplit([{type:'plyo',exercises:[e]}]).total,0);
+      statsHtml=`<div class="detail-row"><span class="detail-key">Volume</span><span class="detail-val">${_wv.toLocaleString()} kg</span></div>`;
     }
     const hasDetail=((l.type==='weight'||l.type==='plyo')&&(l.exercises||[]).length)
                   ||(l.type==='sprint'&&(l.sets||[]).length)
@@ -7001,7 +7034,7 @@ function renderAthletesTab(){
   const wd=getLast(7);
   d.athletes.forEach(a=>{
     const logs=d.logs.filter(l=>l.athleteName===a.name&&wd.includes(l.date));
-    const wv=_exVolSplit(logs.filter(l=>l.type==='weight')).total;
+    const wv=_exVolSplit(logs).total;
     const sd=logs.filter(l=>l.type==='sprint').reduce((s,l)=>s+l.totalDistance,0);
     const cl=logs.filter(l=>l.type==='condition');
     const af=cl.length?Math.round(cl.reduce((s,l)=>s+l.fatigue,0)/cl.length*10)/10:'-';
