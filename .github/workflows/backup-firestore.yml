@@ -40,3 +40,20 @@ jobs:
             git commit -m "backup: Firestore 스냅샷 $(date -u +%Y-%m-%d)"
             git push
           fi
+
+      # 백업이 실제로 끝났다는 신호를 Firestore 에 남긴다.
+      # 이 날짜가 오늘이 아니면 백업이 멈춘 것 — 감시 스케줄 작업이 매일 아침 확인한다.
+      - name: Heartbeat
+        if: success()
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY || 'AIzaSyBF_F7ANEj4n9E5O5-x9YWn9mOBunl8Ze8' }}
+        run: |
+          curl -sf -X PATCH \
+            "https://firestore.googleapis.com/v1/projects/traininglogskeleton/databases/(default)/documents/trainlog/backup_heartbeat?key=$FIREBASE_API_KEY" \
+            -H 'Content-Type: application/json' \
+            -d "{\"fields\":{
+                  \"day\":{\"stringValue\":\"$(date -u +%Y-%m-%d)\"},
+                  \"at\":{\"stringValue\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"},
+                  \"runUrl\":{\"stringValue\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"},
+                  \"note\":{\"stringValue\":\"GitHub Actions 백업 성공 신호. 감시용이며 앱은 읽지 않는다.\"}
+                }}"
