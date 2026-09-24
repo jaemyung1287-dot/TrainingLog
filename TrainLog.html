@@ -295,7 +295,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260924-1';
+const APP_VERSION = '20260924-2';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -5803,9 +5803,64 @@ function goIceStart(){
   ST.iceAttempts=[_icBlank(),_icBlank(),_icBlank()];
   ST._activeSess=ST._todayPlanSession||(new Date().getHours()<12?'am':'pm');
   ST._todayPlanSession=null;
+  _icLiveResume();
   const b=document.getElementById('ic-edit-banner'); if(b) b.style.display='none';
   renderIceRows();
   showScreen('s-icestart');
+}
+// ── Ice Start 실시간 업로드 (2026-09-24) ──────────────────────────────
+// 선수가 칸에 숫자를 넣으면 저장 버튼을 누르지 않아도 1.2초 뒤 로그 문서(live:true)로 올라가
+// 코치 대시보드(onSnapshot)에 바로 뜬다. 최종 저장(saveIce)은 같은 id를 재사용해 live 표시를 지운다.
+// ⚠️ saveData()를 쓰지 않는다 — 그건 coach 문서까지 통째로 set 하므로 키 입력마다 부르면 안 된다.
+let _icLiveTimer=null;
+function _icLiveResume(){
+  ST._iceLiveId=null;
+  try{
+    const d=getData(); const today=todayStr(); const nm=ST.athlete&&ST.athlete.name;
+    const live=(d.logs||[]).find(l=>l&&l.live===true&&!l._deleted&&l.type==='icestart'&&l.athleteName===nm&&l.date===today
+      &&(l.sess==null||ST._activeSess==null||l.sess===ST._activeSess));
+    if(live){
+      ST._iceLiveId=live.id;
+      const rows=(live.attempts||[]).map(a=>({t:ICE_GATES.slice(1).map((_,k)=>(a&&Array.isArray(a.t)&&a.t[k]!=null)?String(a.t[k]):'')}));
+      while(rows.length<3) rows.push(_icBlank());
+      ST.iceAttempts=rows;
+    }
+  }catch(e){ console.warn('[TrainLog] Ice live resume:',e); }
+  if(!ST._iceLiveId) ST._iceLiveId=genId();
+}
+function _icLiveSchedule(){
+  if(ST.editingLogId||!ST._iceLiveId) return;   // 기존 로그 수정 중에는 실시간 업로드 안 함
+  clearTimeout(_icLiveTimer);
+  _icLiveTimer=setTimeout(_icLivePush,1200);
+}
+function _icLivePush(){
+  _icLiveTimer=null;
+  if(ST.editingLogId||!ST._iceLiveId||!ST.athlete||!ST.athlete.id) return;
+  const FI=ICE_GATES.length-2;
+  const num=v=>{ if(v===''||v==null) return null; const n=parseFloat(v); return (isNaN(n)||n<=0)?null:+n.toFixed(3); };
+  const attempts=(ST.iceAttempts||[]).map(a=>({t:(a.t||[]).slice(0,ICE_GATES.length-1).map(num)}))
+    .filter(a=>a.t.some(x=>x!=null));
+  // 아무것도 안 적었으면 올리지 않는다 — 단, 이미 올린 뒤 전부 지운 경우엔 빈 시도로 덮어써서 옛 숫자가 남지 않게 한다
+  if(!attempts.length){
+    const _had=(getData().logs||[]).some(l=>l.id===ST._iceLiveId);
+    if(!_had) return;
+  }
+  const fins=attempts.map(a=>a.t[FI]).filter(x=>x!=null);
+  const log={
+    id:ST._iceLiveId, date:todayStr(), athleteName:ST.athlete.name, group:ST.athlete.group, type:'icestart',
+    sess:ST._activeSess||null, gates:ICE_GATES.slice(), mode:'cumulative',
+    attempts:attempts, bestFinish:fins.length?Math.min(...fins):null,
+    live:true, _ts:Date.now()
+  };
+  try{ ATHLETE_LOGS(ST.athlete.id).doc(String(log.id)).set(log)
+        .catch(e=>console.warn('[TrainLog] Ice live upload später erneut:',e&&e.code)); }
+  catch(e){ console.warn('[TrainLog] Ice live upload:',e); }
+  // 로컬에도 같은 id로 보관(재진입 시 이어쓰기). saveData 대신 직접 기록 — coach 문서 동기화를 피한다.
+  try{
+    const d=getData();
+    d.logs=(d.logs||[]).filter(l=>l.id!==log.id); d.logs.push(log);
+    _safeSetItem(SK,JSON.stringify(d));
+  }catch(e){}
 }
 function _icBlank(){ return {t:ICE_GATES.slice(1).map(()=>'')}; }
 
@@ -5843,6 +5898,7 @@ function _icUpd(i,k,v){
   const A=ST.iceAttempts;
   if(!A||!A[i]||!Array.isArray(A[i].t)) return;
   A[i].t[k]=v;
+  _icLiveSchedule();
   const el=document.getElementById('ice-mid-'+i);
   if(el){
     const m=_icMid(A[i]);
@@ -5856,6 +5912,7 @@ function delIceAttempt(i){
   ST.iceAttempts.splice(i,1);
   if(!ST.iceAttempts.length) ST.iceAttempts.push(_icBlank());
   renderIceRows();
+  _icLiveSchedule();
 }
 // Ice Start PB 풀 — records 의 {type:'icestart', distance:45}. 푸쉬·스프린트 PB 풀과 완전히 분리.
 function _icePB(name,recs){
@@ -5869,6 +5926,8 @@ function _icePB(name,recs){
 
 function saveIce(dupMode){
   if(!ST.athlete){ showToast('Bitte wähle deinen Namen'); return; }
+  clearTimeout(_icLiveTimer); _icLiveTimer=null;   // 최종 저장 뒤에 live 업로드가 덮어쓰지 않게
+  const _liveId=ST.editingLogId?null:(ST._iceLiveId||null);
   const FI=ICE_GATES.length-2; // Finish 열 = 45m
   const num=v=>{ if(v===''||v==null) return null; const n=parseFloat(v); return (isNaN(n)||n<=0)?null:+n.toFixed(3); };
   // 45m 없는 줄 = 무효/미기록 시도 → 저장하지 않고 번호를 다시 매긴다(표시 규칙과 동일)
@@ -5889,7 +5948,7 @@ function saveIce(dupMode){
   if(!dupMode && !ST.editingLogId){ _showSaveConfirmModal(()=>saveIce('confirmed')); return; }
 
   const _curSess=ST._activeSess||null;
-  const _isThisSession=(l)=> (l.sess!=null&&_curSess!=null) ? (l.sess===_curSess) : true;
+  const _isThisSession=(l)=> l.id!==_liveId && ((l.sess!=null&&_curSess!=null) ? (l.sess===_curSess) : true);
 
   if(!ST.editingLogId && dupMode==='confirmed'){
     const d0=getData(); const today0=ST._logDate||todayStr(); const athName0=ST.athlete.name;
@@ -5919,8 +5978,9 @@ function saveIce(dupMode){
     d.logs=d.logs.filter(l=>!(l.athleteName===athName&&l.date===today&&l.type==='icestart'&&_isThisSession(l)));
   }
 
+  if(_liveId) d.logs=d.logs.filter(l=>l.id!==_liveId);   // live 초안은 최종본으로 교체(같은 id)
   const log={
-    id:genId(), date:today, athleteName:athName, group:ST.athlete.group, type:'icestart',
+    id:_liveId||genId(), date:today, athleteName:athName, group:ST.athlete.group, type:'icestart',
     sess:_curSess,
     gates:ICE_GATES.slice(), mode:'cumulative',
     attempts:attempts,
@@ -5936,7 +5996,7 @@ function saveIce(dupMode){
       type:'icestart',distance:ICE_GATES[ICE_GATES.length-1],time:log.bestFinish,notes:'[Auto PB · Training]'});
   }
   d.logs.push(log); saveData(d);
-  ST._logDate=null; ST.iceAttempts=null;
+  ST._logDate=null; ST.iceAttempts=null; ST._iceLiveId=null;
   const _sm=document.getElementById('success-msg');
   if(_isPB&&_pbPrev!=null){
     showToast(`🏆 NEUER PB! ${athName}: ${log.bestFinish.toFixed(2)}s 🎉`);
