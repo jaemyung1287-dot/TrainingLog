@@ -295,7 +295,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <script>
 // ── Auto-update: force reload when a new version is deployed ──────────────
-const APP_VERSION = '20260915-5';
+const APP_VERSION = '20260924-1';
 (function(){
   const stored = localStorage.getItem('trainlog_app_version');
   if (stored && stored !== APP_VERSION) {
@@ -994,6 +994,14 @@ const APP_VERSION = '20260915-5';
       <span id="today-ur-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s">▼</span>
     </div>
     <div id="today-urlaub" style="display:none"></div>
+    <div onclick="_toggleLogDetail('today-schule','today-sc-chev')" style="display:flex;align-items:center;gap:6px;margin-top:16px;margin-bottom:6px;padding:6px 2px;cursor:pointer">
+      <span style="font-size:13px">🎒</span>
+      <span style="font-size:10px;font-weight:700;color:#7ab8ff;letter-spacing:.7px;text-transform:uppercase">Schule</span>
+      <span id="today-sc-count" style="font-size:10px;font-weight:700;color:var(--muted)"></span>
+      <div style="flex:1;height:1px;background:#7ab8ff33;margin-left:4px"></div>
+      <span id="today-sc-chev" style="display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s">▼</span>
+    </div>
+    <div id="today-schule" style="display:none"></div>
   </div>
 
   <!-- ATHLETES -->
@@ -2238,6 +2246,49 @@ function _urlaubBackStr(to){
   const d=new Date(to+'T00:00:00'); d.setDate(d.getDate()+1);
   while(d.getDay()===0||d.getDay()===6) d.setDate(d.getDate()+1);
   return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${DAYS_DE[d.getDay()]})`;
+}
+
+// ── Schule (Referenz, Stand 2026-09-16) ───────
+// 코치 참고용 정적 표 (Niklas·Nele 학교 일정). 바뀌면 여기만 고치면 됨.
+// k: T = ganztags vor Ort(현지 종일) · L = ganztags auswärts(외부 종일) · U = Unterricht
+const _SCHUL_ABW=[
+  {from:'2026-09-30', to:'2026-10-03', who:'4 Athleten',    k:'T'},
+  {from:'2026-10-11', to:'2026-10-18', who:'4 Athleten',    k:'L'},
+  {from:'2026-10-19', to:'2026-10-21', who:'Niklas, Sarah', k:'L'},
+  {from:'2026-10-24', to:'2026-10-30', who:'4 Athleten',    k:'T'},
+  {from:'2026-11-04', to:'2026-11-13', who:'4 Athleten',    k:'T'},
+  {from:'2027-03-22', to:'2027-03-22', who:'Niklas',        k:'U', note:'Osterunterricht'}
+];
+// 요일(1=Mo … 5=Fr) → [시작, 끝, 비고] 목록 또는 문자열(Praktikum 등)
+const _SCHUL_PLAN=[
+  {name:'Niklas Brandtner', short:'Niklas', days:{
+    1:[['08:00','12:55']],
+    2:[['08:00','14:15']],
+    3:[['08:00','12:55'],['14:15','15:40','Sportpraxis']],
+    4:[['08:00','14:15']],
+    5:[['08:00','12:55'],['14:15','15:40','W-Seminar']]}},
+  {name:'Nele Fröbus', short:'Nele', from:'2026-10-12', days:{
+    1:[['08:00','15:40']],
+    2:[['08:00','15:40']],
+    3:[['08:00','14:15']],
+    4:'Praktikum',
+    5:'Praktikum'}}
+];
+function _schulDay(sp, ds){
+  if(sp.from && ds<sp.from) return null;
+  const wd=new Date(ds+'T00:00:00').getDay();
+  if(wd===0||wd===6) return null;
+  return sp.days[wd]||null;
+}
+function _schulFmt(v){
+  if(!v) return '–';
+  if(typeof v==='string') return v;
+  return v.map(r=>`${r[0]}–${r[1]}${r[2]?' '+r[2]:''}`).join(' · ');
+}
+function _schulDateStr(ds){
+  const d=new Date(ds+'T00:00:00');
+  const y=d.getFullYear()!==new Date(todayStr()+'T00:00:00').getFullYear()?String(d.getFullYear()).slice(2):'';
+  return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${y}`;
 }
 
 // ── Training structure (3-tier hierarchy) ───────
@@ -5069,15 +5120,17 @@ function _updateSprintCalc(i){
 }
 
 // ── Previous performance lookup (참고용 힌트 — 다음 주기화 사이클에서 지난 기록 보기) ──
+// 종목명 오타 별칭: 옛 로그의 'Real Leg Elevated'를 'Rear Leg Elevated'와 같은 종목으로 본다(2026-09-24)
+const _exAlias=n=>String(n||'').replace(/Real Leg Elevated/g,'Rear Leg Elevated');
 function _prevWeightPerf(exName){
   if(!ST.athlete||!exName) return null;
   const d=getData();
   const tgt=ST._logDate||todayStr();
   const logs=(d.logs||[])
-    .filter(l=>l.athleteName===ST.athlete.name&&(l.type==='weight'||l.type==='plyo')&&l.date<tgt&&(l.exercises||[]).some(e=>e.name===exName))
+    .filter(l=>l.athleteName===ST.athlete.name&&(l.type==='weight'||l.type==='plyo')&&l.date<tgt&&(l.exercises||[]).some(e=>_exAlias(e.name)===_exAlias(exName)))
     .sort((a,b)=>b.date.localeCompare(a.date));
   if(!logs.length) return null;
-  const e=logs[0].exercises.find(x=>x.name===exName);
+  const e=logs[0].exercises.find(x=>_exAlias(x.name)===_exAlias(exName));
   let rows;
   if(e.setRows&&e.setRows.length){
     rows=e.setRows.map(r=>({kg:e.isBodyweight?(r.extraKg?'+'+r.extraKg:'BW'):(r.kg||''),reps:r.reps||''}));
@@ -6291,6 +6344,62 @@ function _renderUrlaub(){
   wrap.innerHTML=h;
 }
 
+function _renderSchule(){
+  const wrap=document.getElementById('today-schule'); if(!wrap) return;
+  const today=todayStr();
+  const lbl='font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.6px;text-transform:uppercase';
+  const chip=(bg,bd,c,t)=>`<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:${bg};border:1px solid ${bd};color:${c};font-weight:700;white-space:nowrap">${t}</span>`;
+  const KC={T:['rgba(122,184,255,.12)','rgba(122,184,255,.35)','#7ab8ff'],L:['rgba(247,169,79,.12)','rgba(247,169,79,.35)','#f7a94f'],U:['rgba(255,255,255,.06)','rgba(255,255,255,.14)','var(--muted)']};
+  let h='', nToday=0;
+  // Heute
+  h+=`<div style="${lbl};margin-bottom:4px">Heute</div>`;
+  _SCHUL_PLAN.forEach(sp=>{
+    const v=_schulDay(sp,today);
+    let right;
+    if(sp.from && today<sp.from) right=`<span style="font-size:11px;color:var(--muted)">ab ${_schulDateStr(sp.from)}</span>`;
+    else if(!v) right=`<span style="font-size:11px;color:var(--muted)">kein Unterricht</span>`;
+    else { nToday++; right=typeof v==='string'?chip(...KC.L,v):`<span style="font-size:12px;font-weight:700;color:var(--text)">${_schulFmt(v)}</span>`; }
+    h+=`<div class="detail-card" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 12px;margin-bottom:5px">
+      <div style="font-size:13px;font-weight:700;color:var(--text)">${sp.short}</div><div style="text-align:right">${right}</div></div>`;
+  });
+  // Wochenplan
+  const wdT=new Date(today+'T00:00:00').getDay();
+  const DN=['','Mo','Di','Mi','Do','Fr'];
+  h+=`<div style="${lbl};margin:12px 0 4px">Stundenplan</div>`;
+  h+=`<div class="detail-card" style="padding:6px 8px;margin-bottom:5px"><table style="width:100%;border-collapse:collapse;font-size:11px">`;
+  h+=`<tr><td></td>${_SCHUL_PLAN.map(sp=>`<td style="padding:3px 4px;font-weight:700;color:var(--muted)">${sp.short}${sp.from?` <span style="font-weight:400">(ab ${_schulDateStr(sp.from)})</span>`:''}</td>`).join('')}</tr>`;
+  for(let i=1;i<=5;i++){
+    const on=i===wdT;
+    h+=`<tr style="border-top:1px solid rgba(255,255,255,.06);${on?'background:rgba(122,184,255,.08)':''}"><td style="padding:4px;font-weight:700;color:${on?'#7ab8ff':'var(--muted)'};width:26px">${DN[i]}</td>`;
+    _SCHUL_PLAN.forEach(sp=>{
+      const v=sp.days[i];
+      const cell=!v?'–':typeof v==='string'?`<span style="color:#f7a94f;font-weight:700">${v}</span>`:v.map(r=>`${r[0]}–${r[1]}${r[2]?` <span style="color:var(--muted)">${r[2]}</span>`:''}`).join('<br>');
+      h+=`<td style="padding:4px;color:var(--text);vertical-align:top;line-height:1.45">${cell}</td>`;
+    });
+    h+='</tr>';
+  }
+  h+='</table></div>';
+  // Freistellungen (laufend + kommend)
+  const abw=_SCHUL_ABW.filter(a=>a.to>=today).sort((a,b)=>a.from<b.from?-1:1);
+  if(abw.length){
+    h+=`<div style="${lbl};margin:12px 0 4px">Freistellungen</div>`;
+    abw.forEach(a=>{
+      const now=a.from<=today;
+      const range=a.from===a.to?_schulDateStr(a.from):`${_schulDateStr(a.from)} – ${_schulDateStr(a.to)}`;
+      const k=a.k==='U'?chip(...KC.U,a.note||'Unterricht'):chip(...KC[a.k],a.k);
+      h+=`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 12px;${now?'background:rgba(122,184,255,.08);border-radius:8px':''}">
+        <span style="font-size:12px;color:${now?'var(--text)':'var(--muted)'};font-weight:${now?700:400}">${range}${now?' · jetzt':''}</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--muted)">${a.who}</span>${k}</span>
+      </div>`;
+    });
+    h+=`<div style="margin-top:6px;padding:0 12px;font-size:10px;color:var(--muted)">T = ganztags vor Ort · L = ganztags auswärts</div>`;
+  }
+  const cnt=document.getElementById('today-sc-count');
+  if(cnt) cnt.textContent=nToday?`${nToday} heute`:'';
+  h+=`<div style="margin-top:10px;font-size:10px;color:var(--muted);font-style:italic">Referenz · Stand 2026.09.16. Änderungen im Code (_SCHUL_PLAN / _SCHUL_ABW) pflegen.</div>`;
+  wrap.innerHTML=h;
+}
+
 function renderToday(){
   const d=getData(); const today=todayStr();
   const tl=d.logs.filter(l=>l.date===today);
@@ -6486,6 +6595,7 @@ function renderToday(){
   }
 
   _renderUrlaub();
+  try{ _renderSchule(); }catch(e){ console.warn('schule',e); }
 
   const clw=document.getElementById('today-cond-list');
   clw.innerHTML=cl.length?cl.map(l=>`<div class="detail-card">

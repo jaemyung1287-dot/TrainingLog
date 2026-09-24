@@ -1114,7 +1114,12 @@ function _athMerge(id){
   const del=new Set(r.del||[]);
   const m=new Map();
   r.sub.forEach(l=>{if(l&&l.id!=null)m.set(l.id,l);});
-  athLogs[id]=[...m.values()].filter(l=>!del.has(l.id));
+  athLogs[id]=[...m.values()].filter(l=>!del.has(l.id)).map(_exAliasLog);
+}
+// 종목명 오타 별칭: 옛 로그의 'Real Leg Elevated'를 'Rear Leg Elevated'로 읽는다(원본 객체는 건드리지 않고 사본만, 2026-09-24)
+function _exAliasLog(l){
+  if(!l||!Array.isArray(l.exercises)||!l.exercises.some(e=>/Real Leg Elevated/.test(e&&e.name||'')))return l;
+  return {...l,exercises:l.exercises.map(e=>(e&&/Real Leg Elevated/.test(e.name||''))?{...e,name:e.name.replace(/Real Leg Elevated/g,'Rear Leg Elevated')}:e)};
 }
 function _renderSubErrBanner(){
   const bad=Object.keys(_athSubErr).filter(k=>_athSubErr[k]);
@@ -2250,7 +2255,7 @@ function _pushPinCards(scopeNames){
   return `<div class="lt-pin-wrap"><div class="lt-pin-bar"><span style="font-size:12px;font-weight:700">📌 Pinned sessions <span style="color:var(--hint);font-weight:400;font-size:11px">· ${_esc(_tr.z1Lbl)} ${_tr.z1Rng} · ${_esc(_tr.z2Lbl)} ${_tr.z2Rng}${_tr.confirmed?'':' (거리 미확정)'} · 차트 점 클릭으로 추가/제거 · 빨강 = best 대비 +0.10s 이상</span></span><button class="lt-clear" onclick="_ltClearPins()">Close all</button></div><div class="lt-pin-row">${cards}</div></div>`;
 }
 // ── Strength Progression: e1RM(Epley) 시리즈 ──
-const _PROG_LIFTS=[{n:'Squat',l:'Squat'},{n:'Deadlift',l:'Deadlift'},{n:'Romanian Deadlift',l:'RDL'},{n:'Bench Press',l:'Bench'},{n:'Power Clean',l:'Power Clean',top:true},{n:'Real Leg Elevated Squat w/DB',l:'Real Leg Squat'}];
+const _PROG_LIFTS=[{n:'Squat',l:'Squat'},{n:'Deadlift',l:'Deadlift'},{n:'Romanian Deadlift',l:'RDL'},{n:'Bench Press',l:'Bench'},{n:'Power Clean',l:'Power Clean',top:true},{n:'Rear Leg Elevated Squat w/DB',l:'Rear Leg Squat'}];
 function _epley(kg,reps){const r=Math.min(parseFloat(reps)||0,12);return kg*(1+r/30);}
 // Metrics 선택은 유지 — Progression과 동시 표시(2026-07-31)
 // Push ↔ Ice 를 오갈 땐 펼쳐 둔 세션 카드도 닫는다(날짜가 서로 다른 트랙이라 그대로 두면 빈 카드가 남는다)
